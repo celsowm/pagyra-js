@@ -52,6 +52,7 @@ export interface RenderHtmlOptions {
   pageWidth: number;
   pageHeight: number;
   margins: PageMarginsPx;
+  debug?: boolean;
 }
 
 export interface PageMarginsPx {
@@ -84,7 +85,7 @@ export interface PreparedRender {
 }
 
 export function prepareHtmlRender(options: RenderHtmlOptions): PreparedRender {
-  const { html, css, viewportWidth, viewportHeight, pageWidth, pageHeight, margins } = options;
+  const { html, css, viewportWidth, viewportHeight, pageWidth, pageHeight, margins, debug = false } = options;
   const { document } = parseHTML(html);
   const cssRules = buildCssRules(css);
 
@@ -101,7 +102,7 @@ export function prepareHtmlRender(options: RenderHtmlOptions): PreparedRender {
 
   layoutTree(rootLayout, { width: viewportWidth, height: viewportHeight });
   const renderTree = buildRenderTree(rootLayout);
-  offsetRenderTree(renderTree.root, margins.left, margins.top);
+  offsetRenderTree(renderTree.root, margins.left, margins.top, debug);
   const pageSize = {
     widthPt: pxToPt(pageWidth),
     heightPt: pxToPt(pageHeight),
@@ -109,10 +110,18 @@ export function prepareHtmlRender(options: RenderHtmlOptions): PreparedRender {
   return { layoutRoot: rootLayout, renderTree, pageSize };
 }
 
-function offsetRenderTree(root: RenderBox, dx: number, dy: number): void {
+function offsetRenderTree(root: RenderBox, dx: number, dy: number, debug: boolean): void {
   const stack: RenderBox[] = [root];
   while (stack.length > 0) {
     const box = stack.pop()!;
+    if (debug) {
+      console.log('box', {
+        x: box.contentBox.x,
+        y: box.contentBox.y,
+        width: box.contentBox.width,
+        height: box.contentBox.height,
+      });
+    }
     offsetRect(box.contentBox, dx, dy);
     offsetRect(box.paddingBox, dx, dy);
     offsetRect(box.borderBox, dx, dy);

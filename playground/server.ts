@@ -53,6 +53,7 @@ app.post("/render", async (req, res) => {
       pageWidth,
       pageHeight,
       margins: marginsPx,
+      debug: true,
     });
 
     res.setHeader("Content-Type", "application/pdf");
