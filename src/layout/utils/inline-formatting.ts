@@ -19,6 +19,7 @@ interface InlineMetrics {
   node: LayoutNode;
   contentWidth: number;
   contentHeight: number;
+  lineOffset: number;
   marginLeft: number;
   marginRight: number;
   marginTop: number;
@@ -104,6 +105,7 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
         continue;
       }
 
+      metrics.lineOffset = cursorX;
       lineItems.push(metrics);
       cursorX += metrics.outerWidth;
       lineHeight = Math.max(lineHeight, metrics.outerHeight, resolvedLineHeight(container.style));
@@ -181,6 +183,7 @@ function measureInlineNode(node: LayoutNode, containerWidth: number, context: La
     node,
     contentWidth,
     contentHeight,
+    lineOffset: 0,
     marginLeft,
     marginRight,
     marginTop,
@@ -200,7 +203,7 @@ function measureInlineNode(node: LayoutNode, containerWidth: number, context: La
 
 function placeInlineItem(item: InlineMetrics, lineStartX: number, lineTop: number): void {
   const { node } = item;
-  const contentX = lineStartX + item.marginLeft + item.borderLeft + item.paddingLeft;
+  const contentX = lineStartX + item.lineOffset + item.marginLeft + item.borderLeft + item.paddingLeft;
   const contentY = lineTop + item.marginTop + item.borderTop + item.paddingTop;
 
   const previousX = node.box.x;

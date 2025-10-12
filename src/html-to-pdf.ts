@@ -272,6 +272,7 @@ function defaultDisplayForTag(tag: string): Display {
     case "label":
     case "code":
     case "small":
+    case "time":
       return Display.Inline;
     case "flex":
     case "div":
