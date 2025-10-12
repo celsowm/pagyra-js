@@ -110,7 +110,8 @@ textarea:focus {
   color: #cbd5f5;
 }
 
-.control-group input {
+.control-group input,
+.control-group select {
   width: 120px;
   padding: 0.4rem 0.6rem;
   border-radius: 0.5rem;
@@ -120,7 +121,13 @@ textarea:focus {
   font-size: 0.95rem;
 }
 
-.control-group input:focus {
+.control-group select {
+  width: 240px;
+  cursor: pointer;
+}
+
+.control-group input:focus,
+.control-group select:focus {
   outline: 2px solid #38bdf8;
   outline-offset: 2px;
 }
