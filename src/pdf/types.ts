@@ -175,6 +175,8 @@ export interface DecorationCommand {
 }
 
 export interface RenderBox {
+  tagName?: string;
+  textContent?: string;
   id: string;
   kind: NodeKind;
   contentBox: Rect;

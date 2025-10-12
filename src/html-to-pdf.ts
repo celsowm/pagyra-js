@@ -116,6 +116,8 @@ function offsetRenderTree(root: RenderBox, dx: number, dy: number, debug: boolea
     const box = stack.pop()!;
     if (debug) {
       console.log('box', {
+        tagName: box.tagName,
+        textContent: box.textContent,
         x: box.contentBox.x,
         y: box.contentBox.y,
         width: box.contentBox.width,
@@ -200,7 +202,7 @@ function convertDomNode(node: Node, cssRules: CssRuleEntry[], parentStyle: Compu
     }
   }
 
-  return new LayoutNode(ownStyle, layoutChildren);
+  return new LayoutNode(ownStyle, layoutChildren, { tagName });
 }
 
 function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], parentStyle: ComputedStyle): ComputedStyle {

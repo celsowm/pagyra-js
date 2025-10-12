@@ -104,6 +104,8 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
 
   return {
     id,
+    tagName: node.tagName,
+    textContent: node.textContent,
     kind: mapNodeKind(node),
     contentBox,
     paddingBox,
