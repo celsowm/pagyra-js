@@ -5,30 +5,55 @@ export interface FloatRect {
   readonly inlineEnd: number;
 }
 
+interface RegisteredFloat {
+  readonly side: "left" | "right";
+  readonly rect: FloatRect;
+}
+
 export class FloatContext {
-  private readonly leftFloats: FloatRect[] = [];
-  private readonly rightFloats: FloatRect[] = [];
+  private readonly floats: RegisteredFloat[] = [];
 
   register(side: "left" | "right", rect: FloatRect): void {
-    const collection = side === "left" ? this.leftFloats : this.rightFloats;
-    collection.push(rect);
+    this.floats.push({ side, rect });
   }
 
-  occupiedWidth(side: "left" | "right", top: number, bottom: number): number {
-    const collection = side === "left" ? this.leftFloats : this.rightFloats;
+  bottom(side: "left" | "right"): number {
     let result = 0;
-    for (const rect of collection) {
-      if (rangesOverlap(rect.top, rect.bottom, top, bottom)) {
-        const width = rect.inlineEnd - rect.inlineStart;
-        result = Math.max(result, width);
+    for (const entry of this.floats) {
+      if (entry.side === side) {
+        result = Math.max(result, entry.rect.bottom);
       }
     }
     return result;
   }
 
-  bottom(side: "left" | "right"): number {
-    const collection = side === "left" ? this.leftFloats : this.rightFloats;
-    return collection.reduce((acc, rect) => Math.max(acc, rect.bottom), 0);
+  inlineOffsets(top: number, bottom: number, containingBlockWidth: number): { start: number; end: number } {
+    let leftOffset = 0;
+    let rightOffset = 0;
+    for (const { side, rect } of this.floats) {
+      if (!rangesOverlap(rect.top, rect.bottom, top, bottom)) {
+        continue;
+      }
+      if (side === "left") {
+        leftOffset = Math.max(leftOffset, rect.inlineEnd);
+      } else {
+        rightOffset = Math.max(rightOffset, containingBlockWidth - rect.inlineStart);
+      }
+    }
+    return {
+      start: leftOffset,
+      end: containingBlockWidth - rightOffset,
+    };
+  }
+
+  nextUnblockedY(top: number, bottom: number): number | null {
+    let candidate: number | null = null;
+    for (const { rect } of this.floats) {
+      if (rangesOverlap(rect.top, rect.bottom, top, bottom)) {
+        candidate = candidate === null ? rect.bottom : Math.min(candidate, rect.bottom);
+      }
+    }
+    return candidate;
   }
 }
 

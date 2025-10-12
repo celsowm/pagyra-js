@@ -1,5 +1,5 @@
 import { LayoutNode } from "../../dom/node.js";
-import { Display } from "../../css/enums.js";
+import { Display, FloatMode } from "../../css/enums.js";
 import type { LayoutContext, LayoutStrategy } from "../pipeline/strategy.js";
 import {
   containingBlock,
@@ -13,6 +13,9 @@ import {
 import { resolveLength } from "../../css/length.js";
 import { collapsedGapBetween } from "../utils/margin.js";
 import { finalizeOverflow } from "../utils/overflow.js";
+import { FloatContext } from "../context/float-context.js";
+import { clearForBlock, placeFloat } from "../utils/floats.js";
+import { layoutInlineFormattingContext } from "../utils/inline-formatting.js";
 
 export class BlockLayoutStrategy implements LayoutStrategy {
   private readonly supportedDisplays = new Set<Display>([Display.Block, Display.FlowRoot, Display.InlineBlock]);
@@ -37,17 +40,60 @@ export class BlockLayoutStrategy implements LayoutStrategy {
     const paddingTop = resolveLength(node.style.paddingTop, contentWidth, { auto: "zero" });
     const borderTop = resolveLength(node.style.borderTop, contentWidth, { auto: "zero" });
 
+    const contentX = node.box.x + borderLeft + paddingLeft;
     let cursorY = cb.y + paddingTop + borderTop;
     let previousBottomMargin = 0;
+    const floatContext = new FloatContext();
+    const children = node.children;
 
-    for (const child of node.children) {
+    for (let index = 0; index < children.length; index++) {
+      const child = children[index];
       if (child.style.display === Display.None) {
         continue;
       }
 
-      // Float handling is not yet implemented. For now, we treat floats as normal flow items.
+      if (child.style.float !== FloatMode.None) {
+        cursorY = clearForBlock(child, floatContext, cursorY);
+        placeFloat({
+          node: child,
+          floatContext,
+          context,
+          contentX,
+          contentWidth,
+          startY: cursorY,
+        });
+        previousBottomMargin = 0;
+        continue;
+      }
 
       if (!inFlow(child)) {
+        continue;
+      }
+
+      if (isInlineLevel(child)) {
+        const inlineNodes: LayoutNode[] = [child];
+        let lookahead = index + 1;
+        while (lookahead < children.length) {
+          const candidate = children[lookahead];
+          if (candidate.style.float !== FloatMode.None || !isInlineLevel(candidate)) {
+            break;
+          }
+          inlineNodes.push(candidate);
+          lookahead += 1;
+        }
+
+        const result = layoutInlineFormattingContext({
+          container: node,
+          inlineNodes,
+          context,
+          floatContext,
+          contentX,
+          contentWidth,
+          startY: cursorY,
+        });
+        cursorY = result.newCursorY;
+        previousBottomMargin = 0;
+        index = lookahead - 1;
         continue;
       }
 
@@ -61,7 +107,7 @@ export class BlockLayoutStrategy implements LayoutStrategy {
       const childMarginBottom = resolveLength(child.style.marginBottom, contentWidth, { auto: "zero" });
       const childNonContentVertical = verticalNonContent(child, contentWidth);
 
-      const originX = node.box.x + borderLeft + paddingLeft + childMarginLeft;
+      const originX = contentX + childMarginLeft;
 
       child.box.x = originX;
       child.box.y = cursorY;
@@ -71,7 +117,12 @@ export class BlockLayoutStrategy implements LayoutStrategy {
       cursorY = child.box.y + child.box.borderBoxHeight + childMarginBottom;
     }
 
-    node.box.contentHeight = Math.max(0, cursorY - (cb.y + borderTop) - paddingTop);
+    const floatBottom = Math.max(floatContext.bottom("left"), floatContext.bottom("right"));
+    const effectiveCursor = Math.max(cursorY, floatBottom);
+    node.box.contentHeight = Math.max(0, effectiveCursor - (cb.y + borderTop) - paddingTop);
+    if (node.style.height !== "auto") {
+      node.box.contentHeight = resolveLength(node.style.height, cb.height, { auto: "zero" });
+    }
     const verticalExtras = verticalNonContent(node, contentWidth);
     node.box.borderBoxHeight = node.box.contentHeight + verticalExtras;
     node.box.marginBoxHeight =
@@ -80,5 +131,18 @@ export class BlockLayoutStrategy implements LayoutStrategy {
       resolveLength(node.style.marginBottom, contentWidth, { auto: "zero" });
 
     finalizeOverflow(node);
+  }
+}
+
+function isInlineLevel(node: LayoutNode): boolean {
+  switch (node.style.display) {
+    case Display.Inline:
+    case Display.InlineBlock:
+    case Display.InlineFlex:
+    case Display.InlineGrid:
+    case Display.InlineTable:
+      return true;
+    default:
+      return false;
   }
 }

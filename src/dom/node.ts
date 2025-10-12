@@ -5,6 +5,11 @@ export interface NodeVisitor {
   (node: LayoutNode): void;
 }
 
+export interface LayoutNodeOptions {
+  intrinsicInlineSize?: number;
+  intrinsicBlockSize?: number;
+}
+
 export class LayoutNode {
   readonly box = new Box();
   parent: LayoutNode | null = null;
@@ -16,7 +21,12 @@ export class LayoutNode {
   establishesGFC = false;
   establishesTFC = false;
 
-  constructor(public readonly style: ComputedStyle, children: Iterable<LayoutNode> = []) {
+  intrinsicInlineSize?: number;
+  intrinsicBlockSize?: number;
+
+  constructor(public readonly style: ComputedStyle, children: Iterable<LayoutNode> = [], options?: LayoutNodeOptions) {
+    this.intrinsicInlineSize = options?.intrinsicInlineSize;
+    this.intrinsicBlockSize = options?.intrinsicBlockSize;
     for (const child of children) {
       this.appendChild(child);
     }

@@ -273,3 +273,13 @@ export class ComputedStyle implements StyleProperties {
     this.orphans = data.orphans;
   }
 }
+
+export function resolvedLineHeight(style: ComputedStyle): number {
+  if (style.lineHeight <= 0) {
+    return style.fontSize * 1.2;
+  }
+  if (style.lineHeight > 0 && style.lineHeight <= 10) {
+    return style.lineHeight * style.fontSize;
+  }
+  return style.lineHeight;
+}
