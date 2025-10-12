@@ -2,6 +2,7 @@ import type { Rect, Run, RenderBox, RGBA } from "./types.js";
 import type { FontRegistry, FontResource } from "./font/font-registry.js";
 import type { PdfObjectRef } from "./primitives/pdf-document.js";
 import { encodeAndEscapePdfText } from "./utils/encoding.js";
+import { log } from "../debug/log.js";
 
 export interface PainterResult {
   readonly content: string;
@@ -46,8 +47,22 @@ export class PagePainter {
     const xPt = this.pxToPt(xPx);
     const yPt = this.pageHeightPt - this.pxToPt(yPx);
     const color = options.color ?? { r: 0, g: 0, b: 0, a: 1 };
+    const before = text;
     const escaped = encodeAndEscapePdfText(text);
     const baselineAdjust = options.fontSizePt;
+
+    log("PAINT","TRACE","drawText(content)", {
+      before: before.length > 60 ? before.slice(0, 57) + "..." : before,
+      encoded: escaped.length > 60 ? escaped.slice(0, 57) + "..." : escaped,
+      font: font.baseFont, size: options.fontSizePt
+    });
+
+    log("PAINT","DEBUG","drawing text", {
+      text: text.slice(0, 32),
+      fontName: font.baseFont,
+      fontSizePt: options.fontSizePt,
+      xPt, yPt
+    });
 
     this.commands.push(
       fillColorCommand(color),
@@ -62,11 +77,26 @@ export class PagePainter {
   async drawTextRun(run: Run): Promise<void> {
     const font = await this.ensureFont({ fontFamily: run.fontFamily });
     const color = run.fill ?? { r: 0, g: 0, b: 0, a: 1 };
+    const before = run.text;
     const escaped = encodeAndEscapePdfText(run.text);
     const Tm = run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
     const fontSizePt = this.pxToPt(run.fontSize);
     const y = this.pageHeightPt - this.pxToPt(Tm.f);
     const x = this.pxToPt(Tm.e);
+
+    log("PAINT","TRACE","drawText(content)", {
+      before: before.length > 60 ? before.slice(0, 57) + "..." : before,
+      encoded: escaped.length > 60 ? escaped.slice(0, 57) + "..." : escaped,
+      font: font.baseFont, size: fontSizePt
+    });
+
+    log("PAINT","DEBUG","drawing text run", {
+      text: run.text.slice(0, 32),
+      fontName: font.baseFont,
+      fontSizePt,
+      Tm,
+      x, y
+    });
 
     this.commands.push(
       fillColorCommand(color),

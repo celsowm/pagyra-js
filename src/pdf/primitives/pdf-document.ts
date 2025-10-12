@@ -1,5 +1,6 @@
 import type { PdfMetadata } from "../types.js";
 import { encodeAndEscapePdfText } from "../utils/encoding.js";
+import { log } from "../../debug/log.js";
 
 interface PdfFontResource {
   name: string;
@@ -181,11 +182,32 @@ function serializeStream(content: string): string {
 
 function serializeInfo(meta: PdfMetadata): string {
   const entries: string[] = [];
-  if (meta.title) entries.push(`/Title (${encodeAndEscapePdfText(meta.title)})`);
-  if (meta.author) entries.push(`/Author (${encodeAndEscapePdfText(meta.author)})`);
-  if (meta.subject) entries.push(`/Subject (${encodeAndEscapePdfText(meta.subject)})`);
-  if (meta.keywords?.length) entries.push(`/Keywords (${encodeAndEscapePdfText(meta.keywords.join(", "))})`);
-  if (meta.producer) entries.push(`/Producer (${encodeAndEscapePdfText(meta.producer)})`);
+  if (meta.title) {
+    const encoded = encodeAndEscapePdfText(meta.title);
+    log("PDF","DEBUG","serializing metadata title", { title: meta.title.slice(0, 50), encoded });
+    entries.push(`/Title (${encoded})`);
+  }
+  if (meta.author) {
+    const encoded = encodeAndEscapePdfText(meta.author);
+    log("PDF","DEBUG","serializing metadata author", { author: meta.author.slice(0, 50), encoded });
+    entries.push(`/Author (${encoded})`);
+  }
+  if (meta.subject) {
+    const encoded = encodeAndEscapePdfText(meta.subject);
+    log("PDF","DEBUG","serializing metadata subject", { subject: meta.subject.slice(0, 50), encoded });
+    entries.push(`/Subject (${encoded})`);
+  }
+  if (meta.keywords?.length) {
+    const keywordsText = meta.keywords.join(", ");
+    const encoded = encodeAndEscapePdfText(keywordsText);
+    log("PDF","DEBUG","serializing metadata keywords", { keywords: keywordsText.slice(0, 50), encoded });
+    entries.push(`/Keywords (${encoded})`);
+  }
+  if (meta.producer) {
+    const encoded = encodeAndEscapePdfText(meta.producer);
+    log("PDF","DEBUG","serializing metadata producer", { producer: meta.producer.slice(0, 50), encoded });
+    entries.push(`/Producer (${encoded})`);
+  }
   return `<< ${entries.join(" ")} >>`;
 }
 

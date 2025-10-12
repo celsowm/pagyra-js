@@ -53,8 +53,10 @@ const UNICODE_TO_WIN_ANSI = (() => {
   return map;
 })();
 
+import { log } from "../../debug/log.js";
+
 export function encodeToWinAnsi(text: string): string {
-  let result = "";
+  let result = "", misses = 0, details: number[] = [];
   for (const char of text) {
     const codePoint = char.codePointAt(0);
     if (codePoint === undefined) {
@@ -62,11 +64,14 @@ export function encodeToWinAnsi(text: string): string {
     }
     const byte = UNICODE_TO_WIN_ANSI.get(codePoint);
     if (byte === undefined) {
+      misses++;
+      details.push(codePoint);
       result += "?";
       continue;
     }
     result += String.fromCharCode(byte);
   }
+  if (misses) log("ENCODING","DEBUG","WinAnsi misses", { misses, codepoints: details.slice(0,20) });
   return result;
 }
 
@@ -75,5 +80,8 @@ export function escapePdfLiteral(text: string): string {
 }
 
 export function encodeAndEscapePdfText(text: string): string {
-  return escapePdfLiteral(encodeToWinAnsi(text));
+  const before = text;
+  const encoded = encodeToWinAnsi(text);
+  log("ENCODING","TRACE","PdfText transformation", { before, after: encoded });
+  return escapePdfLiteral(encoded);
 }

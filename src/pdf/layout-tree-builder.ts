@@ -2,6 +2,8 @@ import { FloatMode, OverflowMode, Position } from "../css/enums.js";
 import type { ComputedStyle } from "../css/style.js";
 import { LayoutNode } from "../dom/node.js";
 import { resolveLength } from "../css/length.js";
+import { log, preview } from "../debug/log.js";
+import { auditRuns } from "../debug/audit.js";
 import {
   type LayoutTree,
   type RenderBox,
@@ -102,6 +104,14 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
   const textColor = parseColor(node.style.color);
   const textRuns = node.textContent ? createTextRuns(node, textColor) : [];
 
+  log("RENDER_TREE","DEBUG","node converted", {
+    tagName: node.tagName,
+    textContent: node.textContent?.slice(0, 40),
+    fontFamily: node.style.fontFamily,
+    fontSize: node.style.fontSize,
+    contentBox,
+  });
+
   return {
     id,
     tagName: node.tagName,
@@ -181,16 +191,44 @@ function createTextRuns(node: LayoutNode, color: RGBA | undefined): Run[] {
   if (!node.textContent) {
     return [];
   }
+
+  log("PARSE","TRACE","TEXT(raw)", {
+    sample: node.textContent.slice(0, 120),
+    cps: Array.from(node.textContent).map(c => c.codePointAt(0)!.toString(16))
+  });
+
   const baseline = node.box.baseline > 0 ? node.box.baseline : node.box.y + node.box.contentHeight;
-  return [
-    {
-      text: node.textContent,
-      fontFamily: node.style.fontFamily ?? "sans-serif",
-      fontSize: node.style.fontSize,
-      fill: color ?? DEFAULT_TEXT_COLOR,
-      lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: node.box.x, f: baseline },
-    },
-  ];
+  const runs = groupByFace(node.textContent, node.style.fontFamily ?? "sans-serif", color ?? DEFAULT_TEXT_COLOR, baseline, node.style.fontSize);
+
+  for (const r of runs) {
+    log("RENDER_TREE","DEBUG","text run created+", {
+      text: r.text.length > 60 ? r.text.slice(0, 57) + "..." : r.text,
+      length: [...r.text].length,
+      face: (r as any).face || "standard",
+      fontFamilyCss: r.fontFamily,
+      fontSize: r.fontSize,
+      baseline: baseline
+    });
+  }
+
+  auditRuns(runs.map(r => ({
+    text: r.text,
+    face: (r as any).face || "standard"
+  })));
+
+  return runs;
+}
+
+function groupByFace(text: string, fontFamily: string, color: RGBA, baseline: number, fontSize: number): Run[] {
+  // Simplified implementation - in a full system this would resolve glyph fonts
+  // For now, we create single runs to maintain compatibility
+  return [{
+    text,
+    fontFamily,
+    fontSize,
+    fill: color,
+    lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: 0, f: baseline },
+  }];
 }
 
 function parseColor(value: string | undefined): RGBA | undefined {

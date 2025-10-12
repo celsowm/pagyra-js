@@ -14,6 +14,8 @@ type CssDeclaration = cssParser.Declaration;
 type CssRule = cssParser.Rule;
 type DomElement = any;
 
+import { configureDebug, log, type LogCat, type LogLevel } from "./debug/log.js";
+
 interface CssRuleEntry {
   match: (element: DomElement) => boolean;
   declarations: Record<string, string>;
@@ -55,6 +57,8 @@ export interface RenderHtmlOptions {
   pageHeight: number;
   margins: PageMarginsPx;
   debug?: boolean;
+  debugLevel?: LogLevel;
+  debugCats?: LogCat[];
   fontConfig?: FontConfig;
 }
 
@@ -88,9 +92,22 @@ export interface PreparedRender {
 }
 
 export function prepareHtmlRender(options: RenderHtmlOptions): PreparedRender {
-  const { html, css, viewportWidth, viewportHeight, pageWidth, pageHeight, margins, debug = false } = options;
+  const { html, css, viewportWidth, viewportHeight, pageWidth, pageHeight, margins, debug = false, debugLevel, debugCats } = options;
+
+  // Configure debugging backward compatibility: debug=true => DEBUG level with RENDER_TREE category
+  if (debugLevel || debugCats) {
+    configureDebug(debugLevel ?? (debug ? "DEBUG" : "INFO"), debugCats ?? (debug ? ["RENDER_TREE"] : []));
+  } else if (debug) {
+    configureDebug("DEBUG", ["RENDER_TREE"]);
+  }
+
   const { document } = parseHTML(html);
+  log("PARSE","DEBUG","DOM parsed", {
+    hasBody: !!document.body,
+    childNodes: document.body?.childNodes?.length ?? 0
+  });
   const cssRules = buildCssRules(css);
+  log("PARSE","DEBUG","CSS rules", { count: cssRules.length });
 
   const rootLayout = new LayoutNode(new ComputedStyle());
   const parentStyle = new ComputedStyle();
@@ -104,6 +121,11 @@ export function prepareHtmlRender(options: RenderHtmlOptions): PreparedRender {
   }
 
   layoutTree(rootLayout, { width: viewportWidth, height: viewportHeight });
+  log("LAYOUT","DEBUG","layout complete", {
+    rootWidth: rootLayout.box.contentWidth,
+    rootHeight: rootLayout.box.contentHeight,
+    children: rootLayout.children.length
+  });
   const renderTree = buildRenderTree(rootLayout);
   offsetRenderTree(renderTree.root, margins.left, margins.top, debug);
   const pageSize = {
@@ -117,16 +139,14 @@ function offsetRenderTree(root: RenderBox, dx: number, dy: number, debug: boolea
   const stack: RenderBox[] = [root];
   while (stack.length > 0) {
     const box = stack.pop()!;
-    if (debug) {
-      console.log('box', {
-        tagName: box.tagName,
-        textContent: box.textContent,
-        x: box.contentBox.x,
-        y: box.contentBox.y,
-        width: box.contentBox.width,
-        height: box.contentBox.height,
-      });
-    }
+    log("RENDER_TREE","TRACE",'offset render tree box', {
+      tagName: box.tagName,
+      textContent: box.textContent,
+      x: box.contentBox.x,
+      y: box.contentBox.y,
+      width: box.contentBox.width,
+      height: box.contentBox.height,
+    });
     offsetRect(box.contentBox, dx, dy);
     offsetRect(box.paddingBox, dx, dy);
     offsetRect(box.borderBox, dx, dy);
@@ -159,8 +179,14 @@ function offsetRect(rect: Rect | null | undefined, dx: number, dy: number): void
 
 function convertDomNode(node: Node, cssRules: CssRuleEntry[], parentStyle: ComputedStyle): LayoutNode | null {
   if (node.nodeType === node.TEXT_NODE) {
-    const rawText = node.textContent ?? "";
-    const collapsed = rawText.replace(/\s+/g, " ");
+    const raw = node.textContent ?? "";
+    log("PARSE","TRACE","TEXT raw", {
+      sample: raw.slice(0, 80),
+      nfc: raw.normalize("NFC") !== raw,
+      nfd: raw.normalize("NFD") !== raw,
+      codepoints: Array.from(raw).slice(0,40).map(c=>c.codePointAt(0)?.toString(16))
+    });
+    const collapsed = raw.replace(/\s+/g, " ");
     const text = collapsed.trim();
     if (!text) {
       return null;
@@ -221,11 +247,15 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
 
   for (const rule of cssRules) {
     if (rule.match(element)) {
+      log("STYLE","DEBUG","CSS rule matched", { selector: (rule as any).selector, declarations: rule.declarations });
       Object.assign(aggregated, rule.declarations);
     }
   }
 
   const inlineStyle = parseInlineStyle(element.getAttribute("style") ?? "");
+  if (Object.keys(inlineStyle).length > 0) {
+    log("STYLE","DEBUG","inline style applied", { declarations: inlineStyle });
+  }
   Object.assign(aggregated, inlineStyle);
 
   applyDeclarationsToStyle(aggregated, styleInit);

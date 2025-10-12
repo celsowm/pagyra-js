@@ -60,7 +60,8 @@ app.post("/render", async (req, res) => {
       pageWidth,
       pageHeight,
       margins: marginsPx,
-      debug: true,
+      debugLevel: "TRACE" as const,
+      debugCats: ["PARSE","STYLE","RENDER_TREE","ENCODING","FONT","PAINT"] as const,
     });
 
     res.setHeader("Content-Type", "application/pdf");

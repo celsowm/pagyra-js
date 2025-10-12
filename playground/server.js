@@ -1,7 +1,7 @@
 import express from "express";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { renderHtmlToPdf, DEFAULT_PAGE_WIDTH_PX, DEFAULT_PAGE_HEIGHT_PX, resolvePageMarginsPx, sanitizeDimension, maxContentDimension, } from "../src/index.js";
+import { renderHtmlToPdf, DEFAULT_PAGE_WIDTH_PX, DEFAULT_PAGE_HEIGHT_PX, resolvePageMarginsPx, sanitizeDimension, maxContentDimension, } from "../src/html-to-pdf.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -29,7 +29,7 @@ app.post("/render", async (req, res) => {
         const maxContentHeight = maxContentDimension(pageHeight, marginsPx.top + marginsPx.bottom);
         const viewportWidth = Math.min(sanitizeDimension(body.viewportWidth, maxContentWidth), maxContentWidth);
         const viewportHeight = Math.min(sanitizeDimension(body.viewportHeight, maxContentHeight), maxContentHeight);
-        const pdfBytes = renderHtmlToPdf({
+        const pdfBytes = await renderHtmlToPdf({
             html: htmlInput,
             css: cssInput,
             viewportWidth,

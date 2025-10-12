@@ -1,6 +1,7 @@
 import type { PdfObjectRef } from "../primitives/pdf-document.js";
 import { parseTtfFont } from "./ttf-lite.js";
 import type { FontFaceDef, FontConfig, TtfFontMetrics } from "../../types/fonts.js";
+import { log } from "../../debug/log.js";
 
 export interface EmbeddedFont {
   readonly resourceName: string;
@@ -87,6 +88,8 @@ export class FontEmbedder {
   private embedFont(face: FontFaceDef): EmbeddedFont | null {
     const metrics = this.faceMetrics.get(face.name);
     if (!metrics) return null;
+
+    log("FONT","DEBUG","embedding font", { face, glyphCount: metrics.glyphMetrics.size });
 
     // Create font subset (simplified - just the full TTF for now)
     const fullFontData = this.loadFontData(face.src);

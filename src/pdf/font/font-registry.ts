@@ -2,6 +2,7 @@ import type { CSSFontFace, Run, StyleSheets } from "../types.js";
 import { PdfDocument, type PdfObjectRef } from "../primitives/pdf-document.js";
 import type { FontConfig } from "../../types/fonts.js";
 import { FontEmbedder } from "./embedder.js";
+import { log } from "../../debug/log.js";
 
 const DEFAULT_FONT = "Helvetica";
 
@@ -126,11 +127,13 @@ export class FontRegistry {
     this.fontConfig = fontConfig;
     this.embedder = new FontEmbedder(fontConfig, this.doc);
     await this.embedder.initialize();
+    log("FONT","DEBUG","embedder initialized", { fontConfig });
   }
 
   setFontConfig(fontConfig: FontConfig): void {
     this.fontConfig = fontConfig;
     this.embedder = new FontEmbedder(fontConfig, this.doc);
+    log("FONT","DEBUG","font config set", { fontConfig });
   }
 }
 
