@@ -14,5 +14,10 @@
     "id": "accents-test",
     "label": "Accents Test (pt-BR)",
     "htmlUrl": "examples/accents-test.html"
+  },
+  {
+    "id": "lorem-span",
+    "label": "Span Lorem Ipsum Test",
+    "htmlUrl": "examples/lorem-span.html"
   }
 ]
