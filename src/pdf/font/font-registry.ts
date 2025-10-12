@@ -10,6 +10,7 @@ export interface FontResource {
   readonly baseFont: string;
   readonly resourceName: string;
   readonly ref: PdfObjectRef;
+  readonly isBase14: boolean;
 }
 
 export class FontRegistry {
@@ -38,10 +39,11 @@ export class FontRegistry {
       const familyStack = family ? parseFamilyList(family) : this.fontConfig.defaultStack;
       const embedded = this.embedder.ensureFont(familyStack);
       if (embedded) {
-        const resource = {
+        const resource: FontResource = {
           baseFont: embedded.baseFont,
           resourceName: embedded.resourceName,
-          ref: embedded.ref
+          ref: embedded.ref,
+          isBase14: false
         };
         this.fontsByFamily.set(family || 'default', resource);
         return resource;
@@ -118,7 +120,8 @@ export class FontRegistry {
     }
     const ref = this.doc.registerStandardFont(baseFont);
     const alias = `F${this.aliasCounter++}`;
-    const resource: FontResource = { baseFont, resourceName: alias, ref };
+    const isBase14 = ["Helvetica", "Times-Roman", "Courier", "Symbol", "ZapfDingbats"].includes(baseFont);
+    const resource: FontResource = { baseFont, resourceName: alias, ref, isBase14 };
     this.fontsByBaseFont.set(baseFont, resource);
     return resource;
   }
@@ -142,11 +145,25 @@ export function initFontSystem(doc: PdfDocument, stylesheets: StyleSheets): Font
 }
 
 export async function ensureFontSubset(registry: FontRegistry, run: Run): Promise<FontResource> {
-  return registry.ensureFontResource(run.fontFamily);
+  const font = await registry.ensureFontResource(run.fontFamily);
+  // === diagnóstico cirúrgico: caminho de fonte ===
+  log("FONT", "INFO", "font-path", {
+    base14: font.isBase14 === true,
+    family: font.baseFont,
+    encoding: font.isBase14 ? "WinAnsi" : "Identity-H"
+  });
+  return font;
 }
 
 export function ensureFontSubsetSync(registry: FontRegistry, run: Run): FontResource {
-  return registry.ensureFontResourceSync(run.fontFamily);
+  const font = registry.ensureFontResourceSync(run.fontFamily);
+  // === diagnóstico cirúrgico: caminho de fonte ===
+  log("FONT", "INFO", "font-path", {
+    base14: font.isBase14 === true,
+    family: font.baseFont,
+    encoding: font.isBase14 ? "WinAnsi" : "Identity-H"
+  });
+  return font;
 }
 
 export function finalizeFontSubsets(_registry: FontRegistry): void {

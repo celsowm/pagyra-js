@@ -51,6 +51,12 @@ export class PagePainter {
     const escaped = encodeAndEscapePdfText(text);
     const baselineAdjust = options.fontSizePt;
 
+    // === diagnóstico cirúrgico: caminho de encoding ===
+    log("ENCODING", "INFO", "encoding-path", {
+      scheme: font.isBase14 ? "WinAnsi" : "Identity-H",
+      font: font.baseFont
+    });
+
     log("PAINT","TRACE","drawText(content)", {
       before: before.length > 60 ? before.slice(0, 57) + "..." : before,
       encoded: escaped.length > 60 ? escaped.slice(0, 57) + "..." : escaped,
@@ -83,6 +89,12 @@ export class PagePainter {
     const fontSizePt = this.pxToPt(run.fontSize);
     const y = this.pageHeightPt - this.pxToPt(Tm.f);
     const x = this.pxToPt(Tm.e);
+
+    // === diagnóstico cirúrgico: caminho de encoding ===
+    log("ENCODING", "INFO", "encoding-path", {
+      scheme: font.isBase14 ? "WinAnsi" : "Identity-H",
+      font: font.baseFont
+    });
 
     log("PAINT","TRACE","drawText(content)", {
       before: before.length > 60 ? before.slice(0, 57) + "..." : before,
