@@ -1,5 +1,5 @@
 import { LayoutNode } from "../../dom/node.js";
-import { Display } from "../../css/enums.js";
+import { Display, FloatMode } from "../../css/enums.js";
 import { resolvedLineHeight } from "../../css/style.js";
 import { resolveLength } from "../../css/length.js";
 import { FloatContext } from "../context/float-context.js";
@@ -128,7 +128,14 @@ function measureInlineNode(node: LayoutNode, containerWidth: number, context: La
   const marginTop = resolveLength(node.style.marginTop, containerWidth, { auto: "zero" });
   const marginBottom = resolveLength(node.style.marginBottom, containerWidth, { auto: "zero" });
 
+  const inlineChildrenResult = layoutInlineChildrenIfNeeded(node, containerWidth, context);
+
   let contentWidth = node.box.contentWidth;
+  let contentHeight = node.box.contentHeight;
+  if (inlineChildrenResult) {
+    contentWidth = Math.max(contentWidth, inlineChildrenResult.contentWidth);
+    contentHeight = Math.max(contentHeight, inlineChildrenResult.contentHeight);
+  }
   if (contentWidth === 0) {
     if (typeof node.style.width === "number") {
       contentWidth = node.style.width;
@@ -141,7 +148,6 @@ function measureInlineNode(node: LayoutNode, containerWidth: number, context: La
     }
   }
 
-  let contentHeight = node.box.contentHeight;
   if (contentHeight === 0) {
     if (node.style.height !== "auto") {
       contentHeight = resolveLength(node.style.height, containerWidth, { auto: "zero" });
@@ -197,7 +203,138 @@ function placeInlineItem(item: InlineMetrics, lineStartX: number, lineTop: numbe
   const contentX = lineStartX + item.marginLeft + item.borderLeft + item.paddingLeft;
   const contentY = lineTop + item.marginTop + item.borderTop + item.paddingTop;
 
+  const previousX = node.box.x;
+  const previousY = node.box.y;
+
   node.box.x = contentX;
   node.box.y = contentY;
   node.box.baseline = contentY + item.contentHeight;
+
+  const deltaX = node.box.x - previousX;
+  const deltaY = node.box.y - previousY;
+  if (deltaX !== 0 || deltaY !== 0) {
+    offsetInlineDescendants(node, deltaX, deltaY);
+  }
+}
+
+function layoutInlineChildrenIfNeeded(
+  node: LayoutNode,
+  containerWidth: number,
+  context: LayoutContext,
+): { contentWidth: number; contentHeight: number } | null {
+  if (!shouldLayoutInlineChildren(node)) {
+    return null;
+  }
+
+  const inlineChildren = collectInlineParticipants(node);
+  if (inlineChildren.length === 0) {
+    return null;
+  }
+
+  const savedX = node.box.x;
+  const savedY = node.box.y;
+  node.box.x = 0;
+  node.box.y = 0;
+
+  for (const child of inlineChildren) {
+    child.box.x = 0;
+    child.box.y = 0;
+  }
+
+  const localFloatContext = new FloatContext();
+  const result = layoutInlineFormattingContext({
+    container: node,
+    inlineNodes: inlineChildren,
+    context,
+    floatContext: localFloatContext,
+    contentX: 0,
+    contentWidth: Math.max(containerWidth, 0),
+    startY: 0,
+  });
+
+  const floatBottom = Math.max(localFloatContext.bottom("left"), localFloatContext.bottom("right"));
+  const contentHeight = Math.max(result.newCursorY, floatBottom);
+
+  let maxInlineEnd = 0;
+  for (const child of inlineChildren) {
+    const extent = inlineExtentWithinContainer(child, containerWidth);
+    maxInlineEnd = Math.max(maxInlineEnd, extent.end);
+  }
+
+  node.box.x = savedX;
+  node.box.y = savedY;
+
+  return {
+    contentWidth: Math.max(0, maxInlineEnd),
+    contentHeight: Math.max(0, contentHeight),
+  };
+}
+
+function shouldLayoutInlineChildren(node: LayoutNode): boolean {
+  if (node.children.length === 0) {
+    return false;
+  }
+  if (node.style.display !== Display.Inline) {
+    return false;
+  }
+  return true;
+}
+
+function collectInlineParticipants(node: LayoutNode): LayoutNode[] {
+  const participants: LayoutNode[] = [];
+  for (const child of node.children) {
+    if (child.style.display === Display.None) {
+      continue;
+    }
+    if (child.style.float !== FloatMode.None) {
+      continue;
+    }
+    if (!isInlineDisplay(child.style.display)) {
+      continue;
+    }
+    participants.push(child);
+  }
+  return participants;
+}
+
+function isInlineDisplay(display: Display): boolean {
+  switch (display) {
+    case Display.Inline:
+    case Display.InlineBlock:
+    case Display.InlineFlex:
+    case Display.InlineGrid:
+    case Display.InlineTable:
+      return true;
+    default:
+      return false;
+  }
+}
+
+function inlineExtentWithinContainer(node: LayoutNode, referenceWidth: number): { start: number; end: number } {
+  const marginLeft = resolveLength(node.style.marginLeft, referenceWidth, { auto: "zero" });
+  const marginRight = resolveLength(node.style.marginRight, referenceWidth, { auto: "zero" });
+  const paddingLeft = resolveLength(node.style.paddingLeft, referenceWidth, { auto: "zero" });
+  const paddingRight = resolveLength(node.style.paddingRight, referenceWidth, { auto: "zero" });
+  const borderLeft = resolveLength(node.style.borderLeft, referenceWidth, { auto: "zero" });
+  const borderRight = resolveLength(node.style.borderRight, referenceWidth, { auto: "zero" });
+
+  const marginStart = node.box.x - paddingLeft - borderLeft - marginLeft;
+  const width =
+    node.box.contentWidth + paddingLeft + paddingRight + borderLeft + borderRight + marginLeft + marginRight;
+
+  return {
+    start: marginStart,
+    end: marginStart + width,
+  };
+}
+
+function offsetInlineDescendants(node: LayoutNode, deltaX: number, deltaY: number): void {
+  node.walk((child) => {
+    if (child === node) {
+      return;
+    }
+    child.box.x += deltaX;
+    child.box.y += deltaY;
+    child.box.baseline += deltaY;
+  }, false);
 }

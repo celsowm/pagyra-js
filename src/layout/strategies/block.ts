@@ -41,7 +41,7 @@ export class BlockLayoutStrategy implements LayoutStrategy {
     const borderTop = resolveLength(node.style.borderTop, contentWidth, { auto: "zero" });
 
     const contentX = node.box.x + borderLeft + paddingLeft;
-    let cursorY = cb.y + paddingTop + borderTop;
+    let cursorY = node.box.y + paddingTop + borderTop;
     let previousBottomMargin = 0;
     const floatContext = new FloatContext();
     const children = node.children;
@@ -119,7 +119,7 @@ export class BlockLayoutStrategy implements LayoutStrategy {
 
     const floatBottom = Math.max(floatContext.bottom("left"), floatContext.bottom("right"));
     const effectiveCursor = Math.max(cursorY, floatBottom);
-    node.box.contentHeight = Math.max(0, effectiveCursor - (cb.y + borderTop) - paddingTop);
+    node.box.contentHeight = Math.max(0, effectiveCursor - (node.box.y + borderTop) - paddingTop);
     if (node.style.height !== "auto") {
       node.box.contentHeight = resolveLength(node.style.height, cb.height, { auto: "zero" });
     }
