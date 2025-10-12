@@ -1,12 +1,31 @@
-import { ElementNode, TextNode } from "./core.js";
-export { NodeType, ElementNode, TextNode } from "./core.js";
+export * from "./core.js";
 
-export function helloPagyra(): string {
-  const p = new ElementNode("p").append(new TextNode("Olá, Pagyra!"));
-  return p.toHTML();
+import { LayoutNode } from "./dom/node.js";
+import { ComputedStyle } from "./css/style.js";
+import { layoutTree } from "./layout/pipeline/layout-tree.js";
+import type { Viewport } from "./geometry/box.js";
+
+export function demoLayout(viewport: Viewport = { width: 800, height: 600 }): LayoutNode {
+  const root = new LayoutNode(new ComputedStyle());
+  const paragraph = new LayoutNode(
+    new ComputedStyle({
+      marginTop: 16,
+      marginBottom: 16,
+    }),
+  );
+  root.appendChild(paragraph);
+
+  layoutTree(root, viewport);
+  return root;
 }
 
-// ESM "main" check no estilo NodeNext
 import { fileURLToPath } from "node:url";
 const isMain = fileURLToPath(import.meta.url) === process.argv[1];
-if (isMain) console.log(helloPagyra());
+if (isMain) {
+  const tree = demoLayout();
+  console.log("Root layout:", {
+    width: tree.box.contentWidth,
+    height: tree.box.contentHeight,
+    children: tree.children.length,
+  });
+}
