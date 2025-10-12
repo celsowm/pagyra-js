@@ -19,5 +19,10 @@
     "id": "lorem-span",
     "label": "Span Lorem Ipsum Test",
     "htmlUrl": "examples/lorem-span.html"
+  },
+  {
+    "id": "simple-table",
+    "label": "Simple Table Test",
+    "htmlUrl": "examples/simple-table.html"
   }
 ]
