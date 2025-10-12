@@ -4,6 +4,7 @@ import { LayoutNode } from "../dom/node.js";
 import { resolveLength } from "../css/length.js";
 import { log, preview } from "../debug/log.js";
 import { auditRuns } from "../debug/audit.js";
+import { normalizeAndSegment } from "../text/text.js";
 import {
   type LayoutTree,
   type RenderBox,
@@ -192,13 +193,22 @@ function createTextRuns(node: LayoutNode, color: RGBA | undefined): Run[] {
     return [];
   }
 
+  // Normalize text to NFC and segment by grapheme clusters to properly handle combining marks
+  const raw = node.textContent;
+  const normalized = raw.normalize("NFC");
+  const clusters = normalizeAndSegment(normalized);
+
   log("PARSE","TRACE","TEXT(raw)", {
     sample: node.textContent.slice(0, 120),
     cps: Array.from(node.textContent).map(c => c.codePointAt(0)!.toString(16))
   });
+  log("PARSE","TRACE","TEXT(normalized)", {
+    sample: normalized.slice(0, 120),
+    cps: Array.from(normalized).map(c => c.codePointAt(0)!.toString(16))
+  });
 
   const baseline = node.box.baseline > 0 ? node.box.baseline : node.box.y + node.box.contentHeight;
-  const runs = groupByFace(node.textContent, node.style.fontFamily ?? "sans-serif", color ?? DEFAULT_TEXT_COLOR, baseline, node.style.fontSize);
+  const runs = groupByFace(clusters.join(''), node.style.fontFamily ?? "sans-serif", color ?? DEFAULT_TEXT_COLOR, baseline, node.style.fontSize);
 
   for (const r of runs) {
     log("RENDER_TREE","DEBUG","text run created+", {

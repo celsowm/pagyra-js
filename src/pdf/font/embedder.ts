@@ -230,9 +230,26 @@ end
     );
   }
 
+
   private loadFontData(path: string): Uint8Array {
     // For now, load the full TTF file (later we can implement subsetting)
     const { readFileSync } = require("fs");
     return readFileSync(path);
   }
+}
+
+export async function getEmbeddedFont(name: "NotoSans-Regular" | "DejaVuSans", doc: any, config: FontConfig): Promise<EmbeddedFont | null> {
+  const embedder = new FontEmbedder(config, doc);
+  const face = config.fontFaceDefs.find(f => f.name === name);
+  if (!face) return null;
+
+  const existing = embedder['embeddedFonts'].get(name);
+  if (existing) return existing;
+
+  const embedded = embedder.embedFont(face);
+  if (embedded) {
+    embedder['embeddedFonts'].set(name, embedded);
+    return embedded;
+  }
+  return null;
 }

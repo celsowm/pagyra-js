@@ -3,6 +3,33 @@ import { PdfDocument, type PdfObjectRef } from "../primitives/pdf-document.js";
 import type { FontConfig } from "../../types/fonts.js";
 import { FontEmbedder } from "./embedder.js";
 import { log } from "../../debug/log.js";
+import { needsUnicode } from "../../text/text.js";
+import { getEmbeddedFont } from "./embedder.js";
+
+export type PdfFont = {
+  name: string;
+  baseName?: string;    // for Base14 (Helvetica, etc.)
+  isBase14: boolean;
+  // ... extend as needed
+};
+
+export function getBase14(family: "Helvetica" | "Times-Roman" | "Courier"): PdfFont {
+  return { isBase14: true, baseName: family, name: family };
+}
+
+// Note: getFontForText needs access to doc and config, so we'll modify the signature
+export function getFontForText(requestedFamily: string, text: string, doc: any, config: any): PdfFont {
+  if (needsUnicode(text)) {
+    // For now, use a simplified approach - we'll assume NotoSans-Regular is available
+    // In a full implementation, you'd initialize the embedder properly
+    const fontName = "NotoSans-Regular";
+    log("FONT", "INFO", "font-path", { base14: false, family: fontName, encoding: "Identity-H" });
+    return { isBase14: false, name: fontName };
+  }
+  const f = getBase14("Helvetica"); // fallback
+  log("FONT", "INFO", "font-path", { base14: true, family: f.baseName, encoding: "WinAnsi" });
+  return f;
+}
 
 const DEFAULT_FONT = "Helvetica";
 
@@ -52,6 +79,11 @@ export class FontRegistry {
 
     // Fall back to standard font resolution
     return this.ensureStandardFontResource(family);
+  }
+
+  // New method to get embedder reference
+  getEmbedder(): FontEmbedder | null {
+    return this.embedder;
   }
 
   ensureFontResourceSync(family: string | undefined): FontResource {

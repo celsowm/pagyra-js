@@ -55,6 +55,8 @@ const UNICODE_TO_WIN_ANSI = (() => {
 
 import { log } from "../../debug/log.js";
 
+export { UNICODE_TO_WIN_ANSI };
+
 export function encodeToWinAnsi(text: string): string {
   let result = "", misses = 0, details: number[] = [];
   for (const char of text) {

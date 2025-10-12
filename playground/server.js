@@ -37,7 +37,8 @@ app.post("/render", async (req, res) => {
             pageWidth,
             pageHeight,
             margins: marginsPx,
-            debug: true,
+            debugLevel: "TRACE",
+            debugCats: ["PARSE", "STYLE", "RENDER_TREE", "ENCODING", "FONT", "PAINT"],
         });
         res.setHeader("Content-Type", "application/pdf");
         res.send(Buffer.from(pdfBytes));

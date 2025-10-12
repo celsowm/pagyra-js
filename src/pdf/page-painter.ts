@@ -1,7 +1,10 @@
 import type { Rect, Run, RenderBox, RGBA } from "./types.js";
 import type { FontRegistry, FontResource } from "./font/font-registry.js";
 import type { PdfObjectRef } from "./primitives/pdf-document.js";
-import { encodeAndEscapePdfText } from "./utils/encoding.js";
+import { encodeAndEscapePdfText, encodeToWinAnsi } from "./utils/encoding.js";
+import { needsUnicode } from "../text/text.js";
+import type { FontEmbedder } from "./font/embedder.js";
+import { getFontForText } from "./font/font-registry.js";
 import { log } from "../debug/log.js";
 
 export interface PainterResult {
@@ -43,12 +46,17 @@ export class PagePainter {
     if (!text) {
       return;
     }
-    const font = await this.ensureFont({ fontFamily: options.fontFamily });
+    const font = await this.ensureFont({ fontFamily: options.fontFamily, text });
     const xPt = this.pxToPt(xPx);
     const yPt = this.pageHeightPt - this.pxToPt(yPx);
     const color = options.color ?? { r: 0, g: 0, b: 0, a: 1 };
     const before = text;
-    const escaped = encodeAndEscapePdfText(text);
+
+    // Use Identity-H encoding if using embedded font, otherwise WinAnsi
+    const useIdentityH = !font.isBase14;
+    const encodedText = useIdentityH ? text : encodeAndEscapePdfText(text);
+    const escaped = useIdentityH ? encodeAndEscapePdfText(text) : encodedText; // For Identity-H, we pass raw text then escape for PDF
+
     const baselineAdjust = options.fontSizePt;
 
     // === diagnóstico cirúrgico: caminho de encoding ===
@@ -81,10 +89,15 @@ export class PagePainter {
   }
 
   async drawTextRun(run: Run): Promise<void> {
-    const font = await this.ensureFont({ fontFamily: run.fontFamily });
+    const font = await this.ensureFont({ fontFamily: run.fontFamily, text: run.text });
     const color = run.fill ?? { r: 0, g: 0, b: 0, a: 1 };
     const before = run.text;
-    const escaped = encodeAndEscapePdfText(run.text);
+
+    // Use Identity-H encoding if using embedded font, otherwise WinAnsi
+    const useIdentityH = !font.isBase14;
+    const payloadText = useIdentityH ? run.text : encodeToWinAnsi(run.text);
+    const escaped = encodeAndEscapePdfText(payloadText);
+
     const Tm = run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
     const fontSizePt = this.pxToPt(run.fontSize);
     const y = this.pageHeightPt - this.pxToPt(Tm.f);
@@ -143,8 +156,29 @@ export class PagePainter {
     this.commands.push(strokeColorCommand(color), `${pdfRect.x} ${pdfRect.y} ${pdfRect.width} ${pdfRect.height} re`, "S");
   }
 
-  private async ensureFont(options: { fontFamily?: string }): Promise<FontResource> {
+  private async ensureFont(options: { fontFamily?: string, text?: string }): Promise<FontResource> {
     const family = options.fontFamily;
+    const text = options.text || '';
+
+    // Check if we need Unicode support (combining marks, symbols beyond WinAnsi)
+    const needsUnicodeFont = needsUnicode(text);
+
+    if (needsUnicodeFont) {
+      // For now, simplify - just return a placeholder indicating Identity-H encoding
+      // In full implementation, this would get the embedded font and resource
+      const resource: FontResource = {
+        baseFont: "NotoSans-Regular",
+        resourceName: "FU", // Unicode font
+        ref: { objectNumber: -1 }, // placeholder negative number for missing font
+        isBase14: false
+      };
+      if (!this.fonts.has(resource.resourceName)) {
+        this.fonts.set(resource.resourceName, resource.ref);
+      }
+      return resource;
+    }
+
+    // Fall back to standard registry resolution for Base14 fonts
     const resource = await this.fontRegistry.ensureFontResource(family);
     if (!this.fonts.has(resource.resourceName)) {
       this.fonts.set(resource.resourceName, resource.ref);
