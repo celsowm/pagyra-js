@@ -44,6 +44,8 @@ interface StyleAccumulator {
   fontFamily?: string;
 }
 
+import type { FontConfig } from "./types/fonts.js";
+
 export interface RenderHtmlOptions {
   html: string;
   css: string;
@@ -53,6 +55,7 @@ export interface RenderHtmlOptions {
   pageHeight: number;
   margins: PageMarginsPx;
   debug?: boolean;
+  fontConfig?: FontConfig;
 }
 
 export interface PageMarginsPx {
@@ -73,9 +76,9 @@ export const DEFAULT_PAGE_MARGINS_PX = {
   left: ptToPx(DEFAULT_PAGE_MARGINS_PT.left),
 };
 
-export function renderHtmlToPdf(options: RenderHtmlOptions): Uint8Array {
+export async function renderHtmlToPdf(options: RenderHtmlOptions): Promise<Uint8Array> {
   const prepared = prepareHtmlRender(options);
-  return renderPdf(prepared.renderTree, { pageSize: prepared.pageSize });
+  return renderPdf(prepared.renderTree, { pageSize: prepared.pageSize, fontConfig: options.fontConfig });
 }
 
 export interface PreparedRender {

@@ -13,19 +13,27 @@ import { paginateTree } from "./pagination.js";
 import { PagePainter, type TextPaintOptions } from "./page-painter.js";
 import { initFontSystem, finalizeFontSubsets, preflightFontsForPdfa } from "./font/font-registry.js";
 import { LayerMode } from "./types.js";
+import type { FontConfig } from "../types/fonts.js";
 
 const DEFAULT_PAGE_SIZE: PageSize = { widthPt: 595.28, heightPt: 841.89 }; // A4 in points
 
 export interface RenderPdfOptions {
   readonly pageSize?: PageSize;
   readonly metadata?: PdfMetadata;
+  readonly fontConfig?: FontConfig;
 }
 
-export function renderPdf(layout: LayoutTree, options: RenderPdfOptions = {}): Uint8Array {
+export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = {}): Promise<Uint8Array> {
   const pageSize = options.pageSize ?? derivePageSize(layout);
   const pxToPt = createPxToPt(layout.dpiAssumption);
   const doc = new PdfDocument(options.metadata ?? {});
   const fontRegistry = initFontSystem(doc, layout.css);
+
+  // Initialize font embedding if fontConfig provided
+  if (options.fontConfig) {
+    await fontRegistry.initializeEmbedder(options.fontConfig);
+  }
+
   preflightFontsForPdfa(fontRegistry);
 
   const baseContentBox = computeBaseContentBox(layout.root, pageSize, pxToPt);
@@ -49,15 +57,15 @@ export function renderPdf(layout: LayoutTree, options: RenderPdfOptions = {}): U
     const footerVariant = pickFooterVariant(hfLayout, pageNumber, totalPages);
 
     if (layout.hf.layerMode === LayerMode.Under) {
-      paintHeaderFooter(painter, headerVariant, footerVariant, tokens, pageNumber, totalPages, headerFooterTextOptions, true);
+      await paintHeaderFooter(painter, headerVariant, footerVariant, tokens, pageNumber, totalPages, headerFooterTextOptions, true);
     }
 
     paintBackgrounds(painter, pageTree.paintOrder);
     paintBorders(painter, pageTree.paintOrder);
-    paintText(painter, pageTree.flowContentOrder);
+    await paintText(painter, pageTree.flowContentOrder);
 
     if (layout.hf.layerMode === LayerMode.Over) {
-      paintHeaderFooter(painter, headerVariant, footerVariant, tokens, pageNumber, totalPages, headerFooterTextOptions, false);
+      await paintHeaderFooter(painter, headerVariant, footerVariant, tokens, pageNumber, totalPages, headerFooterTextOptions, false);
     }
 
     const result = painter.result();
@@ -74,10 +82,10 @@ export function renderPdf(layout: LayoutTree, options: RenderPdfOptions = {}): U
   return doc.finalize();
 }
 
-function paintText(painter: PagePainter, boxes: RenderBox[]): void {
+async function paintText(painter: PagePainter, boxes: RenderBox[]): Promise<void> {
   for (const box of boxes) {
     for (const run of box.textRuns) {
-      painter.drawTextRun(run);
+      await painter.drawTextRun(run);
     }
   }
 }

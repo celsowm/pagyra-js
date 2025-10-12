@@ -1,5 +1,7 @@
 import type { CSSFontFace, Run, StyleSheets } from "../types.js";
 import { PdfDocument, type PdfObjectRef } from "../primitives/pdf-document.js";
+import type { FontConfig } from "../../types/fonts.js";
+import { FontEmbedder } from "./embedder.js";
 
 const DEFAULT_FONT = "Helvetica";
 
@@ -14,6 +16,8 @@ export class FontRegistry {
   private readonly fontsByBaseFont = new Map<string, FontResource>();
   private readonly facesByFamily = new Map<string, CSSFontFace[]>();
   private aliasCounter = 1;
+  private embedder: FontEmbedder | null = null;
+  private fontConfig: FontConfig | null = null;
 
   constructor(private readonly doc: PdfDocument, private readonly stylesheets: StyleSheets) {
     for (const face of stylesheets.fontFaces ?? []) {
@@ -27,7 +31,46 @@ export class FontRegistry {
     }
   }
 
-  ensureFontResource(family: string | undefined): FontResource {
+  async ensureFontResource(family: string | undefined): Promise<FontResource> {
+    // First try to embed custom fonts if embedder is available
+    if (this.embedder && this.fontConfig) {
+      const familyStack = family ? parseFamilyList(family) : this.fontConfig.defaultStack;
+      const embedded = this.embedder.ensureFont(familyStack);
+      if (embedded) {
+        const resource = {
+          baseFont: embedded.baseFont,
+          resourceName: embedded.resourceName,
+          ref: embedded.ref
+        };
+        this.fontsByFamily.set(family || 'default', resource);
+        return resource;
+      }
+    }
+
+    // Fall back to standard font resolution
+    return this.ensureStandardFontResource(family);
+  }
+
+  ensureFontResourceSync(family: string | undefined): FontResource {
+    const candidates = [...parseFamilyList(family), DEFAULT_FONT];
+    for (const candidate of candidates) {
+      const normalized = normalizeToken(candidate);
+      if (!normalized) {
+        continue;
+      }
+      const existing = this.fontsByFamily.get(normalized);
+      if (existing) {
+        return existing;
+      }
+      const baseFont = this.resolveBaseFont(normalized);
+      const resource = this.ensureBaseFontResource(baseFont);
+      this.fontsByFamily.set(normalized, resource);
+      return resource;
+    }
+    return this.ensureBaseFontResource(DEFAULT_FONT);
+  }
+
+  private ensureStandardFontResource(family: string | undefined): FontResource {
     const candidates = [...parseFamilyList(family), DEFAULT_FONT];
     for (const candidate of candidates) {
       const normalized = normalizeToken(candidate);
@@ -78,14 +121,29 @@ export class FontRegistry {
     this.fontsByBaseFont.set(baseFont, resource);
     return resource;
   }
+
+  async initializeEmbedder(fontConfig: FontConfig): Promise<void> {
+    this.fontConfig = fontConfig;
+    this.embedder = new FontEmbedder(fontConfig, this.doc);
+    await this.embedder.initialize();
+  }
+
+  setFontConfig(fontConfig: FontConfig): void {
+    this.fontConfig = fontConfig;
+    this.embedder = new FontEmbedder(fontConfig, this.doc);
+  }
 }
 
 export function initFontSystem(doc: PdfDocument, stylesheets: StyleSheets): FontRegistry {
   return new FontRegistry(doc, stylesheets);
 }
 
-export function ensureFontSubset(registry: FontRegistry, run: Run): FontResource {
+export async function ensureFontSubset(registry: FontRegistry, run: Run): Promise<FontResource> {
   return registry.ensureFontResource(run.fontFamily);
+}
+
+export function ensureFontSubsetSync(registry: FontRegistry, run: Run): FontResource {
+  return registry.ensureFontResourceSync(run.fontFamily);
 }
 
 export function finalizeFontSubsets(_registry: FontRegistry): void {

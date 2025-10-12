@@ -118,7 +118,7 @@ const defaultStyle = {
   backgroundColor: undefined,
   borderColor: undefined,
   color: undefined,
-  fontFamily: "sans-serif",
+  fontFamily: "Roboto, Noto Sans, DejaVu Sans, sans-serif",
   left: undefined,
   right: undefined,
   top: undefined,

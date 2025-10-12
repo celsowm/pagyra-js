@@ -8,7 +8,7 @@ import {
   resolvePageMarginsPx,
   sanitizeDimension,
   maxContentDimension,
-} from "../src/index.js";
+} from "../src/html-to-pdf.js";
 
 interface RenderRequestBody {
   html?: string;
@@ -52,7 +52,7 @@ app.post("/render", async (req, res) => {
     const viewportWidth = Math.min(sanitizeDimension(body.viewportWidth, maxContentWidth), maxContentWidth);
     const viewportHeight = Math.min(sanitizeDimension(body.viewportHeight, maxContentHeight), maxContentHeight);
 
-    const pdfBytes = renderHtmlToPdf({
+    const pdfBytes = await renderHtmlToPdf({
       html: htmlInput,
       css: cssInput,
       viewportWidth,
