@@ -1,6 +1,7 @@
 import type { Rect, Run, RenderBox, RGBA } from "./types.js";
 import type { FontRegistry, FontResource } from "./font/font-registry.js";
 import type { PdfObjectRef } from "./primitives/pdf-document.js";
+import { encodeAndEscapePdfText } from "./utils/encoding.js";
 
 export interface PainterResult {
   readonly content: string;
@@ -45,7 +46,7 @@ export class PagePainter {
     const xPt = this.pxToPt(xPx);
     const yPt = this.pageHeightPt - this.pxToPt(yPx);
     const color = options.color ?? { r: 0, g: 0, b: 0, a: 1 };
-    const escaped = text.replace(/([()\\])/g, "\\$1");
+    const escaped = encodeAndEscapePdfText(text);
     const baselineAdjust = options.fontSizePt;
 
     this.commands.push(
@@ -61,7 +62,7 @@ export class PagePainter {
   drawTextRun(run: Run): void {
     const font = this.ensureFont({ fontFamily: run.fontFamily });
     const color = run.fill ?? { r: 0, g: 0, b: 0, a: 1 };
-    const escaped = run.text.replace(/([()\\])/g, "\\$1");
+    const escaped = encodeAndEscapePdfText(run.text);
     const Tm = run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
     const fontSizePt = this.pxToPt(run.fontSize);
     const y = this.pageHeightPt - this.pxToPt(Tm.f);

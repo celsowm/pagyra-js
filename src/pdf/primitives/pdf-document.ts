@@ -1,4 +1,5 @@
 import type { PdfMetadata } from "../types.js";
+import { encodeAndEscapePdfText } from "../utils/encoding.js";
 
 interface PdfFontResource {
   name: string;
@@ -126,13 +127,13 @@ export class PdfDocument {
 
     const xrefEntries: string[] = ["0000000000 65535 f \n"];
     const chunks: string[] = [header];
-    let offset = Buffer.byteLength(header, "utf8");
+    let offset = Buffer.byteLength(header, "binary");
 
     for (const object of objects) {
       const objectString = `${object.ref.objectNumber} 0 obj\n${object.body}\nendobj\n`;
       xrefEntries.push(formatXref(offset));
       chunks.push(objectString);
-      offset += Buffer.byteLength(objectString, "utf8");
+      offset += Buffer.byteLength(objectString, "binary");
     }
 
     const xrefStart = offset;
@@ -145,7 +146,7 @@ export class PdfDocument {
     chunks.push(xrefBody);
 
     const pdfString = chunks.join("");
-    return Buffer.from(pdfString, "utf8");
+    return Buffer.from(pdfString, "binary");
   }
 
   // Backwards compatibility for earlier code paths expecting eager font creation.
@@ -155,21 +156,36 @@ export class PdfDocument {
 }
 
 function serializeType1Font(baseFont: string): string {
-  return ["<<", "/Type /Font", "/Subtype /Type1", `/BaseFont /${sanitizeName(baseFont)}`, ">>"].join("\n");
+  const body = [
+    "<<",
+    "/Type /Font",
+    "/Subtype /Type1",
+    `/BaseFont /${sanitizeName(baseFont)}`,
+  ];
+  if (!usesSymbolEncoding(baseFont)) {
+    body.push("/Encoding /WinAnsiEncoding");
+  }
+  body.push(">>");
+  return body.join("\n");
+}
+
+function usesSymbolEncoding(baseFont: string): boolean {
+  const normalized = sanitizeName(baseFont).toLowerCase();
+  return normalized === "symbol" || normalized === "zapfdingbats";
 }
 
 function serializeStream(content: string): string {
-  const encoded = Buffer.from(content, "utf8");
+  const encoded = Buffer.from(content, "binary");
   return `<< /Length ${encoded.length} >>\nstream\n${content}\nendstream`;
 }
 
 function serializeInfo(meta: PdfMetadata): string {
   const entries: string[] = [];
-  if (meta.title) entries.push(`/Title (${escapeLiteral(meta.title)})`);
-  if (meta.author) entries.push(`/Author (${escapeLiteral(meta.author)})`);
-  if (meta.subject) entries.push(`/Subject (${escapeLiteral(meta.subject)})`);
-  if (meta.keywords?.length) entries.push(`/Keywords (${escapeLiteral(meta.keywords.join(", "))})`);
-  if (meta.producer) entries.push(`/Producer (${escapeLiteral(meta.producer)})`);
+  if (meta.title) entries.push(`/Title (${encodeAndEscapePdfText(meta.title)})`);
+  if (meta.author) entries.push(`/Author (${encodeAndEscapePdfText(meta.author)})`);
+  if (meta.subject) entries.push(`/Subject (${encodeAndEscapePdfText(meta.subject)})`);
+  if (meta.keywords?.length) entries.push(`/Keywords (${encodeAndEscapePdfText(meta.keywords.join(", "))})`);
+  if (meta.producer) entries.push(`/Producer (${encodeAndEscapePdfText(meta.producer)})`);
   return `<< ${entries.join(" ")} >>`;
 }
 
@@ -187,10 +203,6 @@ function formatXref(offset: number): string {
 
 function sanitizeName(name: string): string {
   return name.replace(/[^!-~]/g, "");
-}
-
-function escapeLiteral(text: string): string {
-  return text.replace(/([()\\])/g, "\\$1");
 }
 
 function hasMetadata(meta: PdfMetadata): boolean {
