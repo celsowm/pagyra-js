@@ -25,6 +25,13 @@ const PUBLIC_DIR = path.join(__dirname, "public");
 
 const app = express();
 app.use(express.json({ limit: "2mb" }));
+
+// Add a logger middleware to debug static file requests
+app.use((req, res, next) => {
+  console.log(`[playground] request: ${req.method} ${req.url}`);
+  next();
+});
+
 app.use(express.static(PUBLIC_DIR));
 
 app.post("/render", async (req, res) => {
@@ -64,7 +71,7 @@ app.post("/render", async (req, res) => {
   }
 });
 
-const port = Number.parseInt(process.env.PORT ?? "", 10) || 5176;
+const port = Number.parseInt(process.env.PORT ?? "", 10) || 5177;
 const entryUrl = process.argv[1] ? pathToFileURL(process.argv[1]).href : undefined;
 if (entryUrl === import.meta.url) {
   app.listen(port, () => {

@@ -43,193 +43,13 @@ const STATUS_COLORS = {
 let currentObjectUrl = "";
 
 /**
- * @typedef {{ id: string; label: string; html: string; css: string }} PlaygroundExample
+ * @typedef {{ id: string; label: string; htmlUrl: string; cssUrl?: string }} PlaygroundExample
  */
 
 /** @type {PlaygroundExample[]} */
-const EXAMPLES = [
-  {
-    id: "starter-report",
-    label: "Starter Report (EN)",
-    html: `<!DOCTYPE html>
-<html>
-  <body>
-    <main>
-      <h1>Pagyra Sample Report</h1>
-      <p class="lead">
-        Start from this clean A4-friendly layout and adapt the content to your needs.
-      </p>
-      <h2>Checklist</h2>
-      <ul>
-        <li>Keep copy within the content area defined by the margins.</li>
-        <li>Use headings, paragraphs, and lists for structure.</li>
-        <li>Update styles to match your brand.</li>
-      </ul>
-      <p>
-        Need multiple pages? Just let the text flow - Pagyra will handle the pagination.
-      </p>
-      <footer>
-        <small>Prepared with Pagyra &copy; <time datetime="2025-10-12">October 12, 2025</time></small>
-      </footer>
-    </main>
-  </body>
-</html>`,
-    css: `body {
-  font-family: "Segoe UI", Arial, sans-serif;
-  background: #f5f5f5;
-  color: #1f2937;
-  margin: 0;
-  padding: 24px;
-}
-
-main {
-  background: #ffffff;
-  margin: 0 auto;
-  max-width: 560px;
-  padding: 32px;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-}
-
-h1 {
-  font-size: 26px;
-  margin: 0 0 8px;
-  color: #111827;
-}
-
-p.lead {
-  margin: 0;
-  color: #4b5563;
-  line-height: 1.6;
-}
-
-h2 {
-  font-size: 18px;
-  margin: 0 0 8px;
-  color: #1f2937;
-}
-
-p {
-  margin: 0 0 12px;
-  line-height: 1.6;
-}
-
-ul {
-  margin: 0 0 16px;
-  padding-left: 20px;
-}
-
-footer {
-  margin-top: 32px;
-  font-size: 12px;
-  color: #6b7280;
-  text-align: right;
-}`,
-  },
-  {
-    id: "monthly-summary",
-    label: "Relat\u00F3rio B\u00E1sico (pt-BR)",
-    html: `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="utf-8">
-    <title>Relat&oacute;rio B&aacute;sico</title>
-    <style>
-        body {
-            font-family: PagyraDefault, sans-serif;
-            font-size: 14pt;
-            line-height: 1.5;
-            color: #222222;
-        }
-        h1 {
-            font-size: 24pt;
-            margin-bottom: 12pt;
-            text-align: center;
-        }
-        p {
-            margin: 0 0 10pt 0;
-        }
-        p.intro {
-            font-size: 16pt;
-        }
-        a {
-            color: #1a73e8;
-            text-decoration: underline;
-        }
-        ul {
-            margin: 8pt 0 12pt 30pt;
-        }
-        li {
-            margin-bottom: 4pt;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 16pt;
-        }
-        th {
-            background-color: #f0f4ff;
-            font-weight: bold;
-            text-align: left;
-        }
-        th, td {
-            padding: 6pt 8pt;
-            border: 1px solid #d0d6e2;
-        }
-        .note {
-            font-size: 12pt;
-            color: #555555;
-        }
-    </style>
-</head>
-<body>
-    <h1>Resumo Mensal</h1>
-    <p class="intro">Este documento demonstra o fluxo HTML b&aacute;sico renderizado pelo Pagyra usando o novo conversor HtmlToPdfConverter.</p>
-    <p>Voc&ecirc; pode combinar <strong>&ecirc;nfase</strong>, <em>it&aacute;lico</em> e at&eacute; mesmo refer&ecirc;ncias externas como <a href="https://pagyra.dev">site oficial</a>.</p>
-
-    <p>Principais destaques:</p>
-    <ul>
-        <li>Compatibilidade com estilos inline e CSS embutido</li>
-        <li>Suporte a links clic&aacute;veis</li>
-        <li>Renderiza&ccedil;&atilde;o simplificada de tabelas</li>
-    </ul>
-
-    <table>
-        <thead>
-            <tr>
-                <th>Indicador</th>
-                <th>Valor</th>
-                <th>Varia&ccedil;&atilde;o</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>Receita</td>
-                <td>R$ 128.450</td>
-                <td style="color: #0a8a0a;">+8,2%</td>
-            </tr>
-            <tr>
-                <td>Novos clientes</td>
-                <td>276</td>
-                <td style="color: #0a8a0a;">+5,5%</td>
-            </tr>
-            <tr>
-                <td>Tickets</td>
-                <td>412</td>
-                <td style="color: #c8261b;">-2,1%</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <p class="note">Observa&ccedil;&atilde;o: os dados acima s&atilde;o fict&iacute;cios e servem apenas para fins de demonstra&ccedil;&atilde;o.</p>
-</body>
-</html>`,
-    css: "",
-  },
-];
-
-const EXAMPLE_LOOKUP = new Map(EXAMPLES.map(example => [example.id, example]));
-const DEFAULT_EXAMPLE_ID = EXAMPLES[0]?.id ?? "";
+let examples = [];
+/** @type {Map<string, PlaygroundExample>} */
+let exampleLookup = new Map();
 
 function setStatus(message, tone = "neutral") {
   if (!DOM.status) {
@@ -332,33 +152,57 @@ function populateExampleSelect(examples) {
   }
 }
 
-function applyExample(example) {
-  DOM.htmlInput.value = example.html;
-  DOM.cssInput.value = example.css ?? "";
-  DOM.exampleSelect.value = example.id;
-}
 
 function setViewportDefaults() {
   DOM.viewportWidth.value = CONTENT_DEFAULTS.widthPx.toFixed(2);
   DOM.viewportHeight.value = CONTENT_DEFAULTS.heightPx.toFixed(2);
 }
 
-function handleExampleChange() {
-  const selectedId = DOM.exampleSelect.value;
-  const selectedExample = EXAMPLE_LOOKUP.get(selectedId);
-  if (!selectedExample) {
+async function loadExample(example) {
+  if (!example) {
     return;
   }
-  applyExample(selectedExample);
-  void renderPdf();
+
+  try {
+    const [htmlResponse, cssResponse] = await Promise.all([
+      fetch(example.htmlUrl),
+      example.cssUrl ? fetch(example.cssUrl) : Promise.resolve(new Response("")),
+    ]);
+
+    if (!htmlResponse.ok) {
+      throw new Error(`Failed to load ${example.htmlUrl}`);
+    }
+    if (!cssResponse.ok) {
+      throw new Error(`Failed to load ${example.cssUrl ?? ""}`);
+    }
+
+    const [html, css] = await Promise.all([htmlResponse.text(), cssResponse.text()]);
+
+    DOM.htmlInput.value = html;
+    DOM.cssInput.value = css;
+    DOM.exampleSelect.value = example.id;
+
+    void renderPdf();
+  } catch (error) {
+    console.error(error);
+    const message = error instanceof Error ? error.message : "Failed to load example.";
+    setStatus(message, "error");
+  }
 }
 
-function init() {
-  if (EXAMPLES.length === 0 || !DOM.renderButton) {
+function handleExampleChange() {
+  const selectedId = DOM.exampleSelect.value;
+  const selectedExample = exampleLookup.get(selectedId);
+  if (selectedExample) {
+    void loadExample(selectedExample);
+  }
+}
+
+async function init() {
+  if (!DOM.renderButton) {
     return;
   }
 
-  populateExampleSelect(EXAMPLES);
   setViewportDefaults();
 
   DOM.renderButton.addEventListener("click", () => {
@@ -367,12 +211,28 @@ function init() {
 
   DOM.exampleSelect.addEventListener("change", handleExampleChange);
 
-  const initialExample = EXAMPLE_LOOKUP.get(DEFAULT_EXAMPLE_ID) ?? EXAMPLES[0];
-  if (initialExample) {
-    applyExample(initialExample);
-  }
+  try {
+    const response = await fetch("examples.json");
+    if (!response.ok) {
+      throw new Error("Failed to load examples.json");
+    }
+    /** @type {PlaygroundExample[]} */
+    const loadedExamples = await response.json();
+    examples = loadedExamples;
+    exampleLookup = new Map(examples.map(e => [e.id, e]));
 
-  void renderPdf();
+    if (examples.length > 0) {
+      populateExampleSelect(examples);
+      const initialExample = examples[0];
+      if (initialExample) {
+        await loadExample(initialExample);
+      }
+    }
+  } catch (error) {
+    console.error(error);
+    const message = error instanceof Error ? error.message : "Failed to initialize app.";
+    setStatus(message, "error");
+  }
 }
 
 init();

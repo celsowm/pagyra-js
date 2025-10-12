@@ -1,0 +1,13 @@
+[
+  {
+    "id": "starter-report",
+    "label": "Starter Report (EN)",
+    "htmlUrl": "examples/starter-report.html",
+    "cssUrl": "examples/starter-report.css"
+  },
+  {
+    "id": "monthly-summary",
+    "label": "Relatório Básico (pt-BR)",
+    "htmlUrl": "examples/monthly-summary.html"
+  }
+]
