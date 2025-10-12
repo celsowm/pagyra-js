@@ -8,6 +8,7 @@ export interface NodeVisitor {
 export interface LayoutNodeOptions {
   intrinsicInlineSize?: number;
   intrinsicBlockSize?: number;
+  textContent?: string;
 }
 
 export class LayoutNode {
@@ -23,10 +24,12 @@ export class LayoutNode {
 
   intrinsicInlineSize?: number;
   intrinsicBlockSize?: number;
+  textContent?: string;
 
   constructor(public readonly style: ComputedStyle, children: Iterable<LayoutNode> = [], options?: LayoutNodeOptions) {
     this.intrinsicInlineSize = options?.intrinsicInlineSize;
     this.intrinsicBlockSize = options?.intrinsicBlockSize;
+    this.textContent = options?.textContent;
     for (const child of children) {
       this.appendChild(child);
     }

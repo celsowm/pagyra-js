@@ -50,6 +50,10 @@ export interface StyleProperties {
   borderRight: LengthLike;
   borderBottom: LengthLike;
   borderLeft: LengthLike;
+  backgroundColor?: string;
+  borderColor?: string;
+  color?: string;
+  fontFamily?: string;
   left?: LengthLike;
   right?: LengthLike;
   top?: LengthLike;
@@ -111,6 +115,10 @@ const defaultStyle = {
   borderRight: 0,
   borderBottom: 0,
   borderLeft: 0,
+  backgroundColor: undefined,
+  borderColor: undefined,
+  color: undefined,
+  fontFamily: "sans-serif",
   left: undefined,
   right: undefined,
   top: undefined,
@@ -172,6 +180,10 @@ export class ComputedStyle implements StyleProperties {
   borderRight: LengthLike;
   borderBottom: LengthLike;
   borderLeft: LengthLike;
+  backgroundColor?: string;
+  borderColor?: string;
+  color?: string;
+  fontFamily?: string;
   left?: LengthLike;
   right?: LengthLike;
   top?: LengthLike;
@@ -240,6 +252,10 @@ export class ComputedStyle implements StyleProperties {
     this.borderRight = data.borderRight;
     this.borderBottom = data.borderBottom;
     this.borderLeft = data.borderLeft;
+    this.backgroundColor = data.backgroundColor;
+    this.borderColor = data.borderColor;
+    this.color = data.color;
+    this.fontFamily = data.fontFamily;
     this.left = data.left;
     this.right = data.right;
     this.top = data.top;
