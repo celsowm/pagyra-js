@@ -9,5 +9,10 @@
     "id": "monthly-summary",
     "label": "Relatório Básico (pt-BR)",
     "htmlUrl": "examples/monthly-summary.html"
+  },
+  {
+    "id": "accents-test",
+    "label": "Accents Test (pt-BR)",
+    "htmlUrl": "examples/accents-test.html"
   }
 ]

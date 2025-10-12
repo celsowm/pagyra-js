@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>accents-lite smoke test</title>
+  <style>
+    /* força tentativa numa fonte inexistente p/ provocar fallback por glifo */
+    body { font: 16pt "FakeSans", Helvetica, sans-serif; line-height: 1.6; color:#222 }
+    p { margin: 0 0 10pt 0; }
+    .small { font: 14pt "FakeSans", Helvetica, sans-serif; }
+  </style>
+</head>
+<body>
+  <!-- L1: 'Varia' + c + COMBINING CEDILLA + a + COMBINING TILDE + 'o' -->
+  <!-- visualmente parece "Variação", mas com U+0327 e U+0303 separados -->
+  <p id="l1">Varia&#x0063;&#x0327;&#x0061;&#x0303;o</p>
+
+  <!-- L2: símbolos fora do WinAnsi para garantir encoding-miss -->
+  <p id="l2" class="small">Cheque: R$ 128.450 — ok ✓ ★</p>
+
+  <!-- L3: acentos normais (precomposed) só para comparação -->
+  <p id="l3">Ênfase e itálico, referência, Variação.</p>
+</body>
+</html>
