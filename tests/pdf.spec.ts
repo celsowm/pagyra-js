@@ -67,7 +67,7 @@ describe("PDF renderer", () => {
     const text = new LayoutNode(
       new ComputedStyle({ display: Display.Inline, color: "#111111", fontSize: 14, fontFamily: "Courier New" }),
       [],
-      { intrinsicInlineSize: 84, intrinsicBlockSize: 16, textContent: "Hello inline world" },
+      { textContent: "Hello inline world" },
     );
     paragraph.appendChild(text);
     root.appendChild(paragraph);

@@ -18,12 +18,12 @@ describe("layout engine", () => {
     const inlineA = new LayoutNode(
       new ComputedStyle({ display: Display.Inline }),
       [],
-      { intrinsicInlineSize: 120, intrinsicBlockSize: 18 },
+      { textContent: "A".repeat(12) },
     );
     const inlineB = new LayoutNode(
       new ComputedStyle({ display: Display.Inline }),
       [],
-      { intrinsicInlineSize: 140, intrinsicBlockSize: 18 },
+      { textContent: "B".repeat(14) },
     );
     paragraph.appendChild(inlineA);
     paragraph.appendChild(inlineB);
@@ -50,18 +50,9 @@ describe("layout engine", () => {
     );
 
     const inlineStyle = () => new ComputedStyle({ display: Display.Inline });
-    const inline1 = new LayoutNode(inlineStyle(), [], {
-      intrinsicInlineSize: 150,
-      intrinsicBlockSize: 18,
-    });
-    const inline2 = new LayoutNode(inlineStyle(), [], {
-      intrinsicInlineSize: 150,
-      intrinsicBlockSize: 18,
-    });
-    const inline3 = new LayoutNode(inlineStyle(), [], {
-      intrinsicInlineSize: 150,
-      intrinsicBlockSize: 18,
-    });
+    const inline1 = new LayoutNode(inlineStyle(), [], { textContent: "Flowing text." });
+    const inline2 = new LayoutNode(inlineStyle(), [], { textContent: "Another inline chunk." });
+    const inline3 = new LayoutNode(inlineStyle(), [], { textContent: "Trailing text after float restores width." });
 
     root.appendChild(floatBox);
     root.appendChild(inline1);

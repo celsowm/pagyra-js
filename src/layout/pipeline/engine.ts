@@ -4,6 +4,7 @@ import { LayoutEnvironment } from "../context/layout-environment.js";
 import type { LayoutStrategy, LayoutContext } from "./strategy.js";
 import { Position } from "../../css/enums.js";
 import { containingBlock } from "../utils/node-math.js";
+import { assignIntrinsicTextMetrics } from "../utils/text-metrics.js";
 
 export interface LayoutEngineOptions {
   strategies: readonly LayoutStrategy[];
@@ -24,6 +25,8 @@ export class LayoutEngine {
         this.layoutNodeInternal(node, context);
       },
     };
+
+    assignIntrinsicTextMetrics(root);
 
     root.box.x = 0;
     root.box.y = 0;
