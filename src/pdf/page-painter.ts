@@ -63,13 +63,14 @@ export class PagePainter {
     const color = run.fill ?? { r: 0, g: 0, b: 0, a: 1 };
     const escaped = run.text.replace(/([()\\])/g, "\\$1");
     const Tm = run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+    const fontSizePt = this.pxToPt(run.fontSize);
     const y = this.pageHeightPt - this.pxToPt(Tm.f);
     const x = this.pxToPt(Tm.e);
 
     this.commands.push(
       fillColorCommand(color),
       "BT",
-      `/${font.resourceName} ${formatNumber(run.fontSize)} Tf`,
+      `/${font.resourceName} ${formatNumber(fontSizePt)} Tf`,
       `${formatNumber(Tm.a)} ${formatNumber(Tm.b)} ${formatNumber(Tm.c)} ${formatNumber(Tm.d)} ${formatNumber(x)} ${formatNumber(y)} Tm`,
       `(${escaped}) Tj`,
       "ET",

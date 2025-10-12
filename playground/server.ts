@@ -1,6 +1,6 @@
 import express from "express";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseHTML } from "linkedom";
 import * as cssParser from "css";
 
@@ -11,6 +11,7 @@ import { Display, FloatMode } from "../src/css/enums.js";
 import { layoutTree } from "../src/layout/pipeline/layout-tree.js";
 import { buildRenderTree } from "../src/pdf/layout-tree-builder.js";
 import { renderPdf } from "../src/pdf/render.js";
+import type { RenderBox, Rect } from "../src/pdf/types.js";
 
 type CssDeclaration = cssParser.Declaration;
 type CssRule = cssParser.Rule;
@@ -73,10 +74,13 @@ app.post("/render", async (req, res) => {
 
     const cssInput = typeof body.css === "string" ? body.css : "";
     const htmlInput = body.html;
-    const viewportWidth = sanitizeDimension(body.viewportWidth, 800);
-    const viewportHeight = sanitizeDimension(body.viewportHeight, 1120);
-    const pageWidth = sanitizeDimension(body.pageWidth, viewportWidth);
-    const pageHeight = sanitizeDimension(body.pageHeight, viewportHeight);
+    const pageWidth = sanitizeDimension(body.pageWidth, DEFAULT_PAGE_WIDTH_PX);
+    const pageHeight = sanitizeDimension(body.pageHeight, DEFAULT_PAGE_HEIGHT_PX);
+    const marginsPx = resolvePageMarginsPx(pageWidth, pageHeight);
+    const maxContentWidth = maxContentDimension(pageWidth, marginsPx.left + marginsPx.right);
+    const maxContentHeight = maxContentDimension(pageHeight, marginsPx.top + marginsPx.bottom);
+    const viewportWidth = Math.min(sanitizeDimension(body.viewportWidth, maxContentWidth), maxContentWidth);
+    const viewportHeight = Math.min(sanitizeDimension(body.viewportHeight, maxContentHeight), maxContentHeight);
 
     const pdfBytes = renderHtmlToPdf({
       html: htmlInput,
@@ -85,6 +89,7 @@ app.post("/render", async (req, res) => {
       viewportHeight,
       pageWidth,
       pageHeight,
+      margins: marginsPx,
     });
 
     res.setHeader("Content-Type", "application/pdf");
@@ -96,9 +101,12 @@ app.post("/render", async (req, res) => {
 });
 
 const port = Number.parseInt(process.env.PORT ?? "", 10) || 5175;
-app.listen(port, () => {
-  console.log(`Pagyra HTML-to-PDF playground running at http://localhost:${port}`);
-});
+const entryUrl = process.argv[1] ? pathToFileURL(process.argv[1]).href : undefined;
+if (entryUrl === import.meta.url) {
+  app.listen(port, () => {
+    console.log(`Pagyra HTML-to-PDF playground running at http://localhost:${port}`);
+  });
+}
 
 interface RenderHtmlOptions {
   html: string;
@@ -107,10 +115,40 @@ interface RenderHtmlOptions {
   viewportHeight: number;
   pageWidth: number;
   pageHeight: number;
+  margins: PageMarginsPx;
 }
 
+interface PageMarginsPx {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
+const DEFAULT_PAGE_SIZE_PT = { width: 595.28, height: 841.89 };
+const DEFAULT_PAGE_MARGINS_PT = { top: 36, right: 36, bottom: 36, left: 36 };
+const DEFAULT_PAGE_WIDTH_PX = ptToPx(DEFAULT_PAGE_SIZE_PT.width);
+const DEFAULT_PAGE_HEIGHT_PX = ptToPx(DEFAULT_PAGE_SIZE_PT.height);
+const DEFAULT_PAGE_MARGINS_PX = {
+  top: ptToPx(DEFAULT_PAGE_MARGINS_PT.top),
+  right: ptToPx(DEFAULT_PAGE_MARGINS_PT.right),
+  bottom: ptToPx(DEFAULT_PAGE_MARGINS_PT.bottom),
+  left: ptToPx(DEFAULT_PAGE_MARGINS_PT.left),
+};
+
 function renderHtmlToPdf(options: RenderHtmlOptions): Uint8Array {
-  const { html, css, viewportWidth, viewportHeight, pageWidth, pageHeight } = options;
+  const prepared = prepareHtmlRender(options);
+  return renderPdf(prepared.renderTree, { pageSize: prepared.pageSize });
+}
+
+export interface PreparedRender {
+  layoutRoot: LayoutNode;
+  renderTree: ReturnType<typeof buildRenderTree>;
+  pageSize: { widthPt: number; heightPt: number };
+}
+
+export function prepareHtmlRender(options: RenderHtmlOptions): PreparedRender {
+  const { html, css, viewportWidth, viewportHeight, pageWidth, pageHeight, margins } = options;
   const { document } = parseHTML(html);
   const cssRules = buildCssRules(css);
 
@@ -127,11 +165,46 @@ function renderHtmlToPdf(options: RenderHtmlOptions): Uint8Array {
 
   layoutTree(rootLayout, { width: viewportWidth, height: viewportHeight });
   const renderTree = buildRenderTree(rootLayout);
+  offsetRenderTree(renderTree.root, margins.left, margins.top);
   const pageSize = {
     widthPt: pxToPt(pageWidth),
     heightPt: pxToPt(pageHeight),
   };
-  return renderPdf(renderTree, { pageSize });
+  return { layoutRoot: rootLayout, renderTree, pageSize };
+}
+
+function offsetRenderTree(root: RenderBox, dx: number, dy: number): void {
+  const stack: RenderBox[] = [root];
+  while (stack.length > 0) {
+    const box = stack.pop()!;
+    offsetRect(box.contentBox, dx, dy);
+    offsetRect(box.paddingBox, dx, dy);
+    offsetRect(box.borderBox, dx, dy);
+    offsetRect(box.visualOverflow, dx, dy);
+    if (box.markerRect) {
+      offsetRect(box.markerRect, dx, dy);
+    }
+    for (const link of box.links) {
+      offsetRect(link.rect, dx, dy);
+    }
+    for (const run of box.textRuns) {
+      if (run.lineMatrix) {
+        run.lineMatrix.e += dx;
+        run.lineMatrix.f += dy;
+      }
+    }
+    for (const child of box.children) {
+      stack.push(child);
+    }
+  }
+}
+
+function offsetRect(rect: Rect | null | undefined, dx: number, dy: number): void {
+  if (!rect) {
+    return;
+  }
+  rect.x += dx;
+  rect.y += dy;
 }
 
 function convertDomNode(node: Node, cssRules: CssRuleEntry[], parentStyle: ComputedStyle): LayoutNode | null {
@@ -175,7 +248,7 @@ function convertDomNode(node: Node, cssRules: CssRuleEntry[], parentStyle: Compu
 
   const ownStyle = computeStyleForElement(element, cssRules, parentStyle);
   const layoutChildren: LayoutNode[] = [];
-  for (const child of Array.from(element.childNodes)) {
+  for (const child of Array.from(element.childNodes) as Node[]) {
     const childNode = convertDomNode(child, cssRules, ownStyle);
     if (childNode) {
       layoutChildren.push(childNode);
@@ -194,7 +267,7 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
   };
 
   const styleInit: StyleAccumulator = {};
-  const aggregated: Partial<Record<string, string>> = {};
+  const aggregated: Record<string, string> = {};
 
   for (const rule of cssRules) {
     if (rule.match(element)) {
@@ -489,6 +562,26 @@ function parseInlineStyle(style: string): Record<string, string> {
   return declarations;
 }
 
+function resolvePageMarginsPx(pageWidthPx: number, pageHeightPx: number): PageMarginsPx {
+  const margins = { ...DEFAULT_PAGE_MARGINS_PX };
+  const horizontalSum = margins.left + margins.right;
+  const verticalSum = margins.top + margins.bottom;
+  const usableWidth = maxContentDimension(pageWidthPx, 0);
+  const usableHeight = maxContentDimension(pageHeightPx, 0);
+
+  if (horizontalSum > usableWidth) {
+    const scale = usableWidth / (horizontalSum || 1);
+    margins.left *= scale;
+    margins.right *= scale;
+  }
+  if (verticalSum > usableHeight) {
+    const scale = usableHeight / (verticalSum || 1);
+    margins.top *= scale;
+    margins.bottom *= scale;
+  }
+  return margins;
+}
+
 function buildCssRules(cssText: string): CssRuleEntry[] {
   if (!cssText.trim()) {
     return [];
@@ -570,6 +663,14 @@ function sanitizeDimension(value: number | undefined, fallback: number): number 
   }
   const sanitized = Number(value);
   return sanitized > 0 ? sanitized : fallback;
+}
+
+function maxContentDimension(total: number, marginsSum: number): number {
+  return Math.max(1, total - marginsSum);
+}
+
+function ptToPx(pt: number): number {
+  return (pt / 72) * 96;
 }
 
 function pxToPt(px: number): number {

@@ -78,7 +78,7 @@ describe("PDF renderer", () => {
     const content = Buffer.from(pdfBytes).toString("ascii");
 
     expect(content).toContain("(Hello inline world)");
-    expect(content).toMatch(/\/F\d+\s+14/);
+    expect(content).toMatch(/\/F\d+\s+10\.5\b/);
   });
 
   it("selects base fonts from CSS font-face local sources", () => {

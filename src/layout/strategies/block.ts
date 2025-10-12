@@ -98,19 +98,19 @@ export class BlockLayoutStrategy implements LayoutStrategy {
       }
 
       const childMarginTop = resolveLength(child.style.marginTop, contentWidth, { auto: "zero" });
-      const gap = collapsedGapBetween(previousBottomMargin, childMarginTop, node.establishesBFC);
-      cursorY += gap;
-
-      context.layoutChild(child);
-
       const childMarginLeft = resolveLength(child.style.marginLeft, contentWidth, { auto: "zero" });
       const childMarginBottom = resolveLength(child.style.marginBottom, contentWidth, { auto: "zero" });
       const childNonContentVertical = verticalNonContent(child, contentWidth);
 
-      const originX = contentX + childMarginLeft;
+      const gap = collapsedGapBetween(previousBottomMargin, childMarginTop, node.establishesBFC);
+      cursorY += gap;
 
+      const originX = contentX + childMarginLeft;
       child.box.x = originX;
       child.box.y = cursorY;
+
+      context.layoutChild(child);
+
       child.box.borderBoxHeight = child.box.contentHeight + childNonContentVertical;
       child.box.marginBoxHeight = child.box.borderBoxHeight + childMarginTop + childMarginBottom;
       previousBottomMargin = childMarginBottom;
