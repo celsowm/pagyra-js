@@ -1,5 +1,6 @@
 import { ComputedStyle } from "../css/style.js";
 import { Box } from "../geometry/box.js";
+import type { LineBox } from "../text/line-breaker.js";
 
 export interface NodeVisitor {
   (node: LayoutNode): void;
@@ -10,6 +11,7 @@ export interface LayoutNodeOptions {
   intrinsicBlockSize?: number;
   textContent?: string;
   tagName?: string;
+  lineBoxes?: LineBox[];
 }
 
 export class LayoutNode {
@@ -27,12 +29,14 @@ export class LayoutNode {
   intrinsicBlockSize?: number;
   textContent?: string;
   tagName?: string;
+  lineBoxes?: LineBox[];
 
   constructor(public readonly style: ComputedStyle, children: Iterable<LayoutNode> = [], options?: LayoutNodeOptions) {
     this.intrinsicInlineSize = options?.intrinsicInlineSize;
     this.intrinsicBlockSize = options?.intrinsicBlockSize;
     this.textContent = options?.textContent;
     this.tagName = options?.tagName;
+    this.lineBoxes = options?.lineBoxes;
     for (const child of children) {
       this.appendChild(child);
     }

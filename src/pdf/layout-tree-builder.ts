@@ -20,6 +20,7 @@ import {
   Overflow,
   LayerMode,
 } from "./types.js";
+import { resolvedLineHeight } from "../css/style.js";
 
 export interface RenderTreeOptions {
   dpiAssumption?: number;
@@ -189,17 +190,54 @@ function fallbackDimension(value: number, computed: number): number {
 }
 
 function createTextRuns(node: LayoutNode, color: RGBA | undefined): Run[] {
-  const raw = node.textContent!;
-  const normalized = raw.normalize("NFC");
-  const baseline = node.box.baseline > 0 ? node.box.baseline : node.box.y + node.box.contentHeight;
-  // ✅ um run só; o PagePainter decide a fonte (Identity-H vs Base14)
-  return [{
-    text: normalized,
-    fontFamily: node.style.fontFamily ?? "sans-serif",
-    fontSize: node.style.fontSize,
-    fill: color ?? DEFAULT_TEXT_COLOR,
-    lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: 0, f: baseline },
-  }];
+  const runs: Run[] = [];
+  const defaultColor = color ?? DEFAULT_TEXT_COLOR;
+
+  // Se o layout calculou caixas de linha, use-as.
+  if (node.lineBoxes && node.lineBoxes.length > 0) {
+    const lineHeight = resolvedLineHeight(node.style);
+    
+    // A baseline é a parte inferior da caixa de conteúdo do nó + a altura da linha.
+    // O sistema de coordenadas do PDF é de baixo para cima.
+    for (let i = 0; i < node.lineBoxes.length; i++) {
+      const line = node.lineBoxes[i];
+      const normalizedText = line.text.normalize("NFC");
+      
+      // A baseline para cada linha é calculada a partir do topo da caixa do nó.
+      // O y da caixa é o topo. Adicionamos o deslocamento da linha e a altura da fonte
+      // para obter uma aproximação da baseline.
+      const lineYOffset = (i * lineHeight);
+      const baseline = node.box.y + lineYOffset + node.style.fontSize; // Aproximação da baseline
+
+      runs.push({
+        text: normalizedText,
+        fontFamily: node.style.fontFamily ?? "sans-serif",
+        fontSize: node.style.fontSize,
+        fill: defaultColor,
+        // A posição 'e' é o x, 'f' é o y (baseline)
+        lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: node.box.x, f: baseline },
+      });
+    }
+    return runs;
+  }
+  
+  // Fallback para o comportamento original se não houver quebra de linha calculada
+  if (node.textContent) {
+    const raw = node.textContent;
+    const normalized = raw.normalize("NFC");
+    // Se não houver lineBoxes, a baseline é a calculada para a caixa inteira.
+    const baseline = node.box.baseline > 0 ? node.box.baseline : node.box.y + node.box.contentHeight;
+    
+    return [{
+      text: normalized,
+      fontFamily: node.style.fontFamily ?? "sans-serif",
+      fontSize: node.style.fontSize,
+      fill: defaultColor,
+      lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: node.box.x, f: baseline },
+    }];
+  }
+
+  return [];
 }
 
 function groupByFace(text: string, fontFamily: string, color: RGBA, baseline: number, fontSize: number): Run[] {

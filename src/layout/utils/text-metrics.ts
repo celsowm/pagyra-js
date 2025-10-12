@@ -38,7 +38,7 @@ function measureText(text: string, style: ComputedStyle): { inlineSize: number; 
   return { inlineSize: maxLineWidth, blockSize };
 }
 
-function estimateLineWidth(line: string, style: ComputedStyle): number {
+export function estimateLineWidth(line: string, style: ComputedStyle): number {
   if (!line) {
     return 0;
   }
@@ -116,4 +116,3 @@ function countSpaces(line: string): number {
   }
   return count;
 }
-

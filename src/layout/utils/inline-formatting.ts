@@ -4,6 +4,7 @@ import { resolvedLineHeight } from "../../css/style.js";
 import { resolveLength } from "../../css/length.js";
 import { FloatContext } from "../context/float-context.js";
 import type { LayoutContext } from "../pipeline/strategy.js";
+import { breakTextIntoLines } from "../../text/line-breaker.js";
 
 interface InlineLayoutOptions {
   container: LayoutNode;
@@ -134,11 +135,27 @@ function measureInlineNode(node: LayoutNode, containerWidth: number, context: La
 
   let contentWidth = node.box.contentWidth;
   let contentHeight = node.box.contentHeight;
-  if (inlineChildrenResult) {
+
+  if (node.textContent && node.style.display === Display.Inline) {
+    const availableWidth = containerWidth;
+    const lines = breakTextIntoLines(node.textContent, node.style, availableWidth);
+    node.lineBoxes = lines;
+
+    if (lines.length > 0) {
+      const lineHeight = resolvedLineHeight(node.style);
+      contentHeight = lines.length * lineHeight;
+      contentWidth = Math.max(...lines.map(l => l.width));
+    } else {
+      contentHeight = 0;
+      contentWidth = 0;
+    }
+  } 
+  else if (inlineChildrenResult) {
     contentWidth = Math.max(contentWidth, inlineChildrenResult.contentWidth);
     contentHeight = Math.max(contentHeight, inlineChildrenResult.contentHeight);
   }
-  if (contentWidth === 0) {
+  
+  if (contentWidth === 0 && !node.textContent) {
     if (typeof node.style.width === "number") {
       contentWidth = node.style.width;
     } else if (node.style.width !== "auto") {
@@ -150,7 +167,7 @@ function measureInlineNode(node: LayoutNode, containerWidth: number, context: La
     }
   }
 
-  if (contentHeight === 0) {
+  if (contentHeight === 0 && !node.textContent) {
     if (node.style.height !== "auto") {
       contentHeight = resolveLength(node.style.height, containerWidth, { auto: "zero" });
     } else if (node.intrinsicBlockSize !== undefined) {
