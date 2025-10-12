@@ -505,11 +505,13 @@ function parseLength(value: string): number | undefined {
 }
 
 function parseNumeric(value: string): number | undefined {
-  const match = value.trim().match(/^(-?\d+(?:\.\d+)?)(px)?$/i);
+  const match = value.trim().match(/^(-?\d+(?:\.\d+)?)(px|pt)?$/i);
   if (!match) {
     return undefined;
   }
-  return Number.parseFloat(match[1]);
+  let n = Number.parseFloat(match[1]);
+  if ((match[2] ?? '').toLowerCase() === 'pt') n = ptToPx(n);
+  return n;
 }
 
 function parseLineHeight(value: string): number | undefined {
