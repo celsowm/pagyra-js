@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Pagyra HTML → PDF Playground</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="header">
+      <h1>Pagyra HTML → PDF Playground</h1>
+      <p>Type HTML/CSS on the left, click convert, and preview the generated PDF on the right.</p>
+    </header>
+    <main class="container">
+      <section class="editor-panel">
+        <div class="editor-section">
+          <label for="html-input">HTML</label>
+          <textarea id="html-input" spellcheck="false"></textarea>
+        </div>
+        <div class="editor-section">
+          <label for="css-input">CSS</label>
+          <textarea id="css-input" spellcheck="false"></textarea>
+        </div>
+        <div class="controls">
+          <div class="control-group">
+            <label>
+              Viewport Width (px)
+              <input id="viewport-width" type="number" min="200" value="800" />
+            </label>
+            <label>
+              Viewport Height (px)
+              <input id="viewport-height" type="number" min="200" value="1120" />
+            </label>
+          </div>
+          <button id="render-btn">Convert to PDF</button>
+          <p id="status" role="status"></p>
+        </div>
+      </section>
+      <section class="preview-panel">
+        <object id="pdf-viewer" data="" type="application/pdf" aria-label="PDF preview"></object>
+      </section>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

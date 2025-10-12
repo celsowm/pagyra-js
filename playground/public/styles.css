@@ -1,0 +1,179 @@
+:root {
+  color-scheme: light dark;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.header {
+  padding: 1.25rem 2rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(8px);
+}
+
+.header h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+}
+
+.header p {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.95rem;
+}
+
+.container {
+  flex: 1;
+  display: flex;
+  gap: 1px;
+  background: rgba(148, 163, 184, 0.15);
+}
+
+.editor-panel,
+.preview-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #0f172a;
+}
+
+.editor-panel {
+  padding: 1rem;
+  gap: 1rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.editor-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1 1 0;
+  min-height: 260px;
+}
+
+.editor-section label {
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+textarea {
+  width: 100%;
+  flex: 1;
+  min-height: 280px;
+  resize: vertical;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(15, 23, 42, 0.8);
+  color: #e2e8f0;
+  font-family: "Fira Code", "SFMono-Regular", Consolas, monospace;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+textarea:focus {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: auto;
+}
+
+.control-group {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.control-group label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: #cbd5f5;
+}
+
+.control-group input {
+  width: 120px;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(15, 23, 42, 0.8);
+  color: #e2e8f0;
+  font-size: 0.95rem;
+}
+
+.control-group input:focus {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+#render-btn {
+  align-self: flex-start;
+  padding: 0.65rem 1.5rem;
+  border: none;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, #38bdf8, #818cf8);
+  color: #0f172a;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#render-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 30px rgba(129, 140, 248, 0.45);
+}
+
+#render-btn:active {
+  transform: translateY(0);
+}
+
+#status {
+  min-height: 1.25rem;
+  font-size: 0.85rem;
+  color: #f97316;
+}
+
+.preview-panel {
+  padding: 1rem;
+}
+
+#pdf-viewer {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 0.75rem;
+  background: #fff;
+  box-shadow: 0 15px 60px rgba(15, 23, 42, 0.4);
+}
+
+@media (max-width: 960px) {
+  .container {
+    flex-direction: column;
+  }
+
+  .editor-panel,
+  .preview-panel {
+    min-height: 50vh;
+  }
+}
