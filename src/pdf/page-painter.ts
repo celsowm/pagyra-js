@@ -2,7 +2,18 @@ import type { Rect, Run, RenderBox, RGBA } from "./types.js";
 import type { FontRegistry, FontResource } from "./font/font-registry.js";
 import type { PdfObjectRef } from "./primitives/pdf-document.js";
 import { encodeAndEscapePdfText, encodeToWinAnsi } from "./utils/encoding.js";
-import { needsUnicode } from "../text/text.js";
+function needsUnicode(text: string): boolean {
+  for (const ch of text) {
+    const cp = ch.codePointAt(0)!;
+    // fora do Latin-1
+    if (cp > 0xFF) return true;
+    // combining marks (Mn) 0300–036F
+    if (cp >= 0x0300 && cp <= 0x036F) return true;
+  }
+  // Pontuações "famosas" que não existem no WinAnsi:
+  if (/[—–✓★•…€₹™©®№±×÷→←↑↓→≠≤≥§¶°]/u.test(text)) return true;
+  return false;
+}
 import type { FontEmbedder } from "./font/embedder.js";
 import { getFontForText } from "./font/font-registry.js";
 import { log } from "../debug/log.js";

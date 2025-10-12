@@ -180,17 +180,9 @@ function offsetRect(rect: Rect | null | undefined, dx: number, dy: number): void
 function convertDomNode(node: Node, cssRules: CssRuleEntry[], parentStyle: ComputedStyle): LayoutNode | null {
   if (node.nodeType === node.TEXT_NODE) {
     const raw = node.textContent ?? "";
-    log("PARSE","TRACE","TEXT raw", {
-      sample: raw.slice(0, 80),
-      nfc: raw.normalize("NFC") !== raw,
-      nfd: raw.normalize("NFD") !== raw,
-      codepoints: Array.from(raw).slice(0,40).map(c=>c.codePointAt(0)?.toString(16))
-    });
     const collapsed = raw.replace(/\s+/g, " ");
-    const text = collapsed.trim();
-    if (!text) {
-      return null;
-    }
+    const text = collapsed.normalize("NFC").trim();
+    if (!text) return null;
     const textStyle = new ComputedStyle({
       display: Display.Inline,
       color: parentStyle.color,
@@ -201,15 +193,11 @@ function convertDomNode(node: Node, cssRules: CssRuleEntry[], parentStyle: Compu
     return new LayoutNode(textStyle, [], { textContent: text });
   }
 
-  if (node.nodeType !== node.ELEMENT_NODE) {
-    return null;
-  }
+  if (node.nodeType !== node.ELEMENT_NODE) return null;
 
   const element = node as DomElement;
   const tagName = element.tagName.toLowerCase();
-  if (tagName === "script" || tagName === "style") {
-    return null;
-  }
+  if (tagName === "script" || tagName === "style") return null;
 
   if (tagName === "br") {
     const textStyle = new ComputedStyle({
@@ -222,12 +210,42 @@ function convertDomNode(node: Node, cssRules: CssRuleEntry[], parentStyle: Compu
     return new LayoutNode(textStyle, [], { textContent: "\n" });
   }
 
+  // ✅ Coalescing de #text
   const ownStyle = computeStyleForElement(element, cssRules, parentStyle);
   const layoutChildren: LayoutNode[] = [];
+  let textBuf = "";
+
   for (const child of Array.from(element.childNodes) as Node[]) {
-    const childNode = convertDomNode(child, cssRules, ownStyle);
-    if (childNode) {
-      layoutChildren.push(childNode);
+    if (child.nodeType === child.TEXT_NODE) {
+      textBuf += child.textContent ?? "";
+      continue;
+    }
+    if (textBuf) {
+      const normalized = textBuf.replace(/\s+/g, " ").normalize("NFC").trim();
+      if (normalized) {
+        layoutChildren.push(new LayoutNode(new ComputedStyle({
+          display: Display.Inline,
+          color: ownStyle.color,
+          fontSize: ownStyle.fontSize,
+          lineHeight: ownStyle.lineHeight,
+          fontFamily: ownStyle.fontFamily,
+        }), [], { textContent: normalized }));
+      }
+      textBuf = "";
+    }
+    const sub = convertDomNode(child, cssRules, ownStyle);
+    if (sub) layoutChildren.push(sub);
+  }
+  if (textBuf) {
+    const normalized = textBuf.replace(/\s+/g, " ").normalize("NFC").trim();
+    if (normalized) {
+      layoutChildren.push(new LayoutNode(new ComputedStyle({
+        display: Display.Inline,
+        color: ownStyle.color,
+        fontSize: ownStyle.fontSize,
+        lineHeight: ownStyle.lineHeight,
+        fontFamily: ownStyle.fontFamily,
+      }), [], { textContent: normalized }));
     }
   }
 

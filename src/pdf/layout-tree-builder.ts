@@ -189,44 +189,17 @@ function fallbackDimension(value: number, computed: number): number {
 }
 
 function createTextRuns(node: LayoutNode, color: RGBA | undefined): Run[] {
-  if (!node.textContent) {
-    return [];
-  }
-
-  // Normalize text to NFC and segment by grapheme clusters to properly handle combining marks
-  const raw = node.textContent;
+  const raw = node.textContent!;
   const normalized = raw.normalize("NFC");
-  const clusters = normalizeAndSegment(normalized);
-
-  log("PARSE","TRACE","TEXT(raw)", {
-    sample: node.textContent.slice(0, 120),
-    cps: Array.from(node.textContent).map(c => c.codePointAt(0)!.toString(16))
-  });
-  log("PARSE","TRACE","TEXT(normalized)", {
-    sample: normalized.slice(0, 120),
-    cps: Array.from(normalized).map(c => c.codePointAt(0)!.toString(16))
-  });
-
   const baseline = node.box.baseline > 0 ? node.box.baseline : node.box.y + node.box.contentHeight;
-  const runs = groupByFace(clusters.join(''), node.style.fontFamily ?? "sans-serif", color ?? DEFAULT_TEXT_COLOR, baseline, node.style.fontSize);
-
-  for (const r of runs) {
-    log("RENDER_TREE","DEBUG","text run created+", {
-      text: r.text.length > 60 ? r.text.slice(0, 57) + "..." : r.text,
-      length: [...r.text].length,
-      face: (r as any).face || "standard",
-      fontFamilyCss: r.fontFamily,
-      fontSize: r.fontSize,
-      baseline: baseline
-    });
-  }
-
-  auditRuns(runs.map(r => ({
-    text: r.text,
-    face: (r as any).face || "standard"
-  })));
-
-  return runs;
+  // ✅ um run só; o PagePainter decide a fonte (Identity-H vs Base14)
+  return [{
+    text: normalized,
+    fontFamily: node.style.fontFamily ?? "sans-serif",
+    fontSize: node.style.fontSize,
+    fill: color ?? DEFAULT_TEXT_COLOR,
+    lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: 0, f: baseline },
+  }];
 }
 
 function groupByFace(text: string, fontFamily: string, color: RGBA, baseline: number, fontSize: number): Run[] {

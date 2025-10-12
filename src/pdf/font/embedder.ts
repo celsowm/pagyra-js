@@ -184,8 +184,20 @@ export class FontEmbedder {
     return widths;
   }
 
-  private createToUnicodeCMap(metrics: TtfFontMetrics): PdfObjectRef {
-    // Create a simple ToUnicode CMap
+  private createToUnicodeCMap(metrics: TtfFontMetrics, uniqueUnicodes: number[] = []): PdfObjectRef {
+    // For each unique Unicode codepoint used in document, map CID to Unicode
+    const mappings: string[] = [];
+    const allUnicodes = new Set([...uniqueUnicodes, ...Array.from(metrics.cmap["unicodeMap"].keys())]);
+
+    for (const unicode of allUnicodes) {
+      const glyphId = metrics.cmap["unicodeMap"].get(unicode);
+      if (glyphId !== undefined) {
+        const cid = glyphId.toString(16).padStart(4, '0').toUpperCase();
+        const uni = unicode.toString(16).padStart(4, '0').toUpperCase();
+        mappings.push(`<${cid}> <${uni}>`);
+      }
+    }
+
     const cmap = `/CIDInit /ProcSet findresource begin
 12 dict begin
 begincmap
@@ -199,34 +211,17 @@ begincmap
 1 begincodespacerange
 <0000> <FFFF>
 endcodespacerange
-`;
-
-    // Build glyph to unicode mappings
-    const mappings: string[] = [];
-    let totalMappings = 0;
-
-    for (const [codePoint, glyphId] of metrics.cmap["unicodeMap"]) {
-      if (totalMappings >= 100) break; // Limit for brevity
-      const cid = glyphId.toString(16).padStart(4, '0').toUpperCase();
-      const unicode = codePoint.toString(16).padStart(4, '0').toUpperCase();
-      mappings.push(`<${cid}> <${unicode}>`);
-      totalMappings++;
-    }
-
-    const cmapEnd = `
 ${mappings.length} beginbfchar
 ${mappings.join('\n')}
 endbfchar
 endcmap
 CMapName currentdict /CMap defineresource pop
 end
-end
-`;
+end`;
 
-    const fullCmap = cmap + cmapEnd;
     return this.doc.registerStream(
-      new TextEncoder().encode(fullCmap),
-      { Length: fullCmap.length }
+      new TextEncoder().encode(cmap),
+      { Length: cmap.length }
     );
   }
 
@@ -246,10 +241,41 @@ export async function getEmbeddedFont(name: "NotoSans-Regular" | "DejaVuSans", d
   const existing = embedder['embeddedFonts'].get(name);
   if (existing) return existing;
 
-  const embedded = embedder.embedFont(face);
+  // @ts-ignore: TypeScript complains about private method, but this is intentional for testing
+  const embedded = embedder['embedFont'](face);
   if (embedded) {
     embedder['embeddedFonts'].set(name, embedded);
     return embedded;
   }
   return null;
+}
+
+export function buildToUnicodeCMap(uniqueCodepoints: number[]): string {
+  const mappings: string[] = [];
+  for (const cp of uniqueCodepoints) {
+    const cid = cp.toString(16).padStart(4, '0').toUpperCase();
+    const uni = cp.toString(16).padStart(4, '0').toUpperCase();
+    mappings.push(`<${cid}> <${uni}>`);
+  }
+
+  return `/CIDInit /ProcSet findresource begin
+12 dict begin
+begincmap
+/CIDSystemInfo <<
+  /Registry (Adobe)
+  /Ordering (UCS)
+  /Supplement 0
+>> def
+/CMapName /Adobe-Identity-UCS def
+/CMapType 2 def
+1 begincodespacerange
+<0000> <FFFF>
+endcodespacerange
+${mappings.length} beginbfchar
+${mappings.join('\n')}
+endbfchar
+endcmap
+CMapName currentdict /CMap defineresource pop
+end
+end`;
 }
