@@ -266,6 +266,9 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
   for (const rule of cssRules) {
     if (rule.match(element)) {
       log("STYLE","DEBUG","CSS rule matched", { selector: (rule as any).selector, declarations: rule.declarations });
+      if (rule.declarations.display) {
+        log("STYLE","DEBUG","Display declaration found", { selector: (rule as any).selector, display: rule.declarations.display });
+      }
       Object.assign(aggregated, rule.declarations);
     }
   }
@@ -278,7 +281,39 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
 
   applyDeclarationsToStyle(aggregated, styleInit);
 
-  const display = styleInit.display ?? defaultDisplayForTag(element.tagName.toLowerCase());
+  const tagName = element.tagName.toLowerCase();
+  const defaultDisplay = defaultDisplayForTag(tagName);
+  let display = styleInit.display ?? defaultDisplay;
+
+  log("STYLE", "DEBUG", "computeStyleForElement display", {
+    tagName,
+    styleInitDisplay: styleInit.display,
+    defaultDisplay,
+    finalDisplay: display
+  });
+
+  // Force correct display for table elements if they're not set correctly
+  if (tagName === 'table') {
+    if (display !== Display.Table) {
+      log("STYLE", "DEBUG", "Forcing table display", { tagName, originalDisplay: display });
+      display = Display.Table;
+    }
+  } else if (tagName === 'thead' || tagName === 'tbody' || tagName === 'tfoot') {
+    if (display !== Display.TableRowGroup) {
+      log("STYLE", "DEBUG", "Forcing table-row-group display", { tagName, originalDisplay: display });
+      display = Display.TableRowGroup;
+    }
+  } else if (tagName === 'tr') {
+    if (display !== Display.TableRow) {
+      log("STYLE", "DEBUG", "Forcing table-row display", { tagName, originalDisplay: display });
+      display = Display.TableRow;
+    }
+  } else if (tagName === 'td' || tagName === 'th') {
+    if (display !== Display.TableCell) {
+      log("STYLE", "DEBUG", "Forcing table-cell display", { tagName, originalDisplay: display });
+      display = Display.TableCell;
+    }
+  }
   const floatValue = mapFloat(styleInit.float);
 
   const styleOptions: Partial<StyleProperties> = {
@@ -315,6 +350,7 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
 }
 
 function defaultDisplayForTag(tag: string): Display {
+  let display: Display;
   switch (tag) {
     case "span":
     case "a":
@@ -324,7 +360,26 @@ function defaultDisplayForTag(tag: string): Display {
     case "code":
     case "small":
     case "time":
-      return Display.Inline;
+      display = Display.Inline;
+      break;
+    case "table":
+      display = Display.Table;
+      break;
+    case "tbody":
+    case "thead":
+    case "tfoot":
+      display = Display.TableRowGroup;
+      break;
+    case "tr":
+      display = Display.TableRow;
+      break;
+    case "td":
+    case "th":
+      display = Display.TableCell;
+      break;
+    case "caption":
+      display = Display.TableCaption;
+      break;
     case "flex":
     case "div":
     case "section":
@@ -337,21 +392,20 @@ function defaultDisplayForTag(tag: string): Display {
     case "ul":
     case "ol":
     case "li":
-    case "table":
-    case "tbody":
-    case "thead":
-    case "tr":
-    case "td":
     case "h1":
     case "h2":
     case "h3":
     case "h4":
     case "h5":
     case "h6":
-      return Display.Block;
+      display = Display.Block;
+      break;
     default:
-      return Display.Block;
+      display = Display.Block;
+      break;
   }
+  log("STYLE", "TRACE", "defaultDisplayForTag", { tag, display });
+  return display;
 }
 
 function mapFloat(value: string | undefined): FloatMode | undefined {
@@ -540,6 +594,20 @@ function mapDisplay(value: string | undefined): Display | undefined {
       return Display.Flex;
     case "grid":
       return Display.Grid;
+    case "table":
+      return Display.Table;
+    case "table-row":
+      return Display.TableRow;
+    case "table-cell":
+      return Display.TableCell;
+    case "table-row-group":
+      return Display.TableRowGroup;
+    case "table-header-group":
+      return Display.TableHeaderGroup;
+    case "table-footer-group":
+      return Display.TableFooterGroup;
+    case "table-caption":
+      return Display.TableCaption;
     case "none":
       return Display.None;
     default:

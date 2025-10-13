@@ -18,7 +18,7 @@ import { clearForBlock, placeFloat } from "../utils/floats.js";
 import { layoutInlineFormattingContext } from "../utils/inline-formatting.js";
 
 export class BlockLayoutStrategy implements LayoutStrategy {
-  private readonly supportedDisplays = new Set<Display>([Display.Block, Display.FlowRoot, Display.InlineBlock]);
+  private readonly supportedDisplays = new Set<Display>([Display.Block, Display.FlowRoot, Display.InlineBlock, Display.TableCell]);
 
   canLayout(node: LayoutNode): boolean {
     return this.supportedDisplays.has(node.style.display);
@@ -109,9 +109,16 @@ export class BlockLayoutStrategy implements LayoutStrategy {
       child.box.x = originX;
       child.box.y = cursorY;
 
+      // Lay out the child. The child's strategy is responsible for setting its own
+      // box model properties, including contentHeight and borderBoxHeight.
       context.layoutChild(child);
 
-      child.box.borderBoxHeight = child.box.contentHeight + childNonContentVertical;
+      // **FIX:** The line below was removed. It was incorrectly overwriting the
+      // borderBoxHeight calculated by complex child strategies (like TableLayoutStrategy).
+      // REMOVED: child.box.borderBoxHeight = child.box.contentHeight + verticalNonContent(child, contentWidth);
+
+      // Now, use the authoritative borderBoxHeight set by the child's layout strategy
+      // to advance the cursor.
       child.box.marginBoxHeight = child.box.borderBoxHeight + childMarginTop + childMarginBottom;
       previousBottomMargin = childMarginBottom;
       cursorY = child.box.y + child.box.borderBoxHeight + childMarginBottom;
