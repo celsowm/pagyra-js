@@ -36,6 +36,64 @@ export class TableLayoutStrategy implements LayoutStrategy {
     const numCols = grid[0].length;
     log("LAYOUT", "DEBUG", "Table grid created", { rows: numRows, cols: numCols });
 
+      // Mimic browser border behavior: resolve border styles for each cell
+      for (let r = 0; r < numRows; r++) {
+        for (let c = 0; c < numCols; c++) {
+          const cell = grid[r][c];
+          if (!cell) continue;
+          const row = cell.parent;
+          // BorderTop
+          if (cell.style.borderTop === undefined || cell.style.borderTop === 0) {
+            if (row && row.style.borderTop !== undefined && row.style.borderTop !== 0) {
+              cell.style.borderTop = row.style.borderTop;
+            } else if (node.style.borderTop !== undefined && node.style.borderTop !== 0) {
+              cell.style.borderTop = node.style.borderTop;
+            }
+          }
+          // BorderRight
+          if (cell.style.borderRight === undefined || cell.style.borderRight === 0) {
+            if (row && row.style.borderRight !== undefined && row.style.borderRight !== 0) {
+              cell.style.borderRight = row.style.borderRight;
+            } else if (node.style.borderRight !== undefined && node.style.borderRight !== 0) {
+              cell.style.borderRight = node.style.borderRight;
+            }
+          }
+          // BorderBottom
+          if (cell.style.borderBottom === undefined || cell.style.borderBottom === 0) {
+            if (row && row.style.borderBottom !== undefined && row.style.borderBottom !== 0) {
+              cell.style.borderBottom = row.style.borderBottom;
+            } else if (node.style.borderBottom !== undefined && node.style.borderBottom !== 0) {
+              cell.style.borderBottom = node.style.borderBottom;
+            }
+          }
+          // BorderLeft
+          if (cell.style.borderLeft === undefined || cell.style.borderLeft === 0) {
+            if (row && row.style.borderLeft !== undefined && row.style.borderLeft !== 0) {
+              cell.style.borderLeft = row.style.borderLeft;
+            } else if (node.style.borderLeft !== undefined && node.style.borderLeft !== 0) {
+              cell.style.borderLeft = node.style.borderLeft;
+            }
+          }
+          // BorderColor
+          if (cell.style.borderColor === undefined) {
+            if (row && row.style.borderColor !== undefined) {
+              cell.style.borderColor = row.style.borderColor;
+            } else if (node.style.borderColor !== undefined) {
+              cell.style.borderColor = node.style.borderColor;
+            }
+          }
+          // Debug log border properties
+          log("LAYOUT", "TRACE", "Cell border properties", {
+            row: r,
+            col: c,
+            borderTop: cell.style.borderTop,
+            borderRight: cell.style.borderRight,
+            borderBottom: cell.style.borderBottom,
+            borderLeft: cell.style.borderLeft,
+            borderColor: cell.style.borderColor,
+          });
+        }
+      }
     const colWidths = this.calculateColumnWidths(grid, node.box.contentWidth);
     log("LAYOUT", "DEBUG", "Table column widths calculated", { colWidths });
 
@@ -46,16 +104,39 @@ export class TableLayoutStrategy implements LayoutStrategy {
         const cell = grid[r][c];
         if (!cell) continue;
 
-        const cellAvailableWidth = colWidths[c] - horizontalNonContent(cell, colWidths[c]);
+  // Calculate border and padding for cell, resolving to numbers
+  const borderLeft = resolveLength(cell.style.borderLeft, colWidths[c], { auto: "zero" });
+  const borderRight = resolveLength(cell.style.borderRight, colWidths[c], { auto: "zero" });
+  const borderTop = resolveLength(cell.style.borderTop, colWidths[c], { auto: "zero" });
+  const borderBottom = resolveLength(cell.style.borderBottom, colWidths[c], { auto: "zero" });
+  const paddingLeft = resolveLength(cell.style.paddingLeft, colWidths[c], { auto: "zero" });
+  const paddingRight = resolveLength(cell.style.paddingRight, colWidths[c], { auto: "zero" });
+  const paddingTop = resolveLength(cell.style.paddingTop, colWidths[c], { auto: "zero" });
+  const paddingBottom = resolveLength(cell.style.paddingBottom, colWidths[c], { auto: "zero" });
+
+  // Available content width for cell
+  const cellAvailableWidth = colWidths[c] - borderLeft - borderRight - paddingLeft - paddingRight;
         cell.box.x = 0;
         cell.box.y = 0;
         cell.box.contentWidth = cellAvailableWidth;
 
+        // Layout child and get its content height
         context.layoutChild(cell);
 
-        const verticalExtras = verticalNonContent(cell, colWidths[c]);
-        const cellBorderBoxHeight = cell.box.contentHeight + verticalExtras;
-        maxRowHeight = Math.max(maxRowHeight, cellBorderBoxHeight);
+        // Ensure cell node itself has correct contentHeight
+        cell.box.contentHeight = cell.box.contentHeight || 0;
+        // If cell has children, use the max of their contentHeight
+        if (cell.children && cell.children.length > 0) {
+          let maxChildHeight = 0;
+          for (const child of cell.children) {
+            maxChildHeight = Math.max(maxChildHeight, child.box.contentHeight || 0);
+          }
+          cell.box.contentHeight = Math.max(cell.box.contentHeight, maxChildHeight);
+        }
+
+        // Total cell height including borders and padding
+        const cellTotalHeight = cell.box.contentHeight + borderTop + borderBottom + paddingTop + paddingBottom;
+        maxRowHeight = Math.max(maxRowHeight, cellTotalHeight);
       }
       rowHeights[r] = maxRowHeight;
     }
@@ -68,14 +149,20 @@ export class TableLayoutStrategy implements LayoutStrategy {
         const cell = grid[r][c];
 
         if (cell) {
-          const newX = node.box.x + cursorX;
-          const newY = node.box.y + cursorY;
+          // Calculate border and padding for cell, resolving to numbers
+          const borderLeft = resolveLength(cell.style.borderLeft, colWidths[c], { auto: "zero" });
+          const borderTop = resolveLength(cell.style.borderTop, colWidths[c], { auto: "zero" });
+          const paddingLeft = resolveLength(cell.style.paddingLeft, colWidths[c], { auto: "zero" });
+          const paddingTop = resolveLength(cell.style.paddingTop, colWidths[c], { auto: "zero" });
+
+          // Set the cell's final position (including border and padding)
+          const newX = node.box.x + cursorX + borderLeft + paddingLeft;
+          const newY = node.box.y + cursorY + borderTop + paddingTop;
 
           // Calculate the offset from the cell's position during layout (which was 0,0)
           const deltaX = newX - cell.box.x;
           const deltaY = newY - cell.box.y;
 
-          // Set the cell's final position
           cell.box.x = newX;
           cell.box.y = newY;
 
@@ -88,12 +175,11 @@ export class TableLayoutStrategy implements LayoutStrategy {
             }
           }, false);
 
+          // Set border box dimensions
           cell.box.borderBoxWidth = colWidths[c];
           cell.box.borderBoxHeight = rowHeights[r];
 
-          const hExtras = horizontalNonContent(cell, colWidths[c]);
-          cell.box.contentWidth = colWidths[c] - hExtras;
-
+          // Debug log for cell position and size
           log("LAYOUT", "TRACE", "Positioning table cell", {
             row: r,
             col: c,
