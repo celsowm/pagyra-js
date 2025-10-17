@@ -106,7 +106,18 @@ export function prepareHtmlRender(options: RenderHtmlOptions): PreparedRender {
     hasBody: !!document.body,
     childNodes: document.body?.childNodes?.length ?? 0
   });
-  const cssRules = buildCssRules(css);
+
+  // Extract CSS from <style> tags in the HTML
+  let mergedCss = css || "";
+  const styleTags = document.querySelectorAll ? document.querySelectorAll("style") : [];
+  if (styleTags && styleTags.length > 0) {
+    for (const styleTag of Array.from(styleTags)) {
+      if (styleTag.textContent) {
+        mergedCss += "\n" + styleTag.textContent;
+      }
+    }
+  }
+  const cssRules = buildCssRules(mergedCss);
   log("PARSE","DEBUG","CSS rules", { count: cssRules.length });
 
   const rootLayout = new LayoutNode(new ComputedStyle());
