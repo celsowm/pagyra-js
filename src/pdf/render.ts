@@ -101,7 +101,12 @@ function paintBackgrounds(painter: PagePainter, boxes: RenderBox[]): void {
 
 function paintBorders(painter: PagePainter, boxes: RenderBox[]): void {
   for (const box of boxes) {
-    const color = box.borderColor;
+    // Default to black if borderColor is not set and this is a table cell
+    let color = box.borderColor;
+    const isTableCell = box.tagName === 'td' || box.tagName === 'th';
+    if (!color && isTableCell) {
+      color = { r: 0, g: 0, b: 0, a: 1 };
+    }
     if (!color) {
       continue;
     }

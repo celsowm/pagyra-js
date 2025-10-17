@@ -42,7 +42,16 @@ export class TableLayoutStrategy implements LayoutStrategy {
           const cell = grid[r][c];
           if (!cell) continue;
           const row = cell.parent;
-          // BorderTop
+          // Set default border width and color for table cells if not set
+          const isTableCell = cell.tagName === 'td' || cell.tagName === 'th';
+          if (isTableCell) {
+            if (cell.style.borderTop === undefined || cell.style.borderTop === 0) cell.style.borderTop = 1;
+            if (cell.style.borderRight === undefined || cell.style.borderRight === 0) cell.style.borderRight = 1;
+            if (cell.style.borderBottom === undefined || cell.style.borderBottom === 0) cell.style.borderBottom = 1;
+            if (cell.style.borderLeft === undefined || cell.style.borderLeft === 0) cell.style.borderLeft = 1;
+            if (cell.style.borderColor === undefined) cell.style.borderColor = '#000';
+          }
+          // Inherit from row/table if still not set
           if (cell.style.borderTop === undefined || cell.style.borderTop === 0) {
             if (row && row.style.borderTop !== undefined && row.style.borderTop !== 0) {
               cell.style.borderTop = row.style.borderTop;
@@ -50,7 +59,6 @@ export class TableLayoutStrategy implements LayoutStrategy {
               cell.style.borderTop = node.style.borderTop;
             }
           }
-          // BorderRight
           if (cell.style.borderRight === undefined || cell.style.borderRight === 0) {
             if (row && row.style.borderRight !== undefined && row.style.borderRight !== 0) {
               cell.style.borderRight = row.style.borderRight;
@@ -58,7 +66,6 @@ export class TableLayoutStrategy implements LayoutStrategy {
               cell.style.borderRight = node.style.borderRight;
             }
           }
-          // BorderBottom
           if (cell.style.borderBottom === undefined || cell.style.borderBottom === 0) {
             if (row && row.style.borderBottom !== undefined && row.style.borderBottom !== 0) {
               cell.style.borderBottom = row.style.borderBottom;
@@ -66,7 +73,6 @@ export class TableLayoutStrategy implements LayoutStrategy {
               cell.style.borderBottom = node.style.borderBottom;
             }
           }
-          // BorderLeft
           if (cell.style.borderLeft === undefined || cell.style.borderLeft === 0) {
             if (row && row.style.borderLeft !== undefined && row.style.borderLeft !== 0) {
               cell.style.borderLeft = row.style.borderLeft;
@@ -74,7 +80,6 @@ export class TableLayoutStrategy implements LayoutStrategy {
               cell.style.borderLeft = node.style.borderLeft;
             }
           }
-          // BorderColor
           if (cell.style.borderColor === undefined) {
             if (row && row.style.borderColor !== undefined) {
               cell.style.borderColor = row.style.borderColor;
@@ -122,6 +127,15 @@ export class TableLayoutStrategy implements LayoutStrategy {
 
         // Layout child and get its content height
         context.layoutChild(cell);
+
+
+        // Apply textAlign and verticalAlign to children if present
+        if (cell.style.textAlign || cell.style.verticalAlign) {
+          for (const child of cell.children) {
+            if (cell.style.textAlign) child.style.textAlign = cell.style.textAlign;
+            if (cell.style.verticalAlign) child.style.verticalAlign = cell.style.verticalAlign;
+          }
+        }
 
         // Ensure cell node itself has correct contentHeight
         cell.box.contentHeight = cell.box.contentHeight || 0;

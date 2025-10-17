@@ -196,26 +196,33 @@ function createTextRuns(node: LayoutNode, color: RGBA | undefined): Run[] {
   // Se o layout calculou caixas de linha, use-as.
   if (node.lineBoxes && node.lineBoxes.length > 0) {
     const lineHeight = resolvedLineHeight(node.style);
-    
-    // A baseline é a parte inferior da caixa de conteúdo do nó + a altura da linha.
-    // O sistema de coordenadas do PDF é de baixo para cima.
+    // Alignment logic
+    let alignX = node.box.x;
+    let alignY = node.box.y;
+    // Horizontal alignment (approximate: use contentWidth)
+    if (node.style.textAlign === "center") {
+      alignX = node.box.x + node.box.contentWidth / 2;
+    } else if (node.style.textAlign === "right") {
+      alignX = node.box.x + node.box.contentWidth;
+    }
+    // Vertical alignment
+    let totalTextHeight = node.lineBoxes.length * lineHeight;
+    if (node.style.verticalAlign === "middle") {
+      alignY = node.box.y + (node.box.contentHeight - totalTextHeight) / 2;
+    } else if (node.style.verticalAlign === "bottom") {
+      alignY = node.box.y + (node.box.contentHeight - totalTextHeight);
+    }
     for (let i = 0; i < node.lineBoxes.length; i++) {
       const line = node.lineBoxes[i];
       const normalizedText = line.text.normalize("NFC");
-      
-      // A baseline para cada linha é calculada a partir do topo da caixa do nó.
-      // O y da caixa é o topo. Adicionamos o deslocamento da linha e a altura da fonte
-      // para obter uma aproximação da baseline.
       const lineYOffset = (i * lineHeight);
-      const baseline = node.box.y + lineYOffset + node.style.fontSize; // Aproximação da baseline
-
+      const baseline = alignY + lineYOffset + node.style.fontSize;
       runs.push({
         text: normalizedText,
         fontFamily: node.style.fontFamily ?? "sans-serif",
         fontSize: node.style.fontSize,
         fill: defaultColor,
-        // A posição 'e' é o x, 'f' é o y (baseline)
-        lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: node.box.x, f: baseline },
+        lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: alignX, f: baseline },
       });
     }
     return runs;
