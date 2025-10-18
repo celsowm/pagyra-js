@@ -38,6 +38,7 @@ export interface ElementDefaults {
   borderCollapse?: string;
   borderSpacing?: number;
   objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down";
+  textDecorationLine?: string;
 }
 
 /**
@@ -334,6 +335,38 @@ export class ElementSpecificDefaults {
       fontFamily: TypographyDefaults.getFontFamily(),
       color: TypographyDefaults.getColor(),
     },
+    b: {
+      display: Display.Inline,
+      fontSize: 16,
+      fontWeight: 700,
+      lineHeight: TypographyDefaults.getLineHeight(),
+      fontFamily: TypographyDefaults.getFontFamily(),
+      color: TypographyDefaults.getColor(),
+    },
+    s: {
+      display: Display.Inline,
+      fontSize: 16,
+      lineHeight: TypographyDefaults.getLineHeight(),
+      fontFamily: TypographyDefaults.getFontFamily(),
+      color: TypographyDefaults.getColor(),
+      textDecorationLine: "line-through",
+    },
+    del: {
+      display: Display.Inline,
+      fontSize: 16,
+      lineHeight: TypographyDefaults.getLineHeight(),
+      fontFamily: TypographyDefaults.getFontFamily(),
+      color: TypographyDefaults.getColor(),
+      textDecorationLine: "line-through",
+    },
+    strike: {
+      display: Display.Inline,
+      fontSize: 16,
+      lineHeight: TypographyDefaults.getLineHeight(),
+      fontFamily: TypographyDefaults.getFontFamily(),
+      color: TypographyDefaults.getColor(),
+      textDecorationLine: "line-through",
+    },
     code: {
       display: Display.Inline,
       fontSize: 14,
@@ -482,6 +515,7 @@ export class BrowserDefaults {
       color: TypographyDefaults.getColor(),
       letterSpacing: TypographyDefaults.getLetterSpacing(),
       wordSpacing: TypographyDefaults.getWordSpacing(),
+      textDecorationLine: "none",
 
       // Box model
       marginTop: BoxModelDefaults.getMargin(),
@@ -639,6 +673,9 @@ export class BrowserDefaults {
     }
     if (elementDefaults.listStyle !== undefined) {
       (merged as any).listStyle = elementDefaults.listStyle;
+    }
+    if (elementDefaults.textDecorationLine !== undefined) {
+      (merged as any).textDecorationLine = elementDefaults.textDecorationLine;
     }
     if (elementDefaults.borderCollapse !== undefined) {
       merged.borderCollapse = elementDefaults.borderCollapse;

@@ -59,6 +59,7 @@ interface StyleAccumulator {
   textAlign?: string;
   objectFit?: string;
   backgroundSize?: string;
+  textDecorationLine?: string;
 }
 
 import type { FontConfig } from "./types/fonts.js";
@@ -272,17 +273,18 @@ async function convertDomNode(
     if (textBuf) {
       const normalized = textBuf.replace(/\s+/g, " ").normalize("NFC").trim();
       if (normalized) {
-        layoutChildren.push(new LayoutNode(new ComputedStyle({
-          display: Display.Inline,
-          color: ownStyle.color,
-          fontSize: ownStyle.fontSize,
-          lineHeight: ownStyle.lineHeight,
-          fontFamily: ownStyle.fontFamily,
-          fontWeight: ownStyle.fontWeight,
-        }), [], { textContent: normalized }));
-      }
-      textBuf = "";
+      layoutChildren.push(new LayoutNode(new ComputedStyle({
+        display: Display.Inline,
+        color: ownStyle.color,
+        fontSize: ownStyle.fontSize,
+        lineHeight: ownStyle.lineHeight,
+        fontFamily: ownStyle.fontFamily,
+        fontWeight: ownStyle.fontWeight,
+        textDecorationLine: ownStyle.textDecorationLine,
+      }), [], { textContent: normalized }));
     }
+    textBuf = "";
+  }
     const sub = await convertDomNode(child, cssRules, ownStyle, context);
     if (sub) layoutChildren.push(sub);
   }
@@ -296,6 +298,7 @@ async function convertDomNode(
         lineHeight: ownStyle.lineHeight,
         fontFamily: ownStyle.fontFamily,
         fontWeight: ownStyle.fontWeight,
+        textDecorationLine: ownStyle.textDecorationLine,
       }), [], { textContent: normalized }));
     }
   }
@@ -322,6 +325,7 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
     lineHeight: parentStyle.lineHeight,
     fontFamily: parentStyle.fontFamily ?? mergedDefaults.fontFamily,
     fontWeight: parentStyle.fontWeight ?? mergedDefaults.fontWeight,
+    textDecorationLine: parentStyle.textDecorationLine ?? mergedDefaults.textDecorationLine,
   };
 
   const styleInit: StyleAccumulator = {};
@@ -440,6 +444,15 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
     styleOptions.objectFit = styleInit.objectFit as StyleProperties["objectFit"];
   }
   if (styleInit.backgroundSize !== undefined) styleOptions.backgroundSize = styleInit.backgroundSize;
+  const defaultDecoration = mergedDefaults.textDecorationLine ?? "none";
+  let decoration = inherited.textDecorationLine ?? defaultDecoration;
+  if (elementDefaults.textDecorationLine !== undefined) {
+    decoration = elementDefaults.textDecorationLine;
+  }
+  if (styleInit.textDecorationLine !== undefined) {
+    decoration = styleInit.textDecorationLine;
+  }
+  styleOptions.textDecorationLine = decoration;
 
   return new ComputedStyle(styleOptions);
 }
@@ -451,6 +464,10 @@ function defaultDisplayForTag(tag: string): Display {
     case "a":
     case "strong":
     case "em":
+    case "b":
+    case "s":
+    case "strike":
+    case "del":
     case "label":
     case "code":
     case "small":
@@ -512,6 +529,30 @@ function mapFloat(value: string | undefined): FloatMode | undefined {
     default:
       return undefined;
   }
+}
+
+function parseTextDecorationLine(value: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const tokens = value
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (tokens.length === 0) {
+    return undefined;
+  }
+  if (tokens.includes("none")) {
+    return "none";
+  }
+  const allowed = new Set(["underline", "overline", "line-through"]);
+  const matches = tokens.filter((token) => allowed.has(token));
+  if (matches.length === 0) {
+    return undefined;
+  }
+  const unique = [...new Set(matches)];
+  return unique.join(" ");
 }
 
 function applyDeclarationsToStyle(declarations: Record<string, string>, target: StyleAccumulator, inheritedFontWeight?: number): void {
@@ -709,6 +750,14 @@ function applyDeclarationsToStyle(declarations: Record<string, string>, target: 
       case "text-align":
         target.textAlign = value.toLowerCase();
         break;
+      case "text-decoration":
+      case "text-decoration-line": {
+        const parsed = parseTextDecorationLine(value);
+        if (parsed !== undefined) {
+          target.textDecorationLine = parsed;
+        }
+        break;
+      }
       case "float":
         target.float = value;
         break;

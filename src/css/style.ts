@@ -26,6 +26,7 @@ export type TrackDefinition = string | CSSLength;
 export interface StyleProperties {
   textAlign?: string;
   verticalAlign?: string;
+  textDecorationLine?: string;
   display: Display;
   position: Position;
   float: FloatMode;
@@ -98,6 +99,7 @@ const defaultStyle = BrowserDefaults.createBaseDefaults() as StyleProperties;
 export class ComputedStyle implements StyleProperties {
   textAlign?: string;
   verticalAlign?: string;
+  textDecorationLine?: string;
   display: Display;
   position: Position;
   float: FloatMode;
@@ -240,6 +242,7 @@ export class ComputedStyle implements StyleProperties {
     this.orphans = data.orphans;
     this.textAlign = init?.textAlign ?? undefined;
     this.verticalAlign = init?.verticalAlign ?? undefined;
+    this.textDecorationLine = init?.textDecorationLine ?? defaultStyle.textDecorationLine;
   }
 }
 

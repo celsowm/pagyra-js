@@ -205,6 +205,32 @@ export class PagePainter {
     sequence.push("ET");
 
     this.commands.push(...sequence);
+    this.drawTextRunDecorations(run, color);
+  }
+
+  private drawTextRunDecorations(run: Run, color: RGBA): void {
+    if (!run.decorations) {
+      return;
+    }
+    const matrix = run.lineMatrix;
+    if (!matrix) {
+      return;
+    }
+    const widthPx = Math.max(run.advanceWidth ?? 0, 0);
+    if (widthPx <= 0) {
+      return;
+    }
+    if (run.decorations.lineThrough) {
+      const thicknessPx = Math.max(run.fontSize * 0.085, 0.5);
+      const centerYPx = matrix.f - run.fontSize * 0.3;
+      const rect = {
+        x: matrix.e,
+        y: centerYPx - thicknessPx / 2,
+        width: widthPx,
+        height: thicknessPx,
+      };
+      this.fillRect(rect, color);
+    }
   }
 
   result(): PainterResult {

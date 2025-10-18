@@ -113,6 +113,8 @@ export interface Run {
   lineMatrix: TextMatrix;
   glyphs?: GlyphRun;
   wordSpacing?: number;
+  decorations?: Decorations;
+  advanceWidth?: number;
 }
 
 export interface TextMatrix {

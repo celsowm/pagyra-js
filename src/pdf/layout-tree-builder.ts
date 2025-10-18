@@ -17,11 +17,13 @@ import {
   type RGBA,
   type Run,
   type ImageRef,
+  type Decorations,
   NodeKind,
   Overflow,
   LayerMode,
 } from "./types.js";
 import { resolvedLineHeight } from "../css/style.js";
+import { estimateLineWidth } from "../layout/utils/text-metrics.js";
 import type { ImageInfo } from "../image/types.js";
 
 export interface RenderTreeOptions {
@@ -119,7 +121,8 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
   const children = node.children.map((child) => convertNode(child, state));
   const textColor = parseColor(node.style.color);
   const imageRef = extractImageRef(node);
-  const textRuns = node.textContent ? createTextRuns(node, textColor) : [];
+  const decorations = resolveDecorations(node.style);
+  const textRuns = node.textContent ? createTextRuns(node, textColor, decorations) : [];
 
   log("RENDER_TREE","DEBUG","node converted", {
     tagName: node.tagName,
@@ -144,7 +147,7 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
     opacity: 1,
     overflow: mapOverflow(node.style.overflowX ?? OverflowMode.Visible),
     textRuns,
-    decorations: {},
+    decorations: decorations ?? {},
     textShadows: [],
     boxShadows: [],
     establishesStackingContext: false,
@@ -231,10 +234,14 @@ function fallbackDimension(value: number, computed: number): number {
   return value > 0 ? value : computed;
 }
 
-function createTextRuns(node: LayoutNode, color: RGBA | undefined): Run[] {
+function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheritedDecorations?: Decorations): Run[] {
   const runs: Run[] = [];
   const defaultColor = color ?? DEFAULT_TEXT_COLOR;
   const effectiveTextAlign = resolveTextAlign(node) ?? node.style.textAlign;
+  const decoration = inheritedDecorations ?? resolveDecorations(node.style);
+  const fontFamily = node.style.fontFamily ?? "sans-serif";
+  const fontSize = node.style.fontSize;
+  const fontWeight = node.style.fontWeight;
 
   // Se o layout calculou caixas de linha, use-as.
   if (node.lineBoxes && node.lineBoxes.length > 0) {
@@ -260,7 +267,7 @@ function createTextRuns(node: LayoutNode, color: RGBA | undefined): Run[] {
       const line = node.lineBoxes[i];
       const normalizedText = line.text.normalize("NFC");
       const lineYOffset = i * lineHeight;
-      const baseline = alignY + lineYOffset + node.style.fontSize;
+      const baseline = alignY + lineYOffset + fontSize;
       let wordSpacing: number | undefined;
       if (justify && i < node.lineBoxes.length - 1) {
         const gapCount = line.spaceCount ?? 0;
@@ -272,14 +279,22 @@ function createTextRuns(node: LayoutNode, color: RGBA | undefined): Run[] {
           }
         }
       }
+      const baseWidth = line.width ?? estimateLineWidth(normalizedText, node.style);
+      const targetWidth = line.targetWidth ?? baseWidth;
+      const advanceWidth =
+        wordSpacing !== undefined && wordSpacing !== 0 && targetWidth > 0
+          ? Math.max(targetWidth, baseWidth)
+          : Math.max(baseWidth, 0);
       runs.push({
         text: normalizedText,
-        fontFamily: node.style.fontFamily ?? "sans-serif",
-        fontSize: node.style.fontSize,
-        fontWeight: node.style.fontWeight,
+        fontFamily,
+        fontSize,
+        fontWeight,
         fill: defaultColor,
         lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: alignX, f: baseline },
         wordSpacing,
+        decorations: decoration ? { ...decoration } : undefined,
+        advanceWidth,
       });
     }
     return runs;
@@ -291,18 +306,46 @@ function createTextRuns(node: LayoutNode, color: RGBA | undefined): Run[] {
     const normalized = raw.normalize("NFC");
     // Se não houver lineBoxes, a baseline é a calculada para a caixa inteira.
     const baseline = node.box.baseline > 0 ? node.box.baseline : node.box.y + node.box.contentHeight;
-    
+    const advanceWidth = Math.max(estimateLineWidth(normalized, node.style), 0);
+
     return [{
       text: normalized,
-      fontFamily: node.style.fontFamily ?? "sans-serif",
-      fontSize: node.style.fontSize,
-      fontWeight: node.style.fontWeight,
+      fontFamily,
+      fontSize,
+      fontWeight,
       fill: defaultColor,
       lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: node.box.x, f: baseline },
+      decorations: decoration ? { ...decoration } : undefined,
+      advanceWidth,
     }];
   }
 
   return [];
+}
+
+function resolveDecorations(style: ComputedStyle): Decorations | undefined {
+  const value = style.textDecorationLine?.trim().toLowerCase();
+  if (!value || value === "none") {
+    return undefined;
+  }
+  const tokens = value.split(/\s+/);
+  const decoration: Decorations = {};
+  for (const token of tokens) {
+    switch (token) {
+      case "underline":
+        decoration.underline = true;
+        break;
+      case "overline":
+        decoration.overline = true;
+        break;
+      case "line-through":
+        decoration.lineThrough = true;
+        break;
+      default:
+        break;
+    }
+  }
+  return decoration.underline || decoration.overline || decoration.lineThrough ? decoration : undefined;
 }
 
 function groupByFace(text: string, fontFamily: string, color: RGBA, baseline: number, fontSize: number): Run[] {
