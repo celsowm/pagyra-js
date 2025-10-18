@@ -94,7 +94,13 @@ function paintBackgrounds(painter: PagePainter, boxes: RenderBox[]): void {
   for (const box of boxes) {
     const color = box.background?.color;
     if (color) {
-      painter.fillRect(box.paddingBox ?? box.contentBox, color);
+      // For table cells, fill the entire borderBox
+      const isTableCell = box.tagName === 'td' || box.tagName === 'th';
+      if (isTableCell) {
+        painter.fillRect(box.borderBox, color);
+      } else {
+        painter.fillRect(box.paddingBox ?? box.contentBox, color);
+      }
     }
   }
 }
