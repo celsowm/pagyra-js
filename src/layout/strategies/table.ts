@@ -5,6 +5,7 @@ import { resolveLength } from "../../css/length.js";
 import { containingBlock, horizontalNonContent, resolveWidthBlock, verticalNonContent } from "../utils/node-math.js";
 import type { LayoutContext, LayoutStrategy } from "../pipeline/strategy.js";
 import { layoutTableCell, auditTableCell, debugTableCell } from "../table/cell_layout.js";
+import type { LengthLike } from "../../css/length.js";
 
 export class TableLayoutStrategy implements LayoutStrategy {
   private readonly supportedDisplays = new Set<Display>([Display.Table, Display.InlineTable]);
@@ -103,14 +104,17 @@ export class TableLayoutStrategy implements LayoutStrategy {
       }
 
     if (collapsedBorders) {
+      const numericBorder = (value: LengthLike | undefined): number =>
+        resolveLength(value, node.box.contentWidth, { auto: "zero" });
+
       // Resolve vertical shared borders between adjacent rows
       for (let r = 0; r < numRows - 1; r++) {
         for (let c = 0; c < numCols; c++) {
           const upper = grid[r][c];
           const lower = grid[r + 1][c];
           if (!upper || !lower) continue;
-          const upperBottom = upper.style.borderBottom ?? 0;
-          const lowerTop = lower.style.borderTop ?? 0;
+          const upperBottom = numericBorder(upper.style.borderBottom);
+          const lowerTop = numericBorder(lower.style.borderTop);
           const shared = Math.max(upperBottom, lowerTop);
           lower.style.borderTop = shared;
           upper.style.borderBottom = 0;
@@ -125,8 +129,8 @@ export class TableLayoutStrategy implements LayoutStrategy {
           const left = grid[r][c];
           const right = grid[r][c + 1];
           if (!left || !right) continue;
-          const leftRight = left.style.borderRight ?? 0;
-          const rightLeft = right.style.borderLeft ?? 0;
+          const leftRight = numericBorder(left.style.borderRight);
+          const rightLeft = numericBorder(right.style.borderLeft);
           const shared = Math.max(leftRight, rightLeft);
           right.style.borderLeft = shared;
           left.style.borderRight = 0;
