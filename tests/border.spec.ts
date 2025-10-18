@@ -18,9 +18,28 @@ function findNode(root: LayoutNode, tagName: string): LayoutNode {
   return result;
 }
 
+function findAllNodes(root: LayoutNode, tagName: string): LayoutNode[] {
+  const matches: LayoutNode[] = [];
+  root.walk((node) => {
+    if (node.tagName?.toLowerCase() === tagName) {
+      matches.push(node);
+    }
+  });
+  return matches;
+}
+
 function renderTable(css: string) {
   return prepareHtmlRender({
-    html: "<html><body><table><tr><th>H</th><td>D</td></tr></table></body></html>",
+    html: `
+      <html>
+        <body>
+          <table>
+            <tr><th>H</th><td>D</td></tr>
+            <tr><th>H2</th><td>D2</td></tr>
+          </table>
+        </body>
+      </html>
+    `,
     css,
     viewportWidth: 800,
     viewportHeight: 600,
@@ -67,5 +86,24 @@ describe("border parsing", () => {
     expect(td.style.borderRight ?? 0).toBe(0);
     expect(td.style.borderBottom ?? 0).toBe(0);
     expect(td.style.borderLeft ?? 0).toBe(0);
+  });
+
+  it("collapses adjoining borders without doubling width", () => {
+    const css = `
+      table { border-collapse: collapse; }
+      th, td { border: 1px solid #d30a0a; }
+    `;
+    const root = renderTable(css);
+    const tds = findAllNodes(root, "td");
+    expect(tds.length).toBeGreaterThanOrEqual(2);
+
+    const firstRowCell = tds[0];
+    const secondRowCell = tds[1];
+
+    expect(firstRowCell.style.borderTop ?? 0).toBeCloseTo(1);
+    expect(firstRowCell.style.borderBottom ?? 0).toBe(0);
+    expect(secondRowCell.style.borderTop ?? 0).toBeCloseTo(1);
+    expect(secondRowCell.style.borderBottom ?? 0).toBeCloseTo(1);
+    expect(secondRowCell.style.borderColor).toBe("#d30a0a");
   });
 });

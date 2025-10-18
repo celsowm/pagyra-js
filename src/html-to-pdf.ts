@@ -4,7 +4,7 @@ import * as cssParser from "css";
 import { LayoutNode } from "./dom/node.js";
 import { ComputedStyle } from "./css/style.js";
 import type { StyleProperties } from "./css/style.js";
-import { Display, FloatMode } from "./css/enums.js";
+import { BorderModel, Display, FloatMode } from "./css/enums.js";
 import { BrowserDefaults, ElementSpecificDefaults } from "./css/browser-defaults.js";
 import { parseFontWeightValue, normalizeFontWeight } from "./css/font-weight.js";
 import { layoutTree } from "./layout/pipeline/layout-tree.js";
@@ -47,6 +47,7 @@ interface StyleAccumulator {
   lineHeight?: number;
   fontFamily?: string;
   fontWeight?: number;
+  borderModel?: BorderModel;
 }
 
 import type { FontConfig } from "./types/fonts.js";
@@ -373,6 +374,7 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
     // Apply computed values
     display,
     float: floatValue ?? FloatMode.None,
+    borderModel: styleInit.borderModel ?? mergedDefaults.borderModel,
   };
 
   // Apply specific overrides from CSS/inline styles
@@ -584,6 +586,11 @@ function applyDeclarationsToStyle(declarations: Record<string, string>, target: 
           target.borderLeft = 0;
         }
         break;
+      case "border-collapse": {
+        const keyword = value.trim().toLowerCase();
+        target.borderModel = keyword === "collapse" ? BorderModel.Collapse : BorderModel.Separate;
+        break;
+      }
       case "margin":
         applyBoxShorthand(value, (top, right, bottom, left) => {
           target.marginTop = top;

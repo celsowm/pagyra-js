@@ -1,4 +1,4 @@
-import { Display } from "../../css/enums.js";
+import { BorderModel, Display } from "../../css/enums.js";
 import { LayoutNode } from "../../dom/node.js";
 import { log } from "../../debug/log.js";
 import { resolveLength } from "../../css/length.js";
@@ -36,6 +36,7 @@ export class TableLayoutStrategy implements LayoutStrategy {
     const numRows = grid.length;
     const numCols = grid[0].length;
     log("LAYOUT", "DEBUG", "Table grid created", { rows: numRows, cols: numCols });
+    const collapsedBorders = node.style.borderModel === BorderModel.Collapse;
 
       // Mimic browser border behavior: resolve border styles for each cell
       for (let r = 0; r < numRows; r++) {
@@ -46,10 +47,10 @@ export class TableLayoutStrategy implements LayoutStrategy {
           // Set default border width and color for table cells if not set
           const isTableCell = cell.tagName === 'td' || cell.tagName === 'th';
           if (isTableCell) {
-            if (cell.style.borderTop === undefined) cell.style.borderTop = 1;
-            if (cell.style.borderRight === undefined) cell.style.borderRight = 1;
-            if (cell.style.borderBottom === undefined) cell.style.borderBottom = 1;
-            if (cell.style.borderLeft === undefined) cell.style.borderLeft = 1;
+            if (cell.style.borderTop === undefined) cell.style.borderTop = collapsedBorders ? 0 : 1;
+            if (cell.style.borderRight === undefined) cell.style.borderRight = collapsedBorders ? 0 : 1;
+            if (cell.style.borderBottom === undefined) cell.style.borderBottom = collapsedBorders ? 0 : 1;
+            if (cell.style.borderLeft === undefined) cell.style.borderLeft = collapsedBorders ? 0 : 1;
             if (cell.style.borderColor === undefined) cell.style.borderColor = '#000';
           }
           // Inherit from row/table if still not set
@@ -100,6 +101,41 @@ export class TableLayoutStrategy implements LayoutStrategy {
           });
         }
       }
+
+    if (collapsedBorders) {
+      // Resolve vertical shared borders between adjacent rows
+      for (let r = 0; r < numRows - 1; r++) {
+        for (let c = 0; c < numCols; c++) {
+          const upper = grid[r][c];
+          const lower = grid[r + 1][c];
+          if (!upper || !lower) continue;
+          const upperBottom = upper.style.borderBottom ?? 0;
+          const lowerTop = lower.style.borderTop ?? 0;
+          const shared = Math.max(upperBottom, lowerTop);
+          lower.style.borderTop = shared;
+          upper.style.borderBottom = 0;
+          if (lower.style.borderColor === undefined && upper.style.borderColor !== undefined) {
+            lower.style.borderColor = upper.style.borderColor;
+          }
+        }
+      }
+      // Resolve horizontal shared borders between adjacent columns
+      for (let r = 0; r < numRows; r++) {
+        for (let c = 0; c < numCols - 1; c++) {
+          const left = grid[r][c];
+          const right = grid[r][c + 1];
+          if (!left || !right) continue;
+          const leftRight = left.style.borderRight ?? 0;
+          const rightLeft = right.style.borderLeft ?? 0;
+          const shared = Math.max(leftRight, rightLeft);
+          right.style.borderLeft = shared;
+          left.style.borderRight = 0;
+          if (right.style.borderColor === undefined && left.style.borderColor !== undefined) {
+            right.style.borderColor = left.style.borderColor;
+          }
+        }
+      }
+    }
     const colWidths = this.calculateColumnWidths(grid, node.box.contentWidth);
     log("LAYOUT", "DEBUG", "Table column widths calculated", { colWidths });
 
