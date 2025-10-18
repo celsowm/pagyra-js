@@ -109,6 +109,7 @@ export interface Run {
   fill: RGBA;
   lineMatrix: TextMatrix;
   glyphs?: GlyphRun;
+  wordSpacing?: number;
 }
 
 export interface TextMatrix {

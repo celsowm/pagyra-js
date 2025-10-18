@@ -29,5 +29,10 @@
     "id": "bold-showcase",
     "label": "Bold Typography Showcase",
     "htmlUrl": "examples/bold-showcase.html"
+  },
+  {
+    "id": "justify-text",
+    "label": "Justified Text Showcase",
+    "htmlUrl": "examples/justify-text.html"
   }
 ]

@@ -62,6 +62,18 @@ export function buildRenderTree(root: LayoutNode, options: RenderTreeOptions = {
 
 const DEFAULT_TEXT_COLOR: RGBA = { r: 0, g: 0, b: 0, a: 1 };
 
+function resolveTextAlign(node: LayoutNode): string | undefined {
+  let current: LayoutNode | null = node;
+  while (current) {
+    const value = current.style.textAlign;
+    if (value && value !== "start" && value !== "auto") {
+      return value;
+    }
+    current = current.parent;
+  }
+  return undefined;
+}
+
 function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
   const id = `node-${state.counter++}`;
   const widthRef = Math.max(node.box.contentWidth, 0);
@@ -192,6 +204,7 @@ function fallbackDimension(value: number, computed: number): number {
 function createTextRuns(node: LayoutNode, color: RGBA | undefined): Run[] {
   const runs: Run[] = [];
   const defaultColor = color ?? DEFAULT_TEXT_COLOR;
+  const effectiveTextAlign = resolveTextAlign(node) ?? node.style.textAlign;
 
   // Se o layout calculou caixas de linha, use-as.
   if (node.lineBoxes && node.lineBoxes.length > 0) {
@@ -200,9 +213,9 @@ function createTextRuns(node: LayoutNode, color: RGBA | undefined): Run[] {
     let alignX = node.box.x;
     let alignY = node.box.y;
     // Horizontal alignment (approximate: use contentWidth)
-    if (node.style.textAlign === "center") {
+    if (effectiveTextAlign === "center") {
       alignX = node.box.x + node.box.contentWidth / 2;
-    } else if (node.style.textAlign === "right") {
+    } else if (effectiveTextAlign === "right") {
       alignX = node.box.x + node.box.contentWidth;
     }
     // Vertical alignment
@@ -212,11 +225,23 @@ function createTextRuns(node: LayoutNode, color: RGBA | undefined): Run[] {
     } else if (node.style.verticalAlign === "bottom") {
       alignY = node.box.y + (node.box.contentHeight - totalTextHeight);
     }
+    const justify = effectiveTextAlign === "justify";
     for (let i = 0; i < node.lineBoxes.length; i++) {
       const line = node.lineBoxes[i];
       const normalizedText = line.text.normalize("NFC");
-      const lineYOffset = (i * lineHeight);
+      const lineYOffset = i * lineHeight;
       const baseline = alignY + lineYOffset + node.style.fontSize;
+      let wordSpacing: number | undefined;
+      if (justify && i < node.lineBoxes.length - 1) {
+        const gapCount = line.spaceCount ?? 0;
+        if (gapCount > 0) {
+          const targetWidth = line.targetWidth ?? node.box.contentWidth ?? line.width;
+          const slack = Math.max(targetWidth - line.width, 0);
+          if (slack > 0) {
+            wordSpacing = slack / gapCount;
+          }
+        }
+      }
       runs.push({
         text: normalizedText,
         fontFamily: node.style.fontFamily ?? "sans-serif",
@@ -224,6 +249,7 @@ function createTextRuns(node: LayoutNode, color: RGBA | undefined): Run[] {
         fontWeight: node.style.fontWeight,
         fill: defaultColor,
         lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: alignX, f: baseline },
+        wordSpacing,
       });
     }
     return runs;

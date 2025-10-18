@@ -2,6 +2,7 @@ import { LayoutNode } from "../../dom/node.js";
 import { resolvedLineHeight } from "../../css/style.js";
 import type { ComputedStyle } from "../../css/style.js";
 import { normalizeFontWeight } from "../../css/font-weight.js";
+import { BASE14_WIDTHS } from "../../pdf/font/base14-widths.js";
 
 const MONO_FAMILY_PATTERN = /(mono|code|courier|console)/i;
 const SPACE_WIDTH_FACTOR = 0.32;
@@ -13,6 +14,28 @@ const IDEOGRAPHIC_WIDTH_FACTOR = 1.0;
 // Heuristic width measurements tend to slightly overestimate glyph widths.
 // Apply a calibration factor so line breaking can pack words closer to the real layout.
 const WIDTH_CALIBRATION = 0.9;
+const BASE14_BOLD_THRESHOLD = 600;
+
+const BASE14_ALIAS = new Map<string, string>([
+  ["helvetica", "Helvetica"],
+  ["arial", "Helvetica"],
+  ["sans-serif", "Helvetica"],
+  ["times", "Times-Roman"],
+  ["times-roman", "Times-Roman"],
+  ["times new roman", "Times-Roman"],
+  ["georgia", "Times-Roman"],
+  ["serif", "Times-Roman"],
+  ["courier", "Courier"],
+  ["courier new", "Courier"],
+  ["monaco", "Courier"],
+  ["monospace", "Courier"],
+]);
+
+const BASE14_BOLD_VARIANT = new Map<string, string>([
+  ["Times-Roman", "Times-Bold"],
+  ["Helvetica", "Helvetica-Bold"],
+  ["Courier", "Courier-Bold"],
+]);
 
 export function assignIntrinsicTextMetrics(root: LayoutNode): void {
   root.walk((node) => {
@@ -50,18 +73,88 @@ export function estimateLineWidth(line: string, style: ComputedStyle): number {
   const isMonospace = style.fontFamily ? MONO_FAMILY_PATTERN.test(style.fontFamily) : false;
   const baseFactor = isMonospace ? 0.6 : BASE_WIDTH_FACTOR;
   const weightMultiplier = fontWeightWidthMultiplier(normalizeFontWeight(style.fontWeight));
+  const letterSpacing = style.letterSpacing ?? 0;
+  const wordSpacing = style.wordSpacing ?? 0;
+  const spacingContribution = Math.max(line.length - 1, 0) * letterSpacing + countSpaces(line) * wordSpacing;
+
+  const base14Width = measureUsingBase14(line, style);
+  if (base14Width !== null) {
+    return base14Width + spacingContribution;
+  }
+
   let totalFactor = 0;
 
   for (const char of line) {
     totalFactor += factorForChar(char, baseFactor);
   }
 
-  const letterSpacing = style.letterSpacing ?? 0;
-  const wordSpacing = style.wordSpacing ?? 0;
-  const spacingContribution = Math.max(line.length - 1, 0) * letterSpacing + countSpaces(line) * wordSpacing;
   const heuristicWidth = totalFactor * fontSize * weightMultiplier;
 
   return heuristicWidth * WIDTH_CALIBRATION + spacingContribution;
+}
+
+function measureUsingBase14(text: string, style: ComputedStyle): number | null {
+  const baseFont = resolveBase14Font(style);
+  if (!baseFont) {
+    return null;
+  }
+  const widths = BASE14_WIDTHS[baseFont];
+  if (!widths) {
+    return null;
+  }
+  const fontSize = style.fontSize || 16;
+  let total = 0;
+  for (const char of text) {
+    const code = char.codePointAt(0);
+    if (code === undefined || code > 255) {
+      return null;
+    }
+    const width = widths[code];
+    if (width === undefined) {
+      return null;
+    }
+    total += width;
+  }
+  return (total / 1000) * fontSize;
+}
+
+function resolveBase14Font(style: ComputedStyle): string | null {
+  const tokens = parseFontFamily(style.fontFamily);
+  if (tokens.length === 0) {
+    return null;
+  }
+  const normalizedWeight = normalizeFontWeight(style.fontWeight);
+  for (const token of tokens) {
+    const alias = BASE14_ALIAS.get(token);
+    if (!alias) {
+      continue;
+    }
+    if (normalizedWeight >= BASE14_BOLD_THRESHOLD) {
+      const boldVariant = BASE14_BOLD_VARIANT.get(alias);
+      if (boldVariant) {
+        return boldVariant;
+      }
+    }
+    return alias;
+  }
+  return null;
+}
+
+function parseFontFamily(value: string | undefined): string[] {
+  if (!value) {
+    return [];
+  }
+  return value
+    .split(",")
+    .map((token) => stripQuotes(token.trim()).toLowerCase())
+    .filter((token) => token.length > 0);
+}
+
+function stripQuotes(value: string): string {
+  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    return value.slice(1, -1);
+  }
+  return value;
 }
 
 function factorForChar(char: string, baseFactor: number): number {

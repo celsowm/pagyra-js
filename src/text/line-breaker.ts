@@ -4,7 +4,7 @@ import { ComputedStyle } from "../css/style.js";
 import { estimateLineWidth } from "../layout/utils/text-metrics.js"; // Precisaremos exportar esta função
 
 // Representa uma unidade inquebrável (palavra) ou um espaço flexível (cola).
-interface TextItem {
+export interface TextItem {
   type: 'word' | 'space';
   text: string;
   width: number;
@@ -14,6 +14,8 @@ interface TextItem {
 export interface LineBox {
   text: string;
   width: number;
+  spaceCount: number;
+  targetWidth: number;
 }
 
 /**
@@ -45,6 +47,25 @@ function measureItems(segments: { type: 'word' | 'space', text: string }[], styl
   }));
 }
 
+function countJustifiableSpaces(items: TextItem[]): number {
+  let count = 0;
+  for (let index = 0; index < items.length; index++) {
+    const item = items[index];
+    if (item.type !== "space") {
+      continue;
+    }
+    const hasWordBefore = items.slice(0, index).some((candidate) => candidate.type === "word");
+    if (!hasWordBefore) {
+      continue;
+    }
+    const hasWordAfter = items.slice(index + 1).some((candidate) => candidate.type === "word");
+    if (hasWordAfter) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
 /**
  * Implementa um algoritmo de quebra de linha inspirado em Knuth-Plass
  * usando programação dinâmica para encontrar o layout ótimo.
@@ -67,10 +88,13 @@ export function breakTextIntoLines(text: string, style: ComputedStyle, available
   // Check if entire text fits on one line - if so, don't break it
   const totalWidth = items.reduce((sum, it) => sum + it.width, 0);
   if (totalWidth <= availableWidth) {
-    return [{ text: text.trim(), width: totalWidth }];
+    return [{
+      text: text.trim(),
+      width: totalWidth,
+      spaceCount: countJustifiableSpaces(items),
+      targetWidth: availableWidth,
+    }];
   }
-
-  const spaceWidth = estimateLineWidth(" ", style);
 
   // memo[i] armazena o custo mínimo (feiura) para quebrar os primeiros `i` itens.
   const memo: number[] = new Array(n + 1).fill(Infinity);
@@ -112,17 +136,28 @@ export function breakTextIntoLines(text: string, style: ComputedStyle, available
     const lines: LineBox[] = [];
     let currentLine = "";
     let currentWidth = 0;
+    let currentItems: TextItem[] = [];
+    const pushCurrent = () => {
+      lines.push({
+        text: currentLine.trim(),
+        width: currentWidth,
+        spaceCount: countJustifiableSpaces(currentItems),
+        targetWidth: availableWidth,
+      });
+    };
     for (const item of items) {
       if (item.type === 'word' && currentLine && currentWidth + item.width > availableWidth) {
-        lines.push({ text: currentLine.trim(), width: currentWidth });
+        pushCurrent();
         currentLine = "";
         currentWidth = 0;
+        currentItems = [];
       }
       currentLine += item.text;
       currentWidth += item.width;
+      currentItems.push(item);
     }
     if (currentLine) {
-        lines.push({ text: currentLine.trim(), width: currentWidth });
+        pushCurrent();
     }
     return lines;
   }
@@ -135,7 +170,13 @@ export function breakTextIntoLines(text: string, style: ComputedStyle, available
     const lineItems = items.slice(prev, current);
     const text = lineItems.map(it => it.text).join("").trim();
     const width = lineItems.reduce((sum, it) => sum + it.width, 0);
-    lines.unshift({ text, width });
+    const spaceCount = countJustifiableSpaces(lineItems);
+    lines.unshift({
+      text,
+      width,
+      spaceCount,
+      targetWidth: availableWidth,
+    });
     current = prev;
   }
 

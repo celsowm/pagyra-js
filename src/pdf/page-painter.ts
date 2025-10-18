@@ -135,14 +135,34 @@ export class PagePainter {
       x, y
     });
 
-    this.commands.push(
+    const sequence: string[] = [
       fillColorCommand(color),
       "BT",
+    ];
+
+    const wordSpacing = run.wordSpacing ?? 0;
+    let appliedWordSpacing = false;
+    if (wordSpacing !== 0) {
+      const wordSpacingPt = this.pxToPt(wordSpacing);
+      if (wordSpacingPt !== 0) {
+        sequence.push(`${formatNumber(wordSpacingPt)} Tw`);
+        appliedWordSpacing = true;
+      }
+    }
+
+    sequence.push(
       `/${font.resourceName} ${formatNumber(fontSizePt)} Tf`,
       `${formatNumber(Tm.a)} ${formatNumber(Tm.b)} ${formatNumber(Tm.c)} ${formatNumber(Tm.d)} ${formatNumber(x)} ${formatNumber(y)} Tm`,
       `(${escaped}) Tj`,
-      "ET",
     );
+
+    if (appliedWordSpacing) {
+      sequence.push("0 Tw");
+    }
+
+    sequence.push("ET");
+
+    this.commands.push(...sequence);
   }
 
   result(): PainterResult {

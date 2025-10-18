@@ -48,6 +48,8 @@ interface StyleAccumulator {
   fontFamily?: string;
   fontWeight?: number;
   borderModel?: BorderModel;
+  maxWidth?: number;
+  textAlign?: string;
 }
 
 import type { FontConfig } from "./types/fonts.js";
@@ -398,7 +400,9 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
   if (styleInit.borderBottom !== undefined) styleOptions.borderBottom = styleInit.borderBottom;
   if (styleInit.borderLeft !== undefined) styleOptions.borderLeft = styleInit.borderLeft;
   if (styleInit.width !== undefined) styleOptions.width = styleInit.width;
+  if (styleInit.maxWidth !== undefined) styleOptions.maxWidth = styleInit.maxWidth;
   if (styleInit.height !== undefined) styleOptions.height = styleInit.height;
+  if (styleInit.textAlign !== undefined) styleOptions.textAlign = styleInit.textAlign;
 
   return new ComputedStyle(styleOptions);
 }
@@ -634,6 +638,9 @@ function applyDeclarationsToStyle(declarations: Record<string, string>, target: 
       case "width":
         target.width = parseLength(value) ?? target.width;
         break;
+      case "max-width":
+        target.maxWidth = parseLength(value) ?? target.maxWidth;
+        break;
       case "height":
         target.height = parseLength(value) ?? target.height;
         break;
@@ -653,6 +660,9 @@ function applyDeclarationsToStyle(declarations: Record<string, string>, target: 
         }
         break;
       }
+      case "text-align":
+        target.textAlign = value.toLowerCase();
+        break;
       case "float":
         target.float = value;
         break;
