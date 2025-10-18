@@ -5,6 +5,7 @@ import { LayoutNode } from "./dom/node.js";
 import { ComputedStyle } from "./css/style.js";
 import type { StyleProperties } from "./css/style.js";
 import { Display, FloatMode } from "./css/enums.js";
+import { BrowserDefaults, ElementSpecificDefaults } from "./css/browser-defaults.js";
 import { layoutTree } from "./layout/pipeline/layout-tree.js";
 import { buildRenderTree } from "./pdf/layout-tree-builder.js";
 import { renderPdf } from "./pdf/render.js";
@@ -264,16 +265,29 @@ function convertDomNode(node: Node, cssRules: CssRuleEntry[], parentStyle: Compu
 }
 
 function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], parentStyle: ComputedStyle): ComputedStyle {
+  const tagName = element.tagName.toLowerCase();
+
+  // Get element-specific defaults from browser defaults system
+  const elementDefaults = ElementSpecificDefaults.getDefaultsForElement(tagName);
+
+  // Create base style with browser defaults
+  const baseDefaults = BrowserDefaults.createBaseDefaults();
+
+  // Merge element-specific defaults with base defaults
+  const mergedDefaults = BrowserDefaults.mergeElementDefaults(baseDefaults, elementDefaults);
+
+  // Apply inheritance from parent
   const inherited = {
-    color: parentStyle.color,
+    color: parentStyle.color ?? mergedDefaults.color,
     fontSize: parentStyle.fontSize,
     lineHeight: parentStyle.lineHeight,
-    fontFamily: parentStyle.fontFamily,
+    fontFamily: parentStyle.fontFamily ?? mergedDefaults.fontFamily,
   };
 
   const styleInit: StyleAccumulator = {};
   const aggregated: Record<string, string> = {};
 
+  // Apply CSS rules
   for (const rule of cssRules) {
     if (rule.match(element)) {
       log("STYLE","DEBUG","CSS rule matched", { selector: (rule as any).selector, declarations: rule.declarations });
@@ -284,15 +298,17 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
     }
   }
 
+  // Apply inline styles (highest priority)
   const inlineStyle = parseInlineStyle(element.getAttribute("style") ?? "");
   if (Object.keys(inlineStyle).length > 0) {
     log("STYLE","DEBUG","inline style applied", { declarations: inlineStyle });
   }
   Object.assign(aggregated, inlineStyle);
 
+  // Apply declarations to style accumulator
   applyDeclarationsToStyle(aggregated, styleInit);
 
-  const tagName = element.tagName.toLowerCase();
+  // Determine final display value
   const defaultDisplay = defaultDisplayForTag(tagName);
   let display = styleInit.display ?? defaultDisplay;
 
@@ -325,17 +341,29 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
       display = Display.TableCell;
     }
   }
+
   const floatValue = mapFloat(styleInit.float);
 
+  // Build final style options with proper precedence:
+  // 1. Base browser defaults
+  // 2. Element-specific defaults
+  // 3. Inherited values
+  // 4. CSS rules
+  // 5. Inline styles (already applied in aggregated)
   const styleOptions: Partial<StyleProperties> = {
-    display,
-    float: floatValue ?? FloatMode.None,
+    // Start with merged defaults
+    ...mergedDefaults,
+    // Override with inherited values
     color: inherited.color,
     fontSize: inherited.fontSize,
     lineHeight: inherited.lineHeight,
     fontFamily: inherited.fontFamily,
+    // Apply computed values
+    display,
+    float: floatValue ?? FloatMode.None,
   };
 
+  // Apply specific overrides from CSS/inline styles
   if (styleInit.color !== undefined) styleOptions.color = styleInit.color;
   if (styleInit.backgroundColor !== undefined) styleOptions.backgroundColor = styleInit.backgroundColor;
   if (styleInit.borderColor !== undefined) styleOptions.borderColor = styleInit.borderColor;

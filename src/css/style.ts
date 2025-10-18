@@ -15,6 +15,7 @@ import {
 } from "./enums.js";
 import { AUTO_LENGTH } from "./length.js";
 import type { CSSLength, LengthLike } from "./length.js";
+import { BrowserDefaults, ElementSpecificDefaults } from "./browser-defaults.js";
 
 export type FlexDirection = "row" | "row-reverse" | "column" | "column-reverse";
 export type GridAutoFlow = "row" | "column" | "row dense" | "column dense";
@@ -89,70 +90,7 @@ export interface StyleProperties {
   orphans: number;
 }
 
-const defaultStyle = {
-  display: Display.Block,
-  position: Position.Static,
-  float: FloatMode.None,
-  clear: ClearMode.None,
-  overflowX: OverflowMode.Visible,
-  overflowY: OverflowMode.Visible,
-  whiteSpace: WhiteSpace.Normal,
-  textWrap: TextWrap.Wrap,
-  writingMode: WritingMode.HorizontalTb,
-  width: "auto",
-  height: "auto",
-  minWidth: undefined,
-  maxWidth: undefined,
-  minHeight: undefined,
-  maxHeight: undefined,
-  marginTop: 0,
-  marginRight: 0,
-  marginBottom: 0,
-  marginLeft: 0,
-  paddingTop: 0,
-  paddingRight: 0,
-  paddingBottom: 0,
-  paddingLeft: 0,
-  borderTop: 0,
-  borderRight: 0,
-  borderBottom: 0,
-  borderLeft: 0,
-  backgroundColor: undefined,
-  borderColor: undefined,
-  color: undefined,
-  fontFamily: "Roboto, Noto Sans, DejaVu Sans, sans-serif",
-  left: undefined,
-  right: undefined,
-  top: undefined,
-  bottom: undefined,
-  insetInlineStart: undefined,
-  insetInlineEnd: undefined,
-  insetBlockStart: undefined,
-  insetBlockEnd: undefined,
-  fontSize: 16,
-  lineHeight: 1.2,
-  letterSpacing: 0,
-  wordSpacing: 0,
-  flexGrow: 0,
-  flexShrink: 1,
-  flexBasis: AUTO_LENGTH,
-  alignItems: AlignItems.Stretch,
-  alignSelf: "auto",
-  justifyContent: JustifyContent.FlexStart,
-  alignContent: AlignContent.Stretch,
-  flexDirection: "row",
-  flexWrap: false,
-  trackListColumns: [],
-  trackListRows: [],
-  autoFlow: "row",
-  tableLayout: TableLayoutMode.Auto,
-  borderModel: BorderModel.Separate,
-  breakBefore: "auto",
-  breakAfter: "auto",
-  breakInside: "auto",
-  widows: 2,
-  orphans: 2,
-} satisfies StyleProperties;
+const defaultStyle = BrowserDefaults.createBaseDefaults() as StyleProperties;
 
 export class ComputedStyle implements StyleProperties {
   textAlign?: string;
