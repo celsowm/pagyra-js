@@ -1,6 +1,7 @@
 import { LayoutNode } from "../../dom/node.js";
 import { resolvedLineHeight } from "../../css/style.js";
 import type { ComputedStyle } from "../../css/style.js";
+import { normalizeFontWeight } from "../../css/font-weight.js";
 
 const MONO_FAMILY_PATTERN = /(mono|code|courier|console)/i;
 const SPACE_WIDTH_FACTOR = 0.32;
@@ -45,6 +46,7 @@ export function estimateLineWidth(line: string, style: ComputedStyle): number {
   const fontSize = style.fontSize || 16;
   const isMonospace = style.fontFamily ? MONO_FAMILY_PATTERN.test(style.fontFamily) : false;
   const baseFactor = isMonospace ? 0.6 : BASE_WIDTH_FACTOR;
+  const weightMultiplier = fontWeightWidthMultiplier(normalizeFontWeight(style.fontWeight));
   let totalFactor = 0;
 
   for (const char of line) {
@@ -55,7 +57,7 @@ export function estimateLineWidth(line: string, style: ComputedStyle): number {
   const wordSpacing = style.wordSpacing ?? 0;
   const spacingContribution = Math.max(line.length - 1, 0) * letterSpacing + countSpaces(line) * wordSpacing;
 
-  return totalFactor * fontSize + spacingContribution;
+  return totalFactor * fontSize * weightMultiplier + spacingContribution;
 }
 
 function factorForChar(char: string, baseFactor: number): number {
@@ -115,4 +117,29 @@ function countSpaces(line: string): number {
     }
   }
   return count;
+}
+
+function fontWeightWidthMultiplier(weight: number): number {
+  switch (weight) {
+    case 100:
+      return 0.92;
+    case 200:
+      return 0.94;
+    case 300:
+      return 0.96;
+    case 400:
+      return 1;
+    case 500:
+      return 1.02;
+    case 600:
+      return 1.04;
+    case 700:
+      return 1.08;
+    case 800:
+      return 1.1;
+    case 900:
+      return 1.12;
+    default:
+      return 1;
+  }
 }

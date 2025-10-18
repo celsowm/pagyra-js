@@ -24,5 +24,10 @@
     "id": "simple-table",
     "label": "Simple Table Test",
     "htmlUrl": "examples/simple-table.html"
+  },
+  {
+    "id": "bold-showcase",
+    "label": "Bold Typography Showcase",
+    "htmlUrl": "examples/bold-showcase.html"
   }
 ]

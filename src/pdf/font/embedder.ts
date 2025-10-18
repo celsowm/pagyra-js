@@ -2,6 +2,7 @@ import type { PdfObjectRef } from "../primitives/pdf-document.js";
 import { parseTtfFont } from "./ttf-lite.js";
 import type { FontFaceDef, FontConfig, TtfFontMetrics } from "../../types/fonts.js";
 import { log } from "../../debug/log.js";
+import { normalizeFontWeight } from "../../css/font-weight.js";
 
 export interface EmbeddedFont {
   readonly resourceName: string;
@@ -68,18 +69,24 @@ export class FontEmbedder {
     }
   }
 
-  ensureFont(familyStack: string[]): EmbeddedFont | null {
+  ensureFont(familyStack: string[], fontWeight?: number): EmbeddedFont | null {
+    const targetWeight = normalizeFontWeight(fontWeight);
     for (const family of familyStack) {
-      const face = this.config.fontFaceDefs.find(f => f.family === family);
-      if (face) {
-        const existing = this.embeddedFonts.get(face.name);
-        if (existing) return existing;
+      const candidates = this.config.fontFaceDefs.filter((f) => f.family === family);
+      if (candidates.length === 0) {
+        continue;
+      }
+      const face = pickFaceByWeight(candidates, targetWeight);
+      if (!face) {
+        continue;
+      }
+      const existing = this.embeddedFonts.get(face.name);
+      if (existing) return existing;
 
-        const embedded = this.embedFont(face);
-        if (embedded) {
-          this.embeddedFonts.set(face.name, embedded);
-          return embedded;
-        }
+      const embedded = this.embedFont(face);
+      if (embedded) {
+        this.embeddedFonts.set(face.name, embedded);
+        return embedded;
       }
     }
     return null;
@@ -231,6 +238,23 @@ end`;
     const { readFileSync } = require("fs");
     return readFileSync(path);
   }
+}
+
+function pickFaceByWeight(faces: FontFaceDef[], requestedWeight: number): FontFaceDef | null {
+  if (faces.length === 0) {
+    return null;
+  }
+  let bestFace = faces[0];
+  let bestDiff = Math.abs(normalizeFontWeight(bestFace.weight) - requestedWeight);
+  for (const face of faces) {
+    const normalized = normalizeFontWeight(face.weight);
+    const diff = Math.abs(normalized - requestedWeight);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      bestFace = face;
+    }
+  }
+  return bestFace;
 }
 
 export async function getEmbeddedFont(name: "NotoSans-Regular" | "DejaVuSans", doc: any, config: FontConfig): Promise<EmbeddedFont | null> {

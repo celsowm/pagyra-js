@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        font-family: "Times New Roman", serif;
+        margin: 32px;
+        line-height: 1.4;
+        color: #1f1f1f;
+      }
+
+      h1,
+      h2 {
+        margin-bottom: 0.4em;
+      }
+
+      section {
+        margin-bottom: 1.6em;
+      }
+
+      .weights-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin: 16px 0;
+      }
+
+      .sample {
+        border: 1px solid #d0d0d0;
+        border-radius: 8px;
+        padding: 12px;
+        background: #fafafa;
+      }
+
+      .sample span {
+        display: block;
+        margin-top: 4px;
+        font-size: 14px;
+        color: #555;
+        font-weight: 400;
+      }
+
+      .weight-300 {
+        font-weight: 300;
+      }
+
+      .weight-400 {
+        font-weight: 400;
+      }
+
+      .weight-500 {
+        font-weight: 500;
+      }
+
+      .weight-600 {
+        font-weight: 600;
+      }
+
+      .weight-700 {
+        font-weight: 700;
+      }
+
+      .weight-800 {
+        font-weight: 800;
+      }
+
+      article p {
+        margin: 0.6em 0;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Bold Text Showcase</h1>
+      <p>
+        This example highlights how Pagyra now respects
+        <strong>semantic bold text</strong>, numeric <code>font-weight</code> values,
+        and relative keywords such as <em>bolder</em> and <em>lighter</em>.
+      </p>
+
+      <section>
+        <h2>Semantic &amp; Relative Weights</h2>
+        <article>
+          <p>
+            Default body copy sits at <span class="weight-400">400 weight</span>.
+            Inside this sentence a <strong>strong element</strong> promotes emphasis,
+            while <span style="font-weight: bolder">this phrase steps up</span>
+            relative to its parent.
+          </p>
+          <p style="font-weight: 600">
+            Parent weight of 600 means <span style="font-weight: lighter">lighter</span>
+            will drop a tier, and <span style="font-weight: bolder">bolder</span> rises one tier.
+          </p>
+        </article>
+      </section>
+
+      <section>
+        <h2>Numeric Weight Samples</h2>
+        <div class="weights-grid">
+          <div class="sample weight-300">
+            Weight 300
+            <span>Light text for captions</span>
+          </div>
+          <div class="sample weight-400">
+            Weight 400
+            <span>Regular paragraph weight</span>
+          </div>
+          <div class="sample weight-500">
+            Weight 500
+            <span>Medium emphasis</span>
+          </div>
+          <div class="sample weight-600">
+            Weight 600
+            <span>Strong sub-heading</span>
+          </div>
+          <div class="sample weight-700">
+            Weight 700
+            <span>Traditional bold</span>
+          </div>
+          <div class="sample weight-800">
+            Weight 800
+            <span>Extra bold highlights</span>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Report Snippet</h2>
+        <p>
+          <span class="weight-600">Executive Summary:</span>
+          <span>
+            Revenue grew 8.2% in Q3 with <strong>retail</strong> outperforming
+            wholesale by 3.4% points. Marketing spend remained
+            <span style="font-weight: 500">slightly elevated</span> to support
+            holiday campaigns.
+          </span>
+        </p>
+        <p>
+          <span class="weight-600">Action Items:</span>
+          <span>
+            Finalize <span style="font-weight: 600">Black Friday</span> pricing,
+            shift budget to the <span style="font-weight: bolder">highest ROI</span> ad sets,
+            and monitor conversion rates daily.
+          </span>
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

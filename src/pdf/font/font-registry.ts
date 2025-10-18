@@ -4,7 +4,7 @@ import type { FontConfig } from "../../types/fonts.js";
 import { FontEmbedder } from "./embedder.js";
 import { log } from "../../debug/log.js";
 import { needsUnicode } from "../../text/text.js";
-import { getEmbeddedFont } from "./embedder.js";
+import { fontWeightCacheKey, normalizeFontWeight, isBoldFontWeight, parseFontWeightValue } from "../../css/font-weight.js";
 
 export type PdfFont = {
   name: string;
@@ -41,7 +41,7 @@ export interface FontResource {
 }
 
 export class FontRegistry {
-  private readonly fontsByFamily = new Map<string, FontResource>();
+  private readonly fontsByFamilyWeight = new Map<string, FontResource>();
   private readonly fontsByBaseFont = new Map<string, FontResource>();
   private readonly facesByFamily = new Map<string, CSSFontFace[]>();
   private aliasCounter = 1;
@@ -60,11 +60,17 @@ export class FontRegistry {
     }
   }
 
-  async ensureFontResource(family: string | undefined): Promise<FontResource> {
-    // First try to embed custom fonts if embedder is available
+  async ensureFontResource(family: string | undefined, weight?: number): Promise<FontResource> {
+    const normalizedWeight = normalizeFontWeight(weight);
+    const familyKey = this.makeFamilyKey(family, normalizedWeight);
+    const cached = this.fontsByFamilyWeight.get(familyKey);
+    if (cached) {
+      return cached;
+    }
+
     if (this.embedder && this.fontConfig) {
       const familyStack = family ? parseFamilyList(family) : this.fontConfig.defaultStack;
-      const embedded = this.embedder.ensureFont(familyStack);
+      const embedded = this.embedder.ensureFont(familyStack, normalizedWeight);
       if (embedded) {
         const resource: FontResource = {
           baseFont: embedded.baseFont,
@@ -72,13 +78,14 @@ export class FontRegistry {
           ref: embedded.ref,
           isBase14: false
         };
-        this.fontsByFamily.set(family || 'default', resource);
+        this.fontsByFamilyWeight.set(familyKey, resource);
         return resource;
       }
     }
 
-    // Fall back to standard font resolution
-    return this.ensureStandardFontResource(family);
+    const resolved = this.ensureStandardFontResource(family, normalizedWeight);
+    this.fontsByFamilyWeight.set(familyKey, resolved);
+    return resolved;
   }
 
   // New method to get embedder reference
@@ -86,63 +93,94 @@ export class FontRegistry {
     return this.embedder;
   }
 
-  ensureFontResourceSync(family: string | undefined): FontResource {
-    const candidates = [...parseFamilyList(family), DEFAULT_FONT];
-    for (const candidate of candidates) {
-      const normalized = normalizeToken(candidate);
-      if (!normalized) {
-        continue;
-      }
-      const existing = this.fontsByFamily.get(normalized);
-      if (existing) {
-        return existing;
-      }
-      const baseFont = this.resolveBaseFont(normalized);
-      const resource = this.ensureBaseFontResource(baseFont);
-      this.fontsByFamily.set(normalized, resource);
-      return resource;
+  ensureFontResourceSync(family: string | undefined, weight?: number): FontResource {
+    const normalizedWeight = normalizeFontWeight(weight);
+    const familyKey = this.makeFamilyKey(family, normalizedWeight);
+    const cached = this.fontsByFamilyWeight.get(familyKey);
+    if (cached) {
+      return cached;
     }
-    return this.ensureBaseFontResource(DEFAULT_FONT);
+    const resolved = this.ensureStandardFontResource(family, normalizedWeight);
+    this.fontsByFamilyWeight.set(familyKey, resolved);
+    return resolved;
   }
 
-  private ensureStandardFontResource(family: string | undefined): FontResource {
+  private ensureStandardFontResource(family: string | undefined, weight: number): FontResource {
     const candidates = [...parseFamilyList(family), DEFAULT_FONT];
     for (const candidate of candidates) {
-      const normalized = normalizeToken(candidate);
-      if (!normalized) {
+      const normalizedCandidate = normalizeToken(candidate);
+      if (!normalizedCandidate) {
         continue;
       }
-      const existing = this.fontsByFamily.get(normalized);
+      const candidateKey = this.familyWeightKey(normalizedCandidate, weight);
+      const existing = this.fontsByFamilyWeight.get(candidateKey);
       if (existing) {
+        this.fontsByFamilyWeight.set(this.makeFamilyKey(family, weight), existing);
         return existing;
       }
-      const baseFont = this.resolveBaseFont(normalized);
+      const baseFont = this.resolveBaseFont(normalizedCandidate, weight);
       const resource = this.ensureBaseFontResource(baseFont);
-      this.fontsByFamily.set(normalized, resource);
+      this.fontsByFamilyWeight.set(candidateKey, resource);
+      this.fontsByFamilyWeight.set(this.makeFamilyKey(candidate, weight), resource);
+      if (family && candidate !== family) {
+        this.fontsByFamilyWeight.set(this.makeFamilyKey(family, weight), resource);
+      }
       return resource;
     }
-    return this.ensureBaseFontResource(DEFAULT_FONT);
+    const fallbackBase = this.applyWeightToBaseFont(DEFAULT_FONT, weight);
+    const fallback = this.ensureBaseFontResource(fallbackBase);
+    this.fontsByFamilyWeight.set(this.familyWeightKey("", weight), fallback);
+    return fallback;
   }
 
-  private resolveBaseFont(family: string): string {
+  private resolveBaseFont(family: string, weight: number): string {
     const faces = this.facesByFamily.get(family);
-    if (faces) {
-      for (const face of faces) {
-        const base = baseFontFromFace(face);
+    if (faces && faces.length > 0) {
+      const selectedFace = selectFaceForWeight(faces, weight);
+      if (selectedFace) {
+        const base = baseFontFromFace(selectedFace);
         if (base) {
-          return base;
+          return this.applyWeightToBaseFont(base, weight);
         }
       }
     }
     const alias = BASE_FONT_ALIASES.get(family);
     if (alias) {
-      return alias;
+      return this.applyWeightToBaseFont(alias, weight);
     }
     const generic = GENERIC_FAMILIES.get(family);
     if (generic) {
-      return generic;
+      return this.applyWeightToBaseFont(generic, weight);
     }
-    return DEFAULT_FONT;
+    return this.applyWeightToBaseFont(DEFAULT_FONT, weight);
+  }
+
+  private makeFamilyKey(family: string | undefined, weight: number): string {
+    return this.familyWeightKey(normalizeToken(family), weight);
+  }
+
+  private familyWeightKey(normalizedFamily: string, weight: number): string {
+    const familyToken = normalizedFamily && normalizedFamily.length > 0 ? normalizedFamily : "__default";
+    return `${familyToken}@${fontWeightCacheKey(weight)}`;
+  }
+
+  private applyWeightToBaseFont(baseFont: string, weight: number): string {
+    if (!isBoldFontWeight(weight)) {
+      return baseFont;
+    }
+    if (/-bold$/i.test(baseFont)) {
+      return baseFont;
+    }
+    switch (baseFont) {
+      case "Helvetica":
+        return "Helvetica-Bold";
+      case "Times-Roman":
+        return "Times-Bold";
+      case "Courier":
+        return "Courier-Bold";
+      default:
+        return baseFont;
+    }
   }
 
   private ensureBaseFontResource(baseFont: string): FontResource {
@@ -177,7 +215,7 @@ export function initFontSystem(doc: PdfDocument, stylesheets: StyleSheets): Font
 }
 
 export async function ensureFontSubset(registry: FontRegistry, run: Run): Promise<FontResource> {
-  const font = await registry.ensureFontResource(run.fontFamily);
+  const font = await registry.ensureFontResource(run.fontFamily, run.fontWeight);
   // === diagnóstico cirúrgico: caminho de fonte ===
   log("FONT", "INFO", "font-path", {
     base14: font.isBase14 === true,
@@ -188,7 +226,7 @@ export async function ensureFontSubset(registry: FontRegistry, run: Run): Promis
 }
 
 export function ensureFontSubsetSync(registry: FontRegistry, run: Run): FontResource {
-  const font = registry.ensureFontResourceSync(run.fontFamily);
+  const font = registry.ensureFontResourceSync(run.fontFamily, run.fontWeight);
   // === diagnóstico cirúrgico: caminho de fonte ===
   log("FONT", "INFO", "font-path", {
     base14: font.isBase14 === true,
@@ -277,4 +315,53 @@ function extractLocalSource(srcList: string[]): string | null {
     }
   }
   return null;
+}
+
+function selectFaceForWeight(faces: CSSFontFace[], requestedWeight: number): CSSFontFace | undefined {
+  let bestFace: CSSFontFace | undefined;
+  let smallestDiff = Number.POSITIVE_INFINITY;
+  for (const face of faces) {
+    const faceWeight = parseFaceWeight(face.weight, requestedWeight);
+    if (faceWeight === null) {
+      if (!bestFace) {
+        bestFace = face;
+      }
+      continue;
+    }
+    const diff = Math.abs(faceWeight - requestedWeight);
+    if (diff < smallestDiff) {
+      smallestDiff = diff;
+      bestFace = face;
+    }
+  }
+  return bestFace ?? faces[0];
+}
+
+function parseFaceWeight(value: string | number | undefined, fallback: number): number | null {
+  if (typeof value === "number") {
+    return normalizeFontWeight(value);
+  }
+  if (typeof value !== "string") {
+    return null;
+  }
+  const parts = value.split(/\s+/).filter(Boolean);
+  if (parts.length > 1) {
+    const parsedWeights = parts
+      .map((part) => parseFontWeightValue(part, fallback))
+      .filter((weight): weight is number => weight !== undefined)
+      .map((weight) => normalizeFontWeight(weight));
+    if (parsedWeights.length === 0) {
+      return null;
+    }
+    return parsedWeights.reduce((closest, candidate) => {
+      const candidateDiff = Math.abs(candidate - fallback);
+      const closestDiff = Math.abs(closest - fallback);
+      return candidateDiff < closestDiff ? candidate : closest;
+    }, parsedWeights[0]);
+  }
+  const parsed = parseFontWeightValue(value, fallback);
+  if (parsed === undefined) {
+    return null;
+  }
+  return normalizeFontWeight(parsed);
 }

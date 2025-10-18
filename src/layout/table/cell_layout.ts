@@ -12,12 +12,18 @@ const measureText = (
   fontWeight?: number,
   fontStyle?: string
 ) => {
-  const width = estimateLineWidth(text, {} as ComputedStyle); // Simplified, adjust as needed
+  const style = new ComputedStyle({
+    fontFamily,
+    fontSize: fontSizePx,
+    fontWeight,
+    lineHeight: fontSizePx * 1.2
+  });
+  const width = estimateLineWidth(text, style);
   return {
     width,
     ascent: fontSizePx * 0.8, // Approximate
     descent: fontSizePx * 0.2, // Approximate
-    lineHeight: fontSizePx * 1.2 // Approximate
+    lineHeight: resolvedLineHeight(style)
   };
 };
 
@@ -34,7 +40,7 @@ export function layoutTableCell(td: LayoutNode) {
       const computedStyle: any = {
         fontFamily: t.style.fontFamily || 'sans-serif',
         fontSizePx: t.style.fontSize,
-        fontWeight: undefined,
+        fontWeight: t.style.fontWeight,
         fontStyle: undefined,
         lineHeightPx: resolvedLineHeight(t.style),
         whiteSpace: 'normal',

@@ -105,6 +105,7 @@ export interface Run {
   text: string;
   fontFamily: string;
   fontSize: number;
+  fontWeight?: number;
   fill: RGBA;
   lineMatrix: TextMatrix;
   glyphs?: GlyphRun;

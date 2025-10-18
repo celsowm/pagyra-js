@@ -221,6 +221,7 @@ function createTextRuns(node: LayoutNode, color: RGBA | undefined): Run[] {
         text: normalizedText,
         fontFamily: node.style.fontFamily ?? "sans-serif",
         fontSize: node.style.fontSize,
+        fontWeight: node.style.fontWeight,
         fill: defaultColor,
         lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: alignX, f: baseline },
       });
@@ -239,6 +240,7 @@ function createTextRuns(node: LayoutNode, color: RGBA | undefined): Run[] {
       text: normalized,
       fontFamily: node.style.fontFamily ?? "sans-serif",
       fontSize: node.style.fontSize,
+      fontWeight: node.style.fontWeight,
       fill: defaultColor,
       lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: node.box.x, f: baseline },
     }];
@@ -254,6 +256,7 @@ function groupByFace(text: string, fontFamily: string, color: RGBA, baseline: nu
     text,
     fontFamily,
     fontSize,
+    fontWeight: undefined,
     fill: color,
     lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: 0, f: baseline },
   }];

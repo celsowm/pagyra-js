@@ -6,6 +6,7 @@ import { ComputedStyle } from "./css/style.js";
 import type { StyleProperties } from "./css/style.js";
 import { Display, FloatMode } from "./css/enums.js";
 import { BrowserDefaults, ElementSpecificDefaults } from "./css/browser-defaults.js";
+import { parseFontWeightValue, normalizeFontWeight } from "./css/font-weight.js";
 import { layoutTree } from "./layout/pipeline/layout-tree.js";
 import { buildRenderTree } from "./pdf/layout-tree-builder.js";
 import { renderPdf } from "./pdf/render.js";
@@ -45,6 +46,7 @@ interface StyleAccumulator {
   fontSize?: number;
   lineHeight?: number;
   fontFamily?: string;
+  fontWeight?: number;
 }
 
 import type { FontConfig } from "./types/fonts.js";
@@ -201,6 +203,7 @@ function convertDomNode(node: Node, cssRules: CssRuleEntry[], parentStyle: Compu
       fontSize: parentStyle.fontSize,
       lineHeight: parentStyle.lineHeight,
       fontFamily: parentStyle.fontFamily,
+      fontWeight: parentStyle.fontWeight,
     });
     return new LayoutNode(textStyle, [], { textContent: text });
   }
@@ -218,6 +221,7 @@ function convertDomNode(node: Node, cssRules: CssRuleEntry[], parentStyle: Compu
       fontSize: parentStyle.fontSize,
       lineHeight: parentStyle.lineHeight,
       fontFamily: parentStyle.fontFamily,
+      fontWeight: parentStyle.fontWeight,
     });
     return new LayoutNode(textStyle, [], { textContent: "\n" });
   }
@@ -241,6 +245,7 @@ function convertDomNode(node: Node, cssRules: CssRuleEntry[], parentStyle: Compu
           fontSize: ownStyle.fontSize,
           lineHeight: ownStyle.lineHeight,
           fontFamily: ownStyle.fontFamily,
+          fontWeight: ownStyle.fontWeight,
         }), [], { textContent: normalized }));
       }
       textBuf = "";
@@ -257,6 +262,7 @@ function convertDomNode(node: Node, cssRules: CssRuleEntry[], parentStyle: Compu
         fontSize: ownStyle.fontSize,
         lineHeight: ownStyle.lineHeight,
         fontFamily: ownStyle.fontFamily,
+        fontWeight: ownStyle.fontWeight,
       }), [], { textContent: normalized }));
     }
   }
@@ -282,6 +288,7 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
     fontSize: parentStyle.fontSize,
     lineHeight: parentStyle.lineHeight,
     fontFamily: parentStyle.fontFamily ?? mergedDefaults.fontFamily,
+    fontWeight: parentStyle.fontWeight ?? mergedDefaults.fontWeight,
   };
 
   const styleInit: StyleAccumulator = {};
@@ -306,7 +313,7 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
   Object.assign(aggregated, inlineStyle);
 
   // Apply declarations to style accumulator
-  applyDeclarationsToStyle(aggregated, styleInit);
+  applyDeclarationsToStyle(aggregated, styleInit, inherited.fontWeight ?? mergedDefaults.fontWeight);
 
   // Determine final display value
   const defaultDisplay = defaultDisplayForTag(tagName);
@@ -350,6 +357,8 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
   // 3. Inherited values
   // 4. CSS rules
   // 5. Inline styles (already applied in aggregated)
+  const elementDefinesFontWeight = elementDefaults.fontWeight !== undefined;
+
   const styleOptions: Partial<StyleProperties> = {
     // Start with merged defaults
     ...mergedDefaults,
@@ -358,6 +367,7 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
     fontSize: inherited.fontSize,
     lineHeight: inherited.lineHeight,
     fontFamily: inherited.fontFamily,
+    fontWeight: elementDefinesFontWeight ? mergedDefaults.fontWeight : normalizeFontWeight(inherited.fontWeight),
     // Apply computed values
     display,
     float: floatValue ?? FloatMode.None,
@@ -370,6 +380,7 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
   if (styleInit.fontSize !== undefined) styleOptions.fontSize = styleInit.fontSize;
   if (styleInit.lineHeight !== undefined) styleOptions.lineHeight = styleInit.lineHeight;
   if (styleInit.fontFamily !== undefined) styleOptions.fontFamily = styleInit.fontFamily;
+  if (styleInit.fontWeight !== undefined) styleOptions.fontWeight = normalizeFontWeight(styleInit.fontWeight);
   if (styleInit.marginTop !== undefined) styleOptions.marginTop = styleInit.marginTop;
   if (styleInit.marginRight !== undefined) styleOptions.marginRight = styleInit.marginRight;
   if (styleInit.marginBottom !== undefined) styleOptions.marginBottom = styleInit.marginBottom;
@@ -458,7 +469,7 @@ function mapFloat(value: string | undefined): FloatMode | undefined {
   }
 }
 
-function applyDeclarationsToStyle(declarations: Record<string, string>, target: StyleAccumulator): void {
+function applyDeclarationsToStyle(declarations: Record<string, string>, target: StyleAccumulator, inheritedFontWeight?: number): void {
   for (const [property, value] of Object.entries(declarations)) {
     switch (property) {
       case "display":
@@ -557,6 +568,13 @@ function applyDeclarationsToStyle(declarations: Record<string, string>, target: 
       case "font-family":
         target.fontFamily = value;
         break;
+      case "font-weight": {
+        const parsed = parseFontWeightValue(value, inheritedFontWeight);
+        if (parsed !== undefined) {
+          target.fontWeight = parsed;
+        }
+        break;
+      }
       case "float":
         target.float = value;
         break;

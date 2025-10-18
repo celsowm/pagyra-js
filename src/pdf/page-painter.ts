@@ -28,6 +28,7 @@ export interface TextPaintOptions {
   readonly color?: RGBA;
   readonly align?: "left" | "center" | "right";
   readonly fontFamily?: string;
+  readonly fontWeight?: number;
 }
 
 export class PagePainter {
@@ -57,7 +58,7 @@ export class PagePainter {
     if (!text) {
       return;
     }
-    const font = await this.ensureFont({ fontFamily: options.fontFamily, text });
+    const font = await this.ensureFont({ fontFamily: options.fontFamily, fontWeight: options.fontWeight, text });
     const xPt = this.pxToPt(xPx);
     const yPt = this.pageHeightPt - this.pxToPt(yPx);
     const color = options.color ?? { r: 0, g: 0, b: 0, a: 1 };
@@ -100,7 +101,7 @@ export class PagePainter {
   }
 
   async drawTextRun(run: Run): Promise<void> {
-    const font = await this.ensureFont({ fontFamily: run.fontFamily, text: run.text });
+    const font = await this.ensureFont({ fontFamily: run.fontFamily, fontWeight: run.fontWeight, text: run.text });
     const color = run.fill ?? { r: 0, g: 0, b: 0, a: 1 };
     const before = run.text;
 
@@ -167,8 +168,9 @@ export class PagePainter {
     this.commands.push(strokeColorCommand(color), `${pdfRect.x} ${pdfRect.y} ${pdfRect.width} ${pdfRect.height} re`, "S");
   }
 
-  private async ensureFont(options: { fontFamily?: string, text?: string }): Promise<FontResource> {
+  private async ensureFont(options: { fontFamily?: string; fontWeight?: number; text?: string }): Promise<FontResource> {
     const family = options.fontFamily;
+    const fontWeight = options.fontWeight;
     const text = options.text || '';
 
     // Check if we need Unicode support (combining marks, symbols beyond WinAnsi)
@@ -190,7 +192,7 @@ export class PagePainter {
     }
 
     // Fall back to standard registry resolution for Base14 fonts
-    const resource = await this.fontRegistry.ensureFontResource(family);
+    const resource = await this.fontRegistry.ensureFontResource(family, fontWeight);
     if (!this.fonts.has(resource.resourceName)) {
       this.fonts.set(resource.resourceName, resource.ref);
     }
