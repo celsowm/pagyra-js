@@ -44,5 +44,10 @@
     "id": "image-showcase",
     "label": "Image Showcase with Duck.jpg",
     "htmlUrl": "examples/image-showcase.html"
+  },
+  {
+    "id": "bold-strike-example",
+    "label": "Bold and Strike Typography Example",
+    "htmlUrl": "examples/bold-strike-example.html"
   }
 ]
