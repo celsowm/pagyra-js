@@ -192,56 +192,74 @@ export class ElementSpecificDefaults {
     // Headings
     h1: {
       display: Display.Block,
-      margin: 21,
-      marginBottom: 21,
-      fontSize: 32,
-      lineHeight: 1.25,
+      marginTop: TypographyDefaults.getFontSize() * 2 * 0.67,
+      marginBottom: TypographyDefaults.getFontSize() * 2 * 0.67,
+      marginLeft: 0,
+      marginRight: 0,
+      fontSize: TypographyDefaults.getFontSize() * 2,
+      lineHeight: TypographyDefaults.getLineHeight(),
       fontFamily: TypographyDefaults.getFontFamily(),
+      fontWeight: 700,
       color: TypographyDefaults.getColor(),
     },
     h2: {
       display: Display.Block,
-      margin: 19,
-      marginBottom: 19,
-      fontSize: 24,
-      lineHeight: 1.25,
+      marginTop: TypographyDefaults.getFontSize() * 1.5 * 0.83,
+      marginBottom: TypographyDefaults.getFontSize() * 1.5 * 0.83,
+      marginLeft: 0,
+      marginRight: 0,
+      fontSize: TypographyDefaults.getFontSize() * 1.5,
+      lineHeight: TypographyDefaults.getLineHeight(),
       fontFamily: TypographyDefaults.getFontFamily(),
+      fontWeight: 700,
       color: TypographyDefaults.getColor(),
     },
     h3: {
       display: Display.Block,
-      margin: 16,
-      marginBottom: 16,
-      fontSize: 19,
-      lineHeight: 1.25,
+      marginTop: TypographyDefaults.getFontSize() * 1.17,
+      marginBottom: TypographyDefaults.getFontSize() * 1.17,
+      marginLeft: 0,
+      marginRight: 0,
+      fontSize: TypographyDefaults.getFontSize() * 1.17,
+      lineHeight: TypographyDefaults.getLineHeight(),
       fontFamily: TypographyDefaults.getFontFamily(),
+      fontWeight: 700,
       color: TypographyDefaults.getColor(),
     },
     h4: {
       display: Display.Block,
-      margin: 14,
-      marginBottom: 14,
-      fontSize: 16,
-      lineHeight: 1.25,
+      marginTop: TypographyDefaults.getFontSize() * 1.33,
+      marginBottom: TypographyDefaults.getFontSize() * 1.33,
+      marginLeft: 0,
+      marginRight: 0,
+      fontSize: TypographyDefaults.getFontSize(),
+      lineHeight: TypographyDefaults.getLineHeight(),
       fontFamily: TypographyDefaults.getFontFamily(),
+      fontWeight: 700,
       color: TypographyDefaults.getColor(),
     },
     h5: {
       display: Display.Block,
-      margin: 12,
-      marginBottom: 12,
-      fontSize: 13,
-      lineHeight: 1.25,
+      marginTop: TypographyDefaults.getFontSize() * 0.83 * 1.67,
+      marginBottom: TypographyDefaults.getFontSize() * 0.83 * 1.67,
+      marginLeft: 0,
+      marginRight: 0,
+      fontSize: TypographyDefaults.getFontSize() * 0.83,
+      lineHeight: TypographyDefaults.getLineHeight(),
       fontFamily: TypographyDefaults.getFontFamily(),
+      fontWeight: 700,
       color: TypographyDefaults.getColor(),
     },
     h6: {
       display: Display.Block,
-      margin: 10,
-      marginBottom: 10,
-      fontSize: 11,
-      lineHeight: 1.25,
+      marginTop: TypographyDefaults.getFontSize() * 0.67 * 2.33,
+      marginBottom: TypographyDefaults.getFontSize() * 0.67 * 2.33,
+      marginLeft: 0,
+      marginRight: 0,
+      fontSize: TypographyDefaults.getFontSize() * 0.67,
+      lineHeight: TypographyDefaults.getLineHeight(),
       fontFamily: TypographyDefaults.getFontFamily(),
+      fontWeight: 700,
       color: TypographyDefaults.getColor(),
     },
 
@@ -551,17 +569,53 @@ export class BrowserDefaults {
       merged.marginBottom = elementDefaults.margin;
       merged.marginLeft = elementDefaults.margin;
     }
+    if (elementDefaults.marginTop !== undefined) {
+      merged.marginTop = elementDefaults.marginTop;
+    }
+    if (elementDefaults.marginRight !== undefined) {
+      merged.marginRight = elementDefaults.marginRight;
+    }
+    if (elementDefaults.marginBottom !== undefined) {
+      merged.marginBottom = elementDefaults.marginBottom;
+    }
+    if (elementDefaults.marginLeft !== undefined) {
+      merged.marginLeft = elementDefaults.marginLeft;
+    }
     if (elementDefaults.padding !== undefined) {
       merged.paddingTop = elementDefaults.padding;
       merged.paddingRight = elementDefaults.padding;
       merged.paddingBottom = elementDefaults.padding;
       merged.paddingLeft = elementDefaults.padding;
     }
+    if (elementDefaults.paddingTop !== undefined) {
+      merged.paddingTop = elementDefaults.paddingTop;
+    }
+    if (elementDefaults.paddingRight !== undefined) {
+      merged.paddingRight = elementDefaults.paddingRight;
+    }
+    if (elementDefaults.paddingBottom !== undefined) {
+      merged.paddingBottom = elementDefaults.paddingBottom;
+    }
+    if (elementDefaults.paddingLeft !== undefined) {
+      merged.paddingLeft = elementDefaults.paddingLeft;
+    }
     if (elementDefaults.border !== undefined) {
       merged.borderTop = elementDefaults.border;
       merged.borderRight = elementDefaults.border;
       merged.borderBottom = elementDefaults.border;
       merged.borderLeft = elementDefaults.border;
+    }
+    if (elementDefaults.borderTop !== undefined) {
+      merged.borderTop = elementDefaults.borderTop;
+    }
+    if (elementDefaults.borderRight !== undefined) {
+      merged.borderRight = elementDefaults.borderRight;
+    }
+    if (elementDefaults.borderBottom !== undefined) {
+      merged.borderBottom = elementDefaults.borderBottom;
+    }
+    if (elementDefaults.borderLeft !== undefined) {
+      merged.borderLeft = elementDefaults.borderLeft;
     }
     if (elementDefaults.display !== undefined) {
       merged.display = elementDefaults.display;
@@ -571,6 +625,18 @@ export class BrowserDefaults {
     }
     if (elementDefaults.verticalAlign !== undefined) {
       merged.verticalAlign = elementDefaults.verticalAlign;
+    }
+    if (elementDefaults.listStyle !== undefined) {
+      (merged as any).listStyle = elementDefaults.listStyle;
+    }
+    if (elementDefaults.borderCollapse !== undefined) {
+      merged.borderCollapse = elementDefaults.borderCollapse;
+    }
+    if (elementDefaults.borderSpacing !== undefined) {
+      merged.borderSpacing = elementDefaults.borderSpacing;
+    }
+    if (elementDefaults.backgroundColor !== undefined) {
+      merged.backgroundColor = elementDefaults.backgroundColor;
     }
 
     return merged;

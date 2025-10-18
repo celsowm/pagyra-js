@@ -358,14 +358,16 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
   // 4. CSS rules
   // 5. Inline styles (already applied in aggregated)
   const elementDefinesFontWeight = elementDefaults.fontWeight !== undefined;
+  const elementDefinesFontSize = mergedDefaults.fontSize !== baseDefaults.fontSize;
+  const elementDefinesLineHeight = mergedDefaults.lineHeight !== baseDefaults.lineHeight;
 
   const styleOptions: Partial<StyleProperties> = {
     // Start with merged defaults
     ...mergedDefaults,
     // Override with inherited values
     color: inherited.color,
-    fontSize: inherited.fontSize,
-    lineHeight: inherited.lineHeight,
+    fontSize: elementDefinesFontSize ? mergedDefaults.fontSize : inherited.fontSize,
+    lineHeight: elementDefinesLineHeight ? mergedDefaults.lineHeight : inherited.lineHeight,
     fontFamily: inherited.fontFamily,
     fontWeight: elementDefinesFontWeight ? mergedDefaults.fontWeight : normalizeFontWeight(inherited.fontWeight),
     // Apply computed values
