@@ -68,6 +68,15 @@ describe("bold text support", () => {
     expect(down?.fontWeight).toBe(200);
   });
 
+  it("applies UA default bold weight to table headers", () => {
+    const runs = renderRuns("<table><tr><th>Head</th><td>Body</td></tr></table>");
+    const thRun = runs.find((run) => run.text.includes("Head"));
+    const tdRun = runs.find((run) => run.text.includes("Body"));
+
+    expect(thRun?.fontWeight).toBe(700);
+    expect((tdRun?.fontWeight ?? 400)).toBe(400);
+  });
+
   it("selects bold base14 variants when requested", () => {
     const doc = new PdfDocument();
     const registry = new FontRegistry(doc, { fontFaces: [] });

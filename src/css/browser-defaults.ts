@@ -367,6 +367,7 @@ export class ElementSpecificDefaults {
       lineHeight: TypographyDefaults.getLineHeight(),
       fontFamily: TypographyDefaults.getFontFamily(),
       color: TypographyDefaults.getColor(),
+      fontWeight: 700,
       textAlign: "center",
       verticalAlign: "middle",
     },
