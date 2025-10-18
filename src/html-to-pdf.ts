@@ -11,6 +11,9 @@ import { layoutTree } from "./layout/pipeline/layout-tree.js";
 import { buildRenderTree } from "./pdf/layout-tree-builder.js";
 import { renderPdf } from "./pdf/render.js";
 import type { RenderBox, Rect } from "./pdf/types.js";
+import { ImageService } from "./image/image-service.js";
+import { ImageStrategy } from "./layout/strategies/image.js";
+import type { ImageInfo } from "./image/types.js";
 
 type CssDeclaration = cssParser.Declaration;
 type CssRule = cssParser.Rule;
@@ -216,6 +219,26 @@ function convertDomNode(node: Node, cssRules: CssRuleEntry[], parentStyle: Compu
   const element = node as DomElement;
   const tagName = element.tagName.toLowerCase();
   if (tagName === "script" || tagName === "style") return null;
+
+  // Handle image elements
+  if (tagName === "img") {
+    // Since convertImageElement is async, we need to handle this differently
+    // For now, create a placeholder and let the actual loading happen during layout
+    const layoutNode = new LayoutNode(new ComputedStyle({
+      display: Display.InlineBlock,
+      color: parentStyle.color,
+      fontSize: parentStyle.fontSize,
+      lineHeight: parentStyle.lineHeight,
+      fontFamily: parentStyle.fontFamily,
+      fontWeight: parentStyle.fontWeight,
+    }), [], { tagName: 'img' });
+    
+    // Set default dimensions for placeholder
+    layoutNode.intrinsicInlineSize = 100;
+    layoutNode.intrinsicBlockSize = 100;
+    
+    return layoutNode;
+  }
 
   if (tagName === "br") {
     const textStyle = new ComputedStyle({
@@ -980,6 +1003,93 @@ export function resolvePageMarginsPx(pageWidthPx: number, pageHeightPx: number):
     margins.bottom *= scale;
   }
   return margins;
+}
+
+/**
+ * Converts an HTML img element to a LayoutNode with proper image handling
+ */
+async function convertImageElement(element: DomElement, cssRules: CssRuleEntry[], parentStyle: ComputedStyle): Promise<LayoutNode> {
+  const src = element.getAttribute('src');
+  if (!src) {
+    // Fallback for image without src
+    const layoutNode = new LayoutNode(new ComputedStyle({
+      display: Display.InlineBlock,
+      color: parentStyle.color,
+      fontSize: parentStyle.fontSize,
+      lineHeight: parentStyle.lineHeight,
+      fontFamily: parentStyle.fontFamily,
+      fontWeight: parentStyle.fontWeight,
+      width: 100,
+      height: 100,
+    }), [], { tagName: 'img' });
+    
+    // Set default dimensions for placeholder
+    layoutNode.intrinsicInlineSize = 100;
+    layoutNode.intrinsicBlockSize = 100;
+    
+    return layoutNode;
+  }
+
+  // Get image dimensions from attributes or CSS
+  const widthAttr = element.getAttribute('width');
+  const heightAttr = element.getAttribute('height');
+  
+  // Parse width and height
+  let width = widthAttr ? parseInt(widthAttr) : undefined;
+  let height = heightAttr ? parseInt(heightAttr) : undefined;
+
+  // Create style for the image
+  const style = computeStyleForElement(element, cssRules, parentStyle);
+  
+  // Try to load the image
+  let imageInfo: ImageInfo;
+  try {
+    const imageService = ImageService.getInstance();
+    imageInfo = await imageService.loadImage(src, {
+      maxWidth: width,
+      maxHeight: height
+    });
+    
+    // Log successful image loading
+    log("RENDER_TREE", "DEBUG", `Image loaded successfully`, {
+      src,
+      width: imageInfo.width,
+      height: imageInfo.height,
+      format: imageInfo.format
+    });
+  } catch (error) {
+    // Fallback if image loading fails
+    log("RENDER_TREE", "WARN", `Failed to load image: ${src}. Using placeholder.`, {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    
+    // Create a placeholder node
+    const layoutNode = new LayoutNode(style, [], { tagName: 'img' });
+    layoutNode.intrinsicInlineSize = width || 100;
+    layoutNode.intrinsicBlockSize = height || 100;
+    
+    return layoutNode;
+  }
+
+  // Create layout node with the image
+  const layoutNode = new LayoutNode(style, [], { tagName: 'img' });
+  
+  // Apply image strategy to process the image
+  ImageStrategy.processImage(layoutNode, imageInfo);
+  
+  // Apply any specified dimensions (they will override the natural dimensions)
+  if (width && height) {
+    layoutNode.intrinsicInlineSize = width;
+    layoutNode.intrinsicBlockSize = height;
+  } else if (width) {
+    layoutNode.intrinsicInlineSize = width;
+    layoutNode.intrinsicBlockSize = Math.round((imageInfo.height / imageInfo.width) * width);
+  } else if (height) {
+    layoutNode.intrinsicBlockSize = height;
+    layoutNode.intrinsicInlineSize = Math.round((imageInfo.width / imageInfo.height) * height);
+  }
+  
+  return layoutNode;
 }
 
 function buildCssRules(cssText: string): CssRuleEntry[] {
