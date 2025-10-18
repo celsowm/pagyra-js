@@ -166,6 +166,7 @@ export interface LayoutPageTree {
   positionedLayersSortedByZ: PositionedLayer[];
   decorations: DecorationCommand[];
   links: Link[];
+  pageOffsetY: number;
 }
 
 export interface PositionedLayer {

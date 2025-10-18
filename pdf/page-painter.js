@@ -3,13 +3,15 @@ export class PagePainter {
     pageHeightPt;
     pxToPt;
     fontRegistry;
+    pageOffsetPx;
     commands = [];
     fonts = new Map();
     ptToPxFactor;
-    constructor(pageHeightPt, pxToPt, fontRegistry) {
+    constructor(pageHeightPt, pxToPt, fontRegistry, pageOffsetPx = 0) {
         this.pageHeightPt = pageHeightPt;
         this.pxToPt = pxToPt;
         this.fontRegistry = fontRegistry;
+        this.pageOffsetPx = pageOffsetPx;
     }
     get pageHeightPx() {
         return this.ptToPx(this.pageHeightPt);
@@ -25,8 +27,10 @@ export class PagePainter {
             return;
         }
         const font = await this.ensureFont({ fontFamily: options.fontFamily });
+        const usePageOffset = !(options.absolute ?? false);
+        const offsetY = usePageOffset ? this.pageOffsetPx : 0;
         const xPt = this.pxToPt(xPx);
-        const yPt = this.pageHeightPt - this.pxToPt(yPx);
+        const yPt = this.pageHeightPt - this.pxToPt(yPx - offsetY);
         const color = options.color ?? { r: 0, g: 0, b: 0, a: 1 };
         const escaped = encodeAndEscapePdfText(text);
         const baselineAdjust = options.fontSizePt;
@@ -38,7 +42,8 @@ export class PagePainter {
         const escaped = encodeAndEscapePdfText(run.text);
         const Tm = run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
         const fontSizePt = this.pxToPt(run.fontSize);
-        const y = this.pageHeightPt - this.pxToPt(Tm.f);
+        const localBaseline = Tm.f - this.pageOffsetPx;
+        const y = this.pageHeightPt - this.pxToPt(localBaseline);
         const x = this.pxToPt(Tm.e);
         this.commands.push(fillColorCommand(color), "BT", `/${font.resourceName} ${formatNumber(fontSizePt)} Tf`, `${formatNumber(Tm.a)} ${formatNumber(Tm.b)} ${formatNumber(Tm.c)} ${formatNumber(Tm.d)} ${formatNumber(x)} ${formatNumber(y)} Tm`, `(${escaped}) Tj`, "ET");
     }
@@ -79,8 +84,9 @@ export class PagePainter {
         if (widthPx === 0 || heightPx === 0) {
             return null;
         }
+        const localY = rect.y - this.pageOffsetPx;
         const x = this.pxToPt(rect.x);
-        const y = this.pageHeightPt - this.pxToPt(rect.y + heightPx);
+        const y = this.pageHeightPt - this.pxToPt(localY + heightPx);
         const width = this.pxToPt(widthPx);
         const height = this.pxToPt(heightPx);
         return {

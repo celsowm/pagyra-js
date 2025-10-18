@@ -27,6 +27,7 @@ export interface RenderPdfOptions {
 export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = {}): Promise<Uint8Array> {
   const pageSize = options.pageSize ?? derivePageSize(layout);
   const pxToPt = createPxToPt(layout.dpiAssumption);
+  const ptToPx = createPtToPx(layout.dpiAssumption);
   const doc = new PdfDocument(options.metadata ?? {});
   const fontRegistry = initFontSystem(doc, layout.css);
 
@@ -43,7 +44,8 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
   const pageBox = adjustPageBoxForHf(baseContentBox, hfLayout);
   void pageBox;
 
-  const pages = paginateTree(layout.root);
+  const pageHeightPx = ptToPx(pageSize.heightPt) || 1;
+  const pages = paginateTree(layout.root, { pageHeight: pageHeightPx });
   const totalPages = pages.length;
   const tokens = computeHfTokens(layout.hf.placeholders ?? {}, totalPages, options.metadata);
 
@@ -52,7 +54,7 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
   for (let index = 0; index < pages.length; index++) {
     const pageTree = pages[index];
     const pageNumber = index + 1;
-    const painter = new PagePainter(pageSize.heightPt, pxToPt, fontRegistry);
+    const painter = new PagePainter(pageSize.heightPt, pxToPt, fontRegistry, pageTree.pageOffsetY);
 
     const headerVariant = pickHeaderVariant(hfLayout, pageNumber, totalPages);
     const footerVariant = pickFooterVariant(hfLayout, pageNumber, totalPages);
@@ -184,6 +186,12 @@ function createPxToPt(dpi: number): (px: number) => number {
   const safeDpi = dpi > 0 ? dpi : 96;
   const factor = 72 / safeDpi;
   return (px: number) => px * factor;
+}
+
+function createPtToPx(dpi: number): (pt: number) => number {
+  const safeDpi = dpi > 0 ? dpi : 96;
+  const factor = safeDpi / 72;
+  return (pt: number) => pt * factor;
 }
 
 function derivePageSize(layout: LayoutTree): PageSize {

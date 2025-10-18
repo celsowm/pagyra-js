@@ -66,12 +66,12 @@ export function paintHeaderFooter(painter, header, footer, tokens, pageIndex, to
     const footerText = footer?.content ? stringify(footer.content) : undefined;
     if (headerText) {
         const rendered = applyPlaceholders(headerText, tokens, pageIndex, totalPages);
-        painter.drawText(rendered, 16, header?.maxHeightPx ?? 24, { ...baseOptions });
+        painter.drawText(rendered, 16, header?.maxHeightPx ?? 24, { ...baseOptions, absolute: true });
     }
     if (footerText) {
         const rendered = applyPlaceholders(footerText, tokens, pageIndex, totalPages);
         const yPx = painter.pageHeightPx ? painter.pageHeightPx - ((footer?.maxHeightPx ?? 24) + 16) : 16;
-        painter.drawText(rendered, 16, yPx, { ...baseOptions });
+        painter.drawText(rendered, 16, yPx, { ...baseOptions, absolute: true });
     }
 }
 function prepareVariants(hf, pxToPt, position) {
