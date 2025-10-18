@@ -128,6 +128,11 @@ export class TableLayoutStrategy implements LayoutStrategy {
         // Layout child and get its content height
         context.layoutChild(cell);
 
+          // Offset children by padding so text is not glued to border
+          for (const child of cell.children) {
+            child.box.x = (child.box.x ?? 0) + paddingLeft;
+            child.box.y = (child.box.y ?? 0) + paddingTop;
+          }
 
         // Apply textAlign and verticalAlign to children if present
         if (cell.style.textAlign || cell.style.verticalAlign) {
