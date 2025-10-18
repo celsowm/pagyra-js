@@ -89,7 +89,7 @@ export function breakTextIntoLines(text: string, style: ComputedStyle, available
   const totalWidth = items.reduce((sum, it) => sum + it.width, 0);
   if (totalWidth <= availableWidth) {
     return [{
-      text: text.trim(),
+      text,
       width: totalWidth,
       spaceCount: countJustifiableSpaces(items),
       targetWidth: availableWidth,
@@ -139,7 +139,7 @@ export function breakTextIntoLines(text: string, style: ComputedStyle, available
     let currentItems: TextItem[] = [];
     const pushCurrent = () => {
       lines.push({
-        text: currentLine.trim(),
+        text: currentLine,
         width: currentWidth,
         spaceCount: countJustifiableSpaces(currentItems),
         targetWidth: availableWidth,
@@ -168,7 +168,7 @@ export function breakTextIntoLines(text: string, style: ComputedStyle, available
   while (current > 0) {
     const prev = breaks[current];
     const lineItems = items.slice(prev, current);
-    const text = lineItems.map(it => it.text).join("").trim();
+    const text = lineItems.map((it) => it.text).join("");
     const width = lineItems.reduce((sum, it) => sum + it.width, 0);
     const spaceCount = countJustifiableSpaces(lineItems);
     lines.unshift({

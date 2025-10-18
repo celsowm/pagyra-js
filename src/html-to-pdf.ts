@@ -271,25 +271,31 @@ async function convertDomNode(
       continue;
     }
     if (textBuf) {
-      const normalized = textBuf.replace(/\s+/g, " ").normalize("NFC").trim();
+      let normalized = textBuf.replace(/\s+/g, " ").normalize("NFC");
+      if (normalized.trim().length === 0) {
+        normalized = layoutChildren.length > 0 ? " " : "";
+      }
       if (normalized) {
-      layoutChildren.push(new LayoutNode(new ComputedStyle({
-        display: Display.Inline,
-        color: ownStyle.color,
-        fontSize: ownStyle.fontSize,
-        lineHeight: ownStyle.lineHeight,
-        fontFamily: ownStyle.fontFamily,
-        fontWeight: ownStyle.fontWeight,
-        textDecorationLine: ownStyle.textDecorationLine,
-      }), [], { textContent: normalized }));
+        layoutChildren.push(new LayoutNode(new ComputedStyle({
+          display: Display.Inline,
+          color: ownStyle.color,
+          fontSize: ownStyle.fontSize,
+          lineHeight: ownStyle.lineHeight,
+          fontFamily: ownStyle.fontFamily,
+          fontWeight: ownStyle.fontWeight,
+          textDecorationLine: ownStyle.textDecorationLine,
+        }), [], { textContent: normalized }));
+      }
+      textBuf = "";
     }
-    textBuf = "";
-  }
     const sub = await convertDomNode(child, cssRules, ownStyle, context);
     if (sub) layoutChildren.push(sub);
   }
   if (textBuf) {
-    const normalized = textBuf.replace(/\s+/g, " ").normalize("NFC").trim();
+    let normalized = textBuf.replace(/\s+/g, " ").normalize("NFC");
+    if (normalized.trim().length === 0) {
+      normalized = layoutChildren.length > 0 ? " " : "";
+    }
     if (normalized) {
       layoutChildren.push(new LayoutNode(new ComputedStyle({
         display: Display.Inline,

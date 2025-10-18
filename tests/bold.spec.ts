@@ -47,6 +47,11 @@ describe("bold text support", () => {
     expect((normalRun?.fontWeight ?? 0)).toBe(400);
   });
 
+  it("preserves collapsed spaces around inline formatting tags", async () => {
+    const runs = await renderRuns("<p>alpha <b>beta</b> gamma</p>");
+    expect(runs.map((run) => run.text)).toEqual(["alpha ", "beta", " gamma"]);
+  });
+
   it("parses numeric and keyword font-weight declarations", async () => {
     const html = `
       <p>
