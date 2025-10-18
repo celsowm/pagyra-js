@@ -10,6 +10,9 @@ const UPPER_WIDTH_FACTOR = 0.58;
 const BASE_WIDTH_FACTOR = 0.5;
 const PUNCT_WIDTH_FACTOR = 0.35;
 const IDEOGRAPHIC_WIDTH_FACTOR = 1.0;
+// Heuristic width measurements tend to slightly overestimate glyph widths.
+// Apply a calibration factor so line breaking can pack words closer to the real layout.
+const WIDTH_CALIBRATION = 0.9;
 
 export function assignIntrinsicTextMetrics(root: LayoutNode): void {
   root.walk((node) => {
@@ -56,8 +59,9 @@ export function estimateLineWidth(line: string, style: ComputedStyle): number {
   const letterSpacing = style.letterSpacing ?? 0;
   const wordSpacing = style.wordSpacing ?? 0;
   const spacingContribution = Math.max(line.length - 1, 0) * letterSpacing + countSpaces(line) * wordSpacing;
+  const heuristicWidth = totalFactor * fontSize * weightMultiplier;
 
-  return totalFactor * fontSize * weightMultiplier + spacingContribution;
+  return heuristicWidth * WIDTH_CALIBRATION + spacingContribution;
 }
 
 function factorForChar(char: string, baseFactor: number): number {
