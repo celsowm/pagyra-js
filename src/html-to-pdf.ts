@@ -484,16 +484,47 @@ function applyDeclarationsToStyle(declarations: Record<string, string>, target: 
         target.backgroundColor = value;
         break;
       case "border-color":
-        target.borderColor = value;
+        applyBorderColorShorthand(value, (color) => {
+          target.borderColor = color;
+        });
         break;
       case "border":
-        const borderWidth = parseNumeric(value);
-        if (borderWidth !== undefined) {
-          target.borderTop = borderWidth;
-          target.borderRight = borderWidth;
-          target.borderBottom = borderWidth;
-          target.borderLeft = borderWidth;
-        }
+        applyBorderShorthand(value, (width) => {
+          target.borderTop = width;
+          target.borderRight = width;
+          target.borderBottom = width;
+          target.borderLeft = width;
+        }, (color) => {
+          target.borderColor = color ?? target.borderColor;
+        });
+        break;
+      case "border-top":
+        applyBorderShorthand(value, (width) => {
+          target.borderTop = width;
+        }, (color) => {
+          target.borderColor = color ?? target.borderColor;
+        });
+        break;
+      case "border-right":
+        applyBorderShorthand(value, (width) => {
+          target.borderRight = width;
+        }, (color) => {
+          target.borderColor = color ?? target.borderColor;
+        });
+        break;
+      case "border-bottom":
+        applyBorderShorthand(value, (width) => {
+          target.borderBottom = width;
+        }, (color) => {
+          target.borderColor = color ?? target.borderColor;
+        });
+        break;
+      case "border-left":
+        applyBorderShorthand(value, (width) => {
+          target.borderLeft = width;
+        }, (color) => {
+          target.borderColor = color ?? target.borderColor;
+        });
         break;
       case "border-width":
         applyBoxShorthand(value, (top, right, bottom, left) => {
@@ -501,19 +532,57 @@ function applyDeclarationsToStyle(declarations: Record<string, string>, target: 
           target.borderRight = right;
           target.borderBottom = bottom;
           target.borderLeft = left;
-        });
+        }, parseBorderWidth);
         break;
       case "border-top-width":
-        target.borderTop = parseNumeric(value) ?? target.borderTop;
+        target.borderTop = parseBorderWidth(value) ?? target.borderTop;
         break;
       case "border-right-width":
-        target.borderRight = parseNumeric(value) ?? target.borderRight;
+        target.borderRight = parseBorderWidth(value) ?? target.borderRight;
         break;
       case "border-bottom-width":
-        target.borderBottom = parseNumeric(value) ?? target.borderBottom;
+        target.borderBottom = parseBorderWidth(value) ?? target.borderBottom;
         break;
       case "border-left-width":
-        target.borderLeft = parseNumeric(value) ?? target.borderLeft;
+        target.borderLeft = parseBorderWidth(value) ?? target.borderLeft;
+        break;
+      case "border-top-color":
+      case "border-right-color":
+      case "border-bottom-color":
+      case "border-left-color":
+        if (value.trim()) {
+          target.borderColor = value.trim();
+        }
+        break;
+      case "border-style":
+        applyBorderStyleShorthand(value, (style) => {
+          if (style === "none" || style === "hidden") {
+            target.borderTop = 0;
+            target.borderRight = 0;
+            target.borderBottom = 0;
+            target.borderLeft = 0;
+          }
+        });
+        break;
+      case "border-top-style":
+        if (isNoneBorderStyle(value)) {
+          target.borderTop = 0;
+        }
+        break;
+      case "border-right-style":
+        if (isNoneBorderStyle(value)) {
+          target.borderRight = 0;
+        }
+        break;
+      case "border-bottom-style":
+        if (isNoneBorderStyle(value)) {
+          target.borderBottom = 0;
+        }
+        break;
+      case "border-left-style":
+        if (isNoneBorderStyle(value)) {
+          target.borderLeft = 0;
+        }
         break;
       case "margin":
         applyBoxShorthand(value, (top, right, bottom, left) => {
@@ -589,12 +658,13 @@ function applyDeclarationsToStyle(declarations: Record<string, string>, target: 
 function applyBoxShorthand(
   value: string,
   apply: (top: number | undefined, right: number | undefined, bottom: number | undefined, left: number | undefined) => void,
+  parser: (input: string) => number | undefined = parseLength,
 ): void {
-  const parts = value.split(/\s+/).filter(Boolean);
+  const parts = splitCssList(value);
   if (parts.length === 0) {
     return;
   }
-  const resolved = parts.map(parseLength);
+  const resolved = parts.map((part) => parser(part));
   const [top, right, bottom, left] =
     resolved.length === 1
       ? [resolved[0], resolved[0], resolved[0], resolved[0]]
@@ -604,6 +674,191 @@ function applyBoxShorthand(
           ? [resolved[0], resolved[1], resolved[2], resolved[1]]
           : [resolved[0], resolved[1], resolved[2], resolved[3]];
   apply(top, right, bottom, left);
+}
+
+const BORDER_STYLE_KEYWORDS = new Set([
+  "none",
+  "hidden",
+  "solid",
+  "dashed",
+  "dotted",
+  "double",
+  "groove",
+  "ridge",
+  "inset",
+  "outset",
+]);
+
+const BORDER_WIDTH_KEYWORD_MAP: Record<string, number> = {
+  thin: 1,
+  medium: 3,
+  thick: 5,
+};
+
+const DEFAULT_BORDER_WIDTH = BORDER_WIDTH_KEYWORD_MAP.medium;
+
+interface ParsedBorder {
+  width?: number;
+  style?: string;
+  color?: string;
+}
+
+function applyBorderShorthand(
+  value: string,
+  applyWidth: (width: number) => void,
+  applyColor: (color: string | undefined) => void,
+): void {
+  const parsed = parseBorderShorthand(value);
+  if (!parsed) {
+    return;
+  }
+
+  if (parsed.style === "none" || parsed.style === "hidden") {
+    applyWidth(0);
+  } else if (parsed.width !== undefined) {
+    applyWidth(parsed.width);
+  } else if (parsed.style) {
+    applyWidth(DEFAULT_BORDER_WIDTH);
+  }
+
+  if (parsed.color !== undefined) {
+    applyColor(parsed.color);
+  }
+}
+
+function applyBorderColorShorthand(value: string, applyColor: (color: string) => void): void {
+  const parts = splitCssList(value);
+  if (parts.length === 0) {
+    return;
+  }
+  const [top] =
+    parts.length === 1
+      ? [parts[0], parts[0], parts[0], parts[0]]
+      : parts.length === 2
+        ? [parts[0], parts[1], parts[0], parts[1]]
+        : parts.length === 3
+          ? [parts[0], parts[1], parts[2], parts[1]]
+          : [parts[0], parts[1], parts[2], parts[3]];
+  if (top) {
+    applyColor(top);
+  }
+}
+
+function applyBorderStyleShorthand(value: string, apply: (style: string | undefined) => void): void {
+  const parts = splitCssList(value);
+  if (parts.length === 0) {
+    return;
+  }
+  apply(parts[0]?.toLowerCase());
+}
+
+function isNoneBorderStyle(value: string): boolean {
+  const parts = splitCssList(value);
+  if (parts.length === 0) {
+    return false;
+  }
+  const keyword = parts[0]?.toLowerCase();
+  return keyword === "none" || keyword === "hidden";
+}
+
+function parseBorderShorthand(value: string): ParsedBorder | null {
+  const parts = splitCssList(value);
+  if (parts.length === 0) {
+    return null;
+  }
+
+  let width: number | undefined;
+  let style: string | undefined;
+  let color: string | undefined;
+
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (!trimmed) {
+      continue;
+    }
+    if (width === undefined) {
+      const maybeWidth = parseBorderWidth(trimmed);
+      if (maybeWidth !== undefined) {
+        width = maybeWidth;
+        continue;
+      }
+    }
+
+    const lower = trimmed.toLowerCase();
+    if (!style && BORDER_STYLE_KEYWORDS.has(lower)) {
+      style = lower;
+      continue;
+    }
+
+    if (color === undefined) {
+      color = trimmed;
+    }
+  }
+
+  if (style === "none" || style === "hidden") {
+    width = 0;
+  } else if (width === undefined && style) {
+    width = DEFAULT_BORDER_WIDTH;
+  }
+
+  return { width, style, color };
+}
+
+function parseBorderWidth(value: string): number | undefined {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) {
+    return undefined;
+  }
+  if (trimmed in BORDER_WIDTH_KEYWORD_MAP) {
+    return BORDER_WIDTH_KEYWORD_MAP[trimmed];
+  }
+  return parseLength(value);
+}
+
+function splitCssList(value: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let depth = 0;
+  let quote: string | null = null;
+
+  for (const char of value) {
+    if (quote) {
+      current += char;
+      if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (char === "'" || char === "\"") {
+      quote = char;
+      current += char;
+      continue;
+    }
+    if (char === "(") {
+      depth += 1;
+      current += char;
+      continue;
+    }
+    if (char === ")") {
+      depth = Math.max(0, depth - 1);
+      current += char;
+      continue;
+    }
+    if (/\s/.test(char) && depth === 0) {
+      if (current.trim()) {
+        result.push(current.trim());
+      }
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+
+  if (current.trim()) {
+    result.push(current.trim());
+  }
+
+  return result;
 }
 
 function parseLength(value: string): number | undefined {

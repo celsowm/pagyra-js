@@ -46,35 +46,35 @@ export class TableLayoutStrategy implements LayoutStrategy {
           // Set default border width and color for table cells if not set
           const isTableCell = cell.tagName === 'td' || cell.tagName === 'th';
           if (isTableCell) {
-            if (cell.style.borderTop === undefined || cell.style.borderTop === 0) cell.style.borderTop = 1;
-            if (cell.style.borderRight === undefined || cell.style.borderRight === 0) cell.style.borderRight = 1;
-            if (cell.style.borderBottom === undefined || cell.style.borderBottom === 0) cell.style.borderBottom = 1;
-            if (cell.style.borderLeft === undefined || cell.style.borderLeft === 0) cell.style.borderLeft = 1;
+            if (cell.style.borderTop === undefined) cell.style.borderTop = 1;
+            if (cell.style.borderRight === undefined) cell.style.borderRight = 1;
+            if (cell.style.borderBottom === undefined) cell.style.borderBottom = 1;
+            if (cell.style.borderLeft === undefined) cell.style.borderLeft = 1;
             if (cell.style.borderColor === undefined) cell.style.borderColor = '#000';
           }
           // Inherit from row/table if still not set
-          if (cell.style.borderTop === undefined || cell.style.borderTop === 0) {
+          if (cell.style.borderTop === undefined) {
             if (row && row.style.borderTop !== undefined && row.style.borderTop !== 0) {
               cell.style.borderTop = row.style.borderTop;
             } else if (node.style.borderTop !== undefined && node.style.borderTop !== 0) {
               cell.style.borderTop = node.style.borderTop;
             }
           }
-          if (cell.style.borderRight === undefined || cell.style.borderRight === 0) {
+          if (cell.style.borderRight === undefined) {
             if (row && row.style.borderRight !== undefined && row.style.borderRight !== 0) {
               cell.style.borderRight = row.style.borderRight;
             } else if (node.style.borderRight !== undefined && node.style.borderRight !== 0) {
               cell.style.borderRight = node.style.borderRight;
             }
           }
-          if (cell.style.borderBottom === undefined || cell.style.borderBottom === 0) {
+          if (cell.style.borderBottom === undefined) {
             if (row && row.style.borderBottom !== undefined && row.style.borderBottom !== 0) {
               cell.style.borderBottom = row.style.borderBottom;
             } else if (node.style.borderBottom !== undefined && node.style.borderBottom !== 0) {
               cell.style.borderBottom = node.style.borderBottom;
             }
           }
-          if (cell.style.borderLeft === undefined || cell.style.borderLeft === 0) {
+          if (cell.style.borderLeft === undefined) {
             if (row && row.style.borderLeft !== undefined && row.style.borderLeft !== 0) {
               cell.style.borderLeft = row.style.borderLeft;
             } else if (node.style.borderLeft !== undefined && node.style.borderLeft !== 0) {
