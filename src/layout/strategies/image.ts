@@ -228,19 +228,18 @@ export class ImageLayoutStrategy implements LayoutStrategy {
         const scale = intrinsicHeight > 0 ? contentHeight / intrinsicHeight : 1;
         contentWidth = Math.max(1, Math.round(intrinsicWidth * scale));
       } else if (!hasExplicitWidth && !hasExplicitHeight) {
-        if (node.style.display === Display.Block && availableContentWidth > 0 && intrinsicWidth > 0) {
-          if (intrinsicWidth > availableContentWidth) {
-            const scale = availableContentWidth / intrinsicWidth;
-            contentWidth = Math.max(1, Math.round(intrinsicWidth * scale));
-            contentHeight = Math.max(1, Math.round(intrinsicHeight * scale));
-          } else {
-            contentWidth = intrinsicWidth;
-            contentHeight = intrinsicHeight;
-          }
-        } else {
-          contentWidth = intrinsicWidth;
-          contentHeight = intrinsicHeight;
-        }
+        contentWidth = intrinsicWidth;
+        contentHeight = intrinsicHeight;
+      }
+    }
+
+    if (!hasExplicitWidth && availableContentWidth > 0 && contentWidth > availableContentWidth) {
+      if (hasIntrinsic && contentWidth > 0) {
+        const scale = availableContentWidth / contentWidth;
+        contentWidth = availableContentWidth;
+        contentHeight = Math.max(1, Math.round(contentHeight * scale));
+      } else {
+        contentWidth = availableContentWidth;
       }
     }
 
