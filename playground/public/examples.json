@@ -36,6 +36,11 @@
     "htmlUrl": "examples/justify-text.html"
   },
   {
+    "id": "multi-page-lorem",
+    "label": "Multi-Page Lorem Ipsum Document",
+    "htmlUrl": "examples/multi-page-lorem.html"
+  },
+  {
     "id": "image-showcase",
     "label": "Image Showcase with Duck.jpg",
     "htmlUrl": "examples/image-showcase.html"
