@@ -57,6 +57,7 @@ export interface StyleProperties {
   borderColor?: string;
   color?: string;
   fontFamily?: string;
+  fontWeight?: number;
   left?: LengthLike;
   right?: LengthLike;
   top?: LengthLike;
@@ -126,6 +127,7 @@ export class ComputedStyle implements StyleProperties {
   borderColor?: string;
   color?: string;
   fontFamily?: string;
+  fontWeight?: number;
   left?: LengthLike;
   right?: LengthLike;
   top?: LengthLike;
@@ -198,6 +200,7 @@ export class ComputedStyle implements StyleProperties {
     this.borderColor = data.borderColor;
     this.color = data.color;
     this.fontFamily = data.fontFamily;
+    this.fontWeight = data.fontWeight;
     this.left = data.left;
     this.right = data.right;
     this.top = data.top;

@@ -28,6 +28,7 @@ export interface ElementDefaults {
   fontSize: number;
   lineHeight: number;
   fontFamily: string;
+  fontWeight: number;
   color: string;
   backgroundColor?: string;
   listStyle?: string;
@@ -63,6 +64,10 @@ export class TypographyDefaults {
 
   static getWordSpacing(): number {
     return 0;
+  }
+
+  static getFontWeight(): number {
+    return 400;
   }
 }
 
@@ -297,6 +302,7 @@ export class ElementSpecificDefaults {
     strong: {
       display: Display.Inline,
       fontSize: 16,
+      fontWeight: 700,
       lineHeight: TypographyDefaults.getLineHeight(),
       fontFamily: TypographyDefaults.getFontFamily(),
       color: TypographyDefaults.getColor(),
@@ -450,6 +456,7 @@ export class BrowserDefaults {
       // Typography
       fontFamily: TypographyDefaults.getFontFamily(),
       fontSize: TypographyDefaults.getFontSize(),
+      fontWeight: TypographyDefaults.getFontWeight(),
       lineHeight: TypographyDefaults.getLineHeight(),
       color: TypographyDefaults.getColor(),
       letterSpacing: TypographyDefaults.getLetterSpacing(),
@@ -530,6 +537,9 @@ export class BrowserDefaults {
     }
     if (elementDefaults.fontFamily !== undefined) {
       merged.fontFamily = elementDefaults.fontFamily;
+    }
+    if (elementDefaults.fontWeight !== undefined) {
+      merged.fontWeight = elementDefaults.fontWeight;
     }
     if (elementDefaults.color !== undefined) {
       merged.color = elementDefaults.color;
