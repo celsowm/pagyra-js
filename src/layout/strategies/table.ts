@@ -4,6 +4,7 @@ import { log } from "../../debug/log.js";
 import { resolveLength } from "../../css/length.js";
 import { containingBlock, horizontalNonContent, resolveWidthBlock, verticalNonContent } from "../utils/node-math.js";
 import type { LayoutContext, LayoutStrategy } from "../pipeline/strategy.js";
+import { layoutTableCell, auditTableCell, debugTableCell } from "../table/cell_layout.js";
 
 export class TableLayoutStrategy implements LayoutStrategy {
   private readonly supportedDisplays = new Set<Display>([Display.Table, Display.InlineTable]);
@@ -125,8 +126,10 @@ export class TableLayoutStrategy implements LayoutStrategy {
         cell.box.y = 0;
         cell.box.contentWidth = cellAvailableWidth;
 
-        // Layout child and get its content height
-        context.layoutChild(cell);
+        // Layout child using inline layout for text
+        debugTableCell(cell); // Debug specific cell
+        layoutTableCell(cell);
+        if (cell.textContent?.includes('Row 3, Cell 3')) auditTableCell(cell); // Audit after layout
 
           // Offset children by padding so text is not glued to border
           for (const child of cell.children) {

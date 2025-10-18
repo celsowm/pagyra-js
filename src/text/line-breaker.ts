@@ -64,6 +64,12 @@ export function breakTextIntoLines(text: string, style: ComputedStyle, available
   const n = items.length;
   if (n === 0) return [];
 
+  // Check if entire text fits on one line - if so, don't break it
+  const totalWidth = items.reduce((sum, it) => sum + it.width, 0);
+  if (totalWidth <= availableWidth) {
+    return [{ text: text.trim(), width: totalWidth }];
+  }
+
   const spaceWidth = estimateLineWidth(" ", style);
 
   // memo[i] armazena o custo mínimo (feiura) para quebrar os primeiros `i` itens.
