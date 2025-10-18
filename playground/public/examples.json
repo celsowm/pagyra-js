@@ -34,5 +34,10 @@
     "id": "justify-text",
     "label": "Justified Text Showcase",
     "htmlUrl": "examples/justify-text.html"
+  },
+  {
+    "id": "image-showcase",
+    "label": "Image Showcase with Duck.jpg",
+    "htmlUrl": "examples/image-showcase.html"
   }
 ]

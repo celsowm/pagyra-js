@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Showcase</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+        }
+        
+        .image-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        
+        .basic-image {
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #3498db;
+            border-radius: 4px;
+        }
+        
+        .styled-image {
+            max-width: 300px;
+            height: auto;
+            border: 3px solid #e74c3c;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .responsive-image {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #95a5a6;
+            border-radius: 4px;
+        }
+        
+        .table-image {
+            width: 100px;
+            height: 60px;
+            object-fit: cover;
+            border: 1px solid #bdc3c7;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #34495e;
+            color: white;
+        }
+        
+        .float-image {
+            float: left;
+            margin: 0 20px 20px 0;
+            border: 2px solid #9b59b6;
+            border-radius: 4px;
+        }
+        
+        .clear-float {
+            clear: both;
+        }
+        
+        .image-gallery {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 30px 0;
+        }
+        
+        .gallery-image {
+            width: 150px;
+            height: 100px;
+            object-fit: cover;
+            border: 2px solid #1abc9c;
+            border-radius: 4px;
+        }
+        
+        .caption {
+            text-align: center;
+            font-style: italic;
+            color: #7f8c8d;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Image Showcase with Duck.jpg</h1>
+        
+        <div class="image-section">
+            <h2>1. Basic Image</h2>
+            <img src="../images/duck.jpg" alt="Basic duck image" class="basic-image">
+            <p class="caption">A basic image with default styling</p>
+        </div>
+        
+        <div class="image-section">
+            <h2>2. Styled Image</h2>
+            <img src="../images/duck.jpg" alt="Styled duck image" class="styled-image">
+            <p class="caption">Image with custom border, shadow, and margin</p>
+        </div>
+        
+        <div class="image-section">
+            <h2>3. Responsive Image</h2>
+            <img src="../images/duck.jpg" alt="Responsive duck image" class="responsive-image">
+            <p class="caption">Responsive image that scales with container</p>
+            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+        </div>
+        
+        <div class="image-section">
+            <h2>4. Image with Float</h2>
+            <img src="../images/duck.jpg" alt="Floating duck image" class="float-image">
+            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+            <p class="clear-float">This text appears after the floating image.</p>
+        </div>
+        
+        <div class="image-section">
+            <h2>5. Images in Tables</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Image</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Item 1</td>
+                        <td><img src="../images/duck.jpg" alt="Product 1" class="table-image"></td>
+                        <td>Description of item 1</td>
+                    </tr>
+                    <tr>
+                        <td>Item 2</td>
+                        <td><img src="../images/duck.jpg" alt="Product 2" class="table-image"></td>
+                        <td>Description of item 2</td>
+                    </tr>
+                    <tr>
+                        <td>Item 3</td>
+                        <td><img src="../images/duck.jpg" alt="Product 3" class="table-image"></td>
+                        <td>Description of item 3</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="image-section">
+            <h2>6. Image Gallery</h2>
+            <div class="image-gallery">
+                <div>
+                    <img src="../images/duck.jpg" alt="Gallery image 1" class="gallery-image">
+                    <p class="caption">Gallery Image 1</p>
+                </div>
+                <div>
+                    <img src="../images/duck.jpg" alt="Gallery image 2" class="gallery-image">
+                    <p class="caption">Gallery Image 2</p>
+                </div>
+                <div>
+                    <img src="../images/duck.jpg" alt="Gallery image 3" class="gallery-image">
+                    <p class="caption">Gallery Image 3</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="image-section">
+            <h2>7. Mixed Content</h2>
+            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Here's an image mixed with text:</p>
+            <img src="../images/duck.jpg" alt="Mixed content image" class="styled-image" style="width: 200px;">
+            <p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+            <p>Another paragraph with some more content to demonstrate how images interact with text layout in PDF generation.</p>
+        </div>
+    </div>
+</body>
+</html>
