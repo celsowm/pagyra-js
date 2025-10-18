@@ -14,9 +14,9 @@ function collectRuns(box: RenderBox): Run[] {
   return runs;
 }
 
-function renderRuns(html: string, css = ""): Run[] {
+async function renderRuns(html: string, css = ""): Promise<Run[]> {
   const wrappedHtml = /<html[\s>]/i.test(html) ? html : `<html><body>${html}</body></html>`;
-  const { renderTree } = prepareHtmlRender({
+  const { renderTree } = await prepareHtmlRender({
     html: wrappedHtml,
     css,
     viewportWidth: 800,
@@ -29,8 +29,8 @@ function renderRuns(html: string, css = ""): Run[] {
 }
 
 describe("bold text support", () => {
-  it("propagates <strong> weight into render runs", () => {
-    const runs = renderRuns("<p>Normal <strong>Bold</strong> text</p>");
+  it("propagates <strong> weight into render runs", async () => {
+    const runs = await renderRuns("<p>Normal <strong>Bold</strong> text</p>");
     const hasBoldRun = runs.some((run) => run.fontWeight === 700 && run.text.includes("Bold"));
     const hasNormalRun = runs.some((run) => (run.fontWeight ?? 0) === 400 && run.text.includes("Normal"));
 
@@ -38,14 +38,14 @@ describe("bold text support", () => {
     expect(hasNormalRun).toBe(true);
   });
 
-  it("parses numeric and keyword font-weight declarations", () => {
+  it("parses numeric and keyword font-weight declarations", async () => {
     const html = `
       <p>
         <span style="font-weight: bold">Heavy</span>
         <span style="font-weight: 300">Light</span>
       </p>
     `;
-    const runs = renderRuns(html);
+    const runs = await renderRuns(html);
     const heavy = runs.find((run) => run.text.includes("Heavy"));
     const light = runs.find((run) => run.text.includes("Light"));
 
@@ -53,14 +53,14 @@ describe("bold text support", () => {
     expect(light?.fontWeight).toBe(300);
   });
 
-  it("honours relative font-weight values", () => {
+  it("honours relative font-weight values", async () => {
     const html = `
       <div style="font-weight: 300">
         <span style="font-weight: bolder">Step Up</span>
         <span style="font-weight: lighter">Step Down</span>
       </div>
     `;
-    const runs = renderRuns(html);
+    const runs = await renderRuns(html);
     const up = runs.find((run) => run.text.includes("Step Up"));
     const down = runs.find((run) => run.text.includes("Step Down"));
 
@@ -68,8 +68,8 @@ describe("bold text support", () => {
     expect(down?.fontWeight).toBe(200);
   });
 
-  it("applies UA default bold weight to table headers", () => {
-    const runs = renderRuns("<table><tr><th>Head</th><td>Body</td></tr></table>");
+  it("applies UA default bold weight to table headers", async () => {
+    const runs = await renderRuns("<table><tr><th>Head</th><td>Body</td></tr></table>");
     const thRun = runs.find((run) => run.text.includes("Head"));
     const tdRun = runs.find((run) => run.text.includes("Body"));
 

@@ -18,8 +18,8 @@ function findNodeByTag(root: LayoutNode, tag: string): LayoutNode | undefined {
   return match;
 }
 
-function renderHeadingStyle(tag: string) {
-  const { layoutRoot } = prepareHtmlRender({
+async function renderHeadingStyle(tag: string) {
+  const { layoutRoot } = await prepareHtmlRender({
     html: `<html><body><${tag}>Heading</${tag}></body></html>`,
     css: "",
     viewportWidth: 800,
@@ -45,8 +45,8 @@ describe("heading UA defaults", () => {
   ] as const;
 
   for (const { tag, fontMultiplier, marginMultiplier } of cases) {
-    it(`applies UA defaults to <${tag}>`, () => {
-      const style = renderHeadingStyle(tag);
+    it(`applies UA defaults to <${tag}>`, async () => {
+      const style = await renderHeadingStyle(tag);
       const expectedFontSize = baseFontSize * fontMultiplier;
       const expectedMargin = expectedFontSize * marginMultiplier;
 

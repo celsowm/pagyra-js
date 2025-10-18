@@ -7,10 +7,12 @@ import { GridLayoutStrategy } from "../strategies/grid.js";
 import { TableLayoutStrategy } from "../strategies/table.js";
 import { FallbackStrategy } from "../strategies/fallback.js";
 import { InlineLayoutStrategy } from "../strategies/inline.js";
+import { ImageLayoutStrategy } from "../strategies/image.js";
 
 export function createDefaultLayoutEngine(): LayoutEngine {
   const strategies: LayoutStrategy[] = [
     new DisplayNoneStrategy(),
+    new ImageLayoutStrategy(),
     new InlineLayoutStrategy(),
     new BlockLayoutStrategy(),
     new FlexLayoutStrategy(),

@@ -31,11 +31,13 @@ export interface ElementDefaults {
   fontWeight: number;
   color: string;
   backgroundColor?: string;
+  backgroundSize?: string;
   listStyle?: string;
   textAlign?: string;
   verticalAlign?: string;
   borderCollapse?: string;
   borderSpacing?: number;
+  objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down";
 }
 
 /**
@@ -446,7 +448,7 @@ export class ElementSpecificDefaults {
 
     // Images
     img: {
-      display: Display.Inline,
+      display: Display.InlineBlock,
       border: 0,
     },
 
@@ -619,6 +621,15 @@ export class BrowserDefaults {
     }
     if (elementDefaults.display !== undefined) {
       merged.display = elementDefaults.display;
+    }
+    if (elementDefaults.objectFit !== undefined) {
+      (merged as any).objectFit = elementDefaults.objectFit;
+    }
+    if (elementDefaults.backgroundColor !== undefined) {
+      merged.backgroundColor = elementDefaults.backgroundColor;
+    }
+    if (elementDefaults.backgroundSize !== undefined) {
+      (merged as any).backgroundSize = elementDefaults.backgroundSize;
     }
     if (elementDefaults.textAlign !== undefined) {
       merged.textAlign = elementDefaults.textAlign;

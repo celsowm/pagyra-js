@@ -6,6 +6,30 @@ import { layoutTree } from "../src/layout/pipeline/layout-tree.js";
 import { buildRenderTree } from "../src/pdf/layout-tree-builder.js";
 import { renderPdf } from "../src/pdf/render.js";
 describe("PDF renderer", () => {
+    it("applies CSS from <style> tags in HTML", async () => {
+        // Minimal HTML with a <style> tag and a styled div
+        const html = `
+      <html><head><style>
+        .red { color: #ff0000; font-size: 18px; }
+      </style></head>
+      <body><div class="red">Styled Text</div></body></html>
+    `;
+        // Use the html-to-pdf API directly
+        const { renderHtmlToPdf } = await import("../src/html-to-pdf.js");
+        const pdfBytes = await renderHtmlToPdf({
+            html,
+            css: "", // No extra CSS
+            viewportWidth: 300,
+            viewportHeight: 200,
+            pageWidth: 300,
+            pageHeight: 200,
+            margins: { top: 0, right: 0, bottom: 0, left: 0 },
+        });
+        const content = Buffer.from(pdfBytes).toString("ascii");
+        // Check for the text and a color operator for red (1 0 0 rg)
+        expect(content).toContain("(Styled Text)");
+        expect(content).toMatch(/1\s+0\s+0\s+rg/); // PDF color operator for red
+    });
     it("converts a layout tree into a PDF binary", async () => {
         const root = createSampleLayout();
         layoutTree(root, { width: 320, height: 480 });

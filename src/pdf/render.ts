@@ -1,4 +1,5 @@
 import { PdfDocument } from "./primitives/pdf-document.js";
+import type { PdfObjectRef } from "./primitives/pdf-document.js";
 import type { LayoutTree, PageSize, PdfMetadata, RenderBox } from "./types.js";
 import {
   initHeaderFooterContext,
@@ -62,6 +63,7 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
 
     paintBackgrounds(painter, pageTree.paintOrder);
     paintBorders(painter, pageTree.paintOrder);
+    paintImages(painter, pageTree.flowContentOrder);
     await paintText(painter, pageTree.flowContentOrder);
 
     if (layout.hf.layerMode === LayerMode.Over) {
@@ -69,11 +71,17 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
     }
 
     const result = painter.result();
+    const xObjects = new Map<string, PdfObjectRef>();
+    for (const image of result.images) {
+      const ref = doc.registerImage(image.image);
+      image.ref = ref;
+      xObjects.set(image.alias, ref);
+    }
     doc.addPage({
       width: pageSize.widthPt,
       height: pageSize.heightPt,
       contents: result.content,
-      resources: { fonts: result.fonts },
+      resources: { fonts: result.fonts, xObjects },
       annotations: [],
     });
   }
@@ -160,6 +168,14 @@ function paintBorders(painter: PagePainter, boxes: RenderBox[]): void {
         },
         color,
       );
+    }
+  }
+}
+
+function paintImages(painter: PagePainter, boxes: RenderBox[]): void {
+  for (const box of boxes) {
+    if (box.image) {
+      painter.drawImage(box.image, box.contentBox);
     }
   }
 }

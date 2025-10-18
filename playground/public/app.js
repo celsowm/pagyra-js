@@ -50,6 +50,7 @@ let currentObjectUrl = "";
 let examples = [];
 /** @type {Map<string, PlaygroundExample>} */
 let exampleLookup = new Map();
+let activeExampleId = "";
 
 function setStatus(message, tone = "neutral") {
   if (!DOM.status) {
@@ -105,6 +106,8 @@ async function renderPdf() {
   const css = DOM.cssInput.value;
   const viewport = getViewportDimensions();
   const page = computePageSize(viewport);
+  const selectedExample = activeExampleId ? exampleLookup.get(activeExampleId) : undefined;
+  const documentPath = selectedExample?.htmlUrl;
 
   setStatus("Rendering...", "neutral");
   DOM.renderButton.disabled = true;
@@ -122,6 +125,7 @@ async function renderPdf() {
         viewportHeight: viewport.height,
         pageWidth: page.width,
         pageHeight: page.height,
+        documentPath,
       }),
     });
 
@@ -181,6 +185,7 @@ async function loadExample(example) {
     DOM.htmlInput.value = html;
     DOM.cssInput.value = css;
     DOM.exampleSelect.value = example.id;
+    activeExampleId = example.id;
 
     void renderPdf();
   } catch (error) {

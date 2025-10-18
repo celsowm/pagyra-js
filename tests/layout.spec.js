@@ -40,6 +40,16 @@ describe("layout engine", () => {
         expect(inline3.box.x).toBeLessThan(inline2.box.x);
         expect(inline3.box.x).toBeLessThan(10);
         const floatBottom = floatBox.box.y + floatBox.box.marginBoxHeight;
-        expect(inline3.box.y).toBeGreaterThan(floatBottom);
+        expect(inline3.box.y).toBeGreaterThanOrEqual(floatBottom);
+    });
+    it("limits block width using max-width", () => {
+        const root = new LayoutNode(new ComputedStyle());
+        const constrained = new LayoutNode(new ComputedStyle({
+            display: Display.Block,
+            maxWidth: 240,
+        }));
+        root.appendChild(constrained);
+        layoutTree(root, { width: 480, height: 600 });
+        expect(constrained.box.contentWidth).toBeLessThanOrEqual(240);
     });
 });

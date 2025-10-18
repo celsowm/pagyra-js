@@ -1,5 +1,6 @@
 import { parseHTML } from "linkedom";
 import * as cssParser from "css";
+import path from "node:path";
 
 import { LayoutNode } from "./dom/node.js";
 import { ComputedStyle } from "./css/style.js";
@@ -45,7 +46,10 @@ interface StyleAccumulator {
   paddingBottom?: number;
   paddingLeft?: number;
   width?: number;
+  minWidth?: number;
   height?: number;
+  minHeight?: number;
+  maxHeight?: number;
   fontSize?: number;
   lineHeight?: number;
   fontFamily?: string;
@@ -53,6 +57,8 @@ interface StyleAccumulator {
   borderModel?: BorderModel;
   maxWidth?: number;
   textAlign?: string;
+  objectFit?: string;
+  backgroundSize?: string;
 }
 
 import type { FontConfig } from "./types/fonts.js";
@@ -69,6 +75,8 @@ export interface RenderHtmlOptions {
   debugLevel?: LogLevel;
   debugCats?: LogCat[];
   fontConfig?: FontConfig;
+  resourceBaseDir?: string;
+  assetRootDir?: string;
 }
 
 export interface PageMarginsPx {
@@ -90,7 +98,7 @@ export const DEFAULT_PAGE_MARGINS_PX = {
 };
 
 export async function renderHtmlToPdf(options: RenderHtmlOptions): Promise<Uint8Array> {
-  const prepared = prepareHtmlRender(options);
+  const prepared = await prepareHtmlRender(options);
   return renderPdf(prepared.renderTree, { pageSize: prepared.pageSize, fontConfig: options.fontConfig });
 }
 
@@ -100,7 +108,12 @@ export interface PreparedRender {
   pageSize: { widthPt: number; heightPt: number };
 }
 
-export function prepareHtmlRender(options: RenderHtmlOptions): PreparedRender {
+interface ConversionContext {
+  resourceBaseDir: string;
+  assetRootDir: string;
+}
+
+export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<PreparedRender> {
   const { html, css, viewportWidth, viewportHeight, pageWidth, pageHeight, margins, debug = false, debugLevel, debugCats } = options;
 
   // Configure debugging backward compatibility: debug=true => DEBUG level with RENDER_TREE category
@@ -133,8 +146,12 @@ export function prepareHtmlRender(options: RenderHtmlOptions): PreparedRender {
   const parentStyle = new ComputedStyle();
   const body = document.body ?? document.documentElement;
 
+  const resourceBaseDir = path.resolve(options.resourceBaseDir ?? options.assetRootDir ?? process.cwd());
+  const assetRootDir = path.resolve(options.assetRootDir ?? resourceBaseDir);
+  const context: ConversionContext = { resourceBaseDir, assetRootDir };
+
   for (const child of Array.from(body.childNodes)) {
-    const layoutChild = convertDomNode(child, cssRules, parentStyle);
+    const layoutChild = await convertDomNode(child, cssRules, parentStyle, context);
     if (layoutChild) {
       rootLayout.appendChild(layoutChild);
     }
@@ -197,7 +214,12 @@ function offsetRect(rect: Rect | null | undefined, dx: number, dy: number): void
   rect.y += dy;
 }
 
-function convertDomNode(node: Node, cssRules: CssRuleEntry[], parentStyle: ComputedStyle): LayoutNode | null {
+async function convertDomNode(
+  node: Node,
+  cssRules: CssRuleEntry[],
+  parentStyle: ComputedStyle,
+  context: ConversionContext,
+): Promise<LayoutNode | null> {
   if (node.nodeType === node.TEXT_NODE) {
     const raw = node.textContent ?? "";
     const collapsed = raw.replace(/\s+/g, " ");
@@ -222,22 +244,7 @@ function convertDomNode(node: Node, cssRules: CssRuleEntry[], parentStyle: Compu
 
   // Handle image elements
   if (tagName === "img") {
-    // Since convertImageElement is async, we need to handle this differently
-    // For now, create a placeholder and let the actual loading happen during layout
-    const layoutNode = new LayoutNode(new ComputedStyle({
-      display: Display.InlineBlock,
-      color: parentStyle.color,
-      fontSize: parentStyle.fontSize,
-      lineHeight: parentStyle.lineHeight,
-      fontFamily: parentStyle.fontFamily,
-      fontWeight: parentStyle.fontWeight,
-    }), [], { tagName: 'img' });
-    
-    // Set default dimensions for placeholder
-    layoutNode.intrinsicInlineSize = 100;
-    layoutNode.intrinsicBlockSize = 100;
-    
-    return layoutNode;
+    return await convertImageElement(element, cssRules, parentStyle, context);
   }
 
   if (tagName === "br") {
@@ -276,7 +283,7 @@ function convertDomNode(node: Node, cssRules: CssRuleEntry[], parentStyle: Compu
       }
       textBuf = "";
     }
-    const sub = convertDomNode(child, cssRules, ownStyle);
+    const sub = await convertDomNode(child, cssRules, ownStyle, context);
     if (sub) layoutChildren.push(sub);
   }
   if (textBuf) {
@@ -342,7 +349,7 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
   applyDeclarationsToStyle(aggregated, styleInit, inherited.fontWeight ?? mergedDefaults.fontWeight);
 
   // Determine final display value
-  const defaultDisplay = defaultDisplayForTag(tagName);
+  const defaultDisplay = mergedDefaults.display ?? defaultDisplayForTag(tagName);
   let display = styleInit.display ?? defaultDisplay;
 
   log("STYLE", "DEBUG", "computeStyleForElement display", {
@@ -423,9 +430,16 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
   if (styleInit.borderBottom !== undefined) styleOptions.borderBottom = styleInit.borderBottom;
   if (styleInit.borderLeft !== undefined) styleOptions.borderLeft = styleInit.borderLeft;
   if (styleInit.width !== undefined) styleOptions.width = styleInit.width;
+  if (styleInit.minWidth !== undefined) styleOptions.minWidth = styleInit.minWidth;
   if (styleInit.maxWidth !== undefined) styleOptions.maxWidth = styleInit.maxWidth;
   if (styleInit.height !== undefined) styleOptions.height = styleInit.height;
+  if (styleInit.minHeight !== undefined) styleOptions.minHeight = styleInit.minHeight;
+  if (styleInit.maxHeight !== undefined) styleOptions.maxHeight = styleInit.maxHeight;
   if (styleInit.textAlign !== undefined) styleOptions.textAlign = styleInit.textAlign;
+  if (styleInit.objectFit !== undefined) {
+    styleOptions.objectFit = styleInit.objectFit as StyleProperties["objectFit"];
+  }
+  if (styleInit.backgroundSize !== undefined) styleOptions.backgroundSize = styleInit.backgroundSize;
 
   return new ComputedStyle(styleOptions);
 }
@@ -661,11 +675,20 @@ function applyDeclarationsToStyle(declarations: Record<string, string>, target: 
       case "width":
         target.width = parseLength(value) ?? target.width;
         break;
+      case "min-width":
+        target.minWidth = parseLength(value) ?? target.minWidth;
+        break;
       case "max-width":
         target.maxWidth = parseLength(value) ?? target.maxWidth;
         break;
       case "height":
         target.height = parseLength(value) ?? target.height;
+        break;
+      case "min-height":
+        target.minHeight = parseLength(value) ?? target.minHeight;
+        break;
+      case "max-height":
+        target.maxHeight = parseLength(value) ?? target.maxHeight;
         break;
       case "font-size":
         target.fontSize = parseNumeric(value) ?? target.fontSize;
@@ -688,6 +711,16 @@ function applyDeclarationsToStyle(declarations: Record<string, string>, target: 
         break;
       case "float":
         target.float = value;
+        break;
+      case "object-fit": {
+        const normalized = value.trim().toLowerCase();
+        if (["contain", "cover", "fill", "none", "scale-down"].includes(normalized)) {
+          target.objectFit = normalized;
+        }
+        break;
+      }
+      case "background-size":
+        target.backgroundSize = value.trim();
         break;
       default:
         break;
@@ -1008,76 +1041,78 @@ export function resolvePageMarginsPx(pageWidthPx: number, pageHeightPx: number):
 /**
  * Converts an HTML img element to a LayoutNode with proper image handling
  */
-async function convertImageElement(element: DomElement, cssRules: CssRuleEntry[], parentStyle: ComputedStyle): Promise<LayoutNode> {
-  const src = element.getAttribute('src');
-  if (!src) {
-    // Fallback for image without src
-    const layoutNode = new LayoutNode(new ComputedStyle({
-      display: Display.InlineBlock,
-      color: parentStyle.color,
-      fontSize: parentStyle.fontSize,
-      lineHeight: parentStyle.lineHeight,
-      fontFamily: parentStyle.fontFamily,
-      fontWeight: parentStyle.fontWeight,
-      width: 100,
-      height: 100,
-    }), [], { tagName: 'img' });
-    
-    // Set default dimensions for placeholder
-    layoutNode.intrinsicInlineSize = 100;
-    layoutNode.intrinsicBlockSize = 100;
-    
-    return layoutNode;
+async function convertImageElement(
+  element: DomElement,
+  cssRules: CssRuleEntry[],
+  parentStyle: ComputedStyle,
+  context: ConversionContext,
+): Promise<LayoutNode> {
+  const style = computeStyleForElement(element, cssRules, parentStyle);
+  const srcAttr = element.getAttribute("src")?.trim() ?? "";
+
+  const widthAttr = element.getAttribute("width");
+  const heightAttr = element.getAttribute("height");
+  const width = widthAttr ? Number.parseFloat(widthAttr) || undefined : undefined;
+  const height = heightAttr ? Number.parseFloat(heightAttr) || undefined : undefined;
+
+  if (!srcAttr) {
+    const placeholder = new LayoutNode(style, [], { tagName: "img" });
+    placeholder.intrinsicInlineSize = width ?? 100;
+    placeholder.intrinsicBlockSize = height ?? 100;
+    return placeholder;
   }
 
-  // Get image dimensions from attributes or CSS
-  const widthAttr = element.getAttribute('width');
-  const heightAttr = element.getAttribute('height');
-  
-  // Parse width and height
-  let width = widthAttr ? parseInt(widthAttr) : undefined;
-  let height = heightAttr ? parseInt(heightAttr) : undefined;
+  const resolvedSrc = resolveImageSource(srcAttr, context);
 
-  // Create style for the image
-  const style = computeStyleForElement(element, cssRules, parentStyle);
-  
-  // Try to load the image
   let imageInfo: ImageInfo;
   try {
+    if (isHttpUrl(resolvedSrc)) {
+      throw new Error(`Remote images are not supported (${resolvedSrc})`);
+    }
+    if (resolvedSrc.startsWith("data:")) {
+      throw new Error("Data URI images are not supported yet.");
+    }
+
     const imageService = ImageService.getInstance();
-    imageInfo = await imageService.loadImage(src, {
+    imageInfo = await imageService.loadImage(resolvedSrc, {
       maxWidth: width,
-      maxHeight: height
+      maxHeight: height,
     });
-    
-    // Log successful image loading
-    log("RENDER_TREE", "DEBUG", `Image loaded successfully`, {
-      src,
+
+    log("RENDER_TREE", "DEBUG", "Image loaded successfully", {
+      src: srcAttr,
+      resolvedSrc,
       width: imageInfo.width,
       height: imageInfo.height,
-      format: imageInfo.format
+      format: imageInfo.format,
     });
   } catch (error) {
-    // Fallback if image loading fails
-    log("RENDER_TREE", "WARN", `Failed to load image: ${src}. Using placeholder.`, {
-      error: error instanceof Error ? error.message : String(error)
+    log("RENDER_TREE", "WARN", `Failed to load image: ${srcAttr}. Using placeholder.`, {
+      resolvedSrc,
+      error: error instanceof Error ? error.message : String(error),
     });
-    
-    // Create a placeholder node
-    const layoutNode = new LayoutNode(style, [], { tagName: 'img' });
-    layoutNode.intrinsicInlineSize = width || 100;
-    layoutNode.intrinsicBlockSize = height || 100;
-    
-    return layoutNode;
+    const placeholder = new LayoutNode(style, [], { tagName: "img" });
+    placeholder.intrinsicInlineSize = width ?? 100;
+    placeholder.intrinsicBlockSize = height ?? 100;
+    return placeholder;
   }
 
-  // Create layout node with the image
-  const layoutNode = new LayoutNode(style, [], { tagName: 'img' });
-  
-  // Apply image strategy to process the image
+  const layoutNode = new LayoutNode(style, [], {
+    tagName: "img",
+    customData: {
+      image: {
+        originalSrc: srcAttr,
+        resolvedSrc,
+        info: imageInfo,
+      },
+    },
+  });
+
+  layoutNode.intrinsicInlineSize = imageInfo.width;
+  layoutNode.intrinsicBlockSize = imageInfo.height;
+
   ImageStrategy.processImage(layoutNode, imageInfo);
-  
-  // Apply any specified dimensions (they will override the natural dimensions)
+
   if (width && height) {
     layoutNode.intrinsicInlineSize = width;
     layoutNode.intrinsicBlockSize = height;
@@ -1088,8 +1123,38 @@ async function convertImageElement(element: DomElement, cssRules: CssRuleEntry[]
     layoutNode.intrinsicBlockSize = height;
     layoutNode.intrinsicInlineSize = Math.round((imageInfo.width / imageInfo.height) * height);
   }
-  
+
   return layoutNode;
+}
+
+function resolveImageSource(src: string, context: ConversionContext): string {
+  const trimmed = src.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+  if (/^data:/i.test(trimmed)) {
+    return trimmed;
+  }
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol === "file:") {
+      return url.href;
+    }
+    return url.href;
+  } catch {
+    // Not an absolute URL, fall through to filesystem resolution
+  }
+  if (path.isAbsolute(trimmed)) {
+    return trimmed;
+  }
+  if (trimmed.startsWith("/")) {
+    return path.resolve(context.assetRootDir, `.${trimmed}`);
+  }
+  return path.resolve(context.resourceBaseDir, trimmed);
+}
+
+function isHttpUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value);
 }
 
 function buildCssRules(cssText: string): CssRuleEntry[] {

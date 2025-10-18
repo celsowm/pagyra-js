@@ -58,6 +58,8 @@ export interface StyleProperties {
   color?: string;
   fontFamily?: string;
   fontWeight?: number;
+  objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down";
+  backgroundSize?: string;
   left?: LengthLike;
   right?: LengthLike;
   top?: LengthLike;
@@ -128,6 +130,8 @@ export class ComputedStyle implements StyleProperties {
   color?: string;
   fontFamily?: string;
   fontWeight?: number;
+  objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down";
+  backgroundSize?: string;
   left?: LengthLike;
   right?: LengthLike;
   top?: LengthLike;
@@ -201,6 +205,8 @@ export class ComputedStyle implements StyleProperties {
     this.color = data.color;
     this.fontFamily = data.fontFamily;
     this.fontWeight = data.fontWeight;
+    this.objectFit = data.objectFit;
+    this.backgroundSize = data.backgroundSize;
     this.left = data.left;
     this.right = data.right;
     this.top = data.top;

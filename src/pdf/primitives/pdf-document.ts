@@ -8,6 +8,16 @@ interface PdfFontResource {
   objectRef: PdfObjectRef | null;
 }
 
+interface PdfImageResource {
+  ref: PdfObjectRef;
+  width: number;
+  height: number;
+  colorSpace: string;
+  bitsPerComponent: number;
+  filter?: string;
+  data: Uint8Array;
+}
+
 interface PdfPage {
   width: number;
   height: number;
@@ -18,6 +28,7 @@ interface PdfPage {
 
 interface PdfResources {
   fonts: Map<string, PdfObjectRef>;
+  xObjects: Map<string, PdfObjectRef>;
 }
 
 export interface PdfObjectRef {
@@ -26,12 +37,13 @@ export interface PdfObjectRef {
 
 interface PdfObject {
   ref: PdfObjectRef;
-  body: string;
+  body: Buffer;
 }
 
 export class PdfDocument {
   private readonly fonts = new Map<string, PdfFontResource>();
   private readonly pages: PdfPage[] = [];
+  private readonly images: PdfImageResource[] = [];
 
   constructor(private readonly metadata: PdfMetadata = {}) {}
 
@@ -47,8 +59,8 @@ export class PdfDocument {
 
   addPage(page: Omit<PdfPage, "resources"> & { resources?: Partial<PdfResources> }): void {
     const resources: PdfResources = {
-      fonts: new Map(),
-      ...page.resources,
+      fonts: page.resources?.fonts ?? new Map(),
+      xObjects: page.resources?.xObjects ?? new Map(),
     };
     this.pages.push({
       width: page.width,
@@ -59,23 +71,64 @@ export class PdfDocument {
     });
   }
 
+  registerImage(image: {
+    src: string;
+    width: number;
+    height: number;
+    format: "jpeg" | "png" | "gif" | "webp";
+    channels: number;
+    bitsPerComponent: number;
+    data: Uint8Array;
+  }): PdfObjectRef {
+    const colorSpace =
+      image.channels === 1 ? "DeviceGray" : image.channels === 4 ? "DeviceCMYK" : "DeviceRGB";
+    const filter = image.format === "jpeg" ? "DCTDecode" : undefined;
+    const ref: PdfObjectRef = { objectNumber: -1 };
+    this.images.push({
+      ref,
+      width: image.width,
+      height: image.height,
+      colorSpace,
+      bitsPerComponent: image.bitsPerComponent,
+      filter,
+      data: image.data.slice(),
+    });
+    return ref;
+  }
+
   finalize(): Uint8Array {
     const objects: PdfObject[] = [];
 
-    const header = "%PDF-1.4\n";
+    const header = Buffer.from("%PDF-1.4\n", "binary");
     let currentObjectNumber = 1;
-    const pushObject = (body: string, ref?: PdfObjectRef | null): PdfObjectRef => {
+    const pushObject = (body: string | Buffer, ref?: PdfObjectRef | null): PdfObjectRef => {
       const objectRef = ref ?? { objectNumber: 0 };
       if (objectRef.objectNumber <= 0) {
         objectRef.objectNumber = currentObjectNumber++;
       }
-      objects.push({ ref: objectRef, body });
+      const payload = typeof body === "string" ? Buffer.from(body, "binary") : body;
+      objects.push({ ref: objectRef, body: payload });
       return objectRef;
     };
 
-    // Materialize font objects.
     for (const font of this.fonts.values()) {
       font.objectRef = pushObject(serializeType1Font(font.baseFont), font.objectRef);
+    }
+
+    for (const image of this.images) {
+      const entries = [
+        "/Type /XObject",
+        "/Subtype /Image",
+        `/Width ${image.width}`,
+        `/Height ${image.height}`,
+        `/ColorSpace /${image.colorSpace}`,
+        `/BitsPerComponent ${image.bitsPerComponent}`,
+      ];
+      if (image.filter) {
+        entries.push(`/Filter /${image.filter}`);
+      }
+      const stream = serializeStream(image.data, entries);
+      image.ref = pushObject(stream, image.ref);
     }
 
     const pageRefs: PdfObjectRef[] = [];
@@ -88,6 +141,11 @@ export class PdfDocument {
         fontEntries.push(`/${alias} ${ref.objectNumber} 0 R`);
       }
 
+      const xObjectEntries: string[] = [];
+      for (const [alias, ref] of page.resources.xObjects) {
+        xObjectEntries.push(`/${alias} ${ref.objectNumber} 0 R`);
+      }
+
       const annotationRefs: PdfObjectRef[] = [];
       for (const annotation of page.annotations) {
         const annotRef = pushObject(annotation);
@@ -98,8 +156,12 @@ export class PdfDocument {
       if (fontEntries.length > 0) {
         resourcesParts.push(`/Font << ${fontEntries.join(" ")} >>`);
       }
+      if (xObjectEntries.length > 0) {
+        resourcesParts.push(`/XObject << ${xObjectEntries.join(" ")} >>`);
+      }
       const resources = resourcesParts.length > 0 ? `/Resources << ${resourcesParts.join(" ")} >>` : "";
-      const annots = annotationRefs.length > 0 ? `/Annots [${annotationRefs.map((r) => `${r.objectNumber} 0 R`).join(" ")}]` : "";
+      const annots =
+        annotationRefs.length > 0 ? `/Annots [${annotationRefs.map((r) => `${r.objectNumber} 0 R`).join(" ")}]` : "";
       const pageBody = [
         "<<",
         "/Type /Page",
@@ -116,9 +178,7 @@ export class PdfDocument {
     }
 
     const kids = pageRefs.map((ref) => `${ref.objectNumber} 0 R`).join(" ");
-    const pagesRef = pushObject(
-      ["<<", "/Type /Pages", `/Count ${pageRefs.length}`, `/Kids [${kids}]`, ">>"].join("\n"),
-    );
+    const pagesRef = pushObject(["<<", "/Type /Pages", `/Count ${pageRefs.length}`, `/Kids [${kids}]`, ">>"].join("\n"));
     const catalogRef = pushObject(["<<", "/Type /Catalog", `/Pages ${pagesRef.objectNumber} 0 R`, ">>"].join("\n"));
 
     let infoRef: PdfObjectRef | null = null;
@@ -127,27 +187,27 @@ export class PdfDocument {
     }
 
     const xrefEntries: string[] = ["0000000000 65535 f \n"];
-    const chunks: string[] = [header];
-    let offset = Buffer.byteLength(header, "binary");
+    const chunks: Buffer[] = [header];
+    let offset = header.length;
 
     for (const object of objects) {
-      const objectString = `${object.ref.objectNumber} 0 obj\n${object.body}\nendobj\n`;
+      const objectHeader = Buffer.from(`${object.ref.objectNumber} 0 obj\n`, "binary");
+      const objectFooter = Buffer.from("\nendobj\n", "binary");
+      const objectBuffer = Buffer.concat([objectHeader, object.body, objectFooter]);
       xrefEntries.push(formatXref(offset));
-      chunks.push(objectString);
-      offset += Buffer.byteLength(objectString, "binary");
+      chunks.push(objectBuffer);
+      offset += objectBuffer.length;
     }
 
     const xrefStart = offset;
     const size = currentObjectNumber;
-    const xrefBody = `xref\n0 ${size}\n${xrefEntries.join("")}trailer\n${serializeTrailer(
-      size,
-      catalogRef,
-      infoRef,
-    )}\nstartxref\n${xrefStart}\n%%EOF\n`;
-    chunks.push(xrefBody);
+    const trailerBody = Buffer.from(
+      `xref\n0 ${size}\n${xrefEntries.join("")}trailer\n${serializeTrailer(size, catalogRef, infoRef)}\nstartxref\n${xrefStart}\n%%EOF\n`,
+      "binary",
+    );
+    chunks.push(trailerBody);
 
-    const pdfString = chunks.join("");
-    return Buffer.from(pdfString, "binary");
+    return Buffer.concat(chunks);
   }
 
   // Backwards compatibility for earlier code paths expecting eager font creation.
@@ -175,9 +235,12 @@ function usesSymbolEncoding(baseFont: string): boolean {
   return normalized === "symbol" || normalized === "zapfdingbats";
 }
 
-function serializeStream(content: string): string {
-  const encoded = Buffer.from(content, "binary");
-  return `<< /Length ${encoded.length} >>\nstream\n${content}\nendstream`;
+function serializeStream(content: string | Uint8Array, extraEntries: string[] = []): Buffer {
+  const encoded = typeof content === "string" ? Buffer.from(content, "binary") : Buffer.from(content);
+  const entries = [`/Length ${encoded.length}`, ...extraEntries].join(" ");
+  const header = `<< ${entries} >>\nstream\n`;
+  const footer = "\nendstream";
+  return Buffer.concat([Buffer.from(header, "binary"), encoded, Buffer.from(footer, "binary")]);
 }
 
 function serializeInfo(meta: PdfMetadata): string {

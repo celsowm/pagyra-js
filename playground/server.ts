@@ -17,6 +17,7 @@ interface RenderRequestBody {
   viewportHeight?: number;
   pageWidth?: number;
   pageHeight?: number;
+  documentPath?: string;
 }
 
 const __filename = fileURLToPath(import.meta.url);
@@ -52,6 +53,16 @@ app.post("/render", async (req, res) => {
     const viewportWidth = Math.min(sanitizeDimension(body.viewportWidth, maxContentWidth), maxContentWidth);
     const viewportHeight = Math.min(sanitizeDimension(body.viewportHeight, maxContentHeight), maxContentHeight);
 
+    let resourceBaseDir = PUBLIC_DIR;
+    const documentPath = typeof body.documentPath === "string" ? body.documentPath : undefined;
+    if (documentPath) {
+      const normalized = documentPath.startsWith("/") ? documentPath.slice(1) : documentPath;
+      const candidate = path.resolve(PUBLIC_DIR, normalized);
+      if (candidate.startsWith(PUBLIC_DIR)) {
+        resourceBaseDir = path.dirname(candidate);
+      }
+    }
+
     const pdfBytes = await renderHtmlToPdf({
       html: htmlInput,
       css: cssInput,
@@ -62,6 +73,8 @@ app.post("/render", async (req, res) => {
       margins: marginsPx,
       debugLevel: "TRACE" as const,
       debugCats: ["PARSE","STYLE","RENDER_TREE","ENCODING","FONT","PAINT"] as const,
+      resourceBaseDir,
+      assetRootDir: PUBLIC_DIR,
     });
 
     res.setHeader("Content-Type", "application/pdf");

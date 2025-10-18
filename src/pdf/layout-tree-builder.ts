@@ -16,11 +16,13 @@ import {
   type Positioning,
   type RGBA,
   type Run,
+  type ImageRef,
   NodeKind,
   Overflow,
   LayerMode,
 } from "./types.js";
 import { resolvedLineHeight } from "../css/style.js";
+import type { ImageInfo } from "../image/types.js";
 
 export interface RenderTreeOptions {
   dpiAssumption?: number;
@@ -116,6 +118,7 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
 
   const children = node.children.map((child) => convertNode(child, state));
   const textColor = parseColor(node.style.color);
+  const imageRef = extractImageRef(node);
   const textRuns = node.textContent ? createTextRuns(node, textColor) : [];
 
   log("RENDER_TREE","DEBUG","node converted", {
@@ -152,6 +155,30 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
     borderColor: parseColor(node.style.borderColor),
     color: textColor,
     background: { color: parseColor(node.style.backgroundColor) },
+    image: imageRef,
+  };
+}
+
+function extractImageRef(node: LayoutNode): ImageRef | undefined {
+  if (node.tagName !== "img") {
+    return undefined;
+  }
+  const payload = node.customData?.image as
+    | { originalSrc?: string; resolvedSrc?: string; info?: ImageInfo }
+    | undefined;
+  if (!payload?.info) {
+    return undefined;
+  }
+  const info = payload.info;
+  const src = payload.resolvedSrc ?? payload.originalSrc ?? "";
+  return {
+    src,
+    width: info.width,
+    height: info.height,
+    format: info.format,
+    channels: info.channels,
+    bitsPerComponent: info.bitsPerChannel,
+    data: info.data,
   };
 }
 
@@ -160,6 +187,9 @@ function cloneRect(rect: Rect): Rect {
 }
 
 function mapNodeKind(node: LayoutNode): NodeKind {
+  if (node.tagName === "img") {
+    return NodeKind.Image;
+  }
   if (node.textContent && node.textContent.length > 0) {
     return NodeKind.TextRuns;
   }

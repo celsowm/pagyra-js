@@ -20,6 +20,9 @@ describe("Image handling tests", () => {
       src: "tests/assets/images/duck.jpg",
       width: 300, // Example width
       height: 200, // Example height
+      format: "jpeg",
+      channels: 3,
+      bitsPerComponent: 8,
       data: duckImageBuffer.buffer.slice(duckImageBuffer.byteOffset, duckImageBuffer.byteOffset + duckImageBuffer.byteLength) as ArrayBuffer
     };
   });
@@ -49,7 +52,7 @@ describe("Image handling tests", () => {
     expect(html).toContain('height="200"');
   });
 
-  it("should render HTML with image to layout tree", () => {
+  it("should render HTML with image to layout tree", async () => {
     const html = `
       <html>
         <body>
@@ -59,7 +62,7 @@ describe("Image handling tests", () => {
     `;
     
     const css = "";
-    const prepared = prepareHtmlRender({
+    const prepared = await prepareHtmlRender({
       html,
       css,
       viewportWidth: 800,
@@ -77,8 +80,7 @@ describe("Image handling tests", () => {
     // Note: Current implementation may not convert <img> elements to image nodes yet
     // This test verifies the layout tree is created, but image conversion may be a future feature
     const imageNodes = findImageNodes(prepared.renderTree.root);
-    // For now, we expect 0 image nodes since image conversion isn't fully implemented
-    expect(imageNodes.length).toBeGreaterThanOrEqual(0);
+    expect(imageNodes.length).toBeGreaterThan(0);
   });
 
   it("should render PDF with image", async () => {

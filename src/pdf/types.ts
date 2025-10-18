@@ -74,7 +74,10 @@ export interface ImageRef {
   src: string;
   width: number;
   height: number;
-  data?: ArrayBuffer;
+  format: "jpeg" | "png" | "gif" | "webp";
+  channels: number;
+  bitsPerComponent: number;
+  data: ArrayBuffer;
 }
 
 export enum ObjectFit {

@@ -10,9 +10,9 @@ function collectRuns(box: RenderBox): Run[] {
   return runs;
 }
 
-function renderRuns(html: string, css = ""): Run[] {
+async function renderRuns(html: string, css = ""): Promise<Run[]> {
   const wrappedHtml = /<html[\s>]/i.test(html) ? html : `<html><body>${html}</body></html>`;
-  const { renderTree } = prepareHtmlRender({
+  const { renderTree } = await prepareHtmlRender({
     html: wrappedHtml,
     css,
     viewportWidth: 800,
@@ -25,7 +25,7 @@ function renderRuns(html: string, css = ""): Run[] {
 }
 
 describe("text-align: justify", () => {
-  it("distributes slack across non-final lines", () => {
+  it("distributes slack across non-final lines", async () => {
     const paragraph = `
       <div style="width: 360px; font-size: 16px; text-align: justify;">
         Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent viverra
@@ -35,7 +35,7 @@ describe("text-align: justify", () => {
       </div>
     `;
 
-    const runs = renderRuns(paragraph);
+    const runs = await renderRuns(paragraph);
     expect(runs.length).toBeGreaterThan(1);
 
     const spacings = runs.map((run) => run.wordSpacing ?? 0);
@@ -45,9 +45,9 @@ describe("text-align: justify", () => {
     expect(spacings[spacings.length - 1]).toBe(0);
   });
 
-  it("keeps single-line paragraphs left-aligned", () => {
+  it("keeps single-line paragraphs left-aligned", async () => {
     const html = `<p style="width: 480px; text-align: justify;">Short line only.</p>`;
-    const runs = renderRuns(html);
+    const runs = await renderRuns(html);
     expect(runs.length).toBe(1);
     expect(runs[0].wordSpacing ?? 0).toBe(0);
   });

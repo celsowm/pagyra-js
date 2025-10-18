@@ -28,8 +28,8 @@ function findAllNodes(root: LayoutNode, tagName: string): LayoutNode[] {
   return matches;
 }
 
-function renderTable(css: string) {
-  return prepareHtmlRender({
+async function renderTable(css: string) {
+  const { layoutRoot } = await prepareHtmlRender({
     html: `
       <html>
         <body>
@@ -46,12 +46,13 @@ function renderTable(css: string) {
     pageWidth: 800,
     pageHeight: 600,
     margins: { top: 0, right: 0, bottom: 0, left: 0 },
-  }).layoutRoot;
+  });
+  return layoutRoot;
 }
 
 describe("border parsing", () => {
-  it("handles border shorthand with width, style, and color", () => {
-    const root = renderTable("th, td { border: 5px solid red; }");
+  it("handles border shorthand with width, style, and color", async () => {
+    const root = await renderTable("th, td { border: 5px solid red; }");
     const th = findNode(root, "th");
     const td = findNode(root, "td");
 
@@ -68,8 +69,8 @@ describe("border parsing", () => {
     expect(td.style.borderColor).toBe("red");
   });
 
-  it("converts pt border widths and respects per-side shorthand", () => {
-    const root = renderTable("th { border-top: 4pt dotted blue; }");
+  it("converts pt border widths and respects per-side shorthand", async () => {
+    const root = await renderTable("th { border-top: 4pt dotted blue; }");
     const th = findNode(root, "th");
     const expected = (4 / 72) * 96;
 
@@ -78,8 +79,8 @@ describe("border parsing", () => {
     expect(th.style.borderColor).toBe("blue");
   });
 
-  it("honours border-style none overrides", () => {
-    const root = renderTable("td { border: 5px solid red; border-style: none; }");
+  it("honours border-style none overrides", async () => {
+    const root = await renderTable("td { border: 5px solid red; border-style: none; }");
     const td = findNode(root, "td");
 
     expect(td.style.borderTop ?? 0).toBe(0);
@@ -88,12 +89,12 @@ describe("border parsing", () => {
     expect(td.style.borderLeft ?? 0).toBe(0);
   });
 
-  it("collapses adjoining borders without doubling width", () => {
+  it("collapses adjoining borders without doubling width", async () => {
     const css = `
       table { border-collapse: collapse; }
       th, td { border: 1px solid #d30a0a; }
     `;
-    const root = renderTable(css);
+    const root = await renderTable(css);
     const tds = findAllNodes(root, "td");
     expect(tds.length).toBeGreaterThanOrEqual(2);
 

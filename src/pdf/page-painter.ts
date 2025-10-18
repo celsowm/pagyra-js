@@ -1,4 +1,4 @@
-import type { Rect, Run, RenderBox, RGBA } from "./types.js";
+import type { Rect, Run, RenderBox, RGBA, ImageRef } from "./types.js";
 import type { FontRegistry, FontResource } from "./font/font-registry.js";
 import type { PdfObjectRef } from "./primitives/pdf-document.js";
 import { encodeAndEscapePdfText, encodeToWinAnsi } from "./utils/encoding.js";
@@ -21,6 +21,21 @@ import { log } from "../debug/log.js";
 export interface PainterResult {
   readonly content: string;
   readonly fonts: Map<string, PdfObjectRef>;
+  readonly images: PainterImageResource[];
+}
+
+export interface PainterImageResource {
+  readonly alias: string;
+  readonly image: {
+    src: string;
+    width: number;
+    height: number;
+    format: "jpeg" | "png" | "gif" | "webp";
+    channels: number;
+    bitsPerComponent: number;
+    data: Uint8Array;
+  };
+  ref?: PdfObjectRef;
 }
 
 export interface TextPaintOptions {
@@ -34,6 +49,7 @@ export interface TextPaintOptions {
 export class PagePainter {
   private readonly commands: string[] = [];
   private readonly fonts = new Map<string, PdfObjectRef>();
+  private readonly imageResources = new Map<string, PainterImageResource>();
   private ptToPxFactor?: number;
 
   constructor(
@@ -52,6 +68,26 @@ export class PagePainter {
 
   drawFilledBox(box: RenderBox, color: RGBA): void {
     this.fillRect(box.borderBox, color);
+  }
+
+  drawImage(image: ImageRef, rect: Rect): void {
+    if (rect.width <= 0 || rect.height <= 0) {
+      return;
+    }
+    const resource = this.ensureImageResource(image);
+    const widthPt = this.pxToPt(rect.width);
+    const heightPt = this.pxToPt(rect.height);
+    if (widthPt === 0 || heightPt === 0) {
+      return;
+    }
+    const xPt = this.pxToPt(rect.x);
+    const yPt = this.pageHeightPt - this.pxToPt(rect.y + rect.height);
+    this.commands.push(
+      "q",
+      `${formatNumber(widthPt)} 0 0 ${formatNumber(heightPt)} ${formatNumber(xPt)} ${formatNumber(yPt)} cm`,
+      `/${resource.alias} Do`,
+      "Q",
+    );
   }
 
   async drawText(text: string, xPx: number, yPx: number, options: TextPaintOptions = { fontSizePt: 10 }): Promise<void> {
@@ -169,6 +205,7 @@ export class PagePainter {
     return {
       content: this.commands.join("\n"),
       fonts: this.fonts,
+      images: Array.from(this.imageResources.values()),
     };
   }
 
@@ -248,6 +285,29 @@ export class PagePainter {
       this.ptToPxFactor = factor === 0 ? 0 : 1 / factor;
     }
     return value * (this.ptToPxFactor ?? 0);
+  }
+
+  private ensureImageResource(image: ImageRef): PainterImageResource {
+    const key = `${image.src}|${image.data.byteLength ?? 0}`;
+    let resource = this.imageResources.get(key);
+    if (!resource) {
+      const alias = `Im${this.imageResources.size}`;
+      const view = new Uint8Array(image.data);
+      resource = {
+        alias,
+        image: {
+          src: image.src,
+          width: image.width,
+          height: image.height,
+          format: image.format,
+          channels: image.channels,
+          bitsPerComponent: image.bitsPerComponent,
+          data: view.slice(),
+        },
+      };
+      this.imageResources.set(key, resource);
+    }
+    return resource;
   }
 }
 

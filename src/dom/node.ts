@@ -12,6 +12,7 @@ export interface LayoutNodeOptions {
   textContent?: string;
   tagName?: string;
   lineBoxes?: LineBox[];
+  customData?: Record<string, unknown>;
 }
 
 export class LayoutNode {
@@ -30,6 +31,7 @@ export class LayoutNode {
   textContent?: string;
   tagName?: string;
   lineBoxes?: LineBox[];
+  customData?: Record<string, unknown>;
 
   constructor(public readonly style: ComputedStyle, children: Iterable<LayoutNode> = [], options?: LayoutNodeOptions) {
     this.intrinsicInlineSize = options?.intrinsicInlineSize;
@@ -37,6 +39,7 @@ export class LayoutNode {
     this.textContent = options?.textContent;
     this.tagName = options?.tagName;
     this.lineBoxes = options?.lineBoxes;
+    this.customData = options?.customData;
     for (const child of children) {
       this.appendChild(child);
     }

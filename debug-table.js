@@ -1,4 +1,4 @@
-import { prepareHtmlRender } from './html-to-pdf.js';
+import { prepareHtmlRender } from './src/html-to-pdf.js';
 
 async function debugTable() {
   const html = `
@@ -53,7 +53,7 @@ async function debugTable() {
       });
     }
 
-    const prepared = prepareHtmlRender({
+    const prepared = await prepareHtmlRender({
       html,
       css: '',
       viewportWidth: 800,

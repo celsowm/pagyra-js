@@ -1,7 +1,7 @@
 import { JpegDecoder } from './jpeg-decoder.js';
-import type { ImageInfo, ImageDecodeOptions, ImageRenderOptions } from './types.js';
+import type { ImageInfo, ImageDecodeOptions } from './types.js';
 import { readFileSync } from 'fs';
-import { join } from 'path';
+import { fileURLToPath } from 'url';
 
 /**
  * Image Service following SOLID principles:
@@ -27,22 +27,23 @@ export class ImageService {
    * Loads an image from file path
    */
   public async loadImage(path: string, options?: ImageDecodeOptions): Promise<ImageInfo> {
+    const normalizedPath = this.normalizeSource(path);
     // Check cache first
-    const cacheKey = this.generateCacheKey(path, options);
+    const cacheKey = this.generateCacheKey(normalizedPath, options);
     if (this.imageCache.has(cacheKey)) {
       return this.imageCache.get(cacheKey)!;
     }
 
     try {
-      const buffer = readFileSync(path);
+      const buffer = readFileSync(normalizedPath);
       const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
       const imageInfo = await this.decodeImage(arrayBuffer, options);
-      
+
       // Cache the result
       this.imageCache.set(cacheKey, imageInfo);
       return imageInfo;
     } catch (error) {
-      throw new Error(`Failed to load image from ${path}: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`Failed to load image from ${normalizedPath}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -191,5 +192,12 @@ export class ImageService {
    */
   public clearCache(): void {
     this.imageCache.clear();
+  }
+
+  private normalizeSource(source: string): string {
+    if (source.startsWith("file://")) {
+      return fileURLToPath(source);
+    }
+    return source;
   }
 }
