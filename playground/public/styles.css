@@ -162,16 +162,82 @@ textarea:focus {
 
 .preview-panel {
   padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-#pdf-viewer {
+.tab-container {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #0f172a;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  overflow: hidden;
+}
+
+.tab-buttons {
+  display: flex;
+  background: rgba(15, 23, 42, 0.8);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.tab-button {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 2px solid transparent;
+}
+
+.tab-button:hover {
+  background: rgba(56, 189, 248, 0.1);
+  color: #e2e8f0;
+}
+
+.tab-button.active {
+  color: #38bdf8;
+  border-bottom-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.05);
+}
+
+.tab-content {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+}
+
+.tab-pane {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: none;
+  padding: 1rem;
+}
+
+.tab-pane.active {
+  display: block;
+}
+
+#pdf-viewer,
+#html-viewer {
   width: 100%;
   height: 100%;
-  border: 1px solid rgba(148, 163, 184, 0.3);
-  border-radius: 0.75rem;
+  border: none;
+  border-radius: 0.5rem;
   background: #fff;
-  box-shadow: 0 15px 60px rgba(15, 23, 42, 0.4);
+  box-shadow: 0 10px 40px rgba(15, 23, 42, 0.3);
+}
+
+#html-viewer {
+  background: #fff;
 }
 
 @media (max-width: 960px) {

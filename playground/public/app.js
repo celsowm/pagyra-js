@@ -5,6 +5,8 @@ const DOM = {
   exampleSelect: /** @type {HTMLSelectElement} */ (document.getElementById("example-select")),
   status: /** @type {HTMLParagraphElement} */ (document.getElementById("status")),
   pdfViewer: /** @type {HTMLObjectElement} */ (document.getElementById("pdf-viewer")),
+  htmlViewer: /** @type {HTMLIFrameElement} */ (document.getElementById("html-viewer")),
+  tabButtons: /** @type {NodeListOf<HTMLButtonElement>} */ (document.querySelectorAll(".tab-button")),
   viewportWidth: /** @type {HTMLInputElement} */ (document.getElementById("viewport-width")),
   viewportHeight: /** @type {HTMLInputElement} */ (document.getElementById("viewport-height")),
 };
@@ -187,7 +189,9 @@ async function loadExample(example) {
     DOM.exampleSelect.value = example.id;
     activeExampleId = example.id;
 
+    // Update both previews
     void renderPdf();
+    updateHtmlPreview();
   } catch (error) {
     console.error(error);
     const message = error instanceof Error ? error.message : "Failed to load example.";
@@ -203,6 +207,80 @@ function handleExampleChange() {
   }
 }
 
+function switchTab(tabName) {
+  // Update tab buttons
+  DOM.tabButtons.forEach(button => {
+    const isActive = button.dataset.tab === tabName;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-selected", isActive.toString());
+  });
+
+  // Update tab panes
+  const tabPanes = document.querySelectorAll(".tab-pane");
+  tabPanes.forEach(pane => {
+    const isActive = pane.id === `${tabName}-tab`;
+    pane.classList.toggle("active", isActive);
+    pane.setAttribute("aria-hidden", (!isActive).toString());
+  });
+}
+
+function updateHtmlPreview() {
+  if (!DOM.htmlViewer) {
+    return;
+  }
+
+  const html = DOM.htmlInput.value;
+  const css = DOM.cssInput.value;
+
+  // Create a complete HTML document with the user's input
+  const fullHtml = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>HTML Preview</title>
+        <style>
+          /* Reset styles for consistent preview */
+          * {
+            box-sizing: border-box;
+          }
+          body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+          }
+          /* User styles */
+          ${css}
+        </style>
+      </head>
+      <body>
+        ${html}
+      </body>
+    </html>
+  `;
+
+  // Write to iframe
+  const iframeDoc = DOM.htmlViewer.contentDocument || DOM.htmlViewer.contentWindow.document;
+  iframeDoc.open();
+  iframeDoc.write(fullHtml);
+  iframeDoc.close();
+}
+
+function handleTabClick(event) {
+  const button = event.target;
+  const tabName = button.dataset.tab;
+  if (tabName) {
+    switchTab(tabName);
+  }
+}
+
+function handleInputChange() {
+  // Update HTML preview when inputs change
+  updateHtmlPreview();
+}
+
 async function init() {
   if (!DOM.renderButton) {
     return;
@@ -210,11 +288,21 @@ async function init() {
 
   setViewportDefaults();
 
+  // Add event listeners
   DOM.renderButton.addEventListener("click", () => {
     void renderPdf();
   });
 
   DOM.exampleSelect.addEventListener("change", handleExampleChange);
+
+  // Tab functionality
+  DOM.tabButtons.forEach(button => {
+    button.addEventListener("click", handleTabClick);
+  });
+
+  // Update HTML preview when inputs change
+  DOM.htmlInput.addEventListener("input", handleInputChange);
+  DOM.cssInput.addEventListener("input", handleInputChange);
 
   try {
     const response = await fetch("examples.json");

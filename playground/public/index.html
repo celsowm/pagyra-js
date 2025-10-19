@@ -42,7 +42,20 @@
         </div>
       </section>
       <section class="preview-panel">
-        <object id="pdf-viewer" data="" type="application/pdf" aria-label="PDF preview"></object>
+        <div class="tab-container">
+          <div class="tab-buttons">
+            <button class="tab-button active" data-tab="pdf">PDF Preview</button>
+            <button class="tab-button" data-tab="html">HTML Preview</button>
+          </div>
+          <div class="tab-content">
+            <div class="tab-pane active" id="pdf-tab">
+              <object id="pdf-viewer" data="" type="application/pdf" aria-label="PDF preview"></object>
+            </div>
+            <div class="tab-pane" id="html-tab">
+              <iframe id="html-viewer" sandbox="allow-same-origin" aria-label="HTML preview"></iframe>
+            </div>
+          </div>
+        </div>
       </section>
     </main>
     <script type="module" src="/app.js"></script>
