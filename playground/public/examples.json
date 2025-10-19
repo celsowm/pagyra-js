@@ -59,5 +59,10 @@
     "id": "simple-list",
     "label": "Simple List Example",
     "htmlUrl": "examples/simple-list.html"
+  },
+  {
+    "id": "centered-shadow-div",
+    "label": "Centered Shadow Div Example",
+    "htmlUrl": "examples/centered-shadow-div.html"
   }
 ]
