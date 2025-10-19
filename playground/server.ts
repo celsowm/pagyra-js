@@ -28,14 +28,14 @@ const app = express();
 app.use(express.json({ limit: "2mb" }));
 
 // Add a logger middleware to debug static file requests
-app.use((req, res, next) => {
+app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.log(`[playground] request: ${req.method} ${req.url}`);
   next();
 });
 
 app.use(express.static(PUBLIC_DIR));
 
-app.post("/render", async (req, res) => {
+app.post("/render", async (req: express.Request, res: express.Response) => {
   try {
     const body = req.body as RenderRequestBody;
     if (!body || typeof body.html !== "string") {
