@@ -1,6 +1,6 @@
 import { PdfDocument } from "./primitives/pdf-document.js";
 import type { PdfObjectRef } from "./primitives/pdf-document.js";
-import type { LayoutTree, PageSize, PdfMetadata, RenderBox } from "./types.js";
+import type { LayoutTree, PageSize, PdfMetadata, RenderBox, Radius, Edges } from "./types.js";
 import {
   initHeaderFooterContext,
   layoutHeaderFooterTrees,
@@ -107,10 +107,24 @@ function paintBackgrounds(painter: PagePainter, boxes: RenderBox[]): void {
       // For table cells, fill the entire borderBox
       const isTableCell = box.tagName === 'td' || box.tagName === 'th';
       if (isTableCell) {
-        painter.fillRect(box.borderBox, color);
-      } else {
-        painter.fillRect(box.paddingBox ?? box.contentBox, color);
+        painter.fillRoundedRect(box.borderBox, box.borderRadius, color);
+        continue;
       }
+      const targetRect = box.paddingBox ?? box.contentBox;
+      if (!targetRect) {
+        continue;
+      }
+      let targetRadius = shrinkRadius(box.borderRadius, box.border.top, box.border.right, box.border.bottom, box.border.left);
+      if (targetRect === box.contentBox) {
+        targetRadius = shrinkRadius(
+          targetRadius,
+          box.padding.top,
+          box.padding.right,
+          box.padding.bottom,
+          box.padding.left,
+        );
+      }
+      painter.fillRoundedRect(targetRect, targetRadius, color);
     }
   }
 }
@@ -127,51 +141,55 @@ function paintBorders(painter: PagePainter, boxes: RenderBox[]): void {
       continue;
     }
     const { border } = box;
-    if (border.top > 0) {
-      painter.fillRect(
-        {
-          x: box.borderBox.x,
-          y: box.borderBox.y,
-          width: box.borderBox.width,
-          height: border.top,
-        },
-        color,
-      );
+    if (!hasVisibleBorder(border)) {
+      continue;
     }
-    if (border.bottom > 0) {
-      painter.fillRect(
-        {
-          x: box.borderBox.x,
-          y: box.borderBox.y + Math.max(box.borderBox.height - border.bottom, 0),
-          width: box.borderBox.width,
-          height: border.bottom,
-        },
-        color,
-      );
-    }
-    if (border.left > 0) {
-      painter.fillRect(
-        {
-          x: box.borderBox.x,
-          y: box.borderBox.y,
-          width: border.left,
-          height: box.borderBox.height,
-        },
-        color,
-      );
-    }
-    if (border.right > 0) {
-      painter.fillRect(
-        {
-          x: box.borderBox.x + Math.max(box.borderBox.width - border.right, 0),
-          y: box.borderBox.y,
-          width: border.right,
-          height: box.borderBox.height,
-        },
-        color,
-      );
+    const outerRect = box.borderBox;
+    const innerRect = {
+      x: outerRect.x + border.left,
+      y: outerRect.y + border.top,
+      width: Math.max(outerRect.width - border.left - border.right, 0),
+      height: Math.max(outerRect.height - border.top - border.bottom, 0),
+    };
+    const innerRadius = shrinkRadius(box.borderRadius, border.top, border.right, border.bottom, border.left);
+    if (innerRect.width <= 0 || innerRect.height <= 0) {
+      painter.fillRoundedRect(outerRect, box.borderRadius, color);
+    } else {
+      painter.fillRoundedRectDifference(outerRect, box.borderRadius, innerRect, innerRadius, color);
     }
   }
+}
+
+function shrinkRadius(radii: Radius, top: number, right: number, bottom: number, left: number): Radius {
+  return {
+    topLeft: {
+      x: clampRadiusComponent(radii.topLeft.x - top),
+      y: clampRadiusComponent(radii.topLeft.y - left),
+    },
+    topRight: {
+      x: clampRadiusComponent(radii.topRight.x - top),
+      y: clampRadiusComponent(radii.topRight.y - right),
+    },
+    bottomRight: {
+      x: clampRadiusComponent(radii.bottomRight.x - bottom),
+      y: clampRadiusComponent(radii.bottomRight.y - right),
+    },
+    bottomLeft: {
+      x: clampRadiusComponent(radii.bottomLeft.x - bottom),
+      y: clampRadiusComponent(radii.bottomLeft.y - left),
+    },
+  };
+}
+
+function clampRadiusComponent(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  return value > 0 ? value : 0;
+}
+
+function hasVisibleBorder(border: Edges): boolean {
+  return border.top > 0 || border.right > 0 || border.bottom > 0 || border.left > 0;
 }
 
 function paintImages(painter: PagePainter, boxes: RenderBox[]): void {

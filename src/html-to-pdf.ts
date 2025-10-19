@@ -37,6 +37,14 @@ interface StyleAccumulator {
   borderRight?: number;
   borderBottom?: number;
   borderLeft?: number;
+  borderTopLeftRadiusX?: number;
+  borderTopLeftRadiusY?: number;
+  borderTopRightRadiusX?: number;
+  borderTopRightRadiusY?: number;
+  borderBottomRightRadiusX?: number;
+  borderBottomRightRadiusY?: number;
+  borderBottomLeftRadiusX?: number;
+  borderBottomLeftRadiusY?: number;
   marginTop?: number;
   marginRight?: number;
   marginBottom?: number;
@@ -439,6 +447,14 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
   if (styleInit.borderRight !== undefined) styleOptions.borderRight = styleInit.borderRight;
   if (styleInit.borderBottom !== undefined) styleOptions.borderBottom = styleInit.borderBottom;
   if (styleInit.borderLeft !== undefined) styleOptions.borderLeft = styleInit.borderLeft;
+  if (styleInit.borderTopLeftRadiusX !== undefined) styleOptions.borderTopLeftRadiusX = styleInit.borderTopLeftRadiusX;
+  if (styleInit.borderTopLeftRadiusY !== undefined) styleOptions.borderTopLeftRadiusY = styleInit.borderTopLeftRadiusY;
+  if (styleInit.borderTopRightRadiusX !== undefined) styleOptions.borderTopRightRadiusX = styleInit.borderTopRightRadiusX;
+  if (styleInit.borderTopRightRadiusY !== undefined) styleOptions.borderTopRightRadiusY = styleInit.borderTopRightRadiusY;
+  if (styleInit.borderBottomRightRadiusX !== undefined) styleOptions.borderBottomRightRadiusX = styleInit.borderBottomRightRadiusX;
+  if (styleInit.borderBottomRightRadiusY !== undefined) styleOptions.borderBottomRightRadiusY = styleInit.borderBottomRightRadiusY;
+  if (styleInit.borderBottomLeftRadiusX !== undefined) styleOptions.borderBottomLeftRadiusX = styleInit.borderBottomLeftRadiusX;
+  if (styleInit.borderBottomLeftRadiusY !== undefined) styleOptions.borderBottomLeftRadiusY = styleInit.borderBottomLeftRadiusY;
   if (styleInit.width !== undefined) styleOptions.width = styleInit.width;
   if (styleInit.minWidth !== undefined) styleOptions.minWidth = styleInit.minWidth;
   if (styleInit.maxWidth !== undefined) styleOptions.maxWidth = styleInit.maxWidth;
@@ -616,6 +632,52 @@ function applyDeclarationsToStyle(declarations: Record<string, string>, target: 
           target.borderColor = color ?? target.borderColor;
         });
         break;
+      case "border-radius": {
+        const parsed = parseBorderRadiusShorthand(value);
+        if (parsed) {
+          target.borderTopLeftRadiusX = parsed.topLeft.x;
+          target.borderTopLeftRadiusY = parsed.topLeft.y;
+          target.borderTopRightRadiusX = parsed.topRight.x;
+          target.borderTopRightRadiusY = parsed.topRight.y;
+          target.borderBottomRightRadiusX = parsed.bottomRight.x;
+          target.borderBottomRightRadiusY = parsed.bottomRight.y;
+          target.borderBottomLeftRadiusX = parsed.bottomLeft.x;
+          target.borderBottomLeftRadiusY = parsed.bottomLeft.y;
+        }
+        break;
+      }
+      case "border-top-left-radius": {
+        const parsed = parseBorderCornerRadius(value);
+        if (parsed) {
+          target.borderTopLeftRadiusX = parsed.x;
+          target.borderTopLeftRadiusY = parsed.y;
+        }
+        break;
+      }
+      case "border-top-right-radius": {
+        const parsed = parseBorderCornerRadius(value);
+        if (parsed) {
+          target.borderTopRightRadiusX = parsed.x;
+          target.borderTopRightRadiusY = parsed.y;
+        }
+        break;
+      }
+      case "border-bottom-right-radius": {
+        const parsed = parseBorderCornerRadius(value);
+        if (parsed) {
+          target.borderBottomRightRadiusX = parsed.x;
+          target.borderBottomRightRadiusY = parsed.y;
+        }
+        break;
+      }
+      case "border-bottom-left-radius": {
+        const parsed = parseBorderCornerRadius(value);
+        if (parsed) {
+          target.borderBottomLeftRadiusX = parsed.x;
+          target.borderBottomLeftRadiusY = parsed.y;
+        }
+        break;
+      }
       case "border-width":
         applyBoxShorthand(value, (top, right, bottom, left) => {
           target.borderTop = top;
@@ -781,6 +843,92 @@ function applyDeclarationsToStyle(declarations: Record<string, string>, target: 
         break;
     }
   }
+}
+
+interface ParsedCornerRadiusPair {
+  x: number;
+  y: number;
+}
+
+interface ParsedBorderRadius {
+  topLeft: ParsedCornerRadiusPair;
+  topRight: ParsedCornerRadiusPair;
+  bottomRight: ParsedCornerRadiusPair;
+  bottomLeft: ParsedCornerRadiusPair;
+}
+
+function parseBorderRadiusShorthand(value: string): ParsedBorderRadius | null {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const [horizontalPart, verticalPart] = trimmed.split("/").map((part) => part.trim());
+  const horizontalValues = expandBorderRadiusList(horizontalPart);
+  if (!horizontalValues) {
+    return null;
+  }
+  const verticalValues = verticalPart ? expandBorderRadiusList(verticalPart) : horizontalValues;
+  if (!verticalValues) {
+    return null;
+  }
+  return {
+    topLeft: { x: horizontalValues[0], y: verticalValues[0] },
+    topRight: { x: horizontalValues[1], y: verticalValues[1] },
+    bottomRight: { x: horizontalValues[2], y: verticalValues[2] },
+    bottomLeft: { x: horizontalValues[3], y: verticalValues[3] },
+  };
+}
+
+function parseBorderCornerRadius(value: string): ParsedCornerRadiusPair | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const [horizontalRaw, verticalRaw] = trimmed.split("/").map((part) => part.trim());
+  const horizontalList = splitCssList(horizontalRaw);
+  if (horizontalList.length === 0) {
+    return undefined;
+  }
+  const horizontal = clampPositive(parseLength(horizontalList[0]));
+  let vertical: number;
+  if (verticalRaw) {
+    const verticalList = splitCssList(verticalRaw);
+    vertical = clampPositive(parseLength(verticalList[0]));
+  } else if (horizontalList.length > 1) {
+    vertical = clampPositive(parseLength(horizontalList[1]));
+  } else {
+    vertical = horizontal;
+  }
+  return { x: horizontal, y: vertical };
+}
+
+function expandBorderRadiusList(input: string | undefined): [number, number, number, number] | null {
+  if (!input) {
+    return null;
+  }
+  const parts = splitCssList(input);
+  if (parts.length === 0) {
+    return null;
+  }
+  const resolved = parts.map((part) => clampPositive(parseLength(part)));
+  switch (resolved.length) {
+    case 1:
+      return [resolved[0], resolved[0], resolved[0], resolved[0]];
+    case 2:
+      return [resolved[0], resolved[1], resolved[0], resolved[1]];
+    case 3:
+      return [resolved[0], resolved[1], resolved[2], resolved[1]];
+    default:
+      return [resolved[0], resolved[1], resolved[2], resolved[3]];
+  }
+}
+
+function clampPositive(value: number | undefined): number {
+  if (!Number.isFinite(value ?? NaN)) {
+    return 0;
+  }
+  const numeric = Number(value);
+  return numeric > 0 ? numeric : 0;
 }
 
 function applyBoxShorthand(

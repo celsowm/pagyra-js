@@ -31,11 +31,16 @@ export interface Edges {
   left: number;
 }
 
+export interface CornerRadius {
+  x: number;
+  y: number;
+}
+
 export interface Radius {
-  topLeft: number;
-  topRight: number;
-  bottomRight: number;
-  bottomLeft: number;
+  topLeft: CornerRadius;
+  topRight: CornerRadius;
+  bottomRight: CornerRadius;
+  bottomLeft: CornerRadius;
 }
 
 export interface Background {

@@ -12,7 +12,12 @@ import {
 } from "../src/pdf/types.js";
 
 const ZERO_EDGES: Edges = { top: 0, right: 0, bottom: 0, left: 0 };
-const ZERO_RADIUS: Radius = { topLeft: 0, topRight: 0, bottomRight: 0, bottomLeft: 0 };
+const ZERO_RADIUS: Radius = {
+  topLeft: { x: 0, y: 0 },
+  topRight: { x: 0, y: 0 },
+  bottomRight: { x: 0, y: 0 },
+  bottomLeft: { x: 0, y: 0 },
+};
 const TRANSPARENT_BG: Background = {};
 
 function makeRect(y: number, height: number, width = 100, x = 0): Rect {

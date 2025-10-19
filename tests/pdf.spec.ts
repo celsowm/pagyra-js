@@ -83,7 +83,7 @@ describe("PDF renderer", () => {
     const content = Buffer.from(pdfBytes).toString("ascii");
 
     expect(content).toMatch(/0\.2 0\.4 0\.6 rg\s+[0-9\.\-]+\s+[0-9\.\-]+\s+[0-9\.\-]+\s+[0-9\.\-]+\s+re\s+f/);
-    expect(content).toMatch(/0 0 0 rg\s+[0-9\.\-]+\s+[0-9\.\-]+\s+[0-9\.\-]+\s+[0-9\.\-]+\s+re\s+f/);
+    expect(content).toMatch(/0 0 0 rg\s+q\s+[0-9\.\-\s]+cm[\s\S]+f\*\s+Q/);
   });
 
   it("renders inline text content as text operators", async () => {
