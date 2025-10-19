@@ -26,6 +26,7 @@ import {
 import { resolvedLineHeight } from "../css/style.js";
 import { estimateLineWidth } from "../layout/utils/text-metrics.js";
 import type { ImageInfo } from "../image/types.js";
+import { NAMED_COLORS } from "../css/named-colors.js";
 
 export interface RenderTreeOptions {
   dpiAssumption?: number;
@@ -689,10 +690,16 @@ function parseColor(value: string | undefined): RGBA | undefined {
   if (!value) {
     return undefined;
   }
-  const normalized = value.trim().toLowerCase();
+
+  let normalized = value.trim().toLowerCase();
+  if (normalized in NAMED_COLORS) {
+    normalized = NAMED_COLORS[normalized];
+  }
+
   if (normalized === "transparent") {
     return undefined;
   }
+
   const hexMatch = normalized.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
   if (hexMatch) {
     const digits = hexMatch[1];
