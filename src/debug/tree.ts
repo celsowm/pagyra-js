@@ -37,15 +37,19 @@ export function computeDomPath(el: Element): string {
   const parts: string[] = [];
   let cur: Element | null = el;
   while (cur && cur.nodeType === 1) {
-    const tag = cur.tagName.toLowerCase();
-    const parent = cur.parentElement;
+    const current: Element = cur;
+    const tag = current.tagName.toLowerCase();
+    const parent: Element | null = current.parentElement;
     let nth = 1;
     if (parent) {
-      const same = Array.from(parent.children).filter(c => c.tagName === cur!.tagName);
-      if (same.length > 1) nth = same.indexOf(cur) + 1;
+      const siblings = Array.from(parent.children) as Element[];
+      const sameTagSiblings = siblings.filter((candidate) => candidate.tagName === current.tagName);
+      if (sameTagSiblings.length > 1) {
+        nth = sameTagSiblings.indexOf(current) + 1;
+      }
     }
-    const id = cur.id ? `#${cur.id}` : "";
-    const cls = cur.classList?.length ? "." + Array.from(cur.classList).join(".") : "";
+    const id = current.id ? `#${current.id}` : "";
+    const cls = current.classList?.length ? "." + Array.from(current.classList).join(".") : "";
     parts.unshift(`${tag}${id}${cls}${parent && nth>1 ? `:nth-of-type(${nth})` : ""}`);
     cur = parent;
   }
