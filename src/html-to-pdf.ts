@@ -20,12 +20,10 @@ type CssDeclaration = cssParser.Declaration;
 type CssRule = cssParser.Rule;
 type DomElement = any;
 
+import { makeUnitParsers } from './units/units.js';
+import { parseCss } from './html/css/parse-css.js';
+import type { CssRuleEntry, DomEl } from './html/css/parse-css.js';
 import { configureDebug, log, type LogCat, type LogLevel } from "./debug/log.js";
-
-interface CssRuleEntry {
-  match: (element: DomElement) => boolean;
-  declarations: Record<string, string>;
-}
 
 interface StyleAccumulator {
   display?: Display;
@@ -341,7 +339,7 @@ async function convertDomNode(
   return new LayoutNode(ownStyle, layoutChildren, { tagName });
 }
 
-function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], parentStyle: ComputedStyle): ComputedStyle {
+function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], parentStyle: ComputedStyle, units?: UnitParsers): ComputedStyle {
   const tagName = element.tagName.toLowerCase();
 
   // Get element-specific defaults from browser defaults system
@@ -369,9 +367,9 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
   // Apply CSS rules
   for (const rule of cssRules) {
     if (rule.match(element)) {
-      log("STYLE","DEBUG","CSS rule matched", { selector: (rule as any).selector, declarations: rule.declarations });
+      log("STYLE","DEBUG","CSS rule matched", { selector: rule.selector, declarations: rule.declarations });
       if (rule.declarations.display) {
-        log("STYLE","DEBUG","Display declaration found", { selector: (rule as any).selector, display: rule.declarations.display });
+        log("STYLE","DEBUG","Display declaration found", { selector: rule.selector, display: rule.declarations.display });
       }
       Object.assign(aggregated, rule.declarations);
     }
@@ -385,7 +383,8 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
   Object.assign(aggregated, inlineStyle);
 
   // Apply declarations to style accumulator
-  applyDeclarationsToStyle(aggregated, styleInit, inherited.fontWeight ?? mergedDefaults.fontWeight);
+  if (!units) units = { parseLength };
+  applyDeclarationsToStyle(aggregated, styleInit, units, inherited.fontWeight ?? mergedDefaults.fontWeight);
 
   // Determine final display value
   const defaultDisplay = mergedDefaults.display ?? defaultDisplayForTag(tagName);
@@ -605,7 +604,11 @@ function parseTextDecorationLine(value: string): string | undefined {
   return unique.join(" ");
 }
 
-function applyDeclarationsToStyle(declarations: Record<string, string>, target: StyleAccumulator, inheritedFontWeight?: number): void {
+interface UnitParsers {
+  parseLength: (v: string) => number | undefined;
+}
+
+function applyDeclarationsToStyle(declarations: Record<string, string>, target: StyleAccumulator, units: UnitParsers, inheritedFontWeight?: number): void {
   for (const [property, value] of Object.entries(declarations)) {
     switch (property) {
       case "display":
@@ -1712,7 +1715,7 @@ function buildCssRules(cssText: string): CssRuleEntry[] {
       if (!matcher) {
         continue;
       }
-      result.push({ match: matcher, declarations: { ...declarations } });
+      result.push({ selector, match: matcher, declarations: { ...declarations } });
     }
   }
   return result;
