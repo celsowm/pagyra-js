@@ -6,7 +6,8 @@ const DOM = {
   status: /** @type {HTMLParagraphElement} */ (document.getElementById("status")),
   pdfViewer: /** @type {HTMLObjectElement} */ (document.getElementById("pdf-viewer")),
   htmlViewer: /** @type {HTMLIFrameElement} */ (document.getElementById("html-viewer")),
-  tabButtons: /** @type {NodeListOf<HTMLButtonElement>} */ (document.querySelectorAll(".tab-button")),
+  editorTabButtons: /** @type {NodeListOf<HTMLButtonElement>} */ (document.querySelectorAll(".editor-panel .tab-button")),
+  previewTabButtons: /** @type {NodeListOf<HTMLButtonElement>} */ (document.querySelectorAll(".preview-panel .tab-button")),
   viewportWidth: /** @type {HTMLInputElement} */ (document.getElementById("viewport-width")),
   viewportHeight: /** @type {HTMLInputElement} */ (document.getElementById("viewport-height")),
 };
@@ -207,18 +208,35 @@ function handleExampleChange() {
   }
 }
 
-function switchTab(tabName) {
-  // Update tab buttons
-  DOM.tabButtons.forEach(button => {
+function switchEditorTab(tabName) {
+  // Update editor tab buttons
+  DOM.editorTabButtons.forEach(button => {
     const isActive = button.dataset.tab === tabName;
     button.classList.toggle("active", isActive);
     button.setAttribute("aria-selected", isActive.toString());
   });
 
-  // Update tab panes
-  const tabPanes = document.querySelectorAll(".tab-pane");
-  tabPanes.forEach(pane => {
-    const isActive = pane.id === `${tabName}-tab`;
+  // Update editor tab panes
+  const editorTabPanes = document.querySelectorAll(".editor-panel .tab-pane");
+  editorTabPanes.forEach(pane => {
+    const isActive = pane.id === `editor-${tabName}-tab`;
+    pane.classList.toggle("active", isActive);
+    pane.setAttribute("aria-hidden", (!isActive).toString());
+  });
+}
+
+function switchPreviewTab(tabName) {
+  // Update preview tab buttons
+  DOM.previewTabButtons.forEach(button => {
+    const isActive = button.dataset.tab === tabName;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-selected", isActive.toString());
+  });
+
+  // Update preview tab panes
+  const previewTabPanes = document.querySelectorAll(".preview-panel .tab-pane");
+  previewTabPanes.forEach(pane => {
+    const isActive = pane.id === `preview-${tabName}-tab`;
     pane.classList.toggle("active", isActive);
     pane.setAttribute("aria-hidden", (!isActive).toString());
   });
@@ -272,7 +290,11 @@ function handleTabClick(event) {
   const button = event.target;
   const tabName = button.dataset.tab;
   if (tabName) {
-    switchTab(tabName);
+    if (button.closest('.editor-panel')) {
+      switchEditorTab(tabName);
+    } else if (button.closest('.preview-panel')) {
+      switchPreviewTab(tabName);
+    }
   }
 }
 
@@ -296,7 +318,10 @@ async function init() {
   DOM.exampleSelect.addEventListener("change", handleExampleChange);
 
   // Tab functionality
-  DOM.tabButtons.forEach(button => {
+  DOM.editorTabButtons.forEach(button => {
+    button.addEventListener("click", handleTabClick);
+  });
+  DOM.previewTabButtons.forEach(button => {
     button.addEventListener("click", handleTabClick);
   });
 
