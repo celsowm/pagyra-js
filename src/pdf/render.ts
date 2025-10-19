@@ -45,9 +45,11 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
   void pageBox;
 
   const pageHeightPx = ptToPx(pageSize.heightPt) || 1;
+  const pageWidthPx = ptToPx(pageSize.widthPt) || 1;
   const pages = paginateTree(layout.root, { pageHeight: pageHeightPx });
   const totalPages = pages.length;
   const tokens = computeHfTokens(layout.hf.placeholders ?? {}, totalPages, options.metadata);
+  const pageBackground = resolvePageBackground(layout.root);
 
   const headerFooterTextOptions: TextPaintOptions = { fontSizePt: 10, fontFamily: layout.hf.fontFamily };
 
@@ -58,6 +60,8 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
 
     const headerVariant = pickHeaderVariant(hfLayout, pageNumber, totalPages);
     const footerVariant = pickFooterVariant(hfLayout, pageNumber, totalPages);
+
+    paintPageBackground(painter, pageBackground, pageWidthPx, pageHeightPx, pageTree.pageOffsetY);
 
     if (layout.hf.layerMode === LayerMode.Under) {
       await paintHeaderFooter(painter, headerVariant, footerVariant, tokens, pageNumber, totalPages, headerFooterTextOptions, true);
@@ -295,6 +299,32 @@ function clampUnit(value: number): number {
     return 1;
   }
   return value;
+}
+
+function resolvePageBackground(root: RenderBox): RGBA | undefined {
+  if (root.background?.color) {
+    return root.background.color;
+  }
+  for (const child of root.children) {
+    if (child.tagName === "body" || child.tagName === "html") {
+      const candidate = child.background?.color;
+      if (candidate) {
+        return candidate;
+      }
+    }
+  }
+  return undefined;
+}
+
+function paintPageBackground(painter: PagePainter, color: RGBA | undefined, widthPx: number, heightPx: number, offsetY: number): void {
+  if (!color) {
+    return;
+  }
+  if (!Number.isFinite(widthPx) || widthPx <= 0 || !Number.isFinite(heightPx) || heightPx <= 0) {
+    return;
+  }
+  const rect: Rect = { x: 0, y: offsetY, width: widthPx, height: heightPx };
+  painter.fillRect(rect, color);
 }
 
 function paintBackgrounds(painter: PagePainter, boxes: RenderBox[]): void {

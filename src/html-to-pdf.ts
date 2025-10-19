@@ -152,18 +152,23 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   const cssRules = buildCssRules(mergedCss);
   log("PARSE","DEBUG","CSS rules", { count: cssRules.length });
 
-  const rootLayout = new LayoutNode(new ComputedStyle());
-  const parentStyle = new ComputedStyle();
-  const body = document.body ?? document.documentElement;
+  const baseParentStyle = new ComputedStyle();
+  const bodyElement = (document.body ?? document.documentElement) as DomElement | null;
+  const rootStyle = bodyElement ? computeStyleForElement(bodyElement, cssRules, baseParentStyle) : baseParentStyle;
+  const rootTagName = bodyElement?.tagName ? bodyElement.tagName.toLowerCase() : undefined;
+  const rootLayout = new LayoutNode(rootStyle, [], { tagName: rootTagName });
 
   const resourceBaseDir = path.resolve(options.resourceBaseDir ?? options.assetRootDir ?? process.cwd());
   const assetRootDir = path.resolve(options.assetRootDir ?? resourceBaseDir);
   const context: ConversionContext = { resourceBaseDir, assetRootDir };
 
-  for (const child of Array.from(body.childNodes)) {
-    const layoutChild = await convertDomNode(child, cssRules, parentStyle, context);
-    if (layoutChild) {
-      rootLayout.appendChild(layoutChild);
+  if (bodyElement) {
+    const childNodes = Array.from(bodyElement.childNodes ?? []) as Node[];
+    for (const child of childNodes) {
+      const layoutChild = await convertDomNode(child, cssRules, rootStyle, context);
+      if (layoutChild) {
+        rootLayout.appendChild(layoutChild);
+      }
     }
   }
 
