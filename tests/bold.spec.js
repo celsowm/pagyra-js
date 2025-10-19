@@ -32,6 +32,17 @@ describe("bold text support", () => {
         expect(hasBoldRun).toBe(true);
         expect(hasNormalRun).toBe(true);
     });
+    it("propagates <b> weight into render runs", async () => {
+        const runs = await renderRuns("<p>Normal <b>Bold</b> text</p>");
+        const boldRun = runs.find((run) => run.text.includes("Bold"));
+        const normalRun = runs.find((run) => run.text.includes("Normal"));
+        expect(boldRun?.fontWeight).toBe(700);
+        expect((normalRun?.fontWeight ?? 0)).toBe(400);
+    });
+    it("preserves collapsed spaces around inline formatting tags", async () => {
+        const runs = await renderRuns("<p>alpha <b>beta</b> gamma</p>");
+        expect(runs.map((run) => run.text)).toEqual(["alpha ", "beta", " gamma"]);
+    });
     it("parses numeric and keyword font-weight declarations", async () => {
         const html = `
       <p>
@@ -78,5 +89,20 @@ describe("bold text support", () => {
         const boldStyle = new ComputedStyle({ fontWeight: 700, fontSize: 16 });
         const sample = "Weight";
         expect(estimateLineWidth(sample, boldStyle)).toBeGreaterThan(estimateLineWidth(sample, normalStyle));
+    });
+});
+describe("text decorations", () => {
+    it("marks <s> runs as line-through", async () => {
+        const runs = await renderRuns("<p><s>Removed</s> text</p>");
+        const strikeRun = runs.find((run) => run.text.includes("Removed"));
+        const plainRun = runs.find((run) => run.text.includes("text"));
+        expect(strikeRun?.decorations?.lineThrough).toBe(true);
+        expect((strikeRun?.advanceWidth ?? 0)).toBeGreaterThan(0);
+        expect(plainRun?.decorations?.lineThrough ?? false).toBe(false);
+    });
+    it("allows overriding strikethrough via CSS", async () => {
+        const runs = await renderRuns("<p><s style=\"text-decoration: none\">Visible</s></p>");
+        const run = runs.find((candidate) => candidate.text.includes("Visible"));
+        expect(run?.decorations?.lineThrough ?? false).toBe(false);
     });
 });

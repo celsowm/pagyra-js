@@ -32,7 +32,7 @@ export interface ElementDefaults {
   color: string;
   backgroundColor?: string;
   backgroundSize?: string;
-  listStyle?: string;
+  listStyleType?: string;
   textAlign?: string;
   verticalAlign?: string;
   borderCollapse?: string;
@@ -283,7 +283,7 @@ export class ElementSpecificDefaults {
       margin: 16,
       marginBottom: 16,
       paddingLeft: 40,
-      listStyle: "disc",
+      listStyleType: "disc",
       fontSize: 16,
       lineHeight: TypographyDefaults.getLineHeight(),
       fontFamily: TypographyDefaults.getFontFamily(),
@@ -294,7 +294,7 @@ export class ElementSpecificDefaults {
       margin: 16,
       marginBottom: 16,
       paddingLeft: 40,
-      listStyle: "decimal",
+      listStyleType: "decimal",
       fontSize: 16,
       lineHeight: TypographyDefaults.getLineHeight(),
       fontFamily: TypographyDefaults.getFontFamily(),
@@ -516,6 +516,7 @@ export class BrowserDefaults {
       letterSpacing: TypographyDefaults.getLetterSpacing(),
       wordSpacing: TypographyDefaults.getWordSpacing(),
       textDecorationLine: "none",
+      listStyleType: "disc",
 
       // Box model
       marginTop: BoxModelDefaults.getMargin(),
@@ -679,8 +680,8 @@ export class BrowserDefaults {
     if (elementDefaults.verticalAlign !== undefined) {
       merged.verticalAlign = elementDefaults.verticalAlign;
     }
-    if (elementDefaults.listStyle !== undefined) {
-      (merged as any).listStyle = elementDefaults.listStyle;
+    if (elementDefaults.listStyleType !== undefined) {
+      merged.listStyleType = elementDefaults.listStyleType;
     }
     if (elementDefaults.textDecorationLine !== undefined) {
       (merged as any).textDecorationLine = elementDefaults.textDecorationLine;

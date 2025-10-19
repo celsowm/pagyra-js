@@ -84,6 +84,7 @@ export interface StyleProperties {
   flexGrow: number;
   flexShrink: number;
   flexBasis: LengthLike;
+  listStyleType: string;
   alignItems: AlignItems;
   alignSelf: AlignSelfValue;
   justifyContent: JustifyContent;
@@ -165,6 +166,7 @@ export class ComputedStyle implements StyleProperties {
   flexGrow: number;
   flexShrink: number;
   flexBasis: LengthLike;
+  listStyleType: string;
   alignItems: AlignItems;
   alignSelf: AlignSelfValue;
   justifyContent: JustifyContent;
@@ -248,6 +250,7 @@ export class ComputedStyle implements StyleProperties {
     this.flexGrow = data.flexGrow;
     this.flexShrink = data.flexShrink;
     this.flexBasis = data.flexBasis;
+    this.listStyleType = data.listStyleType;
     this.alignItems = data.alignItems;
     this.alignSelf = data.alignSelf;
     this.justifyContent = data.justifyContent;
