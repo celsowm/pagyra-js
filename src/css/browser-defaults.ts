@@ -539,6 +539,7 @@ export class BrowserDefaults {
       borderBottomRightRadiusY: 0,
       borderBottomLeftRadiusX: 0,
       borderBottomLeftRadiusY: 0,
+      boxShadows: [],
       width: BoxModelDefaults.getWidth(),
       height: BoxModelDefaults.getHeight(),
       minWidth: BoxModelDefaults.getMinWidth(),

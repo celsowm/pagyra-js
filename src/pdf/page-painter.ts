@@ -22,6 +22,7 @@ export interface PainterResult {
   readonly content: string;
   readonly fonts: Map<string, PdfObjectRef>;
   readonly images: PainterImageResource[];
+  readonly graphicsStates: Map<string, number>;
 }
 
 export interface PainterImageResource {
@@ -51,6 +52,8 @@ export class PagePainter {
   private readonly commands: string[] = [];
   private readonly fonts = new Map<string, PdfObjectRef>();
   private readonly imageResources = new Map<string, PainterImageResource>();
+  private readonly graphicsStates = new Map<string, number>();
+  private readonly fillAlphaStates = new Map<string, string>();
   private ptToPxFactor?: number;
 
   constructor(
@@ -238,6 +241,7 @@ export class PagePainter {
       content: this.commands.join("\n"),
       fonts: this.fonts,
       images: Array.from(this.imageResources.values()),
+      graphicsStates: new Map(this.graphicsStates),
     };
   }
 
@@ -256,14 +260,8 @@ export class PagePainter {
     if (path.length === 0) {
       return;
     }
-    this.commands.push(
-      fillColorCommand(color),
-      "q",
-      this.transformForRect(rect),
-      ...path,
-      "f",
-      "Q",
-    );
+    const commands = [this.transformForRect(rect), ...path, "f"];
+    this.pushFillCommands(color, commands, true);
   }
 
   fillRoundedRectDifference(outerRect: Rect, outerRadii: Radius, innerRect: Rect, innerRadii: Radius, color: RGBA): void {
@@ -292,15 +290,8 @@ export class PagePainter {
     const offsetY = innerRect.y - outerRect.y;
     const pathInner = this.roundedRectPath(innerWidth, innerHeight, innerAdjusted, offsetX, offsetY);
 
-    this.commands.push(
-      fillColorCommand(color),
-      "q",
-      this.transformForRect(outerRect),
-      ...pathOuter,
-      ...pathInner,
-      "f*",
-      "Q",
-    );
+    const commands = [this.transformForRect(outerRect), ...pathOuter, ...pathInner, "f*"];
+    this.pushFillCommands(color, commands, true);
   }
 
   fillRect(rect: Rect, color: RGBA): void {
@@ -308,7 +299,8 @@ export class PagePainter {
     if (!pdfRect) {
       return;
     }
-    this.commands.push(fillColorCommand(color), `${pdfRect.x} ${pdfRect.y} ${pdfRect.width} ${pdfRect.height} re`, "f");
+    const commands = [`${pdfRect.x} ${pdfRect.y} ${pdfRect.width} ${pdfRect.height} re`, "f"];
+    this.pushFillCommands(color, commands, false);
   }
 
   strokeRect(rect: Rect, color: RGBA): void {
@@ -317,6 +309,55 @@ export class PagePainter {
       return;
     }
     this.commands.push(strokeColorCommand(color), `${pdfRect.x} ${pdfRect.y} ${pdfRect.width} ${pdfRect.height} re`, "S");
+  }
+
+  private pushFillCommands(color: RGBA, commands: string[], wrapWithQ: boolean): void {
+    const alpha = this.normalizeAlpha(color.a);
+    const hasAlpha = alpha < 1;
+    const baseColor: RGBA = { r: color.r, g: color.g, b: color.b, a: alpha };
+    const needsIsolation = wrapWithQ || hasAlpha;
+    this.commands.push(fillColorCommand(baseColor));
+    if (needsIsolation) {
+      this.commands.push("q");
+    }
+    if (hasAlpha) {
+      const state = this.ensureFillAlphaState(alpha);
+      this.commands.push(`/${state} gs`);
+    }
+    this.commands.push(...commands);
+    if (needsIsolation) {
+      this.commands.push("Q");
+    }
+  }
+
+  private ensureFillAlphaState(alpha: number): string {
+    const normalized = this.normalizeAlpha(alpha);
+    const key = normalized.toFixed(4);
+    const existing = this.fillAlphaStates.get(key);
+    if (existing) {
+      return existing;
+    }
+    const name = `GS${this.fillAlphaStates.size}`;
+    const numeric = Number.parseFloat(key);
+    this.fillAlphaStates.set(key, name);
+    this.graphicsStates.set(name, numeric);
+    return name;
+  }
+
+  private normalizeAlpha(alpha: number | undefined): number {
+    if (!Number.isFinite(alpha ?? NaN)) {
+      return 1;
+    }
+    if (alpha === undefined) {
+      return 1;
+    }
+    if (alpha <= 0) {
+      return 0;
+    }
+    if (alpha >= 1) {
+      return 1;
+    }
+    return alpha;
   }
 
   private normalizeRadiiForRect(width: number, height: number, radii: Radius): Radius {

@@ -29,6 +29,7 @@ interface PdfPage {
 interface PdfResources {
   fonts: Map<string, PdfObjectRef>;
   xObjects: Map<string, PdfObjectRef>;
+  extGStates: Map<string, PdfObjectRef>;
 }
 
 export interface PdfObjectRef {
@@ -44,6 +45,7 @@ export class PdfDocument {
   private readonly fonts = new Map<string, PdfFontResource>();
   private readonly pages: PdfPage[] = [];
   private readonly images: PdfImageResource[] = [];
+  private readonly extGStates = new Map<string, { ref: PdfObjectRef; alpha: number }>();
 
   constructor(private readonly metadata: PdfMetadata = {}) {}
 
@@ -61,6 +63,7 @@ export class PdfDocument {
     const resources: PdfResources = {
       fonts: page.resources?.fonts ?? new Map(),
       xObjects: page.resources?.xObjects ?? new Map(),
+      extGStates: page.resources?.extGStates ?? new Map(),
     };
     this.pages.push({
       width: page.width,
@@ -96,6 +99,18 @@ export class PdfDocument {
     return ref;
   }
 
+  registerExtGState(alpha: number): PdfObjectRef {
+    const normalized = clampUnitAlpha(alpha);
+    const key = normalized.toFixed(4);
+    const existing = this.extGStates.get(key);
+    if (existing) {
+      return existing.ref;
+    }
+    const ref: PdfObjectRef = { objectNumber: -1 };
+    this.extGStates.set(key, { ref, alpha: normalized });
+    return ref;
+  }
+
   finalize(): Uint8Array {
     const objects: PdfObject[] = [];
 
@@ -113,6 +128,10 @@ export class PdfDocument {
 
     for (const font of this.fonts.values()) {
       font.objectRef = pushObject(serializeType1Font(font.baseFont), font.objectRef);
+    }
+
+    for (const state of this.extGStates.values()) {
+      state.ref = pushObject(serializeExtGState(state.alpha), state.ref);
     }
 
     for (const image of this.images) {
@@ -158,6 +177,13 @@ export class PdfDocument {
       }
       if (xObjectEntries.length > 0) {
         resourcesParts.push(`/XObject << ${xObjectEntries.join(" ")} >>`);
+      }
+      const gStateEntries: string[] = [];
+      for (const [alias, ref] of page.resources.extGStates) {
+        gStateEntries.push(`/${alias} ${ref.objectNumber} 0 R`);
+      }
+      if (gStateEntries.length > 0) {
+        resourcesParts.push(`/ExtGState << ${gStateEntries.join(" ")} >>`);
       }
       const resources = resourcesParts.length > 0 ? `/Resources << ${resourcesParts.join(" ")} >>` : "";
       const annots =
@@ -243,6 +269,12 @@ function serializeStream(content: string | Uint8Array, extraEntries: string[] = 
   return Buffer.concat([Buffer.from(header, "binary"), encoded, Buffer.from(footer, "binary")]);
 }
 
+function serializeExtGState(alpha: number): string {
+  const safeAlpha = clampUnitAlpha(alpha);
+  const formatted = formatNumber(safeAlpha);
+  return ["<<", "/Type /ExtGState", `/ca ${formatted}`, `/CA ${formatted}`, ">>"].join("\n");
+}
+
 function serializeInfo(meta: PdfMetadata): string {
   const entries: string[] = [];
   if (meta.title) {
@@ -292,6 +324,19 @@ function sanitizeName(name: string): string {
 
 function hasMetadata(meta: PdfMetadata): boolean {
   return Boolean(meta.title || meta.author || meta.subject || meta.keywords?.length || meta.producer);
+}
+
+function clampUnitAlpha(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 1;
+  }
+  if (value <= 0) {
+    return 0;
+  }
+  if (value >= 1) {
+    return 1;
+  }
+  return value;
 }
 
 function formatNumber(value: number): string {

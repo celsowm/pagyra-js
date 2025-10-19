@@ -23,6 +23,15 @@ export type AlignSelfValue = AlignItems | "auto";
 
 export type TrackDefinition = string | CSSLength;
 
+export interface BoxShadow {
+  inset: boolean;
+  offsetX: number;
+  offsetY: number;
+  blurRadius: number;
+  spreadRadius: number;
+  color?: string;
+}
+
 export interface StyleProperties {
   textAlign?: string;
   verticalAlign?: string;
@@ -64,6 +73,7 @@ export interface StyleProperties {
   borderBottomLeftRadiusY: number;
   backgroundColor?: string;
   borderColor?: string;
+  boxShadows: BoxShadow[];
   color?: string;
   fontFamily?: string;
   fontWeight?: number;
@@ -146,6 +156,7 @@ export class ComputedStyle implements StyleProperties {
   borderBottomLeftRadiusY: number;
   backgroundColor?: string;
   borderColor?: string;
+  boxShadows: BoxShadow[];
   color?: string;
   fontFamily?: string;
   fontWeight?: number;
@@ -230,6 +241,7 @@ export class ComputedStyle implements StyleProperties {
     this.borderBottomLeftRadiusY = data.borderBottomLeftRadiusY;
     this.backgroundColor = data.backgroundColor;
     this.borderColor = data.borderColor;
+    this.boxShadows = [...data.boxShadows];
     this.color = data.color;
     this.fontFamily = data.fontFamily;
     this.fontWeight = data.fontWeight;

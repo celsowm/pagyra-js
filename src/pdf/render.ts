@@ -1,6 +1,6 @@
 import { PdfDocument } from "./primitives/pdf-document.js";
 import type { PdfObjectRef } from "./primitives/pdf-document.js";
-import type { LayoutTree, PageSize, PdfMetadata, RenderBox, Radius, Edges } from "./types.js";
+import type { LayoutTree, PageSize, PdfMetadata, RenderBox, Radius, Edges, Rect, ShadowLayer, RGBA } from "./types.js";
 import {
   initHeaderFooterContext,
   layoutHeaderFooterTrees,
@@ -63,7 +63,9 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
       await paintHeaderFooter(painter, headerVariant, footerVariant, tokens, pageNumber, totalPages, headerFooterTextOptions, true);
     }
 
+    paintBoxShadows(painter, pageTree.paintOrder, false);
     paintBackgrounds(painter, pageTree.paintOrder);
+    paintBoxShadows(painter, pageTree.paintOrder, true);
     paintBorders(painter, pageTree.paintOrder);
     paintImages(painter, pageTree.flowContentOrder);
     await paintText(painter, pageTree.flowContentOrder);
@@ -79,11 +81,16 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
       image.ref = ref;
       xObjects.set(image.alias, ref);
     }
+    const extGStates = new Map<string, PdfObjectRef>();
+    for (const [name, alpha] of result.graphicsStates) {
+      const ref = doc.registerExtGState(alpha);
+      extGStates.set(name, ref);
+    }
     doc.addPage({
       width: pageSize.widthPt,
       height: pageSize.heightPt,
       contents: result.content,
-      resources: { fonts: result.fonts, xObjects },
+      resources: { fonts: result.fonts, xObjects, extGStates },
       annotations: [],
     });
   }
@@ -98,6 +105,196 @@ async function paintText(painter: PagePainter, boxes: RenderBox[]): Promise<void
       await painter.drawTextRun(run);
     }
   }
+}
+
+function paintBoxShadows(painter: PagePainter, boxes: RenderBox[], inset: boolean): void {
+  for (const box of boxes) {
+    if (!box.boxShadows?.length) {
+      continue;
+    }
+    for (const shadow of box.boxShadows) {
+      if (shadow.inset !== inset) {
+        continue;
+      }
+      if (!isRenderableShadow(shadow)) {
+        continue;
+      }
+      if (inset) {
+        renderInsetShadow(painter, box, shadow);
+      } else {
+        renderOuterShadow(painter, box, shadow);
+      }
+    }
+  }
+}
+
+function isRenderableShadow(shadow: ShadowLayer): boolean {
+  const alpha = clampUnit(shadow.color.a ?? 1);
+  return alpha > 0;
+}
+
+function renderOuterShadow(painter: PagePainter, box: RenderBox, shadow: ShadowLayer): void {
+  const baseRect = translateRect(box.borderBox, shadow.offsetX, shadow.offsetY);
+  const baseRadius = cloneRadius(box.borderRadius);
+  const blur = clampNonNegative(shadow.blur);
+  const spread = shadow.spread;
+  drawShadowLayers(painter, {
+    mode: "outer",
+    baseRect,
+    baseRadius,
+    color: shadow.color,
+    blur,
+    spread,
+  });
+}
+
+function renderInsetShadow(painter: PagePainter, box: RenderBox, shadow: ShadowLayer): void {
+  const container = box.paddingBox ?? box.contentBox;
+  if (!container) {
+    return;
+  }
+  const baseRect = translateRect(container, shadow.offsetX, shadow.offsetY);
+  const baseRadius = shrinkRadius(cloneRadius(box.borderRadius), box.border.top, box.border.right, box.border.bottom, box.border.left);
+  const blur = clampNonNegative(shadow.blur);
+  const spread = shadow.spread;
+  if (blur === 0 && spread === 0) {
+    painter.fillRoundedRect(baseRect, baseRadius, shadow.color);
+    return;
+  }
+  drawShadowLayers(painter, {
+    mode: "inset",
+    baseRect,
+    baseRadius,
+    color: shadow.color,
+    blur,
+    spread,
+  });
+}
+
+interface ShadowRenderParams {
+  mode: "outer" | "inset";
+  baseRect: Rect;
+  baseRadius: Radius;
+  color: RGBA;
+  blur: number;
+  spread: number;
+}
+
+function drawShadowLayers(painter: PagePainter, params: ShadowRenderParams): void {
+  const { mode, baseRect, baseRadius, color, blur, spread } = params;
+  const steps = blur > 0 ? Math.max(2, Math.ceil(blur / 2)) : 1;
+  const weights = buildShadowWeights(steps);
+  const baseAlpha = clampUnit(color.a ?? 1);
+  for (let index = 0; index < steps; index++) {
+    const fraction =
+      steps === 1
+        ? 0
+        : mode === "outer"
+          ? index / (steps - 1)
+          : (index + 1) / steps;
+    const expansion = spread + blur * fraction;
+    const weight = weights[index] ?? 0;
+    if (weight <= 0) {
+      continue;
+    }
+    const stepColor: RGBA = { r: color.r, g: color.g, b: color.b, a: clampUnit(baseAlpha * weight) };
+    if (mode === "outer") {
+      const rect = inflateRect(baseRect, expansion);
+      if (rect.width <= 0 || rect.height <= 0) {
+        continue;
+      }
+      const radius = adjustRadius(baseRadius, expansion);
+      painter.fillRoundedRect(rect, radius, stepColor);
+    } else {
+      const contraction = Math.max(0, expansion);
+      const innerRect = inflateRect(baseRect, -contraction);
+      if (innerRect.width <= 0 || innerRect.height <= 0) {
+        continue;
+      }
+      const outerRadius = cloneRadius(baseRadius);
+      const innerRadius = adjustRadius(baseRadius, -contraction);
+      painter.fillRoundedRectDifference(baseRect, outerRadius, innerRect, innerRadius, stepColor);
+    }
+  }
+}
+
+function translateRect(rect: Rect, dx: number, dy: number): Rect {
+  return { x: rect.x + dx, y: rect.y + dy, width: rect.width, height: rect.height };
+}
+
+function inflateRect(rect: Rect, amount: number): Rect {
+  const width = rect.width + amount * 2;
+  const height = rect.height + amount * 2;
+  if (width <= 0 || height <= 0) {
+    return {
+      x: rect.x + rect.width / 2,
+      y: rect.y + rect.height / 2,
+      width: 0,
+      height: 0,
+    };
+  }
+  return {
+    x: rect.x - amount,
+    y: rect.y - amount,
+    width,
+    height,
+  };
+}
+
+function adjustRadius(radius: Radius, delta: number): Radius {
+  const result = cloneRadius(radius);
+  result.topLeft.x = clampNonNegative(result.topLeft.x + delta);
+  result.topLeft.y = clampNonNegative(result.topLeft.y + delta);
+  result.topRight.x = clampNonNegative(result.topRight.x + delta);
+  result.topRight.y = clampNonNegative(result.topRight.y + delta);
+  result.bottomRight.x = clampNonNegative(result.bottomRight.x + delta);
+  result.bottomRight.y = clampNonNegative(result.bottomRight.y + delta);
+  result.bottomLeft.x = clampNonNegative(result.bottomLeft.x + delta);
+  result.bottomLeft.y = clampNonNegative(result.bottomLeft.y + delta);
+  return result;
+}
+
+function cloneRadius(radius: Radius): Radius {
+  return {
+    topLeft: { x: radius.topLeft.x, y: radius.topLeft.y },
+    topRight: { x: radius.topRight.x, y: radius.topRight.y },
+    bottomRight: { x: radius.bottomRight.x, y: radius.bottomRight.y },
+    bottomLeft: { x: radius.bottomLeft.x, y: radius.bottomLeft.y },
+  };
+}
+
+function buildShadowWeights(steps: number): number[] {
+  if (steps <= 1) {
+    return [1];
+  }
+  const weights: number[] = [];
+  let total = 0;
+  for (let index = 0; index < steps; index++) {
+    const weight = steps - index;
+    weights.push(weight);
+    total += weight;
+  }
+  return weights.map((weight) => weight / total);
+}
+
+function clampNonNegative(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  return value < 0 ? 0 : value;
+}
+
+function clampUnit(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 1;
+  }
+  if (value <= 0) {
+    return 0;
+  }
+  if (value >= 1) {
+    return 1;
+  }
+  return value;
 }
 
 function paintBackgrounds(painter: PagePainter, boxes: RenderBox[]): void {

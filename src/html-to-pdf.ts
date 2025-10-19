@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { LayoutNode } from "./dom/node.js";
 import { ComputedStyle } from "./css/style.js";
-import type { StyleProperties } from "./css/style.js";
+import type { StyleProperties, BoxShadow } from "./css/style.js";
 import { BorderModel, Display, FloatMode } from "./css/enums.js";
 import { BrowserDefaults, ElementSpecificDefaults } from "./css/browser-defaults.js";
 import { parseFontWeightValue, normalizeFontWeight } from "./css/font-weight.js";
@@ -33,6 +33,7 @@ interface StyleAccumulator {
   color?: string;
   backgroundColor?: string;
   borderColor?: string;
+  boxShadows?: BoxShadow[];
   borderTop?: number;
   borderRight?: number;
   borderBottom?: number;
@@ -431,6 +432,7 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
   if (styleInit.color !== undefined) styleOptions.color = styleInit.color;
   if (styleInit.backgroundColor !== undefined) styleOptions.backgroundColor = styleInit.backgroundColor;
   if (styleInit.borderColor !== undefined) styleOptions.borderColor = styleInit.borderColor;
+  if (styleInit.boxShadows !== undefined) styleOptions.boxShadows = [...styleInit.boxShadows];
   if (styleInit.fontSize !== undefined) styleOptions.fontSize = styleInit.fontSize;
   if (styleInit.lineHeight !== undefined) styleOptions.lineHeight = styleInit.lineHeight;
   if (styleInit.fontFamily !== undefined) styleOptions.fontFamily = styleInit.fontFamily;
@@ -594,6 +596,13 @@ function applyDeclarationsToStyle(declarations: Record<string, string>, target: 
           target.borderColor = color;
         });
         break;
+      case "box-shadow": {
+        const parsed = parseBoxShadowList(value);
+        if (parsed !== undefined) {
+          target.boxShadows = parsed;
+        }
+        break;
+      }
       case "border":
         applyBorderShorthand(value, (width) => {
           target.borderTop = width;
@@ -1089,6 +1098,128 @@ function parseBorderWidth(value: string): number | undefined {
     return BORDER_WIDTH_KEYWORD_MAP[trimmed];
   }
   return parseLength(value);
+}
+
+function parseBoxShadowList(value: string): BoxShadow[] | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const keyword = trimmed.toLowerCase();
+  if (keyword === "none" || keyword === "initial") {
+    return [];
+  }
+  if (keyword === "inherit" || keyword === "revert" || keyword === "revert-layer") {
+    return undefined;
+  }
+  const layers = splitCssCommaList(trimmed);
+  const result: BoxShadow[] = [];
+  for (const layer of layers) {
+    const parsed = parseSingleBoxShadow(layer);
+    if (parsed) {
+      result.push(parsed);
+    }
+  }
+  return result;
+}
+
+function parseSingleBoxShadow(input: string): BoxShadow | null {
+  const tokens = splitCssList(input);
+  if (tokens.length === 0) {
+    return null;
+  }
+  let inset = false;
+  const lengths: number[] = [];
+  let color: string | undefined;
+
+  for (const token of tokens) {
+    const lowered = token.toLowerCase();
+    if (lowered === "inset") {
+      inset = true;
+      continue;
+    }
+    const length = parseLength(token);
+    if (length !== undefined) {
+      lengths.push(length);
+      continue;
+    }
+    if (color === undefined) {
+      color = token;
+      continue;
+    }
+    return null;
+  }
+
+  if (lengths.length < 2) {
+    return null;
+  }
+
+  const offsetX = lengths[0];
+  const offsetY = lengths[1];
+  const blurRadius = clampNonNegative(lengths[2] ?? 0);
+  const spreadRadius = lengths[3] ?? 0;
+
+  return {
+    inset,
+    offsetX,
+    offsetY,
+    blurRadius,
+    spreadRadius,
+    color,
+  };
+}
+
+function splitCssCommaList(value: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let depth = 0;
+  let quote: string | null = null;
+
+  for (const char of value) {
+    if (quote) {
+      current += char;
+      if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (char === "'" || char === "\"") {
+      quote = char;
+      current += char;
+      continue;
+    }
+    if (char === "(") {
+      depth += 1;
+      current += char;
+      continue;
+    }
+    if (char === ")") {
+      depth = Math.max(0, depth - 1);
+      current += char;
+      continue;
+    }
+    if (char === "," && depth === 0) {
+      if (current.trim()) {
+        result.push(current.trim());
+      }
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+
+  if (current.trim()) {
+    result.push(current.trim());
+  }
+
+  return result;
+}
+
+function clampNonNegative(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  return value < 0 ? 0 : value;
 }
 
 function splitCssList(value: string): string[] {
