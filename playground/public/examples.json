@@ -49,5 +49,10 @@
     "id": "bold-strike-example",
     "label": "Bold and Strike Typography Example",
     "htmlUrl": "examples/bold-strike-example.html"
+  },
+  {
+    "id": "rounded-borders-test",
+    "label": "Rounded Borders Test",
+    "htmlUrl": "examples/rounded-borders-test.html"
   }
 ]

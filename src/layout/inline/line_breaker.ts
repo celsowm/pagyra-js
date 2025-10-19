@@ -20,7 +20,7 @@ export type ComputedStyle = {
   fontWeight?: number;
   fontStyle?: string;
   lineHeightPx: number;
-  whiteSpace?: 'normal'|'nowrap'|'pre'|'pre-wrap';
+  whiteSpace?: 'normal'|'nowrap'|'pre'|'pre-wrap'|'pre-line';
   overflowWrap?: 'normal'|'break-word'|'anywhere';
   wordBreak?: 'normal'|'break-all'|'keep-all';
 };

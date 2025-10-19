@@ -197,21 +197,18 @@ export function breakTextIntoLines(text: string, style: ComputedStyle, available
         lines.push(line);
       }
     };
-    for (const item of items) {
-      if (trimEdges && item.type === "space" && currentItems.length === 0) {
-        continue;
-      }
-      if (item.type === 'word' && currentItems.length > 0 && currentWidth + item.width > availableWidth) {
-        pushCurrent();
-        currentWidth = 0;
-        currentItems = [];
-        if (trimEdges && item.type === "space") {
-          continue;
-        }
-      }
-      currentItems.push(item);
-      currentWidth += item.width;
+  for (const item of items) {
+    if (trimEdges && item.type === "space" && currentItems.length === 0) {
+      continue;
     }
+    if (item.type === 'word' && currentItems.length > 0 && currentWidth + item.width > availableWidth) {
+      pushCurrent();
+      currentWidth = 0;
+      currentItems = [];
+    }
+    currentItems.push(item);
+    currentWidth += item.width;
+  }
     if (currentItems.length > 0) {
       pushCurrent();
     }

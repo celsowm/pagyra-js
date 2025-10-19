@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rounded Borders Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .border-box {
+            padding: 20px;
+            border: 2px solid #333;
+            background-color: #f9f9f9;
+            text-align: center;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Rounded Borders Test</h1>
+
+    <h2>Basic Border Radius</h2>
+    <div class="container">
+        <div>
+            <div class="label">No Radius</div>
+            <div class="border-box" style="border-radius: 0;">
+                border-radius: 0
+            </div>
+        </div>
+        <div>
+            <div class="label">Small Radius</div>
+            <div class="border-box" style="border-radius: 5px;">
+                border-radius: 5px
+            </div>
+        </div>
+        <div>
+            <div class="label">Medium Radius</div>
+            <div class="border-box" style="border-radius: 15px;">
+                border-radius: 15px
+            </div>
+        </div>
+        <div>
+            <div class="label">Large Radius</div>
+            <div class="border-box" style="border-radius: 25px;">
+                border-radius: 25px
+            </div>
+        </div>
+    </div>
+
+    <h2>Individual Corner Radius</h2>
+    <div class="container">
+        <div>
+            <div class="label">Top Left Only</div>
+            <div class="border-box" style="border-radius: 20px 0 0 0;">
+                border-radius: 20px 0 0 0
+            </div>
+        </div>
+        <div>
+            <div class="label">Bottom Right Only</div>
+            <div class="border-box" style="border-radius: 0 0 20px 0;">
+                border-radius: 0 0 20px 0
+            </div>
+        </div>
+        <div>
+            <div class="label">Top Corners</div>
+            <div class="border-box" style="border-radius: 20px 20px 0 0;">
+                border-radius: 20px 20px 0 0
+            </div>
+        </div>
+        <div>
+            <div class="label">Left Corners</div>
+            <div class="border-box" style="border-radius: 20px 0 0 20px;">
+                border-radius: 20px 0 0 20px
+            </div>
+        </div>
+    </div>
+
+    <h2>Elliptical Radius</h2>
+    <div class="container">
+        <div>
+            <div class="label">Horizontal Oval</div>
+            <div class="border-box" style="border-radius: 50px / 25px;">
+                border-radius: 50px / 25px
+            </div>
+        </div>
+        <div>
+            <div class="label">Vertical Oval</div>
+            <div class="border-box" style="border-radius: 25px / 50px;">
+                border-radius: 25px / 50px
+            </div>
+        </div>
+        <div>
+            <div class="label">Circle</div>
+            <div class="border-box" style="border-radius: 50%;">
+                border-radius: 50%
+            </div>
+        </div>
+    </div>
+
+    <h2>Colored Borders</h2>
+    <div class="container">
+        <div>
+            <div class="label">Red Border</div>
+            <div class="border-box" style="border-radius: 15px; border-color: #ff6b6b;">
+                Red rounded border
+            </div>
+        </div>
+        <div>
+            <div class="label">Blue Border</div>
+            <div class="border-box" style="border-radius: 15px; border-color: #4ecdc4;">
+                Blue rounded border
+            </div>
+        </div>
+        <div>
+            <div class="label">Green Border</div>
+            <div class="border-box" style="border-radius: 15px; border-color: #45b7d1;">
+                Green rounded border
+            </div>
+        </div>
+    </div>
+</body>
+</html>
