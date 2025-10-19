@@ -1,5 +1,6 @@
 // ===== text/line-breaker.ts =====
 
+import { WhiteSpace } from "../css/enums.js";
 import { ComputedStyle } from "../css/style.js";
 import { estimateLineWidth } from "../layout/utils/text-metrics.js"; // Precisaremos exportar esta função
 
@@ -66,6 +67,44 @@ function countJustifiableSpaces(items: TextItem[]): number {
   return count;
 }
 
+function shouldTrimLineEdges(style: ComputedStyle): boolean {
+  const mode = style.whiteSpace;
+  return (
+    mode === WhiteSpace.Normal ||
+    mode === WhiteSpace.NoWrap ||
+    mode === WhiteSpace.PreLine
+  );
+}
+
+function buildLineBox(items: TextItem[], availableWidth: number, trimEdges: boolean): LineBox | null {
+  let start = 0;
+  let end = items.length;
+
+  if (trimEdges) {
+    while (start < end && items[start].type === "space") {
+      start += 1;
+    }
+    while (end > start && items[end - 1].type === "space") {
+      end -= 1;
+    }
+  }
+
+  if (start >= end) {
+    return null;
+  }
+
+  const trimmed = items.slice(start, end);
+  const text = trimmed.map((it) => it.text).join("");
+  const width = trimmed.reduce((sum, it) => sum + it.width, 0);
+
+  return {
+    text,
+    width,
+    spaceCount: countJustifiableSpaces(trimmed),
+    targetWidth: availableWidth,
+  };
+}
+
 /**
  * Implementa um algoritmo de quebra de linha inspirado em Knuth-Plass
  * usando programação dinâmica para encontrar o layout ótimo.
@@ -84,6 +123,7 @@ export function breakTextIntoLines(text: string, style: ComputedStyle, available
   const items = measureItems(rawItems, style);
   const n = items.length;
   if (n === 0) return [];
+  const trimEdges = shouldTrimLineEdges(style);
 
   // Check if entire text fits on one line - if so, don't break it
   const totalWidth = items.reduce((sum, it) => sum + it.width, 0);
@@ -105,24 +145,39 @@ export function breakTextIntoLines(text: string, style: ComputedStyle, available
 
   for (let i = 1; i <= n; i++) {
     let lineWidth = 0;
+    let hasWord = false;
     for (let j = i; j > 0; j--) {
       const item = items[j - 1];
-      
-      // Adiciona a largura do item atual. Se for um espaço entre palavras, usa a largura padrão do espaço.
+
+      if (item.type === "space") {
+        if (!hasWord && trimEdges) {
+          continue;
+        }
+        lineWidth += item.width;
+        if (lineWidth > availableWidth) {
+          break;
+        }
+        if (!trimEdges && !hasWord) {
+          const slack = availableWidth - lineWidth;
+          const cost = 100 + slack * slack;
+          if (memo[j - 1] + cost < memo[i]) {
+            memo[i] = memo[j - 1] + cost;
+            breaks[i] = j - 1;
+          }
+        }
+        continue;
+      }
+
       lineWidth += item.width;
+      hasWord = true;
 
       if (lineWidth > availableWidth) {
         break; // Esta linha é longa demais, não há como continuar a partir deste `j`.
       }
 
-      // Calcula a "feiura" (badness) desta linha potencial (de j a i).
-      // Uma função de custo simples é o quadrado da diferença de espaço.
-      // Isso penaliza fortemente linhas desiguais.
       const slack = availableWidth - lineWidth;
-      // Um custo de 100 por linha para preferir menos linhas.
       const cost = 100 + slack * slack;
 
-      // Se encontramos um caminho melhor para o ponto `i`, atualize.
       if (memo[j - 1] + cost < memo[i]) {
         memo[i] = memo[j - 1] + cost;
         breaks[i] = j - 1;
@@ -134,30 +189,31 @@ export function breakTextIntoLines(text: string, style: ComputedStyle, available
   // a linha, então recorremos a uma quebra forçada.
   if (!isFinite(memo[n])) {
     const lines: LineBox[] = [];
-    let currentLine = "";
     let currentWidth = 0;
     let currentItems: TextItem[] = [];
     const pushCurrent = () => {
-      lines.push({
-        text: currentLine,
-        width: currentWidth,
-        spaceCount: countJustifiableSpaces(currentItems),
-        targetWidth: availableWidth,
-      });
+      const line = buildLineBox(currentItems, availableWidth, trimEdges);
+      if (line) {
+        lines.push(line);
+      }
     };
     for (const item of items) {
-      if (item.type === 'word' && currentLine && currentWidth + item.width > availableWidth) {
+      if (trimEdges && item.type === "space" && currentItems.length === 0) {
+        continue;
+      }
+      if (item.type === 'word' && currentItems.length > 0 && currentWidth + item.width > availableWidth) {
         pushCurrent();
-        currentLine = "";
         currentWidth = 0;
         currentItems = [];
+        if (trimEdges && item.type === "space") {
+          continue;
+        }
       }
-      currentLine += item.text;
-      currentWidth += item.width;
       currentItems.push(item);
+      currentWidth += item.width;
     }
-    if (currentLine) {
-        pushCurrent();
+    if (currentItems.length > 0) {
+      pushCurrent();
     }
     return lines;
   }
@@ -168,15 +224,10 @@ export function breakTextIntoLines(text: string, style: ComputedStyle, available
   while (current > 0) {
     const prev = breaks[current];
     const lineItems = items.slice(prev, current);
-    const text = lineItems.map((it) => it.text).join("");
-    const width = lineItems.reduce((sum, it) => sum + it.width, 0);
-    const spaceCount = countJustifiableSpaces(lineItems);
-    lines.unshift({
-      text,
-      width,
-      spaceCount,
-      targetWidth: availableWidth,
-    });
+    const line = buildLineBox(lineItems, availableWidth, trimEdges);
+    if (line) {
+      lines.unshift(line);
+    }
     current = prev;
   }
 
