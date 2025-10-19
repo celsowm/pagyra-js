@@ -54,5 +54,10 @@
     "id": "rounded-borders-test",
     "label": "Rounded Borders Test",
     "htmlUrl": "examples/rounded-borders-test.html"
+  },
+  {
+    "id": "simple-list",
+    "label": "Simple List Example",
+    "htmlUrl": "examples/simple-list.html"
   }
 ]
