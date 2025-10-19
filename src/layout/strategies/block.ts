@@ -28,12 +28,14 @@ export class BlockLayoutStrategy implements LayoutStrategy {
     const cb = containingBlock(node, context.env.viewport);
     node.establishesBFC = establishesBFC(node);
 
-    const contentWidth = resolveWidthBlock(node, cb.width);
+    let contentWidth = resolveWidthBlock(node, cb.width);
+    const availableWidth = contentWidth;
     node.box.contentWidth = contentWidth;
 
     const horizontalExtras = horizontalNonContent(node, contentWidth);
+    const horizontalMarginSize = horizontalMargin(node, contentWidth);
     node.box.borderBoxWidth = contentWidth + horizontalExtras;
-    node.box.marginBoxWidth = node.box.borderBoxWidth + horizontalMargin(node, contentWidth);
+    node.box.marginBoxWidth = node.box.borderBoxWidth + horizontalMarginSize;
 
     const paddingLeft = resolveLength(node.style.paddingLeft, contentWidth, { auto: "zero" });
     const borderLeft = resolveLength(node.style.borderLeft, contentWidth, { auto: "zero" });
@@ -124,6 +126,38 @@ export class BlockLayoutStrategy implements LayoutStrategy {
       cursorY = child.box.y + child.box.borderBoxHeight + childMarginBottom;
     }
 
+    const measuredContentWidth = measureInFlowContentWidth(node, contentWidth, contentX);
+    if (Number.isFinite(measuredContentWidth)) {
+      const intrinsicWidth = Math.max(0, measuredContentWidth);
+      node.box.scrollWidth = Math.max(node.box.scrollWidth, intrinsicWidth);
+
+      if (node.style.display === Display.InlineBlock && node.style.width === "auto") {
+        const minWidth =
+          node.style.minWidth !== undefined ? resolveLength(node.style.minWidth, cb.width, { auto: "zero" }) : undefined;
+        const maxWidth =
+          node.style.maxWidth !== undefined
+            ? resolveLength(node.style.maxWidth, cb.width, { auto: "reference" })
+            : undefined;
+
+        let targetContentWidth = intrinsicWidth;
+        targetContentWidth = Math.min(targetContentWidth, availableWidth);
+        if (minWidth !== undefined) {
+          targetContentWidth = Math.max(targetContentWidth, minWidth);
+        }
+        if (maxWidth !== undefined) {
+          targetContentWidth = Math.min(targetContentWidth, maxWidth);
+        }
+        targetContentWidth = Math.max(0, targetContentWidth);
+
+        if (targetContentWidth !== node.box.contentWidth) {
+          node.box.contentWidth = targetContentWidth;
+          contentWidth = targetContentWidth;
+          node.box.borderBoxWidth = node.box.contentWidth + horizontalExtras;
+          node.box.marginBoxWidth = node.box.borderBoxWidth + horizontalMarginSize;
+        }
+      }
+    }
+
     const floatBottom = Math.max(floatContext.bottom("left"), floatContext.bottom("right"));
     const effectiveCursor = Math.max(cursorY, floatBottom);
     node.box.contentHeight = Math.max(0, effectiveCursor - (node.box.y + borderTop) - paddingTop);
@@ -152,4 +186,43 @@ function isInlineLevel(node: LayoutNode): boolean {
     default:
       return false;
   }
+}
+
+function measureInFlowContentWidth(node: LayoutNode, referenceWidth: number, contentStartX: number): number {
+  let minStart = 0;
+  let maxEnd = 0;
+  let hasContent = false;
+
+  for (const child of node.children) {
+    if (!inFlow(child)) {
+      continue;
+    }
+    if (child.style.display === Display.None) {
+      continue;
+    }
+
+    const marginLeft = resolveLength(child.style.marginLeft, referenceWidth, { auto: "zero" });
+    const marginRight = resolveLength(child.style.marginRight, referenceWidth, { auto: "zero" });
+    const borderLeft = resolveLength(child.style.borderLeft, referenceWidth, { auto: "zero" });
+    const borderRight = resolveLength(child.style.borderRight, referenceWidth, { auto: "zero" });
+    const paddingLeft = resolveLength(child.style.paddingLeft, referenceWidth, { auto: "zero" });
+    const paddingRight = resolveLength(child.style.paddingRight, referenceWidth, { auto: "zero" });
+
+    const borderBoxWidth = child.box.borderBoxWidth || Math.max(0, child.box.contentWidth + paddingLeft + paddingRight + borderLeft + borderRight);
+    const marginBoxWidth = borderBoxWidth + marginLeft + marginRight;
+    const marginStart = child.box.x - paddingLeft - borderLeft - marginLeft;
+    const relativeStart = marginStart - contentStartX;
+    const relativeEnd = relativeStart + marginBoxWidth;
+
+    minStart = Math.min(minStart, relativeStart);
+    maxEnd = Math.max(maxEnd, relativeEnd);
+    hasContent = true;
+  }
+
+  if (!hasContent) {
+    return 0;
+  }
+
+  const minOffset = Math.min(minStart, 0);
+  return Math.max(0, maxEnd - minOffset);
 }

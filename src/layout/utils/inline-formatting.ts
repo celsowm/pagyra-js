@@ -1,7 +1,7 @@
 import { LayoutNode } from "../../dom/node.js";
 import { Display, FloatMode } from "../../css/enums.js";
 import { resolvedLineHeight } from "../../css/style.js";
-import { resolveLength } from "../../css/length.js";
+import { clampMinMax, resolveLength } from "../../css/length.js";
 import { FloatContext } from "../context/float-context.js";
 import type { LayoutContext } from "../pipeline/strategy.js";
 import { breakTextIntoLines } from "../../text/line-breaker.js";
@@ -154,6 +154,16 @@ function measureInlineNode(node: LayoutNode, containerWidth: number, context: La
     contentWidth = Math.max(contentWidth, inlineChildrenResult.contentWidth);
     contentHeight = Math.max(contentHeight, inlineChildrenResult.contentHeight);
   }
+
+  if (node.style.display === Display.InlineBlock && node.style.width === "auto") {
+    const intrinsicWidth = node.box.scrollWidth;
+    if (Number.isFinite(intrinsicWidth) && intrinsicWidth > 0 && intrinsicWidth < contentWidth) {
+      const minWidth = node.style.minWidth !== undefined ? resolveLength(node.style.minWidth, containerWidth, { auto: "zero" }) : undefined;
+      const maxWidth = node.style.maxWidth !== undefined ? resolveLength(node.style.maxWidth, containerWidth, { auto: "reference" }) : undefined;
+      const clamped = clampMinMax(intrinsicWidth, minWidth, maxWidth);
+      contentWidth = Math.min(clamped, contentWidth);
+    }
+  }
   
   if (contentWidth === 0 && !node.textContent) {
     if (typeof node.style.width === "number") {
@@ -193,8 +203,8 @@ function measureInlineNode(node: LayoutNode, containerWidth: number, context: La
   node.box.borderBoxHeight = contentHeight + paddingTop + paddingBottom + borderTop + borderBottom;
   node.box.marginBoxWidth = node.box.borderBoxWidth + marginLeft + marginRight;
   node.box.marginBoxHeight = node.box.borderBoxHeight + marginTop + marginBottom;
-  node.box.scrollWidth = node.box.contentWidth;
-  node.box.scrollHeight = node.box.contentHeight;
+  node.box.scrollWidth = Math.max(node.box.scrollWidth, node.box.contentWidth);
+  node.box.scrollHeight = Math.max(node.box.scrollHeight, node.box.contentHeight);
 
   return {
     node,

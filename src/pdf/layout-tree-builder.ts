@@ -255,15 +255,9 @@ function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheritedDeco
   // Se o layout calculou caixas de linha, use-as.
   if (node.lineBoxes && node.lineBoxes.length > 0) {
     const lineHeight = resolvedLineHeight(node.style);
+    const contentWidth = Math.max(node.box.contentWidth, 0);
     // Alignment logic
-    let alignX = node.box.x;
     let alignY = node.box.y;
-    // Horizontal alignment (approximate: use contentWidth)
-    if (effectiveTextAlign === "center") {
-      alignX = node.box.x + node.box.contentWidth / 2;
-    } else if (effectiveTextAlign === "right") {
-      alignX = node.box.x + node.box.contentWidth;
-    }
     // Vertical alignment
     let totalTextHeight = node.lineBoxes.length * lineHeight;
     if (node.style.verticalAlign === "middle") {
@@ -275,20 +269,26 @@ function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheritedDeco
     for (let i = 0; i < node.lineBoxes.length; i++) {
       const line = node.lineBoxes[i];
       const normalizedText = line.text.normalize("NFC");
+      const baseWidth = line.width ?? estimateLineWidth(normalizedText, node.style);
       const lineYOffset = i * lineHeight;
       const baseline = alignY + lineYOffset + fontSize;
+      let startX = node.box.x;
+      if (effectiveTextAlign === "center") {
+        startX = node.box.x + Math.max((contentWidth - baseWidth) / 2, 0);
+      } else if (effectiveTextAlign === "right") {
+        startX = node.box.x + Math.max(contentWidth - baseWidth, 0);
+      }
       let wordSpacing: number | undefined;
       if (justify && i < node.lineBoxes.length - 1) {
         const gapCount = line.spaceCount ?? 0;
         if (gapCount > 0) {
-          const targetWidth = line.targetWidth ?? node.box.contentWidth ?? line.width;
-          const slack = Math.max(targetWidth - line.width, 0);
+          const targetWidth = line.targetWidth ?? contentWidth ?? baseWidth;
+          const slack = Math.max(targetWidth - baseWidth, 0);
           if (slack > 0) {
             wordSpacing = slack / gapCount;
           }
         }
       }
-      const baseWidth = line.width ?? estimateLineWidth(normalizedText, node.style);
       const targetWidth = line.targetWidth ?? baseWidth;
       const advanceWidth =
         wordSpacing !== undefined && wordSpacing !== 0 && targetWidth > 0
@@ -300,7 +300,7 @@ function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheritedDeco
         fontSize,
         fontWeight,
         fill: defaultColor,
-        lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: alignX, f: baseline },
+        lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: startX, f: baseline },
         wordSpacing,
         decorations: decoration ? { ...decoration } : undefined,
         advanceWidth,
@@ -316,6 +316,13 @@ function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheritedDeco
     // Se não houver lineBoxes, a baseline é a calculada para a caixa inteira.
     const baseline = node.box.baseline > 0 ? node.box.baseline : node.box.y + node.box.contentHeight;
     const advanceWidth = Math.max(estimateLineWidth(normalized, node.style), 0);
+    const contentWidth = Math.max(node.box.contentWidth, 0);
+    let startX = node.box.x;
+    if (effectiveTextAlign === "center") {
+      startX = node.box.x + Math.max((contentWidth - advanceWidth) / 2, 0);
+    } else if (effectiveTextAlign === "right") {
+      startX = node.box.x + Math.max(contentWidth - advanceWidth, 0);
+    }
 
     return [{
       text: normalized,
@@ -323,7 +330,7 @@ function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheritedDeco
       fontSize,
       fontWeight,
       fill: defaultColor,
-      lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: node.box.x, f: baseline },
+      lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: startX, f: baseline },
       decorations: decoration ? { ...decoration } : undefined,
       advanceWidth,
     }];
