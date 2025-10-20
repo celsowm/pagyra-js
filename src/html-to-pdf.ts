@@ -15,12 +15,7 @@ import type { RenderBox, Rect } from "./pdf/types.js";
 import { ImageService } from "./image/image-service.js";
 import { ImageStrategy } from "./layout/strategies/image.js";
 import type { ImageInfo } from "./image/types.js";
-
-type CssDeclaration = cssParser.Declaration;
-type CssRule = cssParser.Rule;
-type DomElement = any;
-
-import { makeUnitParsers } from './units/units.js';
+import { makeUnitParsers, type UnitCtx } from './units/units.js';
 import { parseCss } from './html/css/parse-css.js';
 import type { CssRuleEntry, DomEl } from './html/css/parse-css.js';
 import { configureDebug, log, type LogCat, type LogLevel } from "./debug/log.js";
@@ -125,6 +120,7 @@ export interface PreparedRender {
 interface ConversionContext {
   resourceBaseDir: string;
   assetRootDir: string;
+  units: UnitParsers;
 }
 
 let CURRENT_VIEWPORT_WIDTH_PX = 0;
@@ -146,6 +142,9 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
     configureDebug("DEBUG", ["RENDER_TREE"]);
   }
 
+  const unitCtx: UnitCtx = { viewport: { width: viewportWidth, height: viewportHeight } };
+  const units = makeUnitParsers(unitCtx);
+
   const { document } = parseHTML(html);
   log("PARSE","DEBUG","DOM parsed", {
     hasBody: !!document.body,
@@ -162,18 +161,18 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
       }
     }
   }
-  const cssRules = buildCssRules(mergedCss);
+  const cssRules = parseCss(mergedCss);
   log("PARSE","DEBUG","CSS rules", { count: cssRules.length });
 
   const baseParentStyle = new ComputedStyle();
-  const bodyElement = (document.body ?? document.documentElement) as DomElement | null;
-  const rootStyle = bodyElement ? computeStyleForElement(bodyElement, cssRules, baseParentStyle) : baseParentStyle;
+  const bodyElement = (document.body ?? document.documentElement) as DomEl | null;
+  const rootStyle = bodyElement ? computeStyleForElement(bodyElement, cssRules, baseParentStyle, units) : baseParentStyle;
   const rootTagName = bodyElement?.tagName ? bodyElement.tagName.toLowerCase() : undefined;
   const rootLayout = new LayoutNode(rootStyle, [], { tagName: rootTagName });
 
   const resourceBaseDir = path.resolve(options.resourceBaseDir ?? options.assetRootDir ?? process.cwd());
   const assetRootDir = path.resolve(options.assetRootDir ?? resourceBaseDir);
-  const context: ConversionContext = { resourceBaseDir, assetRootDir };
+  const context: ConversionContext = { resourceBaseDir, assetRootDir, units };
 
   if (bodyElement) {
     const childNodes = Array.from(bodyElement.childNodes ?? []) as Node[];
@@ -266,7 +265,7 @@ async function convertDomNode(
 
   if (node.nodeType !== node.ELEMENT_NODE) return null;
 
-  const element = node as DomElement;
+  const element = node as DomEl;
   const tagName = element.tagName.toLowerCase();
   if (tagName === "script" || tagName === "style") return null;
 
@@ -288,7 +287,7 @@ async function convertDomNode(
   }
 
   // ✅ Coalescing de #text
-  const ownStyle = computeStyleForElement(element, cssRules, parentStyle);
+  const ownStyle = computeStyleForElement(element, cssRules, parentStyle, context.units);
   const layoutChildren: LayoutNode[] = [];
   let textBuf = "";
 
@@ -339,7 +338,7 @@ async function convertDomNode(
   return new LayoutNode(ownStyle, layoutChildren, { tagName });
 }
 
-function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], parentStyle: ComputedStyle, units?: UnitParsers): ComputedStyle {
+function computeStyleForElement(element: DomEl, cssRules: CssRuleEntry[], parentStyle: ComputedStyle, units: UnitParsers): ComputedStyle {
   const tagName = element.tagName.toLowerCase();
 
   // Get element-specific defaults from browser defaults system
@@ -383,7 +382,6 @@ function computeStyleForElement(element: DomElement, cssRules: CssRuleEntry[], p
   Object.assign(aggregated, inlineStyle);
 
   // Apply declarations to style accumulator
-  if (!units) units = { parseLength };
   applyDeclarationsToStyle(aggregated, styleInit, units, inherited.fontWeight ?? mergedDefaults.fontWeight);
 
   // Determine final display value
@@ -1570,12 +1568,12 @@ export function resolvePageMarginsPx(pageWidthPx: number, pageHeightPx: number):
  * Converts an HTML img element to a LayoutNode with proper image handling
  */
 async function convertImageElement(
-  element: DomElement,
+  element: DomEl,
   cssRules: CssRuleEntry[],
   parentStyle: ComputedStyle,
   context: ConversionContext,
 ): Promise<LayoutNode> {
-  const style = computeStyleForElement(element, cssRules, parentStyle);
+  const style = computeStyleForElement(element, cssRules, parentStyle, context.units);
   const srcAttr = element.getAttribute("src")?.trim() ?? "";
 
   const widthAttr = element.getAttribute("width");
@@ -1685,80 +1683,7 @@ function isHttpUrl(value: string): boolean {
   return /^https?:\/\//i.test(value);
 }
 
-function buildCssRules(cssText: string): CssRuleEntry[] {
-  if (!cssText.trim()) {
-    return [];
-  }
-  const stylesheet = cssParser.parse(cssText);
-  const result: CssRuleEntry[] = [];
-  const rules = stylesheet.stylesheet?.rules ?? [];
-  for (const rule of rules) {
-    if (rule.type !== "rule") {
-      continue;
-    }
-    const typedRule = rule as CssRule;
-    const selectors = typedRule.selectors ?? [];
-    const decls = typedRule.declarations ?? [];
-    const declarations: Record<string, string> = {};
-    for (const decl of decls) {
-      if (!decl || decl.type !== "declaration") {
-        continue;
-      }
-      const declaration = decl as CssDeclaration;
-      if (!declaration.property || declaration.value === undefined) {
-        continue;
-      }
-      declarations[declaration.property.trim().toLowerCase()] = declaration.value.trim();
-    }
-    for (const selector of selectors) {
-      const matcher = createSelectorMatcher(selector.trim());
-      if (!matcher) {
-        continue;
-      }
-      result.push({ selector, match: matcher, declarations: { ...declarations } });
-    }
-  }
-  return result;
-}
 
-function createSelectorMatcher(selector: string): ((element: DomElement) => boolean) | null {
-  if (!selector || selector.includes(" ")) {
-    return null;
-  }
-
-  let working = selector;
-  let id: string | null = null;
-  const classes: string[] = [];
-
-  const idMatch = working.match(/#[^.#]+/g);
-  if (idMatch) {
-    id = idMatch[0].slice(1);
-    working = working.replace(idMatch[0], "");
-  }
-
-  const classMatches = working.match(/\.[^.#]+/g) ?? [];
-  for (const cls of classMatches) {
-    classes.push(cls.slice(1));
-    working = working.replace(cls, "");
-  }
-
-  const tag = working.length > 0 ? working.toLowerCase() : null;
-
-  return (element: DomElement) => {
-    if (tag && element.tagName.toLowerCase() !== tag) {
-      return false;
-    }
-    if (id && element.id !== id) {
-      return false;
-    }
-    for (const cls of classes) {
-      if (!element.classList.contains(cls)) {
-        return false;
-      }
-    }
-    return true;
-  };
-}
 
 export function sanitizeDimension(value: number | undefined, fallback: number): number {
   if (!Number.isFinite(value ?? NaN)) {
