@@ -32,6 +32,57 @@ export interface BoxShadow {
   color?: string;
 }
 
+// src/css/apply-declarations.ts
+export interface StyleAccumulator {
+  display?: Display;
+  float?: string;
+  color?: string;
+  backgroundColor?: string;
+  borderColor?: string;
+  boxShadows?: BoxShadow[];
+  borderTop?: number;
+  borderRight?: number;
+  borderBottom?: number;
+  borderLeft?: number;
+  borderTopLeftRadiusX?: number;
+  borderTopLeftRadiusY?: number;
+  borderTopRightRadiusX?: number;
+  borderTopRightRadiusY?: number;
+  borderBottomRightRadiusX?: number;
+  borderBottomRightRadiusY?: number;
+  borderBottomLeftRadiusX?: number;
+  borderBottomLeftRadiusY?: number;
+  marginTop?: number;
+  marginRight?: number;
+  marginBottom?: number;
+  marginLeft?: number;
+  paddingTop?: number;
+  paddingRight?: number;
+  paddingBottom?: number;
+  paddingLeft?: number;
+  width?: number;
+  minWidth?: number;
+  height?: number;
+  minHeight?: number;
+  maxHeight?: number;
+  fontSize?: number;
+  lineHeight?: number;
+  fontFamily?: string;
+  fontWeight?: number;
+  borderModel?: BorderModel;
+  maxWidth?: number;
+  textAlign?: string;
+  objectFit?: string;
+  backgroundSize?: string;
+  textDecorationLine?: string;
+  justifyContent?: JustifyContent;
+  alignItems?: AlignItems;
+  alignContent?: AlignContent;
+  alignSelf?: AlignSelfValue;
+  flexDirection?: FlexDirection;
+  flexWrap?: boolean;
+}
+
 export interface StyleProperties {
   textAlign?: string;
   verticalAlign?: string;

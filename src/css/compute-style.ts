@@ -2,9 +2,9 @@
 
 import { type DomEl, type CssRuleEntry } from "../html/css/parse-css.js";
 import { type UnitParsers } from "../units/units.js";
-import { ComputedStyle, type StyleProperties } from "./style.js";
+import { ComputedStyle, type StyleProperties, type StyleAccumulator } from "./style.js";
 import { ElementSpecificDefaults, BrowserDefaults } from "./browser-defaults.js";
-import { applyDeclarationsToStyle, type StyleAccumulator } from "./apply-declarations.js";
+import { applyDeclarationsToStyle } from "./apply-declarations.js";
 import { normalizeFontWeight } from './font-weight.js';
 import { FloatMode, Display } from "./enums.js";
 import { log } from "../debug/log.js";
