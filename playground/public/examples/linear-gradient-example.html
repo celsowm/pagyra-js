@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Linear Gradient Example</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      line-height: 1.6;
+    }
+    
+    .gradient-box {
+      width: 300px;
+      height: 200px;
+      margin: 20px 0;
+      padding: 20px;
+      color: white;
+      text-align: center;
+      font-weight: bold;
+    }
+    
+    .gradient-1 {
+      background-image: linear-gradient(to right, #ff7e5f, #feb47b);
+    }
+    
+    .gradient-2 {
+      background-image: linear-gradient(to bottom, #667eea, #764ba2);
+    }
+    
+    .gradient-3 {
+      background-image: linear-gradient(45deg, #f093fb, #f5576c);
+    }
+    
+    .gradient-4 {
+      background-image: linear-gradient(to right, #4facfe, #00f2fe);
+    }
+    
+    .gradient-5 {
+      background-image: linear-gradient(to right, #fa709a, #fee140);
+    }
+    
+    .gradient-with-stops {
+      background-image: linear-gradient(to right, #ff0000, #ffff00 50%, #0000ff);
+    }
+    
+    .section {
+      margin: 30px 0;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    
+    h2 {
+      color: #333;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 10px;
+    }
+    
+    .description {
+      margin-bottom: 15px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <h1>Linear Gradient Example</h1>
+  
+  <div class="section">
+    <h2>Horizontal Gradient (Left to Right)</h2>
+    <p class="description">background-image: linear-gradient(to right, #ff7e5f, #feb47b);</p>
+    <div class="gradient-box gradient-1">
+      Horizontal Gradient
+    </div>
+  </div>
+  
+  <div class="section">
+    <h2>Vertical Gradient (Top to Bottom)</h2>
+    <p class="description">background-image: linear-gradient(to bottom, #667eea, #764ba2);</p>
+    <div class="gradient-box gradient-2">
+      Vertical Gradient
+    </div>
+  </div>
+  
+  <div class="section">
+    <h2>Diagonal Gradient (45 degrees)</h2>
+    <p class="description">background-image: linear-gradient(45deg, #f093fb, #f5576c);</p>
+    <div class="gradient-box gradient-3">
+      Diagonal Gradient
+    </div>
+  </div>
+  
+  <div class="section">
+    <h2>Blue Cyan Gradient</h2>
+    <p class="description">background-image: linear-gradient(to right, #4facfe, #00f2fe);</p>
+    <div class="gradient-box gradient-4">
+      Blue Cyan Gradient
+    </div>
+  </div>
+  
+  <div class="section">
+    <h2>Pink Yellow Gradient</h2>
+    <p class="description">background-image: linear-gradient(to right, #fa709a, #fee140);</p>
+    <div class="gradient-box gradient-5">
+      Pink Yellow Gradient
+    </div>
+  </div>
+  
+  <div class="section">
+    <h2>Gradient with Color Stops</h2>
+    <p class="description">background-image: linear-gradient(to right, #ff0000, #ffff00 50%, #0000ff);</p>
+    <div class="gradient-box gradient-with-stops">
+      Gradient with Color Stops
+    </div>
+  </div>
+  
+  <div class="section">
+    <h2>What are Linear Gradients?</h2>
+    <p>
+      Linear gradients create smooth transitions between two or more colors along a straight line. 
+      They are commonly used for creating backgrounds, buttons, and other UI elements with visual appeal.
+    </p>
+    <p>
+      The syntax is: <code>linear-gradient(direction, color1, color2, ...)</code>
+    </p>
+    <p>
+      Direction can be specified as:
+    </p>
+    <ul>
+      <li>to top, to bottom, to left, to right</li>
+      <li>to top left, to top right, to bottom left, to bottom right</li>
+      <li>angles (e.g., 45deg, 90deg)</li>
+    </ul>
+  </div>
+</body>
+</html>

@@ -38,6 +38,7 @@ export interface StyleAccumulator {
   float?: string;
   color?: string;
   backgroundColor?: string;
+  backgroundImage?: string;
   borderColor?: string;
   boxShadows?: BoxShadow[];
   borderTop?: number;
@@ -123,6 +124,7 @@ export interface StyleProperties {
   borderBottomLeftRadiusX: number;
   borderBottomLeftRadiusY: number;
   backgroundColor?: string;
+  backgroundImage?: string;
   borderColor?: string;
   boxShadows: BoxShadow[];
   color?: string;
@@ -206,6 +208,7 @@ export class ComputedStyle implements StyleProperties {
   borderBottomLeftRadiusX: number;
   borderBottomLeftRadiusY: number;
   backgroundColor?: string;
+  backgroundImage?: string;
   borderColor?: string;
   boxShadows: BoxShadow[];
   color?: string;

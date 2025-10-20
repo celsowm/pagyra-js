@@ -17,6 +17,7 @@ import {
   parseFlexDirectionValue,
 } from "./parsers/flex-parser.js";
 import { parseLength, parseLineHeight, parseNumeric } from "./parsers/length-parser.js";
+import { parseLinearGradient } from "./parsers/gradient-parser.js";
 import { parseTextDecorationLine } from "./parsers/text-parser.js";
 import {
   applyBorderColorShorthand,
@@ -348,6 +349,13 @@ export function applyDeclarationsToStyle(
       case "background-size":
         target.backgroundSize = value.trim();
         break;
+      case "background-image": {
+        const gradient = parseLinearGradient(value);
+        if (gradient) {
+          target.backgroundImage = value.trim();
+        }
+        break;
+      }
       default:
         break;
     }

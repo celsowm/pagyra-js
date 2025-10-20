@@ -69,5 +69,10 @@
     "id": "png-image-example",
     "label": "PNG Image Example",
     "htmlUrl": "examples/png-image-example.html"
+  },
+  {
+    "id": "linear-gradient-example",
+    "label": "Linear Gradient Example",
+    "htmlUrl": "examples/linear-gradient-example.html"
   }
 ]
