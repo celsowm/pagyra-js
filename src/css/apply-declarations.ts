@@ -356,6 +356,18 @@ export function applyDeclarationsToStyle(
         }
         break;
       }
+      case "background": {
+        const trimmed = value.trim();
+        // minimal & safe:
+        // - gradient? route to the background-image path you already support
+        // - else treat as a color token and let the downstream color parser deal with it
+        if (trimmed.toLowerCase().startsWith("linear-gradient(")) {
+          target.backgroundImage = trimmed;
+        } else if (trimmed.length > 0) {
+          target.backgroundColor = trimmed;
+        }
+        break;
+      }
       default:
         break;
     }
