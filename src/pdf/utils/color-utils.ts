@@ -74,3 +74,29 @@ export function clampAlpha(value: number): number {
 export function cloneColor(color: RGBA): RGBA {
   return { r: color.r, g: color.g, b: color.b, a: color.a };
 }
+
+/**
+ * Converts a CSS color string to a PDF RGB color array [r, g, b] where values are normalized to 0-1.
+ * Ignores alpha channel.
+ */
+export function cssColorStringToPdfRgbArray(colorString: string): number[] | undefined {
+  const rgba = parseColor(colorString);
+  if (!rgba) return undefined;
+  return [rgba.r / 255, rgba.g / 255, rgba.b / 255];
+}
+
+/**
+ * Converts RGB values (0-255) to CMYK array [c, m, y, k] normalized to 0-1.
+ */
+export function rgbToCmyk(r: number, g: number, b: number): [number, number, number, number] {
+  const rNorm = Math.max(0, Math.min(1, r / 255));
+  const gNorm = Math.max(0, Math.min(1, g / 255));
+  const bNorm = Math.max(0, Math.min(1, b / 255));
+
+  const k = 1 - Math.max(rNorm, gNorm, bNorm);
+  const c = k === 1 ? 0 : (1 - rNorm - k) / (1 - k);
+  const m = k === 1 ? 0 : (1 - gNorm - k) / (1 - k);
+  const y = k === 1 ? 0 : (1 - bNorm - k) / (1 - k);
+
+  return [c, m, y, k];
+}
