@@ -16,6 +16,7 @@ interface PdfImageResource {
   bitsPerComponent: number;
   filter?: string;
   data: Uint8Array;
+  sMask?: PdfObjectRef;
 }
 
 interface PdfPage {
@@ -83,8 +84,42 @@ export class PdfDocument {
     bitsPerComponent: number;
     data: Uint8Array;
   }): PdfObjectRef {
+    if (image.format === 'png' && image.channels === 4) {
+      const rgbData = new Uint8Array(image.width * image.height * 3);
+      const alphaData = new Uint8Array(image.width * image.height);
+      for (let i = 0, j = 0, k = 0; i < image.data.length; i += 4, j += 3, k++) {
+        rgbData[j] = image.data[i];
+        rgbData[j + 1] = image.data[i + 1];
+        rgbData[j + 2] = image.data[i + 2];
+        alphaData[k] = image.data[i + 3];
+      }
+
+      const sMaskRef: PdfObjectRef = { objectNumber: -1 };
+      this.images.push({
+        ref: sMaskRef,
+        width: image.width,
+        height: image.height,
+        colorSpace: 'DeviceGray',
+        bitsPerComponent: 8,
+        data: alphaData,
+        sMask: undefined,
+      });
+
+      const ref: PdfObjectRef = { objectNumber: -1 };
+      this.images.push({
+        ref,
+        width: image.width,
+        height: image.height,
+        colorSpace: 'DeviceRGB',
+        bitsPerComponent: 8,
+        data: rgbData,
+        sMask: sMaskRef,
+      });
+      return ref;
+    }
+
     const colorSpace =
-      image.channels === 1 ? "DeviceGray" : image.channels === 4 ? "DeviceCMYK" : "DeviceRGB";
+      image.channels === 1 ? "DeviceGray" : image.channels === 3 ? "DeviceRGB" : "DeviceRGB";
     const filter = image.format === "jpeg" ? "DCTDecode" : undefined;
     const ref: PdfObjectRef = { objectNumber: -1 };
     this.images.push({
@@ -95,6 +130,7 @@ export class PdfDocument {
       bitsPerComponent: image.bitsPerComponent,
       filter,
       data: image.data.slice(),
+      sMask: undefined,
     });
     return ref;
   }
@@ -145,6 +181,9 @@ export class PdfDocument {
       ];
       if (image.filter) {
         entries.push(`/Filter /${image.filter}`);
+      }
+      if (image.sMask) {
+        entries.push(`/SMask ${image.sMask.objectNumber} 0 R`);
       }
       const stream = serializeStream(image.data, entries);
       image.ref = pushObject(stream, image.ref);

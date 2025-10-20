@@ -64,5 +64,10 @@
     "id": "centered-shadow-div",
     "label": "Centered Shadow Div Example",
     "htmlUrl": "examples/centered-shadow-div.html"
+  },
+  {
+    "id": "png-image-example",
+    "label": "PNG Image Example",
+    "htmlUrl": "examples/png-image-example.html"
   }
 ]

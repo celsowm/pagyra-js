@@ -73,18 +73,26 @@ export async function convertImageElement(
 
   let imageInfo: ImageInfo;
   try {
+    const imageService = ImageService.getInstance();
     if (isHttpUrl(resolvedSrc)) {
       throw new Error(`Remote images are not supported (${resolvedSrc})`);
     }
     if (resolvedSrc.startsWith("data:")) {
-      throw new Error("Data URI images are not supported yet.");
+      const match = resolvedSrc.match(/^data:image\/(.+);base64,(.+)$/);
+      if (!match) {
+        throw new Error("Invalid data URI");
+      }
+      const buffer = Buffer.from(match[2], "base64");
+      imageInfo = await imageService.decodeImage(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength), {
+        maxWidth: width,
+        maxHeight: height,
+      });
+    } else {
+      imageInfo = await imageService.loadImage(resolvedSrc, {
+        maxWidth: width,
+        maxHeight: height,
+      });
     }
-
-    const imageService = ImageService.getInstance();
-    imageInfo = await imageService.loadImage(resolvedSrc, {
-      maxWidth: width,
-      maxHeight: height,
-    });
 
     log("RENDER_TREE", "DEBUG", "Image loaded successfully", {
       src: srcAttr,

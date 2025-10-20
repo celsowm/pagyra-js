@@ -1,4 +1,5 @@
 import { JpegDecoder } from './jpeg-decoder.js';
+import { PngDecoder } from './png-decoder.js';
 import type { ImageInfo, ImageDecodeOptions } from './types.js';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -58,8 +59,7 @@ export class ImageService {
       case 'jpeg':
         return JpegDecoder.decode(buffer, options);
       case 'png':
-        // Placeholder for PNG decoder
-        return this.decodePng(buffer, options);
+        return PngDecoder.decode(buffer, options);
       case 'gif':
         // Placeholder for GIF decoder
         return this.decodeGif(buffer, options);
@@ -116,26 +116,6 @@ export class ImageService {
     throw new Error('Unknown image format');
   }
 
-  /**
-   * Placeholder PNG decoder
-   */
-  private decodePng(buffer: ArrayBuffer, options?: ImageDecodeOptions): ImageInfo {
-    // For now, return placeholder data
-    // In a full implementation, this would parse PNG chunks and decode the image
-    const width = options?.maxWidth || 100;
-    const height = options?.maxHeight || 100;
-    const pixelCount = width * height;
-    const imageData = new ArrayBuffer(pixelCount * 4); // RGBA
-    
-    return {
-      width,
-      height,
-      format: 'png',
-      channels: 4,
-      bitsPerChannel: 8,
-      data: imageData
-    };
-  }
 
   /**
    * Placeholder GIF decoder
