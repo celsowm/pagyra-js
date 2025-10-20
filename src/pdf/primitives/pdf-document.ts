@@ -47,6 +47,8 @@ export class PdfDocument {
   private readonly pages: PdfPage[] = [];
   private readonly images: PdfImageResource[] = [];
   private readonly extGStates = new Map<string, { ref: PdfObjectRef; alpha: number }>();
+  private readonly shadings = new Map<string, { ref: PdfObjectRef; dict: string }>();
+  private readonly patterns = new Map<string, { ref: PdfObjectRef; dict: string }>();
 
   constructor(private readonly metadata: PdfMetadata = {}) {}
 
@@ -144,6 +146,26 @@ export class PdfDocument {
     }
     const ref: PdfObjectRef = { objectNumber: -1 };
     this.extGStates.set(key, { ref, alpha: normalized });
+    return ref;
+  }
+
+  registerShading(name: string, dict: string): PdfObjectRef {
+    const existing = this.shadings.get(name);
+    if (existing) {
+      return existing.ref;
+    }
+    const ref: PdfObjectRef = { objectNumber: -1 };
+    this.shadings.set(name, { ref, dict });
+    return ref;
+  }
+
+  registerPattern(name: string, dict: string): PdfObjectRef {
+    const existing = this.patterns.get(name);
+    if (existing) {
+      return existing.ref;
+    }
+    const ref: PdfObjectRef = { objectNumber: -1 };
+    this.patterns.set(name, { ref, dict });
     return ref;
   }
 
