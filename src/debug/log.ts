@@ -1,6 +1,6 @@
 export type LogLevel = "ERROR" | "WARN" | "INFO" | "DEBUG" | "TRACE";
 
-export type LogCat = "PARSE" | "STYLE" | "LAYOUT" | "RENDER_TREE" | "PAINT" | "ENCODING" | "FONT" | "PDF";
+export type LogCat = "PARSE" | "STYLE" | "LAYOUT" | "RENDER_TREE" | "PAINT" | "ENCODING" | "FONT" | "SHADING" | "PDF";
 
 let CURRENT_LEVEL: LogLevel = "INFO";
 let ENABLED: Set<LogCat> = new Set();
