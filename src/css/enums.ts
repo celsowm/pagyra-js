@@ -120,3 +120,7 @@ export enum BorderModel {
   Separate = "separate",
   Collapse = "collapse",
 }
+
+export type FlexDirection = "row" | "row-reverse" | "column" | "column-reverse";
+
+export type AlignSelfValue = "auto" | AlignItems;

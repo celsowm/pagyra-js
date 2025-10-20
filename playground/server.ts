@@ -1,14 +1,14 @@
 import express from "express";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { renderHtmlToPdf } from "../src/html-to-pdf.js";
 import {
-  renderHtmlToPdf,
   DEFAULT_PAGE_WIDTH_PX,
   DEFAULT_PAGE_HEIGHT_PX,
   resolvePageMarginsPx,
   sanitizeDimension,
   maxContentDimension,
-} from "../src/html-to-pdf.js";
+} from "../src/units/page-utils.js";
 
 interface RenderRequestBody {
   html?: string;

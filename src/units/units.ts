@@ -21,3 +21,5 @@ export function makeUnitParsers(ctx: UnitCtx) {
     parseLength: (v: string) => parseLengthWithViewport(v, ctx),
   };
 }
+
+export type UnitParsers = ReturnType<typeof makeUnitParsers>;
