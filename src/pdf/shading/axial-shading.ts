@@ -1,7 +1,7 @@
 import { log } from "../../debug/log.js";
-import type { PdfObjectRef } from "../primitives/pdf-document.js";
-import type { LinearGradient } from "../../css/parsers/gradient-parser.js";
-import type { RGBA } from "../types.js";
+import type { PdfDocument, PdfObjectRef } from "../primitives/pdf-document.js";
+import type { LinearGradient, GradientStop } from "../../css/parsers/gradient-parser.js";
+import type { Rect } from "../types.js";
 
 /**
  * Axial Shading (Type 2) implementation for PDF linear gradients
@@ -13,14 +13,14 @@ export interface AxialShadingConfig {
   colorSpace: "DeviceRGB" | "DeviceCMYK";
   coords: [number, number, number, number]; // [x0, y0, x1, y1]
   domain: [number, number]; // [0, 1] for linear gradients
-  function: PdfFunction;
+  function: PdfObjectRef;
   extend: [boolean, boolean]; // [before, after]
 }
 
 export interface PdfFunction {
   type: 2; // Exponential interpolation function
   domain: [number, number];
-  range: [number, number, number]; // RGB range
+  range: [number, number, number, number, number, number]; // RGB range
   c0: [number, number, number]; // Start color
   c1: [number, number, number]; // End color
 }
@@ -32,16 +32,17 @@ export interface ShadingPattern {
 }
 
 export class AxialShadingGenerator {
-  private static readonly SHADING_COUNTER = "shading_counter";
-  private static readonly PATTERN_COUNTER = "pattern_counter";
+  private static shadingCounter = 0;
+  private static patternCounter = 0;
 
   /**
    * Generate axial shading configuration from CSS linear gradient
    */
   static createFromLinearGradient(
     gradient: LinearGradient,
-    rect: { x: number; y: number; width: number; height: number },
-    pxToPt: (value: number) => number
+    rect: Rect,
+    pxToPt: (value: number) => number,
+    pdfDocument: PdfDocument
   ): AxialShadingConfig {
     log("SHADING", "DEBUG", "Creating axial shading from linear gradient", {
       gradient,
@@ -52,14 +53,14 @@ export class AxialShadingGenerator {
     const coords = this.convertDirectionToCoords(gradient.direction, rect, pxToPt);
     
     // Create function for color interpolation
-    const functionDef = this.createFunctionFromStops(gradient.stops);
-    
+    const functionRef = this.createFunctionFromStops(gradient.stops, pdfDocument);
+
     const config: AxialShadingConfig = {
       shadingType: 2,
       colorSpace: "DeviceRGB",
       coords,
       domain: [0, 1],
-      function: functionDef,
+      function: functionRef,
       extend: [true, true], // Extend beyond endpoints like CSS
     };
 
@@ -76,7 +77,7 @@ export class AxialShadingGenerator {
    */
   private static convertDirectionToCoords(
     direction: string,
-    rect: { x: number; y: number; width: number; height: number },
+    rect: Rect,
     pxToPt: (value: number) => number
   ): [number, number, number, number] {
     const { x, y, width, height } = rect;
@@ -159,41 +160,27 @@ export class AxialShadingGenerator {
   /**
    * Create PDF function from gradient stops
    */
-  private static createFunctionFromStops(stops: GradientStop[]): PdfFunction {
+  private static createFunctionFromStops(stops: GradientStop[], pdfDocument: PdfDocument): PdfObjectRef {
     // For now, handle simple two-color gradients
     // TODO: Implement multi-stop gradients with function arrays
-    if (stops.length === 1) {
-      // Single color - duplicate it
-      const color = this.parseColor(stops[0].color);
-      return {
-        type: 2,
-        domain: [0, 1],
-        range: [0, 1, 1],
-        c0: color,
-        c1: color,
-      };
-    }
-
-    // Use first and last stops for now
     const firstStop = stops[0];
     const lastStop = stops[stops.length - 1];
 
     const c0 = this.parseColor(firstStop.color);
     const c1 = this.parseColor(lastStop.color);
 
-    log("SHADING", "DEBUG", "Created function from gradient stops", {
-      stops,
-      c0,
-      c1,
-    });
-
-    return {
+    const functionDef: PdfFunction = {
       type: 2,
       domain: [0, 1],
-      range: [0, 1, 1],
+      range: [0, 1, 0, 1, 0, 1], // RGB range
       c0,
       c1,
     };
+
+    const functionString = this.serializeFunction(functionDef);
+    // Functions don't have a name, so we use a unique key for registration
+    const functionKey = `func-${JSON.stringify(functionDef)}`;
+    return pdfDocument.registerShading(functionKey, functionString);
   }
 
   /**
@@ -238,49 +225,34 @@ export class AxialShadingGenerator {
    * Generate unique shading name
    */
   static generateShadingName(): string {
-    const counter = this.getCounter(AxialShadingGenerator.SHADING_COUNTER);
-    return `Sh${counter}`;
+    this.shadingCounter++;
+    return `Sh${this.shadingCounter}`;
   }
 
   /**
    * Generate unique pattern name
    */
   static generatePatternName(): string {
-    const counter = this.getCounter(AxialShadingGenerator.PATTERN_COUNTER);
-    return `P${counter}`;
-  }
-
-  private static getCounter(name: string): number {
-    const key = `pdf_${name}`;
-    let counter = parseInt(localStorage.getItem(key) || "0", 10);
-    counter++;
-    localStorage.setItem(key, counter.toString());
-    return counter;
+    this.patternCounter++;
+    return `P${this.patternCounter}`;
   }
 
   /**
    * Serialize axial shading to PDF dictionary format
    */
-  static serializeShading(config: AxialShadingConfig, name: string): string {
-    const entries = [
+  static serializeShading(config: AxialShadingConfig): string {
+    const shadingDict = [
+      `<<`,
       `/ShadingType ${config.shadingType}`,
       `/ColorSpace /${config.colorSpace}`,
       `/Coords [${config.coords.join(" ")}]`,
       `/Domain [${config.domain.join(" ")}]`,
+      `/Function ${config.function.objectNumber} 0 R`,
       `/Extend [${config.extend[0]} ${config.extend[1]}]`,
-    ];
-
-    // Add function definition
-    entries.push(this.serializeFunction(config.function));
-
-    const shadingDict = [
-      `<<`,
-      `/Shading << /ShadingType 2 /ColorSpace /DeviceRGB /Coords [${config.coords.join(" ")}] /Domain [0 1] /Function ${this.serializeFunctionRef(config.function)} /Extend [true true] >>`,
       `>>`,
     ].join("\n");
 
     log("SHADING", "TRACE", "Serialized shading dictionary", {
-      name,
       shadingDict,
     });
 
@@ -303,21 +275,13 @@ export class AxialShadingGenerator {
   }
 
   /**
-   * Get function reference for shading dictionary
-   */
-  private static serializeFunctionRef(functionDef: PdfFunction): string {
-    // For now, inline the function
-    return this.serializeFunction(functionDef);
-  }
-
-  /**
    * Serialize pattern to PDF dictionary format
    */
-  static serializePattern(pattern: ShadingPattern, shadingName: string, patternName: string): string {
+  static serializePattern(pattern: ShadingPattern, shadingRef: PdfObjectRef): string {
     const entries = [
       `/Type /Pattern`,
       `/PatternType 2`, // Shading pattern
-      `/Shading /${shadingName}`,
+      `/Shading ${shadingRef.objectNumber} 0 R`,
     ];
 
     if (pattern.matrix) {
@@ -331,15 +295,9 @@ export class AxialShadingGenerator {
     const patternDict = [`<<`, ...entries, `>>`].join("\n");
 
     log("SHADING", "TRACE", "Serialized pattern dictionary", {
-      patternName,
       patternDict,
     });
 
     return patternDict;
   }
-}
-
-interface GradientStop {
-  color: string;
-  position?: number;
 }

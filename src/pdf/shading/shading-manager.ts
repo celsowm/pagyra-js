@@ -39,16 +39,7 @@ export class ShadingManager {
     const patternName = AxialShadingGenerator.generatePatternName();
 
     // Create axial shading configuration
-    const shadingConfig = AxialShadingGenerator.createFromLinearGradient(gradient, rect, pxToPt);
-
-    // Create shading pattern
-    const pattern: ShadingPattern = {
-      shading: shadingConfig,
-      // Optional: Add matrix transformation if needed
-      // matrix: [1, 0, 0, 1, 0, 0],
-      // Optional: Add bounding box if needed
-      // bbox: [rect.x, rect.y, rect.x + rect.width, rect.y + rect.height],
-    };
+    const shadingConfig = AxialShadingGenerator.createFromLinearGradient(gradient, rect, pxToPt, this.pdfDocument);
 
     // Register shading and pattern with PDF document
     this.registerShadingResources(shadingConfig, shadingName, patternName, pageId);
@@ -72,14 +63,11 @@ export class ShadingManager {
     patternName: string,
     pageId: string
   ): void {
-    // For now, we'll store the serialized dictionaries
-    // In a real implementation, these would be registered as indirect objects
-    const shadingDict = AxialShadingGenerator.serializeShading(shadingConfig, shadingName);
-    const patternDict = AxialShadingGenerator.serializePattern({ shading: shadingConfig }, shadingName, patternName);
+    const shadingDict = AxialShadingGenerator.serializeShading(shadingConfig);
+    const shadingRef = this.pdfDocument.registerShading(shadingName, shadingDict);
 
-    // Store references (in real implementation, these would be actual PDF object references)
-    const shadingRef: PdfObjectRef = { objectNumber: -1 };
-    const patternRef: PdfObjectRef = { objectNumber: -1 };
+    const patternDict = AxialShadingGenerator.serializePattern({ shading: shadingConfig }, shadingRef);
+    const patternRef = this.pdfDocument.registerPattern(patternName, patternDict);
 
     this.shadingResources.set(shadingName, shadingRef);
     this.patternResources.set(patternName, patternRef);
