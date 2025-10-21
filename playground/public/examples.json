@@ -74,5 +74,10 @@
     "id": "linear-gradient-example",
     "label": "Linear Gradient Example",
     "htmlUrl": "examples/linear-gradient-example.html"
+  },
+  {
+    "id": "red-rectangle",
+    "label": "Red Rectangle Example",
+    "htmlUrl": "examples/red-rectangle.html"
   }
 ]
