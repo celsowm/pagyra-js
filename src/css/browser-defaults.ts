@@ -30,8 +30,6 @@ export interface ElementDefaults {
   fontFamily: string;
   fontWeight: number;
   color: string;
-  backgroundColor?: string;
-  backgroundSize?: string;
   listStyleType?: string;
   textAlign?: string;
   verticalAlign?: string;
@@ -669,12 +667,6 @@ export class BrowserDefaults {
     if (elementDefaults.objectFit !== undefined) {
       (merged as any).objectFit = elementDefaults.objectFit;
     }
-    if (elementDefaults.backgroundColor !== undefined) {
-      merged.backgroundColor = elementDefaults.backgroundColor;
-    }
-    if (elementDefaults.backgroundSize !== undefined) {
-      (merged as any).backgroundSize = elementDefaults.backgroundSize;
-    }
     if (elementDefaults.textAlign !== undefined) {
       merged.textAlign = elementDefaults.textAlign;
     }
@@ -692,9 +684,6 @@ export class BrowserDefaults {
     }
     if (elementDefaults.borderSpacing !== undefined) {
       merged.borderSpacing = elementDefaults.borderSpacing;
-    }
-    if (elementDefaults.backgroundColor !== undefined) {
-      merged.backgroundColor = elementDefaults.backgroundColor;
     }
 
     return merged;

@@ -181,7 +181,7 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
     links: [],
     borderColor: parseColor(node.style.borderColor),
     color: textColor,
-    background: { color: parseColor(node.style.backgroundColor) },
+    background: { color: parseColor(node.style.backgroundColor || undefined) },
     image: imageRef,
   };
 }

@@ -90,7 +90,10 @@ export function applyDeclarationsToStyle(
         target.color = value;
         break;
       case "background-color":
-        target.backgroundColor = value;
+        if (!target.backgroundLayers) {
+          target.backgroundLayers = [];
+        }
+        target.backgroundLayers.push({ kind: "color", color: value });
         break;
       case "border-color":
         applyBorderColorShorthand(value, (color) => {
@@ -352,19 +355,31 @@ export function applyDeclarationsToStyle(
       case "background-image": {
         const gradient = parseLinearGradient(value);
         if (gradient) {
-          target.backgroundImage = value.trim();
+          if (!target.backgroundLayers) {
+            target.backgroundLayers = [];
+          }
+          target.backgroundLayers.push({ kind: "gradient", gradient });
         }
         break;
       }
       case "background": {
         const trimmed = value.trim();
         // minimal & safe:
-        // - gradient? route to the background-image path you already support
-        // - else treat as a color token and let the downstream color parser deal with it
+        // - gradient? route to the gradient path
+        // - else treat as a color token
         if (trimmed.toLowerCase().startsWith("linear-gradient(")) {
-          target.backgroundImage = trimmed;
+          const gradient = parseLinearGradient(trimmed);
+          if (gradient) {
+            if (!target.backgroundLayers) {
+              target.backgroundLayers = [];
+            }
+            target.backgroundLayers.push({ kind: "gradient", gradient });
+          }
         } else if (trimmed.length > 0) {
-          target.backgroundColor = trimmed;
+          if (!target.backgroundLayers) {
+            target.backgroundLayers = [];
+          }
+          target.backgroundLayers.push({ kind: "color", color: trimmed });
         }
         break;
       }

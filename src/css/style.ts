@@ -16,6 +16,7 @@ import {
 import { AUTO_LENGTH } from "./length.js";
 import type { CSSLength, LengthLike } from "./length.js";
 import { BrowserDefaults, ElementSpecificDefaults } from "./browser-defaults.js";
+import type { BackgroundLayer } from "./background-types.js";
 
 export type FlexDirection = "row" | "row-reverse" | "column" | "column-reverse";
 export type GridAutoFlow = "row" | "column" | "row dense" | "column dense";
@@ -37,8 +38,7 @@ export interface StyleAccumulator {
   display?: Display;
   float?: string;
   color?: string;
-  backgroundColor?: string;
-  backgroundImage?: string;
+  backgroundLayers?: BackgroundLayer[];
   borderColor?: string;
   boxShadows?: BoxShadow[];
   borderTop?: number;
@@ -123,15 +123,13 @@ export interface StyleProperties {
   borderBottomRightRadiusY: number;
   borderBottomLeftRadiusX: number;
   borderBottomLeftRadiusY: number;
-  backgroundColor?: string;
-  backgroundImage?: string;
+  backgroundLayers?: BackgroundLayer[];  // fonte da verdade
   borderColor?: string;
   boxShadows: BoxShadow[];
   color?: string;
   fontFamily?: string;
   fontWeight?: number;
   objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down";
-  backgroundSize?: string;
   left?: LengthLike;
   right?: LengthLike;
   top?: LengthLike;
@@ -207,15 +205,13 @@ export class ComputedStyle implements StyleProperties {
   borderBottomRightRadiusY: number;
   borderBottomLeftRadiusX: number;
   borderBottomLeftRadiusY: number;
-  backgroundColor?: string;
-  backgroundImage?: string;
+  backgroundLayers?: BackgroundLayer[];
   borderColor?: string;
   boxShadows: BoxShadow[];
   color?: string;
   fontFamily?: string;
   fontWeight?: number;
   objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down";
-  backgroundSize?: string;
   left?: LengthLike;
   right?: LengthLike;
   top?: LengthLike;
@@ -256,6 +252,7 @@ export class ComputedStyle implements StyleProperties {
       flexBasis: init?.flexBasis ?? defaultStyle.flexBasis,
       trackListColumns: [...(init?.trackListColumns ?? defaultStyle.trackListColumns)],
       trackListRows: [...(init?.trackListRows ?? defaultStyle.trackListRows)],
+      backgroundLayers: init?.backgroundLayers ? [...init.backgroundLayers] : [],
     };
 
     this.display = data.display;
@@ -293,14 +290,13 @@ export class ComputedStyle implements StyleProperties {
     this.borderBottomRightRadiusY = data.borderBottomRightRadiusY;
     this.borderBottomLeftRadiusX = data.borderBottomLeftRadiusX;
     this.borderBottomLeftRadiusY = data.borderBottomLeftRadiusY;
-    this.backgroundColor = data.backgroundColor;
+    this.backgroundLayers = data.backgroundLayers;
     this.borderColor = data.borderColor;
     this.boxShadows = [...data.boxShadows];
     this.color = data.color;
     this.fontFamily = data.fontFamily;
     this.fontWeight = data.fontWeight;
     this.objectFit = data.objectFit;
-    this.backgroundSize = data.backgroundSize;
     this.left = data.left;
     this.right = data.right;
     this.top = data.top;
@@ -336,6 +332,17 @@ export class ComputedStyle implements StyleProperties {
     this.textAlign = init?.textAlign ?? undefined;
     this.verticalAlign = init?.verticalAlign ?? undefined;
     this.textDecorationLine = init?.textDecorationLine ?? defaultStyle.textDecorationLine;
+  }
+
+  get backgroundColor(): string | undefined {
+    if (!this.backgroundLayers) return undefined;
+    for (let i = this.backgroundLayers.length - 1; i >= 0; i--) {
+      const layer = this.backgroundLayers[i];
+      if (layer.kind === 'color') {
+        return layer.color;
+      }
+    }
+    return undefined;
   }
 }
 

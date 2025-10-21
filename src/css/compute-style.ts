@@ -213,7 +213,7 @@ export function computeStyleForElement(
 
   // Apply specific overrides from CSS/inline styles
   if (styleInit.color !== undefined) styleOptions.color = styleInit.color;
-  if (styleInit.backgroundColor !== undefined) styleOptions.backgroundColor = styleInit.backgroundColor;
+  if (styleInit.backgroundLayers !== undefined) styleOptions.backgroundLayers = styleInit.backgroundLayers;
   if (styleInit.borderColor !== undefined) styleOptions.borderColor = styleInit.borderColor;
   if (styleInit.boxShadows !== undefined) styleOptions.boxShadows = [...styleInit.boxShadows];
   if (styleInit.fontSize !== undefined) styleOptions.fontSize = styleInit.fontSize;
@@ -256,7 +256,6 @@ export function computeStyleForElement(
   if (styleInit.objectFit !== undefined) {
     styleOptions.objectFit = styleInit.objectFit as StyleProperties["objectFit"];
   }
-  if (styleInit.backgroundSize !== undefined) styleOptions.backgroundSize = styleInit.backgroundSize;
   const defaultDecoration = mergedDefaults.textDecorationLine ?? "none";
   let decoration = inherited.textDecorationLine ?? defaultDecoration;
   if (elementDefaults.textDecorationLine !== undefined) {

@@ -71,7 +71,7 @@ describe("PDF renderer", () => {
         borderRight: 4,
         borderBottom: 4,
         borderLeft: 4,
-        backgroundColor: "#336699",
+        backgroundLayers: [{ kind: "color", color: "#336699" }],
         borderColor: "#000000",
       }),
     );
