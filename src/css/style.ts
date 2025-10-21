@@ -74,7 +74,7 @@ export interface StyleAccumulator {
   maxWidth?: number;
   textAlign?: string;
   objectFit?: string;
-  backgroundSize?: string;
+
   textDecorationLine?: string;
   justifyContent?: JustifyContent;
   alignItems?: AlignItems;

@@ -87,10 +87,16 @@ export function determineObjectFit(node: LayoutNode): 'contain' | 'cover' | 'fil
   if (style.width && style.height) {
     return 'fill';
   }
-  
-  if (style.backgroundSize) {
-    if (style.backgroundSize === 'contain') return 'contain';
-    if (style.backgroundSize === 'cover') return 'cover';
+
+  // Check background layers for size information
+  if (style.backgroundLayers) {
+    for (let i = style.backgroundLayers.length - 1; i >= 0; i--) {
+      const layer = style.backgroundLayers[i];
+      if (layer.kind === 'image' && layer.size) {
+        if (layer.size === 'contain') return 'contain';
+        if (layer.size === 'cover') return 'cover';
+      }
+    }
   }
   
   return 'contain';

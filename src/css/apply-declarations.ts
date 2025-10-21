@@ -19,6 +19,7 @@ import {
 import { parseLength, parseLineHeight, parseNumeric } from "./parsers/length-parser.js";
 import { parseLinearGradient } from "./parsers/gradient-parser.js";
 import { parseTextDecorationLine } from "./parsers/text-parser.js";
+import { parseBackgroundShorthand, applyBackgroundSize } from "./parsers/background-parser.js";
 import {
   applyBorderColorShorthand,
   applyBorderStyleShorthand,
@@ -349,9 +350,10 @@ export function applyDeclarationsToStyle(
         }
         break;
       }
-      case "background-size":
-        target.backgroundSize = value.trim();
+      case "background-size": {
+        applyBackgroundSize(target, value);
         break;
+      }
       case "background-image": {
         const gradient = parseLinearGradient(value);
         if (gradient) {
@@ -363,23 +365,12 @@ export function applyDeclarationsToStyle(
         break;
       }
       case "background": {
-        const trimmed = value.trim();
-        // minimal & safe:
-        // - gradient? route to the gradient path
-        // - else treat as a color token
-        if (trimmed.toLowerCase().startsWith("linear-gradient(")) {
-          const gradient = parseLinearGradient(trimmed);
-          if (gradient) {
-            if (!target.backgroundLayers) {
-              target.backgroundLayers = [];
-            }
-            target.backgroundLayers.push({ kind: "gradient", gradient });
-          }
-        } else if (trimmed.length > 0) {
+        const layers = parseBackgroundShorthand(value);
+        if (layers.length > 0) {
           if (!target.backgroundLayers) {
             target.backgroundLayers = [];
           }
-          target.backgroundLayers.push({ kind: "color", color: trimmed });
+          target.backgroundLayers.push(...layers);
         }
         break;
       }
