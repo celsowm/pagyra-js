@@ -1,5 +1,5 @@
-import type { HeaderFooterHTML, LayerMode, PageSize, Rect } from "./types.js";
-import type { PagePainter, TextPaintOptions } from "./page-painter.js";
+import type { HeaderFooterHTML, LayerMode, PageSize, Rect, TextPaintOptions } from "./types.js";
+import type { PagePainter } from "./page-painter.js";
 
 export interface HeaderFooterContext {
   readonly hf: HeaderFooterHTML;

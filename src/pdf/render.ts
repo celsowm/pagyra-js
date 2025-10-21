@@ -1,6 +1,6 @@
 import { PdfDocument } from "./primitives/pdf-document.js";
 import type { PdfObjectRef } from "./primitives/pdf-document.js";
-import type { LayoutTree, PageSize, PdfMetadata, RenderBox, Radius, Edges, Rect, ShadowLayer, RGBA } from "./types.js";
+import type { LayoutTree, PageSize, PdfMetadata, RenderBox, Radius, Edges, Rect, ShadowLayer, RGBA, TextPaintOptions } from "./types.js";
 import {
   initHeaderFooterContext,
   layoutHeaderFooterTrees,
@@ -11,7 +11,7 @@ import {
   paintHeaderFooter,
 } from "./header-footer.js";
 import { paginateTree } from "./pagination.js";
-import { PagePainter, type TextPaintOptions } from "./page-painter.js";
+import { PagePainter } from "./page-painter.js";
 import { initFontSystem, finalizeFontSubsets, preflightFontsForPdfa } from "./font/font-registry.js";
 import { LayerMode } from "./types.js";
 import type { FontConfig } from "../types/fonts.js";

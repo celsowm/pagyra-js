@@ -271,6 +271,15 @@ export enum LayerMode {
   Over = "over",
 }
 
+export interface TextPaintOptions {
+  readonly fontSizePt: number;
+  readonly color?: RGBA;
+  readonly align?: "left" | "center" | "right";
+  readonly fontFamily?: string;
+  readonly fontWeight?: number;
+  readonly absolute?: boolean;
+}
+
 export interface PageSize {
   widthPt: number;
   heightPt: number;
