@@ -2,6 +2,9 @@ import { FloatMode, OverflowMode, Position } from "../css/enums.js";
 import type { ComputedStyle } from "../css/style.js";
 import { LayoutNode } from "../dom/node.js";
 import { resolveLength } from "../css/length.js";
+import { parseLinearGradient } from "../css/parsers/gradient-parser.js";
+import { GradientService } from "./shading/gradient-service.js";
+import { CoordinateTransformer } from "./utils/coordinate-transformer.js";
 import { log } from "../debug/log.js";
 import {
   type LayoutTree,
@@ -115,6 +118,24 @@ function mapOverflow(mode: OverflowMode): Overflow {
 }
 
 // ====================
+// BACKGROUND HANDLING
+// ====================
+
+function handleBackground(style: ComputedStyle, borderBox: Rect): { color?: RGBA; image?: unknown; gradient?: unknown } {
+  // Check for gradients first
+  if (style.backgroundLayers) {
+    const gradientLayer = style.backgroundLayers.find(layer => layer.kind === "gradient");
+    if (gradientLayer) {
+      return { gradient: gradientLayer.gradient };
+    }
+  }
+  
+  // Fall back to solid color
+  const color = parseColor(style.backgroundColor || undefined);
+  return { color };
+}
+
+// ====================
 // MAIN CONVERSION FUNCTION
 // ====================
 
@@ -146,6 +167,9 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
     contentBox,
   });
 
+  // Handle background (both colors and gradients)
+  const background = handleBackground(node.style, borderBox);
+  
   return {
     id,
     tagName: node.tagName,
@@ -181,7 +205,7 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
     links: [],
     borderColor: parseColor(node.style.borderColor),
     color: textColor,
-    background: { color: parseColor(node.style.backgroundColor || undefined) },
+    background,
     image: imageRef,
   };
 }

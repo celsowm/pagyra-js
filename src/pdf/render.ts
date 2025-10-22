@@ -288,6 +288,19 @@ function clampNonNegative(value: number): number {
   return value < 0 ? 0 : value;
 }
 
+function isZeroRadius(radii: Radius): boolean {
+  return (
+    radii.topLeft.x === 0 &&
+    radii.topLeft.y === 0 &&
+    radii.topRight.x === 0 &&
+    radii.topRight.y === 0 &&
+    radii.bottomRight.x === 0 &&
+    radii.bottomRight.y === 0 &&
+    radii.bottomLeft.x === 0 &&
+    radii.bottomLeft.y === 0
+  );
+}
+
 function clampUnit(value: number): number {
   if (!Number.isFinite(value)) {
     return 1;
@@ -330,8 +343,84 @@ function paintPageBackground(painter: PagePainter, color: RGBA | undefined, widt
 function paintBackgrounds(painter: PagePainter, boxes: RenderBox[]): void {
   for (const box of boxes) {
     const color = box.background?.color;
-    if (color) {
-      // For table cells, fill the entire borderBox
+    const gradient = box.background?.gradient;
+    
+    console.log("paintBackgrounds - box:", box.tagName, "color:", color, "gradient:", gradient);
+    
+    if (gradient) {
+      console.log("Processing gradient for box:", box.tagName);
+      // Handle gradient background
+      const isTableCell = box.tagName === 'td' || box.tagName === 'th';
+      const targetRect = isTableCell ? box.borderBox : (box.paddingBox ?? box.contentBox);
+      
+      if (!targetRect) {
+        continue;
+      }
+      
+      // Convert gradient object to CSS gradient string
+      let gradientStr: string;
+      if (typeof gradient === 'string') {
+        gradientStr = gradient;
+      } else {
+        // Create CSS gradient string from gradient object
+        const gradientObj = gradient as any;
+        const type = gradientObj.type || 'linear';
+        const direction = gradientObj.direction || 'to right';
+        const stops = gradientObj.stops || [{ color: '#000' }, { color: '#fff' }];
+        
+        console.log("Gradient stops:", stops);
+        const colors = stops.map((s: any) => {
+          let color = s.color;
+          console.log("Processing color:", color);
+          
+          // If it's a color name like 'red' or 'yellow', convert to hex
+          const colorNames: Record<string, string> = {
+            'red': '#FF0000',
+            'yellow': '#FFFF00',
+            'green': '#00FF00',
+            'blue': '#0000FF',
+            'black': '#000000',
+            'white': '#FFFFFF',
+            'gray': '#808080',
+            'grey': '#808080',
+          };
+          
+          if (colorNames[color.toLowerCase()]) {
+            color = colorNames[color.toLowerCase()];
+            console.log("Converted color name:", color);
+          }
+          
+          return color;
+        });
+        
+        gradientStr = `linear-gradient(${direction}, ${colors.join(', ')})`;
+      }
+      
+      console.log("Generated gradient string:", gradientStr);
+      
+      // For table cells or rectangles with zero radius, use fillRect
+      if (isTableCell || isZeroRadius(box.borderRadius)) {
+        console.log("Using fillRect with gradient");
+        painter.fillRect(targetRect, gradientStr as any);
+      } else {
+        console.log("Using fillRoundedRect with gradient");
+        const targetRadius = shrinkRadius(box.borderRadius, box.border.top, box.border.right, box.border.bottom, box.border.left);
+        if (targetRect === box.contentBox) {
+          const shrunkRadius = shrinkRadius(
+            targetRadius,
+            box.padding.top,
+            box.padding.right,
+            box.padding.bottom,
+            box.padding.left,
+          );
+          painter.fillRoundedRect(targetRect, shrunkRadius, gradientStr as any);
+        } else {
+          painter.fillRoundedRect(targetRect, targetRadius, gradientStr as any);
+        }
+      }
+    } else if (color) {
+      console.log("Processing solid color for box:", box.tagName, color);
+      // Handle solid color background (existing code)
       const isTableCell = box.tagName === 'td' || box.tagName === 'th';
       if (isTableCell) {
         painter.fillRoundedRect(box.borderBox, box.borderRadius, color);

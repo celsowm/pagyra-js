@@ -1,4 +1,5 @@
 import type { BackgroundLayer, BackgroundSize } from "../background-types.js";
+import { parseLinearGradient, type LinearGradient } from "./gradient-parser.js";
 
 /**
  * Ensures background layers array exists and returns the top renderable layer
@@ -79,15 +80,13 @@ function parseSingleBackgroundLayer(value: string): BackgroundLayer | null {
 function parseGradientLayer(value: string): BackgroundLayer | null {
   // For now, we'll handle linear gradients
   if (value.toLowerCase().startsWith('linear-gradient(')) {
-    // This would need to be integrated with the existing gradient parser
-    // For now, return a basic gradient layer
-    return {
-      kind: "gradient",
-      gradient: {
-        type: "linear",
-        stops: [{ color: "#000000", pos: 0 }, { color: "#ffffff", pos: 100 }]
-      }
-    };
+    const gradient = parseLinearGradient(value);
+    if (gradient) {
+      return {
+        kind: "gradient",
+        gradient: gradient
+      };
+    }
   }
 
   return null;

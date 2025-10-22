@@ -7,6 +7,7 @@ import { TextRenderer } from "./renderers/text-renderer.js";
 import { ImageRenderer } from "./renderers/image-renderer.js";
 import { ShapeRenderer } from "./renderers/shape-renderer.js";
 import { GraphicsStateManager } from "./renderers/graphics-state-manager.js";
+import { GradientService } from "./shading/gradient-service.js";
 
 export interface PainterResult {
   readonly content: string;

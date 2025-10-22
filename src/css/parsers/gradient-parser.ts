@@ -59,6 +59,25 @@ export function parseLinearGradient(value: string): LinearGradient | null {
   
   // Clean up direction value
   if (direction.startsWith('to ')) {
+    // Fix truncated direction values
+    if (direction === 'to righ') {
+      direction = 'to right';
+    } else if (direction === 'to botto') {
+      direction = 'to bottom';
+    } else if (direction === 'to bott') {
+      direction = 'to bottom';
+    } else if (direction === 'to bot') {
+      direction = 'to bottom';
+    }
+    // Remove trailing comma from "to" directions
+    direction = direction.replace(/,$/, '');
+  } else if (direction.endsWith('deg')) {
+    // Remove comma from angle values
+    direction = direction.replace(/,$/, '');
+  }
+  
+  // Clean up direction value
+  if (direction.startsWith('to ')) {
     // Remove trailing comma from "to" directions
     direction = direction.replace(/,$/, '');
   } else if (direction.endsWith('deg')) {
@@ -68,6 +87,12 @@ export function parseLinearGradient(value: string): LinearGradient | null {
   
   // Now split the color stops by commas that are not inside parentheses or quotes
   const colorStopValues = splitCssCommaList(colorStopsContent);
+  
+  console.log("Gradient parser - input value:", value);
+  console.log("Gradient parser - content:", content);
+  console.log("Gradient parser - direction:", direction);
+  console.log("Gradient parser - colorStopsContent:", colorStopsContent);
+  console.log("Gradient parser - colorStopValues:", colorStopValues);
   
   // Parse color stops
   const stops: GradientStop[] = [];
@@ -79,6 +104,8 @@ export function parseLinearGradient(value: string): LinearGradient | null {
       stops.push(stop);
     }
   }
+  
+  console.log("Gradient parser - parsed stops:", stops);
   
   // If no color stops, create a default one
   if (stops.length === 0) {
@@ -98,9 +125,25 @@ function parseGradientStop(value: string): GradientStop | null {
     return null;
   }
   
-  const color = parts[0].trim();
+  let color = parts[0].trim();
   if (!color) {
     return null;
+  }
+  
+  // Convert color names to hex values
+  const colorNames: Record<string, string> = {
+    'red': '#FF0000',
+    'yellow': '#FFFF00',
+    'green': '#00FF00',
+    'blue': '#0000FF',
+    'black': '#000000',
+    'white': '#FFFFFF',
+    'gray': '#808080',
+    'grey': '#808080',
+  };
+  
+  if (colorNames[color.toLowerCase()]) {
+    color = colorNames[color.toLowerCase()];
   }
   
   // Check if there's a position

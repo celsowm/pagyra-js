@@ -1,0 +1,82 @@
+%PDF-1.4
+1 0 obj
+<< /Length 434 >>
+stream
+q
+/Pattern cs
+28.5 527.9175 150 75 re
+/Grad0 scn
+Q
+0 0 0 rg
+q
+0.75 0 0 -0.75 27 604.4175 cm
+0 0 m
+204 0 l
+204 0 l
+204 104 l
+204 104 l
+0 104 l
+0 104 l
+0 0 l
+0 0 l
+h
+2 2 m
+202 2 l
+202 2 l
+202 102 l
+202 102 l
+2 102 l
+2 102 l
+2 2 l
+2 2 l
+h
+f*
+Q
+/Grad0 /PatternType 2
+/ShadingType 2
+/ColorSpace /DeviceRGB
+/Coords [28.5 66 178.5 66]
+/BBox [28.5 28.5 150 75]
+/Function <<
+/FunctionType 2
+/Domain [0 1]
+/C0 [0 0 0]
+/C1 [0 0 0]
+/N 1
+>>
+>>
+def
+endstream
+endobj
+2 0 obj
+<<
+/Type /Page
+/MediaBox [0 0 446.46 631.42]
+/Contents 1 0 R
+>>
+endobj
+3 0 obj
+<<
+/Type /Pages
+/Count 1
+/Kids [2 0 R]
+>>
+endobj
+4 0 obj
+<<
+/Type /Catalog
+/Pages 3 0 R
+>>
+endobj
+xref
+0 5
+0000000000 65535 f 
+0000000009 00000 n 
+0000000494 00000 n 
+0000000573 00000 n 
+0000000630 00000 n 
+trailer
+<< /Size 5 /Root 4 0 R >>
+startxref
+679
+%%EOF
