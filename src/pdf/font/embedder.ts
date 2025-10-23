@@ -1,8 +1,11 @@
-import type { PdfObjectRef } from "../primitives/pdf-document.js";
+import type { PdfObjectRef, PdfDocument } from "../primitives/pdf-document.js";
 import { parseTtfFont } from "./ttf-lite.js";
 import type { FontFaceDef, FontConfig, TtfFontMetrics } from "../../types/fonts.js";
 import { log } from "../../debug/log.js";
 import { normalizeFontWeight } from "../../css/font-weight.js";
+
+const SYMBOLIC_FONT_FLAGS = 4;
+const TYPICAL_STEM_V = 80;
 
 export interface EmbeddedFont {
   readonly resourceName: string;
@@ -55,7 +58,7 @@ export class FontEmbedder {
 
   constructor(
     private readonly config: FontConfig,
-    private readonly doc: any // PdfDocument type
+    private readonly doc: PdfDocument
   ) {}
 
   async initialize(): Promise<void> {
@@ -109,14 +112,14 @@ export class FontEmbedder {
     const fontDescriptor: FontDescriptor = {
       Type: "FontDescriptor",
       FontName: `/${face.name}`,
-      Flags: 4, // Symbolic font
+      Flags: SYMBOLIC_FONT_FLAGS, // Symbolic font
       FontBBox: [-100, -300, 1000, 900], // Simplified bbox
       ItalicAngle: face.style === "italic" ? -12 : 0,
       Ascent: metrics.metrics.ascender,
       Descent: metrics.metrics.descender,
       CapHeight: metrics.metrics.capHeight,
       XHeight: metrics.metrics.xHeight,
-      StemV: 80, // Typical value
+      StemV: TYPICAL_STEM_V, // Typical value
       FontFile2: fontFileRef
     };
 
@@ -257,7 +260,7 @@ function pickFaceByWeight(faces: FontFaceDef[], requestedWeight: number): FontFa
   return bestFace;
 }
 
-export async function getEmbeddedFont(name: "NotoSans-Regular" | "DejaVuSans", doc: any, config: FontConfig): Promise<EmbeddedFont | null> {
+export async function getEmbeddedFont(name: "NotoSans-Regular" | "DejaVuSans", doc: PdfDocument, config: FontConfig): Promise<EmbeddedFont | null> {
   const embedder = new FontEmbedder(config, doc);
   const face = config.fontFaceDefs.find(f => f.name === name);
   if (!face) return null;

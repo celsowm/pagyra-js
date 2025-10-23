@@ -2,7 +2,7 @@ import { LayoutNode } from "../../dom/node.js";
 import { resolvedLineHeight } from "../../css/style.js";
 import type { ComputedStyle } from "../../css/style.js";
 import { normalizeFontWeight } from "../../css/font-weight.js";
-import { BASE14_WIDTHS } from "../../pdf/font/base14-widths.js";
+import { base14Widths } from "../../pdf/font/base14-widths.js";
 
 const MONO_FAMILY_PATTERN = /(mono|code|courier|console)/i;
 const SPACE_WIDTH_FACTOR = 0.32;
@@ -98,7 +98,7 @@ function measureUsingBase14(text: string, style: ComputedStyle): number | null {
   if (!baseFont) {
     return null;
   }
-  const widths = BASE14_WIDTHS[baseFont];
+  const widths = base14Widths[baseFont];
   if (!widths) {
     return null;
   }

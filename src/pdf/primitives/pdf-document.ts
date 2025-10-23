@@ -49,8 +49,22 @@ export class PdfDocument {
   private readonly extGStates = new Map<string, { ref: PdfObjectRef; alpha: number }>();
   private readonly shadings = new Map<string, { ref: PdfObjectRef; dict: string }>();
   private readonly patterns = new Map<string, { ref: PdfObjectRef; dict: string }>();
+  private readonly registeredObjects: Array<{ ref: PdfObjectRef; value: string }> = [];
+  private readonly registeredStreams: Array<{ ref: PdfObjectRef; data: Uint8Array; headers: Record<string, any> }> = [];
 
   constructor(private readonly metadata: PdfMetadata = {}) {}
+
+  private serializeValue(value: any): string {
+    if (typeof value === 'number') return formatNumber(value);
+    if (typeof value === 'string') return value;
+    if (Array.isArray(value)) return `[${value.map(v => this.serializeValue(v)).join(' ')}]`;
+    if (typeof value === 'object' && 'objectNumber' in value) return `${value.objectNumber} 0 R`;
+    if (typeof value === 'object') {
+      const entries = Object.entries(value).map(([k, v]) => `/${k} ${this.serializeValue(v)}`);
+      return `<< ${entries.join(' ')} >>`;
+    }
+    return 'null';
+  }
 
   registerStandardFont(baseFont: string): PdfObjectRef {
     const existing = this.fonts.get(baseFont);
@@ -169,6 +183,19 @@ export class PdfDocument {
     return ref;
   }
 
+  register(value: any): PdfObjectRef {
+    const body = typeof value === 'string' ? value : this.serializeValue(value);
+    const ref = { objectNumber: -1 };
+    this.registeredObjects.push({ ref, value: body });
+    return ref;
+  }
+
+  registerStream(data: Uint8Array, extraHeaders: Record<string, any> = {}): PdfObjectRef {
+    const ref = { objectNumber: -1 };
+    this.registeredStreams.push({ ref, data, headers: extraHeaders });
+    return ref;
+  }
+
   finalize(): Uint8Array {
     const objects: PdfObject[] = [];
 
@@ -209,6 +236,16 @@ export class PdfDocument {
       }
       const stream = serializeStream(image.data, entries);
       image.ref = pushObject(stream, image.ref);
+    }
+
+    for (const obj of this.registeredObjects) {
+      obj.ref = pushObject(obj.value, obj.ref);
+    }
+
+    for (const stream of this.registeredStreams) {
+      const entries = Object.entries(stream.headers).map(([k, v]) => `/${k} ${v}`).concat([`/Length ${stream.data.length}`]);
+      const body = serializeStream(stream.data, entries);
+      stream.ref = pushObject(body, stream.ref);
     }
 
     const pageRefs: PdfObjectRef[] = [];

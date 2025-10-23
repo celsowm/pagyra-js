@@ -1,4 +1,4 @@
-export const BASE14_WIDTHS: Record<string, Record<number, number>> = {
+export const base14Widths: Record<string, Record<number, number>> = {
   "Times-Roman": {
     "32": 250,
     "33": 333,
