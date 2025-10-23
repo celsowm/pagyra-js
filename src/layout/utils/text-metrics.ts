@@ -4,16 +4,24 @@ import type { ComputedStyle } from "../../css/style.js";
 import { normalizeFontWeight } from "../../css/font-weight.js";
 import { base14Widths } from "../../pdf/font/base14-widths.js";
 
+// Font family pattern for monospace detection
 const MONO_FAMILY_PATTERN = /(mono|code|courier|console)/i;
-const SPACE_WIDTH_FACTOR = 0.32;
-const DIGIT_WIDTH_FACTOR = 0.52;
-const UPPER_WIDTH_FACTOR = 0.58;
-const BASE_WIDTH_FACTOR = 0.5;
-const PUNCT_WIDTH_FACTOR = 0.35;
-const IDEOGRAPHIC_WIDTH_FACTOR = 1.0;
+
+// Character width coefficients for heuristic text width calculation
+const CHARACTER_WIDTH_FACTORS = {
+  SPACE: 0.32,
+  DIGIT: 0.52,
+  UPPER: 0.58,
+  BASE: 0.5,
+  PUNCTUATION: 0.35,
+  IDEOGRAPHIC: 1.0
+} as const;
+
 // Heuristic width measurements tend to slightly overestimate glyph widths.
 // Apply a calibration factor so line breaking can pack words closer to the real layout.
 const WIDTH_CALIBRATION = 0.9;
+
+// Font weight threshold above which fonts are considered bold for Base14 selection
 const BASE14_BOLD_THRESHOLD = 600;
 
 const BASE14_ALIAS = new Map<string, string>([
@@ -71,7 +79,7 @@ export function estimateLineWidth(line: string, style: ComputedStyle): number {
   }
   const fontSize = style.fontSize || 16;
   const isMonospace = style.fontFamily ? MONO_FAMILY_PATTERN.test(style.fontFamily) : false;
-  const baseFactor = isMonospace ? 0.6 : BASE_WIDTH_FACTOR;
+  const baseFactor = isMonospace ? 0.6 : CHARACTER_WIDTH_FACTORS.BASE;
   const weightMultiplier = fontWeightWidthMultiplier(normalizeFontWeight(style.fontWeight));
   const letterSpacing = style.letterSpacing ?? 0;
   const wordSpacing = style.wordSpacing ?? 0;
@@ -159,22 +167,22 @@ function stripQuotes(value: string): string {
 
 function factorForChar(char: string, baseFactor: number): number {
   if (char === " ") {
-    return SPACE_WIDTH_FACTOR;
+    return CHARACTER_WIDTH_FACTORS.SPACE;
   }
   if (char === "\t") {
-    return SPACE_WIDTH_FACTOR * 4;
+    return CHARACTER_WIDTH_FACTORS.SPACE * 4; // Tab is 4 spaces
   }
   if (isDigit(char)) {
-    return DIGIT_WIDTH_FACTOR;
+    return CHARACTER_WIDTH_FACTORS.DIGIT;
   }
   if (isUpperCase(char)) {
-    return baseFactor + (UPPER_WIDTH_FACTOR - BASE_WIDTH_FACTOR);
+    return baseFactor + (CHARACTER_WIDTH_FACTORS.UPPER - CHARACTER_WIDTH_FACTORS.BASE);
   }
   if (isPunctuation(char)) {
-    return PUNCT_WIDTH_FACTOR;
+    return CHARACTER_WIDTH_FACTORS.PUNCTUATION;
   }
   if (isIdeograph(char)) {
-    return IDEOGRAPHIC_WIDTH_FACTOR;
+    return CHARACTER_WIDTH_FACTORS.IDEOGRAPHIC;
   }
   return baseFactor;
 }

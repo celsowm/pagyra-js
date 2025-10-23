@@ -50,16 +50,16 @@ export class PdfDocument {
   private readonly shadings = new Map<string, { ref: PdfObjectRef; dict: string }>();
   private readonly patterns = new Map<string, { ref: PdfObjectRef; dict: string }>();
   private readonly registeredObjects: Array<{ ref: PdfObjectRef; value: string }> = [];
-  private readonly registeredStreams: Array<{ ref: PdfObjectRef; data: Uint8Array; headers: Record<string, any> }> = [];
+  private readonly registeredStreams: Array<{ ref: PdfObjectRef; data: Uint8Array; headers: Record<string, string> }> = [];
 
   constructor(private readonly metadata: PdfMetadata = {}) {}
 
-  private serializeValue(value: any): string {
+  private serializeValue(value: unknown): string {
     if (typeof value === 'number') return formatNumber(value);
     if (typeof value === 'string') return value;
     if (Array.isArray(value)) return `[${value.map(v => this.serializeValue(v)).join(' ')}]`;
-    if (typeof value === 'object' && 'objectNumber' in value) return `${value.objectNumber} 0 R`;
-    if (typeof value === 'object') {
+    if (typeof value === 'object' && value !== null && 'objectNumber' in value) return `${(value as {objectNumber: number}).objectNumber} 0 R`;
+    if (typeof value === 'object' && value !== null) {
       const entries = Object.entries(value).map(([k, v]) => `/${k} ${this.serializeValue(v)}`);
       return `<< ${entries.join(' ')} >>`;
     }
@@ -183,14 +183,14 @@ export class PdfDocument {
     return ref;
   }
 
-  register(value: any): PdfObjectRef {
+  register(value: string | Record<string, unknown> | readonly unknown[] | object): PdfObjectRef {
     const body = typeof value === 'string' ? value : this.serializeValue(value);
     const ref = { objectNumber: -1 };
     this.registeredObjects.push({ ref, value: body });
     return ref;
   }
 
-  registerStream(data: Uint8Array, extraHeaders: Record<string, any> = {}): PdfObjectRef {
+  registerStream(data: Uint8Array, extraHeaders: Record<string, string> = {}): PdfObjectRef {
     const ref = { objectNumber: -1 };
     this.registeredStreams.push({ ref, data, headers: extraHeaders });
     return ref;

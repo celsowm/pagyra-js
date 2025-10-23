@@ -64,10 +64,11 @@ export class FontEmbedder {
   async initialize(): Promise<void> {
     for (const face of this.config.fontFaceDefs) {
       try {
+        // TODO: Parse from pre-loaded data once parseTtfFont supports it
         const metrics = parseTtfFont(face.src);
         this.faceMetrics.set(face.name, metrics);
       } catch (error) {
-        console.warn(`Failed to load font ${face.name}:`, error);
+        log("FONT", "ERROR", `Failed to load font ${face.name}`, { error: error instanceof Error ? error.message : String(error) });
       }
     }
   }
@@ -104,7 +105,7 @@ export class FontEmbedder {
     // Create font subset (simplified - just the full TTF for now)
     const fullFontData = this.loadFontData(face.src);
     const fontFileRef = this.doc.registerStream(fullFontData, {
-      Length: fullFontData.length,
+      Length: fullFontData.length.toString(),
       Filter: "/FlateDecode"
     });
 
@@ -137,7 +138,7 @@ export class FontEmbedder {
       },
       FontDescriptor: fontDescriptorRef,
       W: this.buildWidthsArray(metrics),
-      CIDToGIDMap: this.doc.registerStream(new Uint8Array(), { Length: 0 }) // Identity mapping
+      CIDToGIDMap: this.doc.registerStream(new Uint8Array(), { Length: "0" }) // Identity mapping
     };
 
     const cidFontRef = this.doc.register(cidFontDict);
@@ -236,8 +237,14 @@ end`;
   }
 
 
+  private async loadFontDataAsync(path: string): Promise<Uint8Array> {
+    // Load the full TTF file asynchronously (later we can implement subsetting)
+    const { readFile } = require("fs/promises");
+    return await readFile(path);
+  }
+
   private loadFontData(path: string): Uint8Array {
-    // For now, load the full TTF file (later we can implement subsetting)
+    // Legacy synchronous method for compatibility (to be removed)
     const { readFileSync } = require("fs");
     return readFileSync(path);
   }
