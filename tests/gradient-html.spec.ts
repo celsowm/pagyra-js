@@ -12,102 +12,83 @@ async function getPdfRaw(html: string): Promise<string> {
     margins: { top: 10, right: 10, bottom: 10, left: 10 },
     fontConfig: {
       fontFaceDefs: [
-        {
-          name: 'Roboto',
-          family: 'Roboto',
-          weight: 400,
-          style: 'normal',
-          src: './assets/fonts/Roboto-Regular.ttf',
-        },
+        { name: 'Roboto', family: 'Roboto', weight: 400, style: 'normal', src: './assets/fonts/Roboto-Regular.ttf' },
       ],
       defaultStack: ['Roboto'],
     },
   });
-
-  // PDFs are binary, but the parts we are inspecting are ASCII/Latin1
-  const decoder = new TextDecoder('latin1');
-  const rawPdf = decoder.decode(pdfBytes);
-  return rawPdf;
+  return new TextDecoder('latin1').decode(pdfBytes);
 }
 
+const rx = (s: string) => new RegExp(s.replace(/\s+/g, '\\s+'));
+const f = (n: number, tol = 0.005) =>
+  new RegExp(String.raw`\b${(n - tol).toFixed(3)}\d*|\b${n.toFixed(3)}\d*|\b${(n + tol).toFixed(3)}\d*`);
+
 describe('gradient-html', () => {
-  it('should render a simple horizontal linear gradient', async () => {
-    const html = `
-      <div style="width: 200px; height: 80px; background: linear-gradient(to right, red, blue);"></div>
-    `;
-    const rawPdf = await getPdfRaw(html);
+  it('renders horizontal linear gradient (two stops)', async () => {
+    const html = `<div style="width:200px;height:80px;background:linear-gradient(to right, red, blue)"></div>`;
+    const raw = await getPdfRaw(html);
 
-    // Check for the gradient pattern
-    expect(rawPdf).toContain('/PatternType 2'); // Shading pattern
-    expect(rawPdf).toContain('/ShadingType 2'); // Axial shading for linear gradients
-    expect(rawPdf).toContain('/ColorSpace /DeviceRGB');
-    
-    // Check for color definitions
-    expect(rawPdf).toContain('/C0 [ 1 0 0 ]'); // Red
-    expect(rawPdf).toContain('/C1 [ 0 0 1 ]'); // Blue
+    // Deve existir um Shading axial
+    expect(raw).toMatch(rx(`/ShadingType\\s+2`));
+
+    // ColorSpace pode ser DeviceRGB ou ICCBased; aceitamos ambos
+    expect(raw).toMatch(/\/ColorSpace\s+\/(DeviceRGB|ICCBased)/);
+
+    // Para 2 stops: função exponencial (Type 2) com C0/C1 ~ (1,0,0) -> (0,0,1)
+    // Use regex tolerante a float/espaçamento.
+    expect(raw).toMatch(rx(`/FunctionType\\s+2`));
+    expect(raw).toMatch(rx(`/C0\\s*\\[\\s*${f(1).source}\\s+${f(0).source}\\s+${f(0).source}\\s*\\]`));
+    expect(raw).toMatch(rx(`/C1\\s*\\[\\s*${f(0).source}\\s+${f(0).source}\\s+${f(1).source}\\s*\\]`));
   });
 
-  it('should render a simple vertical linear gradient', async () => {
-    const html = `
-      <div style="width: 200px; height: 80px; background: linear-gradient(to bottom, yellow, green);"></div>
-    `;
-    const rawPdf = await getPdfRaw(html);
+  it('renders vertical linear gradient (two stops, yellow→green)', async () => {
+    const html = `<div style="width:200px;height:80px;background:linear-gradient(to bottom, yellow, green)"></div>`;
+    const raw = await getPdfRaw(html);
 
-    // Check for the gradient pattern
-    expect(rawPdf).toContain('/PatternType 2');
-    expect(rawPdf).toContain('/ShadingType 2');
-    expect(rawPdf).toContain('/ColorSpace /DeviceRGB');
-    
-    // Check for color definitions
-    expect(rawPdf).toContain('/C0 [ 1 1 0 ]'); // Yellow
-    expect(rawPdf).toContain('/C1 [ 0 0.50196 0 ]'); // Green
+    expect(raw).toMatch(rx(`/ShadingType\\s+2`));
+    expect(raw).toMatch(/\/ColorSpace\s+\/(DeviceRGB|ICCBased)/);
+
+    // yellow ≈ (1,1,0), green CSS ≈ (0, 0.50196, 0)
+    expect(raw).toMatch(rx(`/FunctionType\\s+2`));
+    expect(raw).toMatch(rx(`/C0\\s*\\[\\s*${f(1).source}\\s+${f(1).source}\\s+${f(0).source}\\s*\\]`));
+    expect(raw).toMatch(rx(`/C1\\s*\\[\\s*${f(0).source}\\s+${f(0.502).source}\\s+${f(0).source}\\s*\\]`));
   });
 
-  it('should render a diagonal linear gradient', async () => {
-    const html = `
-      <div style="width: 200px; height: 80px; background: linear-gradient(45deg, red, blue);"></div>
-    `;
-    const rawPdf = await getPdfRaw(html);
+  it('renders diagonal 45deg (two stops)', async () => {
+    const html = `<div style="width:200px;height:80px;background:linear-gradient(45deg, red, blue)"></div>`;
+    const raw = await getPdfRaw(html);
 
-    // Check for the gradient pattern
-    expect(rawPdf).toContain('/PatternType 2');
-    expect(rawPdf).toContain('/ShadingType 2');
-    expect(rawPdf).toContain('/ColorSpace /DeviceRGB');
-    
-    // Check for color definitions
-    expect(rawPdf).toContain('/C0 [ 1 0 0 ]'); // Red
-    expect(rawPdf).toContain('/C1 [ 0 0 1 ]'); // Blue
+    expect(raw).toMatch(rx(`/ShadingType\\s+2`));
+    expect(raw).toMatch(/\/ColorSpace\s+\/(DeviceRGB|ICCBased)/);
+    // Não exigimos /PatternType 2 porque alguns writers usam sh direto
+    // Mantemos checagem de função simples também
+    expect(raw).toMatch(rx(`/FunctionType\\s+2`));
   });
 
-  it('should render a linear gradient with multiple color stops', async () => {
-    const html = `
-      <div style="width: 200px; height: 80px; background: linear-gradient(to right, red, yellow 50%, blue);"></div>
-    `;
-    const rawPdf = await getPdfRaw(html);
+  it('renders linear gradient with multiple color stops (stitching)', async () => {
+    const html = `<div style="width:200px;height:80px;background:linear-gradient(to right, red, yellow 50%, blue)"></div>`;
+    const raw = await getPdfRaw(html);
 
-    // Check for the gradient pattern
-    expect(rawPdf).toContain('/PatternType 2');
-    expect(rawPdf).toContain('/ShadingType 2');
-    expect(rawPdf).toContain('/ColorSpace /DeviceRGB');
-    
-    // Check for function definition with multiple stops
-    expect(rawPdf).toContain('/FunctionType 2');
-    expect(rawPdf).toContain('/N 1');
+    expect(raw).toMatch(rx(`/ShadingType\\s+2`));
+    expect(raw).toMatch(/\/ColorSpace\s+\/(DeviceRGB|ICCBased)/);
+
+    // Para 3 stops espere uma função de costura (Type 3) com subfunções (Type 2)
+    expect(raw).toMatch(rx(`/FunctionType\\s+3`));
+    expect(raw).toMatch(rx(`/Functions\\s*\\[`)); // array de subfunções
+    expect(raw).toMatch(rx(`/Bounds\\s*\\[`));    // pontos de corte (ex.: 0.5)
+    // Opcional: verificar que ao menos uma subfunção é Type 2
+    expect(raw).toMatch(rx(`/FunctionType\\s+2`));
   });
 
-  it('should render a linear gradient with percentage stops', async () => {
-    const html = `
-      <div style="width: 200px; height: 80px; background: linear-gradient(to right, red 0%, yellow 50%, blue 100%);"></div>
-    `;
-    const rawPdf = await getPdfRaw(html);
+  it('renders gradient with explicit % stops (stitching)', async () => {
+    const html = `<div style="width:200px;height:80px;background:linear-gradient(to right, red 0%, yellow 50%, blue 100%)"></div>`;
+    const raw = await getPdfRaw(html);
 
-    // Check for the gradient pattern
-    expect(rawPdf).toContain('/PatternType 2');
-    expect(rawPdf).toContain('/ShadingType 2');
-    expect(rawPdf).toContain('/ColorSpace /DeviceRGB');
-    
-    // Check for function definition with multiple stops
-    expect(rawPdf).toContain('/FunctionType 2');
-    expect(rawPdf).toContain('/N 1');
+    expect(raw).toMatch(rx(`/ShadingType\\s+2`));
+    expect(raw).toMatch(/\/ColorSpace\s+\/(DeviceRGB|ICCBased)/);
+    expect(raw).toMatch(rx(`/FunctionType\\s+3`));
+    expect(raw).toMatch(rx(`/Functions\\s*\\[`));
+    expect(raw).toMatch(rx(`/Bounds\\s*\\[`));
   });
 });

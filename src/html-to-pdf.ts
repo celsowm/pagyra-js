@@ -57,7 +57,16 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   const unitCtx: UnitCtx = { viewport: { width: viewportWidth, height: viewportHeight } };
   const units = makeUnitParsers(unitCtx);
 
+  console.log("prepareHtmlRender - input html:", html);
   const { document } = parseHTML(html);
+  console.log("prepareHtmlRender - parsed document body:", document.body?.innerHTML || 'no body');
+  console.log("prepareHtmlRender - document.documentElement tagName:", document.documentElement?.tagName);
+  console.log("prepareHtmlRender - document.documentElement innerHTML:", document.documentElement?.innerHTML);
+  console.log("prepareHtmlRender - document children count:", document.childNodes.length);
+  for (let i = 0; i < document.childNodes.length; i++) {
+    const child = document.childNodes[i];
+    console.log(`prepareHtmlRender - document child ${i}:`, child.nodeType, (child as any).tagName || 'text node');
+  }
   log("PARSE", "DEBUG", "DOM parsed", { hasBody: !!document.body });
 
   let mergedCss = css || "";
@@ -68,18 +77,45 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   const cssRules = parseCss(mergedCss);
   log("PARSE", "DEBUG", "CSS rules", { count: cssRules.length });
 
-  const bodyElement = (document.body ?? document.documentElement);
-  const rootStyle = bodyElement ? computeStyleForElement(bodyElement, cssRules, new ComputedStyle(), units) : new ComputedStyle();
-  const rootLayout = new LayoutNode(rootStyle, [], { tagName: bodyElement?.tagName?.toLowerCase() });
+  // Determine the root element to process - prefer body, but fall back to documentElement if body is empty
+  let rootElement = document.body;
+  let processChildrenOf = rootElement;
+  
+  // If body is empty but documentElement has children (like when HTML is just a fragment),
+  // process the documentElement's children instead
+  if (rootElement && rootElement.childNodes.length === 0) {
+    // Check if documentElement has meaningful children
+    const meaningfulChildren = Array.from(document.documentElement.childNodes).filter(node => {
+      return node.nodeType === node.ELEMENT_NODE && (node as HTMLElement).tagName !== 'HEAD';
+    });
+    if (meaningfulChildren.length > 0) {
+      processChildrenOf = document.documentElement;
+    }
+  } else if (!rootElement) {
+    // If there's no body element, process documentElement children directly
+    processChildrenOf = document.documentElement;
+  }
+
+  const rootStyle = processChildrenOf ? computeStyleForElement(processChildrenOf, cssRules, new ComputedStyle(), units) : new ComputedStyle();
+  const rootLayout = new LayoutNode(rootStyle, [], { tagName: processChildrenOf?.tagName?.toLowerCase() });
 
   const resourceBaseDir = path.resolve(options.resourceBaseDir ?? options.assetRootDir ?? process.cwd());
   const assetRootDir = path.resolve(options.assetRootDir ?? resourceBaseDir);
   
-  if (bodyElement) {
-      for (const child of Array.from(bodyElement.childNodes)) {
-          const layoutChild = await convertDomNode(child, cssRules, rootStyle, { resourceBaseDir, assetRootDir, units });
-          if (layoutChild) rootLayout.appendChild(layoutChild);
+  if (processChildrenOf) {
+    console.log("prepareHtmlRender - processing children of:", processChildrenOf.tagName, "count:", processChildrenOf.childNodes.length);
+    for (const child of Array.from(processChildrenOf.childNodes)) {
+      console.log("prepareHtmlRender - processing child:", (child as any).tagName || 'text node', "type:", child.nodeType);
+      // Skip head and other non-content elements
+      if (child.nodeType === child.ELEMENT_NODE) {
+        const tagName = (child as HTMLElement).tagName.toLowerCase();
+        if (tagName === 'head' || tagName === 'meta' || tagName === 'title' || tagName === 'link' || tagName === 'script') {
+          continue;
+        }
       }
+      const layoutChild = await convertDomNode(child, cssRules, rootStyle, { resourceBaseDir, assetRootDir, units });
+      if (layoutChild) rootLayout.appendChild(layoutChild);
+    }
   }
 
   layoutTree(rootLayout, { width: viewportWidth, height: viewportHeight });

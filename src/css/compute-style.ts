@@ -21,6 +21,7 @@ function mapFloat(value: string | undefined): FloatMode | undefined {
 }
 
 function parseInlineStyle(style: string): Record<string, string> {
+  console.log("parseInlineStyle - input:", style);
   const declarations: Record<string, string> = {};
   for (const part of style.split(";")) {
     const [rawProperty, rawValue] = part.split(":");
@@ -29,10 +30,12 @@ function parseInlineStyle(style: string): Record<string, string> {
     }
     const property = rawProperty.trim().toLowerCase();
     const value = rawValue.trim();
+    console.log("parseInlineStyle - parsed property:", property, "value:", value);
     if (property) {
       declarations[property] = value;
     }
   }
+  console.log("parseInlineStyle - result:", declarations);
   return declarations;
 }
 
@@ -141,6 +144,7 @@ export function computeStyleForElement(
   }
 
   // Apply inline styles (highest priority)
+  console.log("computeStyleForElement - processing element:", element.tagName, "style attribute:", element.getAttribute("style"));
   const inlineStyle = parseInlineStyle(element.getAttribute("style") ?? "");
   if (Object.keys(inlineStyle).length > 0) {
     log("STYLE","DEBUG","inline style applied", { declarations: inlineStyle });

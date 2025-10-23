@@ -365,7 +365,9 @@ export function applyDeclarationsToStyle(
         break;
       }
       case "background": {
+        console.log("Processing background property:", value);
         const layers = parseBackgroundShorthand(value);
+        console.log("Parsed background layers:", layers);
         if (layers.length > 0) {
           if (!target.backgroundLayers) {
             target.backgroundLayers = [];

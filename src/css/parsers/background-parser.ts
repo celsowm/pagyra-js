@@ -37,8 +37,8 @@ export function parseBackgroundShorthand(value: string): BackgroundLayer[] {
   const trimmed = value.trim();
   if (!trimmed) return [];
 
-  // Split by commas to handle multiple layers
-  const layerStrings = trimmed.split(',').map(s => s.trim());
+  // Split by commas to handle multiple layers, but be careful with commas inside functions like gradients
+  const layerStrings = splitBackgroundLayers(trimmed);
   const layers: BackgroundLayer[] = [];
 
   for (const layerStr of layerStrings) {
@@ -51,26 +51,64 @@ export function parseBackgroundShorthand(value: string): BackgroundLayer[] {
   return layers;
 }
 
+function splitBackgroundLayers(value: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let parenCount = 0;
+  let i = 0;
+  
+  while (i < value.length) {
+    const char = value[i];
+    
+    if (char === '(') {
+      parenCount++;
+      current += char;
+    } else if (char === ')') {
+      parenCount--;
+      current += char;
+    } else if (char === ',' && parenCount === 0) {
+      // Only split on commas that are not inside parentheses
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+    i++;
+  }
+  
+  if (current.trim()) {
+    result.push(current.trim());
+  }
+  
+  return result;
+}
+
 /**
  * Parses a single background layer
  */
 function parseSingleBackgroundLayer(value: string): BackgroundLayer | null {
   const trimmed = value.trim();
+  console.log("parseSingleBackgroundLayer - input:", trimmed);
   if (!trimmed) return null;
 
   // Handle gradients
   if (trimmed.toLowerCase().includes('linear-gradient(') ||
       trimmed.toLowerCase().includes('radial-gradient(') ||
       trimmed.toLowerCase().includes('conic-gradient(')) {
-    return parseGradientLayer(trimmed);
+    console.log("parseSingleBackgroundLayer - detected gradient:", trimmed);
+    const result = parseGradientLayer(trimmed);
+    console.log("parseSingleBackgroundLayer - gradient result:", result);
+    return result;
   }
 
   // Handle colors
   if (isColorValue(trimmed)) {
+    console.log("parseSingleBackgroundLayer - detected color:", trimmed);
     return { kind: "color", color: trimmed };
   }
 
   // Handle images with properties
+  console.log("parseSingleBackgroundLayer - parsing as image:", trimmed);
   return parseImageLayer(trimmed);
 }
 

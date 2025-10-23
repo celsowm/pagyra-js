@@ -13,9 +13,12 @@ export interface LinearGradient {
 
 export function parseLinearGradient(value: string): LinearGradient | null {
   const trimmed = value.trim().toLowerCase();
+  console.log("parseLinearGradient - input:", value);
+  console.log("parseLinearGradient - trimmed:", trimmed);
   
   // Check if it's a linear gradient
   if (!trimmed.startsWith("linear-gradient(")) {
+    console.log("parseLinearGradient - not a linear gradient, returning null");
     return null;
   }
   
@@ -30,21 +33,37 @@ export function parseLinearGradient(value: string): LinearGradient | null {
   let colorStopsContent = content;
 
   // Check if the first comma-separated part looks like a direction
-  const commaPos = content.indexOf(',');
+  // We need to be more careful to find the first actual comma that separates direction from color stops
+  // rather than commas inside parentheses like in "linear-gradient(45deg, red, blue)"
+  let commaPos = -1;
+  let parenCount = 0;
+  for (let i = 0; i < content.length; i++) {
+    if (content[i] === '(') {
+      parenCount++;
+    } else if (content[i] === ')') {
+      parenCount--;
+    } else if (content[i] === ',' && parenCount === 0) {
+      commaPos = i;
+      break;
+    }
+  }
+
   if (commaPos !== -1) {
     const potentialDirection = content.substring(0, commaPos).trim();
     const lowerDirection = potentialDirection.toLowerCase();
 
     // Check if this part is a known direction
-    const directionPatterns = ['to', 'to bottom', 'to right', 'to left', 'to top', 'to top right', 'to top left', 'to bottom right', 'to bottom left'];
+    const directionPatterns = ['to', 'to bottom', 'to right', 'to left', 'to top right', 'to top left', 'to bottom right', 'to bottom left'];
     const isDirection = directionPatterns.some(pattern => lowerDirection === pattern) ||
                        lowerDirection.endsWith('deg');
 
     if (isDirection) {
       direction = lowerDirection;
       colorStopsContent = content.substring(commaPos + 1).trim();
+    } else {
+      // If it's not a direction, treat the whole content as color stops
+      colorStopsContent = content;
     }
-    // If not a direction, treat the whole content as color stops
   } else {
     // Single part - check if it's just a direction
     const trimmedContent = content.trim().toLowerCase();
@@ -53,8 +72,10 @@ export function parseLinearGradient(value: string): LinearGradient | null {
         trimmedContent.endsWith('deg')) {
       direction = trimmedContent;
       colorStopsContent = '';
+    } else {
+      // Otherwise, treat as color stops
+      colorStopsContent = content;
     }
-    // Otherwise, treat as color stops
   }
   
   // Clean up direction value
@@ -130,20 +151,24 @@ function parseGradientStop(value: string): GradientStop | null {
     return null;
   }
   
-  // Convert color names to hex values
-  const colorNames: Record<string, string> = {
-    'red': '#FF0000',
-    'yellow': '#FFFF00',
-    'green': '#00FF00',
-    'blue': '#0000FF',
-    'black': '#000000',
-    'white': '#FFFFFF',
-    'gray': '#808080',
-    'grey': '#808080',
+  // Preserve color names - don't convert to hex values
+  // The tests expect the original color names to be preserved
+  const colorNames: Record<string, boolean> = {
+    'red': true,
+    'yellow': true,
+    'green': true,
+    'blue': true,
+    'black': true,
+    'white': true,
+    'gray': true,
+    'grey': true,
+    'lime': true,
   };
   
+  // Just validate that it's a known color name, but preserve the original value
   if (colorNames[color.toLowerCase()]) {
-    color = colorNames[color.toLowerCase()];
+    // Keep the original color value (don't convert to hex)
+    color = color;
   }
   
   // Check if there's a position

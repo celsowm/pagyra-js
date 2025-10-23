@@ -198,8 +198,8 @@ export class GradientService {
       const c0 = this.parseColor(gradient.stops[0].color);
       const c1 = this.parseColor(gradient.stops[gradient.stops.length - 1].color);
       
-      commands.push(`/C0 [${c0.r} ${c0.g} ${c0.b}]`);
-      commands.push(`/C1 [${c1.r} ${c1.g} ${c1.b}]`);
+      commands.push(`/C0 [ ${formatNumber(c0.r)} ${formatNumber(c0.g)} ${formatNumber(c0.b)} ]`);
+      commands.push(`/C1 [ ${formatNumber(c1.r)} ${formatNumber(c1.g)} ${formatNumber(c1.b)} ]`);
       commands.push(`/N 1`);
     }
     
@@ -207,8 +207,8 @@ export class GradientService {
     commands.push(`/Function <<`);
     commands.push(`/FunctionType 2`);
     commands.push(`/Domain [0 1]`);
-    commands.push(`/C0 [${this.parseColor(gradient.stops[0].color).r} ${this.parseColor(gradient.stops[0].color).g} ${this.parseColor(gradient.stops[0].color).b}]`);
-    commands.push(`/C1 [${this.parseColor(gradient.stops[gradient.stops.length - 1].color).r} ${this.parseColor(gradient.stops[gradient.stops.length - 1].color).g} ${this.parseColor(gradient.stops[gradient.stops.length - 1].color).b}]`);
+    commands.push(`/C0 [ ${formatNumber(this.parseColor(gradient.stops[0].color).r)} ${formatNumber(this.parseColor(gradient.stops[0].color).g)} ${formatNumber(this.parseColor(gradient.stops[0].color).b)} ]`);
+    commands.push(`/C1 [ ${formatNumber(this.parseColor(gradient.stops[gradient.stops.length - 1].color).r)} ${formatNumber(this.parseColor(gradient.stops[gradient.stops.length - 1].color).g)} ${formatNumber(this.parseColor(gradient.stops[gradient.stops.length - 1].color).b)} ]`);
     commands.push(`/N 1`);
     commands.push(`>>`);
     
@@ -219,15 +219,16 @@ export class GradientService {
     return commands;
   }
 
-  private parseColor(colorStr: string): { r: number; g: number; b: number } {
-    // Handle named colors
+   private parseColor(colorStr: string): { r: number; g: number; b: number } {
+    // Handle named colors - using standard CSS named colors
     const namedColors: Record<string, { r: number; g: number; b: number }> = {
-      red: { r: 1, g: 0, b: 0 },
-      green: { r: 0, g: 1, b: 0 },
-      blue: { r: 0, g: 0, b: 1 },
-      yellow: { r: 1, g: 1, b: 0 },
-      black: { r: 0, g: 0, b: 0 },
-      white: { r: 1, g: 1, b: 1 },
+      red: { r: 1, g: 0, b: 0 },      // #FF0000
+      green: { r: 0, g: 0.50196, b: 0 },  // #008000 (standard CSS green)
+      blue: { r: 0, g: 0, b: 1 },     // #0000FF
+      yellow: { r: 1, g: 1, b: 0 },   // #FFFF00
+      black: { r: 0, g: 0, b: 0 },    // #000000
+      white: { r: 1, g: 1, b: 1 },    // #FFFFFF
+      lime: { r: 0, g: 1, b: 0 },     // #00FF00 (pure green)
     };
     
     if (namedColors[colorStr.toLowerCase()]) {
@@ -275,4 +276,12 @@ export class GradientService {
     this.patterns.clear();
     this.patternCounter = 0;
   }
+}
+
+function formatNumber(value: number): string {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+  // Format to 5 decimal places to match expected test precision
+  return Number.isInteger(value) ? value.toString() : value.toFixed(5).replace(/0+$/, "").replace(/\.$/, "");
 }

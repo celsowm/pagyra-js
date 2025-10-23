@@ -122,9 +122,11 @@ function mapOverflow(mode: OverflowMode): Overflow {
 // ====================
 
 function handleBackground(style: ComputedStyle, borderBox: Rect): { color?: RGBA; image?: unknown; gradient?: unknown } {
+  console.log("handleBackground - style.backgroundLayers:", style.backgroundLayers);
   // Check for gradients first
   if (style.backgroundLayers) {
     const gradientLayer = style.backgroundLayers.find(layer => layer.kind === "gradient");
+    console.log("handleBackground - gradientLayer:", gradientLayer);
     if (gradientLayer) {
       return { gradient: gradientLayer.gradient };
     }
@@ -132,6 +134,7 @@ function handleBackground(style: ComputedStyle, borderBox: Rect): { color?: RGBA
   
   // Fall back to solid color
   const color = parseColor(style.backgroundColor || undefined);
+  console.log("handleBackground - color:", color);
   return { color };
 }
 
