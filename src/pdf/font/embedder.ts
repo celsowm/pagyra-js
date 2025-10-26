@@ -232,7 +232,7 @@ end`;
 
     return this.doc.registerStream(
       new TextEncoder().encode(cmap),
-      { Length: cmap.length }
+      { Length: cmap.length.toString() }
     );
   }
 
