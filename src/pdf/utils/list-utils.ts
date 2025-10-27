@@ -2,6 +2,8 @@ import { estimateLineWidth } from "../../layout/utils/text-metrics.js";
 import type { LayoutNode } from "../../dom/node.js";
 import type { RenderBox, Run, RGBA, Rect } from "../types.js";
 
+import { needsUnicode } from "../../text/text.js";
+
 export function createListMarkerRun(
   node: LayoutNode,
   contentBox: Rect,
@@ -23,7 +25,9 @@ export function createListMarkerRun(
   const fontSize = node.style.fontSize;
   const fontWeight = node.style.fontWeight;
   const color = fallbackColor ?? { r: 0, g: 0, b: 0, a: 1 };
-
+  
+  console.log(`[LIST_MARKER] markerText: "${markerText}", codepoints: [${[...markerText].map(c => c.codePointAt(0)).join(', ')}]`);
+  
   const baseline =
     firstRun?.lineMatrix.f ??
     (node.box.baseline > 0 ? node.box.baseline : contentBox.y + fontSize);
@@ -83,13 +87,15 @@ export function formatListMarker(styleType: string, index: number): string | und
     case "decimal-leading-zero":
       return `${String(index).padStart(2, "0")}.`;
     case "disc":
-      return "•";
+      // Use Unicode bullet character (U+2022) to ensure proper encoding
+      return "\u2022";
     case "circle":
-      return "○";
+      return "\u25CB"; // White circle (U+25CB)
     case "square":
-      return "▪";
+      return "\u25AA"; // Black small square (U+25AA)
     default:
-      return "•";
+      // Use Unicode bullet character (U+2022) to ensure proper encoding
+      return "\u2022";
   }
 }
 

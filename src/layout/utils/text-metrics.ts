@@ -114,7 +114,22 @@ function measureUsingBase14(text: string, style: ComputedStyle): number | null {
   let total = 0;
   for (const char of text) {
     const code = char.codePointAt(0);
-    if (code === undefined || code > 255) {
+    if (code === undefined) {
+      return null;
+    }
+    // Handle Unicode characters that map to WinAnsi bytes (like bullet U+2022 -> 0x95)
+    if (code > 255) {
+      // Check if this Unicode character has a WinAnsi equivalent
+      // For example: Unicode 0x2022 (bullet) maps to WinAnsi 0x95
+      if (code === 0x2022) { // bullet
+        const width = widths[0x95];
+        if (width === undefined) {
+          return null;
+        }
+        total += width;
+        continue;
+      }
+      // If no WinAnsi mapping exists, fall back to heuristic measurement
       return null;
     }
     const width = widths[code];

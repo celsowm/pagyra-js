@@ -64,14 +64,21 @@ export function encodeToWinAnsi(text: string): string {
     if (codePoint === undefined) {
       continue;
     }
-    const byte = UNICODE_TO_WIN_ANSI.get(codePoint);
-    if (byte === undefined) {
-      misses++;
-      details.push(codePoint);
-      result += "?";
-      continue;
+    
+    // Special handling: if we encounter byte 0x95, this represents a bullet character
+    // that was converted from Unicode in the pipeline. Encode it as the WinAnsi bullet.
+    if (codePoint === 0x95) { // This is the byte representation of bullet (•)
+      result += String.fromCharCode(0x95); // Keep as WinAnsi bullet byte
+    } else {
+      const byte = UNICODE_TO_WIN_ANSI.get(codePoint);
+      if (byte === undefined) {
+        misses++;
+        details.push(codePoint);
+        result += "?";
+        continue;
+      }
+      result += String.fromCharCode(byte);
     }
-    result += String.fromCharCode(byte);
   }
   if (misses) log("ENCODING","DEBUG","WinAnsi misses", { misses, codepoints: details.slice(0,20) });
   return result;
