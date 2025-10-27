@@ -114,6 +114,7 @@ export interface Run {
   fontFamily: string;
   fontSize: number;
   fontWeight?: number;
+  fontStyle?: string;
   fill: RGBA;
   lineMatrix: TextMatrix;
   glyphs?: GlyphRun;
@@ -277,6 +278,7 @@ export interface TextPaintOptions {
   readonly align?: "left" | "center" | "right";
   readonly fontFamily?: string;
   readonly fontWeight?: number;
+  readonly fontStyle?: string;
   readonly absolute?: boolean;
 }
 

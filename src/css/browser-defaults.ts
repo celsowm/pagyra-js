@@ -26,6 +26,7 @@ export interface ElementDefaults {
   borderBottom?: number;
   borderLeft?: number;
   fontSize: number;
+  fontStyle?: string;
   lineHeight: number;
   fontFamily: string;
   fontWeight: number;
@@ -329,6 +330,7 @@ export class ElementSpecificDefaults {
     em: {
       display: Display.Inline,
       fontSize: 16,
+      fontStyle: "italic",
       lineHeight: TypographyDefaults.getLineHeight(),
       fontFamily: TypographyDefaults.getFontFamily(),
       color: TypographyDefaults.getColor(),
@@ -594,6 +596,9 @@ export class BrowserDefaults {
 
     if (elementDefaults.fontSize !== undefined) {
       merged.fontSize = elementDefaults.fontSize;
+    }
+    if (elementDefaults.fontStyle !== undefined) {
+      merged.fontStyle = elementDefaults.fontStyle;
     }
     if (elementDefaults.lineHeight !== undefined) {
       merged.lineHeight = elementDefaults.lineHeight;

@@ -24,6 +24,19 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
   const fontFamily = node.style.fontFamily ?? "sans-serif";
   const fontSize = node.style.fontSize;
   const fontWeight = node.style.fontWeight;
+  const fontStyle = node.style.fontStyle;
+
+  // Debug fontStyle for em and strong elements
+  if (node.tagName === 'em' || node.tagName === 'strong' || (node.textContent && (node.textContent.includes('itálico') || node.textContent.includes('negrito')))) {
+    console.log("🔍 CREATE TEXTRUNS DEBUG:", {
+      tagName: node.tagName,
+      textContent: node.textContent,
+      fontFamily,
+      fontSize,
+      fontWeight,
+      fontStyle
+    });
+  }
 
   // Se o layout calculou caixas de linha, use-as.
   if (node.lineBoxes && node.lineBoxes.length > 0) {
@@ -72,6 +85,7 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
         fontFamily,
         fontSize,
         fontWeight,
+        fontStyle,
         fill: defaultColor,
         lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: startX, f: baseline },
         wordSpacing,
@@ -102,6 +116,7 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
       fontFamily,
       fontSize,
       fontWeight,
+      fontStyle,
       fill: defaultColor,
       lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: startX, f: baseline },
       decorations: decoration ? { ...decoration } : undefined,

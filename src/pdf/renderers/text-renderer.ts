@@ -70,7 +70,7 @@ export class TextRenderer {
   }
 
   async drawTextRun(run: Run): Promise<void> {
-    const font = await this.ensureFont({ fontFamily: run.fontFamily, fontWeight: run.fontWeight, text: run.text });
+    const font = await this.ensureFont({ fontFamily: run.fontFamily, fontWeight: run.fontWeight, fontStyle: run.fontStyle, text: run.text });
     const color = run.fill ?? { r: 0, g: 0, b: 0, a: 1 };
     const before = run.text;
 
@@ -169,9 +169,10 @@ export class TextRenderer {
     }
   }
 
-  private async ensureFont(options: { fontFamily?: string; fontWeight?: number; text?: string }): Promise<FontResource> {
+  private async ensureFont(options: { fontFamily?: string; fontWeight?: number; fontStyle?: string; text?: string }): Promise<FontResource> {
     const family = options.fontFamily;
     const fontWeight = options.fontWeight;
+    const fontStyle = options.fontStyle;
     const text = options.text || '';
 
     // Check if we need Unicode support (combining marks, symbols beyond WinAnsi)
@@ -193,7 +194,7 @@ export class TextRenderer {
     }
 
     // Fall back to standard registry resolution for Base14 fonts
-    const resource = await this.fontRegistry.ensureFontResource(family, fontWeight);
+    const resource = await this.fontRegistry.ensureFontResource(family, fontWeight, fontStyle);
     if (!this.fonts.has(resource.resourceName)) {
       this.fonts.set(resource.resourceName, resource.ref);
     }

@@ -60,9 +60,9 @@ export class FontRegistry {
     }
   }
 
-  async ensureFontResource(family: string | undefined, weight?: number): Promise<FontResource> {
+  async ensureFontResource(family: string | undefined, weight?: number, style?: string): Promise<FontResource> {
     const normalizedWeight = normalizeFontWeight(weight);
-    const familyKey = this.makeFamilyKey(family, normalizedWeight);
+    const familyKey = this.makeFamilyKey(family, normalizedWeight, style);
     const cached = this.fontsByFamilyWeight.get(familyKey);
     if (cached) {
       return cached;
@@ -83,7 +83,7 @@ export class FontRegistry {
       }
     }
 
-    const resolved = this.ensureStandardFontResource(family, normalizedWeight);
+    const resolved = this.ensureStandardFontResource(family, normalizedWeight, style);
     this.fontsByFamilyWeight.set(familyKey, resolved);
     return resolved;
   }
@@ -93,94 +93,113 @@ export class FontRegistry {
     return this.embedder;
   }
 
-  ensureFontResourceSync(family: string | undefined, weight?: number): FontResource {
+  ensureFontResourceSync(family: string | undefined, weight?: number, style?: string): FontResource {
     const normalizedWeight = normalizeFontWeight(weight);
-    const familyKey = this.makeFamilyKey(family, normalizedWeight);
+    const familyKey = this.makeFamilyKey(family, normalizedWeight, style);
     const cached = this.fontsByFamilyWeight.get(familyKey);
     if (cached) {
       return cached;
     }
-    const resolved = this.ensureStandardFontResource(family, normalizedWeight);
+    const resolved = this.ensureStandardFontResource(family, normalizedWeight, style);
     this.fontsByFamilyWeight.set(familyKey, resolved);
     return resolved;
   }
 
-  private ensureStandardFontResource(family: string | undefined, weight: number): FontResource {
+  private ensureStandardFontResource(family: string | undefined, weight: number, style?: string): FontResource {
     const candidates = [...parseFamilyList(family), DEFAULT_FONT];
     for (const candidate of candidates) {
       const normalizedCandidate = normalizeToken(candidate);
       if (!normalizedCandidate) {
         continue;
       }
-      const candidateKey = this.familyWeightKey(normalizedCandidate, weight);
+      const candidateKey = this.familyWeightKey(normalizedCandidate, weight, style);
       const existing = this.fontsByFamilyWeight.get(candidateKey);
       if (existing) {
-        this.fontsByFamilyWeight.set(this.makeFamilyKey(family, weight), existing);
+        this.fontsByFamilyWeight.set(this.makeFamilyKey(family, weight, style), existing);
         return existing;
       }
-      const baseFont = this.resolveBaseFont(normalizedCandidate, weight);
+      const baseFont = this.resolveBaseFont(normalizedCandidate, weight, style);
       const resource = this.ensureBaseFontResource(baseFont);
       this.fontsByFamilyWeight.set(candidateKey, resource);
-      this.fontsByFamilyWeight.set(this.makeFamilyKey(candidate, weight), resource);
+      this.fontsByFamilyWeight.set(this.makeFamilyKey(candidate, weight, style), resource);
       if (family && candidate !== family) {
-        this.fontsByFamilyWeight.set(this.makeFamilyKey(family, weight), resource);
+        this.fontsByFamilyWeight.set(this.makeFamilyKey(family, weight, style), resource);
       }
       return resource;
     }
-    const fallbackBase = this.applyWeightToBaseFont(DEFAULT_FONT, weight);
+    const fallbackBase = this.applyWeightToBaseFont(DEFAULT_FONT, weight, style);
     const fallback = this.ensureBaseFontResource(fallbackBase);
-    this.fontsByFamilyWeight.set(this.familyWeightKey("", weight), fallback);
+    this.fontsByFamilyWeight.set(this.familyWeightKey("", weight, style), fallback);
     return fallback;
   }
 
-  private resolveBaseFont(family: string, weight: number): string {
+  private resolveBaseFont(family: string, weight: number, style?: string): string {
     const faces = this.facesByFamily.get(family);
     if (faces && faces.length > 0) {
       const selectedFace = selectFaceForWeight(faces, weight);
       if (selectedFace) {
         const base = baseFontFromFace(selectedFace);
         if (base) {
-          return this.applyWeightToBaseFont(base, weight);
+          return this.applyWeightToBaseFont(base, weight, style);
         }
       }
     }
     const alias = BASE_FONT_ALIASES.get(family);
     if (alias) {
-      return this.applyWeightToBaseFont(alias, weight);
+      return this.applyWeightToBaseFont(alias, weight, style);
     }
     const generic = GENERIC_FAMILIES.get(family);
     if (generic) {
-      return this.applyWeightToBaseFont(generic, weight);
+      return this.applyWeightToBaseFont(generic, weight, style);
     }
-    return this.applyWeightToBaseFont(DEFAULT_FONT, weight);
+    return this.applyWeightToBaseFont(DEFAULT_FONT, weight, style);
   }
 
-  private makeFamilyKey(family: string | undefined, weight: number): string {
-    return this.familyWeightKey(normalizeToken(family), weight);
+  private makeFamilyKey(family: string | undefined, weight: number, style?: string): string {
+    return this.familyWeightKey(normalizeToken(family), weight, style);
   }
 
-  private familyWeightKey(normalizedFamily: string, weight: number): string {
+  private familyWeightKey(normalizedFamily: string, weight: number, style?: string): string {
     const familyToken = normalizedFamily && normalizedFamily.length > 0 ? normalizedFamily : "__default";
-    return `${familyToken}@${fontWeightCacheKey(weight)}`;
+    const styleToken = style && style.toLowerCase() === "italic" ? "_italic" : "";
+    return `${familyToken}@${fontWeightCacheKey(weight)}${styleToken}`;
   }
 
-  private applyWeightToBaseFont(baseFont: string, weight: number): string {
-    if (!isBoldFontWeight(weight)) {
-      return baseFont;
+  private applyWeightToBaseFont(baseFont: string, weight: number, style?: string): string {
+    let result = baseFont;
+    
+    // Apply font style (italic)
+    if (style && style.toLowerCase() === "italic") {
+      if (!/-italic$/i.test(result)) {
+        result = result + "-Italic";
+      }
     }
-    if (/-bold$/i.test(baseFont)) {
-      return baseFont;
+    
+    // Apply font weight (bold)
+    if (isBoldFontWeight(weight)) {
+      if (!/-bold$/i.test(result)) {
+        // Remove existing italic for bold variants, then re-add if needed
+        if (/-italic$/i.test(result)) {
+          result = result.replace(/-italic$/i, "");
+        }
+        switch (result) {
+          case "Helvetica":
+            return style && style.toLowerCase() === "italic" ? "Helvetica-BoldItalic" : "Helvetica-Bold";
+          case "Times-Roman":
+            return style && style.toLowerCase() === "italic" ? "Times-BoldItalic" : "Times-Bold";
+          case "Courier":
+            return style && style.toLowerCase() === "italic" ? "Courier-BoldItalic" : "Courier-Bold";
+          default:
+            if (style && style.toLowerCase() === "italic") {
+              return result + "-BoldItalic";
+            } else {
+              return result + "-Bold";
+            }
+        }
+      }
     }
-    switch (baseFont) {
-      case "Helvetica":
-        return "Helvetica-Bold";
-      case "Times-Roman":
-        return "Times-Bold";
-      case "Courier":
-        return "Courier-Bold";
-      default:
-        return baseFont;
-    }
+    
+    return result;
   }
 
   private ensureBaseFontResource(baseFont: string): FontResource {
@@ -215,7 +234,7 @@ export function initFontSystem(doc: PdfDocument, stylesheets: StyleSheets): Font
 }
 
 export async function ensureFontSubset(registry: FontRegistry, run: Run): Promise<FontResource> {
-  const font = await registry.ensureFontResource(run.fontFamily, run.fontWeight);
+  const font = await registry.ensureFontResource(run.fontFamily, run.fontWeight, run.fontStyle);
   // === diagnóstico cirúrgico: caminho de fonte ===
   log("FONT", "INFO", "font-path", {
     base14: font.isBase14 === true,
@@ -226,7 +245,7 @@ export async function ensureFontSubset(registry: FontRegistry, run: Run): Promis
 }
 
 export function ensureFontSubsetSync(registry: FontRegistry, run: Run): FontResource {
-  const font = registry.ensureFontResourceSync(run.fontFamily, run.fontWeight);
+  const font = registry.ensureFontResourceSync(run.fontFamily, run.fontWeight, run.fontStyle);
   // === diagnóstico cirúrgico: caminho de fonte ===
   console.log(`[FONT_DEBUG] Run text: "${run.text}", fontFamily: "${run.fontFamily}", font.isBase14: ${font.isBase14}, font.baseFont: ${font.baseFont}, encoding: ${font.isBase14 ? "WinAnsi" : "Identity-H"}`);
   log("FONT", "INFO", "font-path", {

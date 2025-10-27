@@ -27,6 +27,7 @@ export async function convertDomNode(
       lineHeight: parentStyle.lineHeight,
       fontFamily: parentStyle.fontFamily,
       fontWeight: parentStyle.fontWeight,
+      fontStyle: parentStyle.fontStyle,
     });
     return new LayoutNode(textStyle, [], { textContent: text });
   }
@@ -51,6 +52,7 @@ export async function convertDomNode(
       lineHeight: parentStyle.lineHeight,
       fontFamily: parentStyle.fontFamily,
       fontWeight: parentStyle.fontWeight,
+      fontStyle: parentStyle.fontStyle,
     });
     return new LayoutNode(textStyle, [], { textContent: "\n" });
   }
@@ -84,6 +86,7 @@ export async function convertDomNode(
           lineHeight: ownStyle.lineHeight,
           fontFamily: ownStyle.fontFamily,
           fontWeight: ownStyle.fontWeight,
+          fontStyle: ownStyle.fontStyle,
           textDecorationLine: ownStyle.textDecorationLine,
         }), [], { textContent: normalized }));
       }
@@ -105,6 +108,7 @@ export async function convertDomNode(
         lineHeight: ownStyle.lineHeight,
         fontFamily: ownStyle.fontFamily,
         fontWeight: ownStyle.fontWeight,
+        fontStyle: ownStyle.fontStyle,
         textDecorationLine: ownStyle.textDecorationLine,
       }), [], { textContent: normalized }));
     }

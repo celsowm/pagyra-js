@@ -270,5 +270,17 @@ export function computeStyleForElement(
   }
   styleOptions.textDecorationLine = decoration;
 
+  // Debug fontStyle for em and strong elements
+  if (tagName === 'em' || tagName === 'strong') {
+    const debugInfo = {
+      tagName,
+      elementDefaultsFontStyle: elementDefaults.fontStyle,
+      mergedFontStyle: mergedDefaults.fontStyle,
+      finalFontStyle: styleOptions.fontStyle
+    };
+    console.log("🔍 FONTSTYLE DEBUG:", debugInfo);
+    log("STYLE", "DEBUG", "element fontStyle", debugInfo);
+  }
+
   return new ComputedStyle(styleOptions);
 }

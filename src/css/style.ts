@@ -129,6 +129,7 @@ export interface StyleProperties {
   color?: string;
   fontFamily?: string;
   fontWeight?: number;
+  fontStyle?: string;
   objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down";
   left?: LengthLike;
   right?: LengthLike;
@@ -211,6 +212,7 @@ export class ComputedStyle implements StyleProperties {
   color?: string;
   fontFamily?: string;
   fontWeight?: number;
+  fontStyle?: string;
   objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down";
   left?: LengthLike;
   right?: LengthLike;
@@ -296,6 +298,7 @@ export class ComputedStyle implements StyleProperties {
     this.color = data.color;
     this.fontFamily = data.fontFamily;
     this.fontWeight = data.fontWeight;
+    this.fontStyle = data.fontStyle;
     this.objectFit = data.objectFit;
     this.left = data.left;
     this.right = data.right;
@@ -346,8 +349,11 @@ export class ComputedStyle implements StyleProperties {
   }
 }
 
-export function resolvedLineHeight(style: ComputedStyle): number {
-  if (style.lineHeight <= 0) {
+export function resolvedLineHeight(style: any): number {
+  if (!style || !style.fontSize) {
+    return 16;
+  }
+  if (!style.lineHeight || style.lineHeight <= 0) {
     return style.fontSize * 1.2;
   }
   if (style.lineHeight > 0 && style.lineHeight <= 10) {
