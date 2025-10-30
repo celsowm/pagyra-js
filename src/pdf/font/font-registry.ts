@@ -209,7 +209,23 @@ export class FontRegistry {
     }
     const ref = this.doc.registerStandardFont(baseFont);
     const alias = `F${this.aliasCounter++}`;
-    const isBase14 = ["Helvetica", "Times-Roman", "Courier", "Symbol", "ZapfDingbats"].includes(baseFont);
+    const BASE14_FAMILIES = new Set([
+      "Helvetica",
+      "Helvetica-Bold",
+      "Helvetica-Oblique",
+      "Helvetica-BoldOblique",
+      "Times-Roman",
+      "Times-Bold",
+      "Times-Italic",
+      "Times-BoldItalic",
+      "Courier",
+      "Courier-Bold",
+      "Courier-Oblique",
+      "Courier-BoldOblique",
+      "Symbol",
+      "ZapfDingbats",
+    ]);
+    const isBase14 = BASE14_FAMILIES.has(baseFont);
     const resource: FontResource = { baseFont, resourceName: alias, ref, isBase14 };
     this.fontsByBaseFont.set(baseFont, resource);
     return resource;

@@ -125,15 +125,11 @@ export function breakTextIntoLines(text: string, style: ComputedStyle, available
   if (n === 0) return [];
   const trimEdges = shouldTrimLineEdges(style);
 
-  // Check if entire text fits on one line - if so, don't break it
+  // Check if entire text fits on one line - if so, keep a single trimmed line
   const totalWidth = items.reduce((sum, it) => sum + it.width, 0);
   if (totalWidth <= availableWidth) {
-    return [{
-      text,
-      width: totalWidth,
-      spaceCount: countJustifiableSpaces(items),
-      targetWidth: availableWidth,
-    }];
+    const singleLine = buildLineBox(items, availableWidth, trimEdges);
+    return singleLine ? [singleLine] : [];
   }
 
   // memo[i] armazena o custo mínimo (feiura) para quebrar os primeiros `i` itens.

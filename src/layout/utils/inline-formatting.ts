@@ -5,6 +5,7 @@ import { clampMinMax, resolveLength } from "../../css/length.js";
 import { FloatContext } from "../context/float-context.js";
 import type { LayoutContext } from "../pipeline/strategy.js";
 import { breakTextIntoLines } from "../../text/line-breaker.js";
+import { estimateLineWidth } from "./text-metrics.js";
 
 interface InlineLayoutOptions {
   container: LayoutNode;
@@ -139,6 +140,37 @@ function measureInlineNode(node: LayoutNode, containerWidth: number, context: La
   if (node.textContent && node.style.display === Display.Inline) {
     const availableWidth = containerWidth;
     const lines = breakTextIntoLines(node.textContent, node.style, availableWidth);
+    const preserveLeading = !!node.customData?.preserveLeadingSpace;
+    const preserveTrailing = !!node.customData?.preserveTrailingSpace;
+
+    if (lines.length > 0) {
+      const singleLine = lines.length === 1;
+      const spaceWidth = estimateLineWidth(" ", node.style);
+      const firstChar = lines[0].text[0] ?? "";
+      const allowLeadingSpace = firstChar.length > 0 && /[\p{L}\p{N}]/u.test(firstChar);
+      if (singleLine && preserveLeading && allowLeadingSpace && !lines[0].text.startsWith(" ")) {
+        const first = lines[0];
+        lines[0] = {
+          ...first,
+          text: ` ${first.text}`,
+          width: first.width + spaceWidth,
+          spaceCount: first.spaceCount + 1,
+        };
+      }
+      if (singleLine && preserveTrailing) {
+        const lastIndex = lines.length - 1;
+        const last = lines[lastIndex];
+        if (!last.text.endsWith(" ")) {
+          lines[lastIndex] = {
+            ...last,
+            text: `${last.text} `,
+            width: last.width + spaceWidth,
+            spaceCount: last.spaceCount + 1,
+          };
+        }
+      }
+    }
+
     node.lineBoxes = lines;
 
     if (lines.length > 0) {

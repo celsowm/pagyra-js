@@ -119,24 +119,52 @@ function measureUsingBase14(text: string, style: ComputedStyle): number | null {
     }
     // Handle Unicode characters that map to WinAnsi bytes (like bullet U+2022 -> 0x95)
     if (code > 255) {
-      // Check if this Unicode character has a WinAnsi equivalent
-      // For example: Unicode 0x2022 (bullet) maps to WinAnsi 0x95
       if (code === 0x2022) { // bullet
-        const width = widths[0x95];
-        if (width === undefined) {
-          return null;
-        }
-        total += width;
+        const w = widths[0x95];
+        if (w === undefined) return null;
+        total += w;
         continue;
       }
-      // If no WinAnsi mapping exists, fall back to heuristic measurement
+      // Try diacritic fallback via NFD base letter (e.g., "ê" -> "e")
+      const base = char.normalize("NFD").replace(/\p{M}+/gu, "");
+      if (base && base.length === 1) {
+        const baseCode = base.codePointAt(0)!;
+        if (baseCode !== undefined && baseCode <= 255) {
+          const w2 = widths[baseCode];
+          if (w2 !== undefined) {
+            total += w2;
+            continue;
+          }
+        }
+      }
       return null;
     }
-    const width = widths[code];
-    if (width === undefined) {
-      return null;
+    let w = widths[code];
+    if (w === undefined) {
+      // Try diacritic fallback via base letter
+      const base = char.normalize("NFD").replace(/\p{M}+/gu, "");
+      if (base && base.length === 1) {
+        const baseCode = base.codePointAt(0)!;
+        if (baseCode !== undefined && baseCode <= 255) {
+          w = widths[baseCode];
+        }
+      }
+      if (w === undefined) return null;
     }
-    total += width;
+    // Some extended entries may be overly large in datasets; clamp using base letter width
+    if (w >= 900) {
+      const base = char.normalize("NFD").replace(/\p{M}+/gu, "");
+      if (base && base.length === 1) {
+        const baseCode = base.codePointAt(0)!;
+        if (baseCode !== undefined && baseCode <= 255) {
+          const fallback = widths[baseCode];
+          if (fallback !== undefined) {
+            w = fallback;
+          }
+        }
+      }
+    }
+    total += w;
   }
   return (total / 1000) * fontSize;
 }

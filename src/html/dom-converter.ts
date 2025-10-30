@@ -49,8 +49,11 @@ export async function convertDomNode(
     const collapsed = raw.replace(/\s+/g, " ").normalize("NFC");
     const trimmed = collapsed.trim();
 
+    const hasPrev = hasMeaningfulPreviousSibling(node);
+    const hasNext = hasMeaningfulNextSibling(node);
+
     if (trimmed.length === 0) {
-      const keepSpace = hasMeaningfulPreviousSibling(node) && hasMeaningfulNextSibling(node);
+      const keepSpace = hasPrev && hasNext;
       if (!keepSpace) {
         return null;
       }
@@ -65,14 +68,23 @@ export async function convertDomNode(
         fontStyle: parentStyle.fontStyle,
         textDecorationLine: parentStyle.textDecorationLine,
       });
-      return new LayoutNode(textStyle, [], { textContent: " " });
+      return new LayoutNode(textStyle, [], {
+        textContent: " ",
+        customData: {
+          preserveLeadingSpace: true,
+          preserveTrailingSpace: true,
+        },
+      });
     }
 
     let text = trimmed;
-    if (collapsed.startsWith(" ") && hasMeaningfulPreviousSibling(node)) {
+    const preserveLeading = collapsed.startsWith(" ") && hasPrev;
+    const preserveTrailing = collapsed.endsWith(" ") && hasNext;
+
+    if (preserveLeading) {
       text = " " + text;
     }
-    if (collapsed.endsWith(" ") && hasMeaningfulNextSibling(node)) {
+    if (preserveTrailing) {
       text = text + " ";
     }
 
@@ -87,7 +99,13 @@ export async function convertDomNode(
       fontStyle: parentStyle.fontStyle,
       textDecorationLine: parentStyle.textDecorationLine,
     });
-    return new LayoutNode(textStyle, [], { textContent: text });
+    return new LayoutNode(textStyle, [], {
+      textContent: text,
+      customData: {
+        preserveLeadingSpace: preserveLeading,
+        preserveTrailingSpace: preserveTrailing,
+      },
+    });
   }
 
   if (node.nodeType !== node.ELEMENT_NODE) return null;
@@ -137,6 +155,8 @@ export async function convertDomNode(
         normalized = layoutChildren.length > 0 ? " " : "";
       }
       if (normalized) {
+        const preserveLeading = normalized.startsWith(" ");
+        const preserveTrailing = normalized.endsWith(" ");
         layoutChildren.push(new LayoutNode(new ComputedStyle({
           display: Display.Inline,
           color: ownStyle.color,
@@ -146,7 +166,13 @@ export async function convertDomNode(
           fontWeight: ownStyle.fontWeight,
           fontStyle: ownStyle.fontStyle,
           textDecorationLine: ownStyle.textDecorationLine,
-        }), [], { textContent: normalized }));
+        }), [], {
+          textContent: normalized,
+          customData: {
+            preserveLeadingSpace: preserveLeading,
+            preserveTrailingSpace: preserveTrailing,
+          },
+        }));
       }
       textBuf = "";
     }
@@ -159,6 +185,8 @@ export async function convertDomNode(
       normalized = layoutChildren.length > 0 ? " " : "";
     }
     if (normalized) {
+      const preserveLeading = normalized.startsWith(" ");
+      const preserveTrailing = normalized.endsWith(" ");
       layoutChildren.push(new LayoutNode(new ComputedStyle({
         display: Display.Inline,
         color: ownStyle.color,
@@ -168,7 +196,13 @@ export async function convertDomNode(
         fontWeight: ownStyle.fontWeight,
         fontStyle: ownStyle.fontStyle,
         textDecorationLine: ownStyle.textDecorationLine,
-      }), [], { textContent: normalized }));
+      }), [], {
+        textContent: normalized,
+        customData: {
+          preserveLeadingSpace: preserveLeading,
+          preserveTrailingSpace: preserveTrailing,
+        },
+      }));
     }
   }
 
