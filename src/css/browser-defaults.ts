@@ -343,6 +343,14 @@ export class ElementSpecificDefaults {
       fontFamily: TypographyDefaults.getFontFamily(),
       color: TypographyDefaults.getColor(),
     },
+    i: {
+      display: Display.Inline,
+      fontSize: 16,
+      fontStyle: "italic",
+      lineHeight: TypographyDefaults.getLineHeight(),
+      fontFamily: TypographyDefaults.getFontFamily(),
+      color: TypographyDefaults.getColor(),
+    },
     s: {
       display: Display.Inline,
       fontSize: 16,
@@ -358,6 +366,14 @@ export class ElementSpecificDefaults {
       fontFamily: TypographyDefaults.getFontFamily(),
       color: TypographyDefaults.getColor(),
       textDecorationLine: "line-through",
+    },
+    u: {
+      display: Display.Inline,
+      fontSize: 16,
+      lineHeight: TypographyDefaults.getLineHeight(),
+      fontFamily: TypographyDefaults.getFontFamily(),
+      color: TypographyDefaults.getColor(),
+      textDecorationLine: "underline",
     },
     strike: {
       display: Display.Inline,

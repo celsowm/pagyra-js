@@ -115,7 +115,7 @@ function buildLineBox(items: TextItem[], availableWidth: number, trimEdges: bool
  * @returns Um array de objetos LineBox representando as linhas ótimas.
  */
 export function breakTextIntoLines(text: string, style: ComputedStyle, availableWidth: number): LineBox[] {
-  if (!text.trim()) {
+  if (text.length === 0) {
     return [];
   }
 

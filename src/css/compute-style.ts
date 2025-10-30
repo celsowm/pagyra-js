@@ -54,6 +54,17 @@ function defaultDisplayForTag(tag: string): Display {
     case "code":
     case "small":
     case "time":
+    case "i":
+    case "u":
+    case "sub":
+    case "sup":
+    case "mark":
+    case "abbr":
+    case "cite":
+    case "dfn":
+    case "kbd":
+    case "q":
+    case "tt":
       display = Display.Inline;
       break;
     case "table":

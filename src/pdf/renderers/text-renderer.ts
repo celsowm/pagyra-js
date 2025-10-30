@@ -148,16 +148,42 @@ export class TextRenderer {
     if (widthPx <= 0) {
       return;
     }
+
+    const rects: Rect[] = [];
     if (run.decorations.lineThrough) {
       const thicknessPx = Math.max(run.fontSize * 0.085, 0.5);
       const centerYPx = matrix.f - run.fontSize * 0.3;
-      const rect = {
+      rects.push({
         x: matrix.e,
         y: centerYPx - thicknessPx / 2,
         width: widthPx,
         height: thicknessPx,
-      };
-      // For now, just add a command for the decoration - actual drawing would be handled by ShapeRenderer
+      });
+    }
+
+    if (run.decorations.underline) {
+      const thicknessPx = Math.max(run.fontSize * 0.065, 0.5);
+      const underlineYPx = matrix.f + run.fontSize * 0.1;
+      rects.push({
+        x: matrix.e,
+        y: underlineYPx - thicknessPx / 2,
+        width: widthPx,
+        height: thicknessPx,
+      });
+    }
+
+    if (run.decorations.overline) {
+      const thicknessPx = Math.max(run.fontSize * 0.05, 0.5);
+      const overlineYPx = matrix.f - run.fontSize * 0.9;
+      rects.push({
+        x: matrix.e,
+        y: overlineYPx - thicknessPx / 2,
+        width: widthPx,
+        height: thicknessPx,
+      });
+    }
+
+    for (const rect of rects) {
       const pdfRect = this.rectToPdf(rect);
       if (pdfRect) {
         this.commands.push(

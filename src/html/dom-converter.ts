@@ -7,6 +7,36 @@ import { computeStyleForElement } from "../css/compute-style.js";
 import { convertImageElement, type ConversionContext } from "./image-converter.js";
 import { Display } from "../css/enums.js";
 
+function findMeaningfulSibling(start: Node | null, direction: "previous" | "next"): Node | null {
+  let current = start;
+  const getNext = direction === "previous"
+    ? (node: Node) => node.previousSibling
+    : (node: Node) => node.nextSibling;
+  while (current) {
+    if (current.nodeType === current.TEXT_NODE) {
+      const content = current.textContent ?? "";
+      if (content.replace(/\s+/g, "").length > 0) {
+        return current;
+      }
+    } else if (current.nodeType === current.ELEMENT_NODE) {
+      const tagName = (current as Element).tagName.toLowerCase();
+      if (!["script", "style", "meta", "link"].includes(tagName)) {
+        return current;
+      }
+    }
+    current = getNext(current);
+  }
+  return null;
+}
+
+function hasMeaningfulPreviousSibling(node: Node): boolean {
+  return findMeaningfulSibling(node.previousSibling, "previous") !== null;
+}
+
+function hasMeaningfulNextSibling(node: Node): boolean {
+  return findMeaningfulSibling(node.nextSibling, "next") !== null;
+}
+
 export async function convertDomNode(
   node: Node,
   cssRules: CssRuleEntry[],
@@ -16,10 +46,37 @@ export async function convertDomNode(
   console.log("convertDomNode - entering function for node type:", node.nodeType, "tagName:", (node as any).tagName || 'text node');
   if (node.nodeType === node.TEXT_NODE) {
     const raw = node.textContent ?? "";
-    const collapsed = raw.replace(/\s+/g, " ");
-    const text = collapsed.normalize("NFC").trim();
+    const collapsed = raw.replace(/\s+/g, " ").normalize("NFC");
+    const trimmed = collapsed.trim();
+
+    if (trimmed.length === 0) {
+      const keepSpace = hasMeaningfulPreviousSibling(node) && hasMeaningfulNextSibling(node);
+      if (!keepSpace) {
+        return null;
+      }
+      console.log("convertDomNode - processing text node: (single space)");
+      const textStyle = new ComputedStyle({
+        display: Display.Inline,
+        color: parentStyle.color,
+        fontSize: parentStyle.fontSize,
+        lineHeight: parentStyle.lineHeight,
+        fontFamily: parentStyle.fontFamily,
+        fontWeight: parentStyle.fontWeight,
+        fontStyle: parentStyle.fontStyle,
+        textDecorationLine: parentStyle.textDecorationLine,
+      });
+      return new LayoutNode(textStyle, [], { textContent: " " });
+    }
+
+    let text = trimmed;
+    if (collapsed.startsWith(" ") && hasMeaningfulPreviousSibling(node)) {
+      text = " " + text;
+    }
+    if (collapsed.endsWith(" ") && hasMeaningfulNextSibling(node)) {
+      text = text + " ";
+    }
+
     console.log("convertDomNode - processing text node:", text.substring(0, 50) + (text.length > 50 ? '...' : ''));
-    if (!text) return null;
     const textStyle = new ComputedStyle({
       display: Display.Inline,
       color: parentStyle.color,
@@ -28,6 +85,7 @@ export async function convertDomNode(
       fontFamily: parentStyle.fontFamily,
       fontWeight: parentStyle.fontWeight,
       fontStyle: parentStyle.fontStyle,
+      textDecorationLine: parentStyle.textDecorationLine,
     });
     return new LayoutNode(textStyle, [], { textContent: text });
   }
