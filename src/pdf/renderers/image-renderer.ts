@@ -15,6 +15,11 @@ export class ImageRenderer {
     private readonly coordinateTransformer: CoordinateTransformer,
   ) {}
 
+  // Public helper to register an image resource and get its alias without emitting commands
+  registerResource(image: ImageRef): { alias: string; image: ImageRef; ref?: PdfObjectRef } {
+    return this.ensureImageResource(image);
+  }
+
   drawImage(image: ImageRef, rect: Rect): void {
     if (rect.width <= 0 || rect.height <= 0) {
       return;

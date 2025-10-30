@@ -66,6 +66,25 @@ export class PagePainter {
     this.imageRenderer.drawImage(image, rect);
   }
 
+  // Draw an image immediately into the shape command stream (for shadows)
+  drawShadowImage(image: ImageRef, rect: Rect): void {
+    if (rect.width <= 0 || rect.height <= 0) return;
+    const res = this.imageRenderer.registerResource(image);
+    const widthPt = this.coordinateTransformer.convertPxToPt(rect.width);
+    const heightPt = this.coordinateTransformer.convertPxToPt(rect.height);
+    if (widthPt === 0 || heightPt === 0) return;
+    const xPt = this.coordinateTransformer.convertPxToPt(rect.x);
+    const localY = rect.y - this.coordinateTransformer.pageOffsetPx;
+    const yPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localY + rect.height);
+    const cmds = [
+      "q",
+      `${formatNumber(widthPt)} 0 0 ${formatNumber(heightPt)} ${formatNumber(xPt)} ${formatNumber(yPt)} cm`,
+      `/${res.alias} Do`,
+      "Q",
+    ];
+    this.shapeRenderer.pushRawCommands(cmds);
+  }
+
   async drawText(text: string, xPx: number, yPx: number, options: TextPaintOptions = { fontSizePt: 10 }): Promise<void> {
     await this.textRenderer.drawText(text, xPx, yPx, options);
   }
@@ -96,11 +115,42 @@ export class PagePainter {
     const shapeResult = this.shapeRenderer.getResult();
     const graphicsStates = this.graphicsStateManager.getGraphicsStates();
 
-    // Combine all commands
+    // Partition image commands: shadow rasters (drawn beneath shapes) vs others
+    const shadowAliases = new Set<string>();
+    for (const [_, res] of imageResult.images) {
+      if (res.image.src && typeof res.image.src === 'string' && res.image.src.startsWith('internal:shadow:')) {
+        shadowAliases.add(res.alias);
+      }
+    }
+
+    const preShadowImageCmds: string[] = [];
+    const postImageCmds: string[] = [];
+    const cmds = imageResult.commands;
+    for (let i = 0; i < cmds.length; ) {
+      // Expect blocks of [q, cm, /ImX Do, Q]
+      if (cmds[i] === 'q' && i + 3 < cmds.length && cmds[i + 3] === 'Q') {
+        const doLine = cmds[i + 2] ?? '';
+        const match = doLine.match(/^\/(\w+)\s+Do$/);
+        const block = [cmds[i], cmds[i + 1] ?? '', cmds[i + 2] ?? '', cmds[i + 3] ?? ''];
+        i += 4;
+        if (match && shadowAliases.has(match[1])) {
+          preShadowImageCmds.push(...block);
+        } else {
+          postImageCmds.push(...block);
+        }
+      } else {
+        // Fallback: if structure is unexpected, push to post image commands
+        postImageCmds.push(cmds[i]);
+        i += 1;
+      }
+    }
+
+    // Combine with correct ordering: shadow images below shapes/backgrounds, then shapes, text, then other images
     const allCommands = [
+      ...preShadowImageCmds,
       ...shapeResult.commands,
       ...textResult.commands,
-      ...imageResult.commands
+      ...postImageCmds,
     ];
 
     // Process image resources to match the expected format
@@ -129,4 +179,11 @@ export class PagePainter {
       graphicsStates: graphicsStates,
     };
   }
+}
+
+function formatNumber(value: number): string {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+  return Number.isInteger(value) ? value.toString() : value.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
 }

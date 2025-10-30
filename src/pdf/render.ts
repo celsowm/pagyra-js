@@ -12,6 +12,7 @@ import {
 } from "./header-footer.js";
 import { paginateTree } from "./pagination.js";
 import { PagePainter } from "./page-painter.js";
+import { rasterizeDropShadowForRect } from "./utils/drop-shadow-raster.js";
 import { initFontSystem, finalizeFontSubsets, preflightFontsForPdfa } from "./font/font-registry.js";
 import { LayerMode } from "./types.js";
 import type { FontConfig } from "../types/fonts.js";
@@ -142,6 +143,15 @@ function renderOuterShadow(painter: PagePainter, box: RenderBox, shadow: ShadowL
   const baseRadius = cloneRadius(box.borderRadius);
   const blur = clampNonNegative(shadow.blur);
   const spread = shadow.spread;
+  if (blur > 0) {
+    const raster = rasterizeDropShadowForRect(baseRect, baseRadius, shadow.color, blur, spread);
+    if (raster) {
+      // Draw shadow raster immediately within the shapes stream to keep correct z-order
+      painter.drawShadowImage(raster.image, raster.drawRect);
+      return;
+    }
+  }
+  // Fallback to vector layering when blur is zero or rasterization failed
   drawShadowLayers(painter, {
     mode: "outer",
     baseRect,

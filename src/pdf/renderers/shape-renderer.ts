@@ -57,6 +57,12 @@ export class ShapeRenderer {
     this.pushFillCommands(color, commands, true);
   }
 
+  // Allow low-level injection of drawing commands to preserve ordering (used for raster shadows)
+  pushRawCommands(commands: string[]): void {
+    if (!Array.isArray(commands) || commands.length === 0) return;
+    this.commands.push(...commands);
+  }
+
   private fillRoundedRectWithGradient(rect: Rect, radii: Radius, gradientStr: string): void {
     const gradient = parseLinearGradient(gradientStr);
     if (!gradient) {
