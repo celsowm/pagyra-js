@@ -114,7 +114,13 @@ export class PagePainter {
     const textResult = this.textRenderer.getResult();
     const imageResult = this.imageRenderer.getResult();
     const shapeResult = this.shapeRenderer.getResult();
-    const graphicsStates = this.graphicsStateManager.getGraphicsStates();
+    const graphicsStates = new Map<string, number>();
+    for (const [name, alpha] of this.graphicsStateManager.getGraphicsStates()) {
+      graphicsStates.set(name, alpha);
+    }
+    for (const [name, alpha] of shapeResult.graphicsStates) {
+      graphicsStates.set(name, alpha);
+    }
 
     // Partition image commands: shadow rasters (drawn beneath shapes) vs others
     const shadowAliases = new Set<string>();
@@ -177,7 +183,7 @@ export class PagePainter {
       content: allCommands.join("\n"),
       fonts: textResult.fonts,
       images: processedImages,
-      graphicsStates: graphicsStates,
+      graphicsStates,
       shadings: shapeResult.shadings,
     };
   }

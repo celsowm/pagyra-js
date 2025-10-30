@@ -6,6 +6,7 @@ import { parseLinearGradient, type LinearGradient } from "../../css/parsers/grad
 export interface ShapeRendererResult {
   readonly commands: string[];
   readonly shadings: Map<string, string>;
+  readonly graphicsStates: Map<string, number>;
 }
 
 export class ShapeRenderer {
@@ -399,6 +400,7 @@ export class ShapeRenderer {
     return {
       commands: [...this.commands],
       shadings: this.gradientService.getShadings(),
+      graphicsStates: new Map(this.graphicsStates),
     };
   }
 }
@@ -407,9 +409,7 @@ function fillColorCommand(color: RGBA): string {
   const r = formatNumber(normalizeChannel(color.r));
   const g = formatNumber(normalizeChannel(color.g));
   const b = formatNumber(normalizeChannel(color.b));
-  if (color.a !== undefined && color.a < 1) {
-    // Transparency is not directly supported; ignore alpha for now.
-  }
+  // Alpha blending is handled through ExtGState assignments (see pushFillCommands).
   return `${r} ${g} ${b} rg`;
 }
 
