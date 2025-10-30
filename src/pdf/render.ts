@@ -91,11 +91,16 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
       const ref = doc.registerExtGState(alpha);
       extGStates.set(name, ref);
     }
+    const shadings = new Map<string, PdfObjectRef>();
+    for (const [name, dict] of result.shadings) {
+      const ref = doc.registerShading(name, dict);
+      shadings.set(name, ref);
+    }
     doc.addPage({
       width: pageSize.widthPt,
       height: pageSize.heightPt,
       contents: result.content,
-      resources: { fonts: result.fonts, xObjects, extGStates },
+      resources: { fonts: result.fonts, xObjects, extGStates, shadings },
       annotations: [],
     });
   }
@@ -352,86 +357,35 @@ function paintPageBackground(painter: PagePainter, color: RGBA | undefined, widt
 
 function paintBackgrounds(painter: PagePainter, boxes: RenderBox[]): void {
   for (const box of boxes) {
-    const color = box.background?.color;
     const gradient = box.background?.gradient;
-    
-    console.log("paintBackgrounds - box:", box.tagName, "color:", color, "gradient:", gradient);
-    
+    const color = box.background?.color;
+
     if (gradient) {
-      console.log("Processing gradient for box:", box.tagName);
-      // Handle gradient background
-      const isTableCell = box.tagName === 'td' || box.tagName === 'th';
-      const targetRect = isTableCell ? box.borderBox : (box.paddingBox ?? box.contentBox);
-      
+      const isTableCell = box.tagName === "td" || box.tagName === "th";
+      const targetRect = isTableCell ? box.borderBox : box.paddingBox ?? box.contentBox;
       if (!targetRect) {
         continue;
       }
-      
-      // Convert gradient object to CSS gradient string
-      let gradientStr: string;
-      if (typeof gradient === 'string') {
-        gradientStr = gradient;
-      } else {
-        // Create CSS gradient string from gradient object
-        const gradientObj = gradient as any;
-        const type = gradientObj.type || 'linear';
-        const direction = gradientObj.direction || 'to right';
-        const stops = gradientObj.stops || [{ color: '#000' }, { color: '#fff' }];
-        
-        console.log("Gradient stops:", stops);
-        const colors = stops.map((s: any) => {
-          let color = s.color;
-          console.log("Processing color:", color);
-          
-          // If it's a color name like 'red' or 'yellow', convert to hex
-          const colorNames: Record<string, string> = {
-            'red': '#FF0000',
-            'yellow': '#FFFF00',
-            'green': '#00FF00',
-            'blue': '#0000FF',
-            'black': '#000000',
-            'white': '#FFFFFF',
-            'gray': '#808080',
-            'grey': '#808080',
-          };
-          
-          if (colorNames[color.toLowerCase()]) {
-            color = colorNames[color.toLowerCase()];
-            console.log("Converted color name:", color);
-          }
-          
-          return color;
-        });
-        
-        gradientStr = `linear-gradient(${direction}, ${colors.join(', ')})`;
+      if (isTableCell) {
+        painter.fillRoundedRect(box.borderBox, box.borderRadius, gradient as any);
+        continue;
       }
-      
-      console.log("Generated gradient string:", gradientStr);
-      
-      // For table cells or rectangles with zero radius, use fillRect
-      if (isTableCell || isZeroRadius(box.borderRadius)) {
-        console.log("Using fillRect with gradient");
-        painter.fillRect(targetRect, gradientStr as any);
-      } else {
-        console.log("Using fillRoundedRect with gradient");
-        const targetRadius = shrinkRadius(box.borderRadius, box.border.top, box.border.right, box.border.bottom, box.border.left);
-        if (targetRect === box.contentBox) {
-          const shrunkRadius = shrinkRadius(
-            targetRadius,
-            box.padding.top,
-            box.padding.right,
-            box.padding.bottom,
-            box.padding.left,
-          );
-          painter.fillRoundedRect(targetRect, shrunkRadius, gradientStr as any);
-        } else {
-          painter.fillRoundedRect(targetRect, targetRadius, gradientStr as any);
-        }
+      let targetRadius = shrinkRadius(box.borderRadius, box.border.top, box.border.right, box.border.bottom, box.border.left);
+      if (targetRect === box.contentBox) {
+        targetRadius = shrinkRadius(
+          targetRadius,
+          box.padding.top,
+          box.padding.right,
+          box.padding.bottom,
+          box.padding.left,
+        );
       }
-    } else if (color) {
-      console.log("Processing solid color for box:", box.tagName, color);
-      // Handle solid color background (existing code)
-      const isTableCell = box.tagName === 'td' || box.tagName === 'th';
+      painter.fillRoundedRect(targetRect, targetRadius, gradient as any);
+      continue;
+    }
+
+    if (color) {
+      const isTableCell = box.tagName === "td" || box.tagName === "th";
       if (isTableCell) {
         painter.fillRoundedRect(box.borderBox, box.borderRadius, color);
         continue;

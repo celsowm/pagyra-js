@@ -1,4 +1,5 @@
 import type { Rect, Run, RenderBox, RGBA, ImageRef, Radius, TextPaintOptions } from "./types.js";
+import type { LinearGradient } from "../css/parsers/gradient-parser.js";
 import type { FontRegistry } from "./font/font-registry.js";
 import type { PdfObjectRef } from "./primitives/pdf-document.js";
 import { log } from "../debug/log.js";
@@ -7,13 +8,13 @@ import { TextRenderer } from "./renderers/text-renderer.js";
 import { ImageRenderer } from "./renderers/image-renderer.js";
 import { ShapeRenderer } from "./renderers/shape-renderer.js";
 import { GraphicsStateManager } from "./renderers/graphics-state-manager.js";
-import { GradientService } from "./shading/gradient-service.js";
 
 export interface PainterResult {
   readonly content: string;
   readonly fonts: Map<string, PdfObjectRef>;
   readonly images: PainterImageResource[];
   readonly graphicsStates: Map<string, number>;
+  readonly shadings: Map<string, string>;
 }
 
 export interface PainterImageResource {
@@ -93,16 +94,16 @@ export class PagePainter {
     await this.textRenderer.drawTextRun(run);
   }
 
-  fillRoundedRect(rect: Rect, radii: Radius, color: RGBA): void {
-    this.shapeRenderer.fillRoundedRect(rect, radii, color);
+  fillRoundedRect(rect: Rect, radii: Radius, paint: RGBA | LinearGradient | string): void {
+    this.shapeRenderer.fillRoundedRect(rect, radii, paint);
   }
 
   fillRoundedRectDifference(outerRect: Rect, outerRadii: Radius, innerRect: Rect, innerRadii: Radius, color: RGBA): void {
     this.shapeRenderer.fillRoundedRectDifference(outerRect, outerRadii, innerRect, innerRadii, color);
   }
 
-  fillRect(rect: Rect, color: RGBA): void {
-    this.shapeRenderer.fillRect(rect, color);
+  fillRect(rect: Rect, paint: RGBA | LinearGradient | string): void {
+    this.shapeRenderer.fillRect(rect, paint);
   }
 
   strokeRect(rect: Rect, color: RGBA): void {
@@ -177,6 +178,7 @@ export class PagePainter {
       fonts: textResult.fonts,
       images: processedImages,
       graphicsStates: graphicsStates,
+      shadings: shapeResult.shadings,
     };
   }
 }

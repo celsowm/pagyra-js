@@ -31,6 +31,7 @@ interface PdfResources {
   fonts: Map<string, PdfObjectRef>;
   xObjects: Map<string, PdfObjectRef>;
   extGStates: Map<string, PdfObjectRef>;
+  shadings: Map<string, PdfObjectRef>;
 }
 
 export interface PdfObjectRef {
@@ -81,6 +82,7 @@ export class PdfDocument {
       fonts: page.resources?.fonts ?? new Map(),
       xObjects: page.resources?.xObjects ?? new Map(),
       extGStates: page.resources?.extGStates ?? new Map(),
+      shadings: page.resources?.shadings ?? new Map(),
     };
     this.pages.push({
       width: page.width,
@@ -219,6 +221,10 @@ export class PdfDocument {
       state.ref = pushObject(serializeExtGState(state.alpha), state.ref);
     }
 
+    for (const shading of this.shadings.values()) {
+      shading.ref = pushObject(shading.dict, shading.ref);
+    }
+
     for (const image of this.images) {
       const entries = [
         "/Type /XObject",
@@ -282,6 +288,13 @@ export class PdfDocument {
       }
       if (gStateEntries.length > 0) {
         resourcesParts.push(`/ExtGState << ${gStateEntries.join(" ")} >>`);
+      }
+      const shadingEntries: string[] = [];
+      for (const [alias, ref] of page.resources.shadings) {
+        shadingEntries.push(`/${alias} ${ref.objectNumber} 0 R`);
+      }
+      if (shadingEntries.length > 0) {
+        resourcesParts.push(`/Shading << ${shadingEntries.join(" ")} >>`);
       }
       const resources = resourcesParts.length > 0 ? `/Resources << ${resourcesParts.join(" ")} >>` : "";
       const annots =

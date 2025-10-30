@@ -1,1 +1,1 @@
-export { GradientService, type GradientPattern } from "./gradient-service.js";
+export { GradientService, type GradientShading } from "./gradient-service.js";

@@ -1,287 +1,342 @@
 import type { LinearGradient, GradientStop } from "../../css/parsers/gradient-parser.js";
-import type { RGBA } from "../types.js";
 import { CoordinateTransformer } from "../utils/coordinate-transformer.js";
 
-export interface GradientPattern {
-  readonly patternName: string;
-  readonly commands: string[];
+export interface GradientShading {
+  readonly shadingName: string;
+  readonly dictionary: string;
 }
 
+let GLOBAL_GRADIENT_SERVICE_ID = 0;
+
 export class GradientService {
-  private readonly patterns = new Map<string, GradientPattern>();
-  private readonly graphicsStates = new Map<string, number>();
-  private patternCounter = 0;
+  private readonly shadings = new Map<string, GradientShading>();
+  private shadingCounter = 0;
+  private readonly serviceId = GLOBAL_GRADIENT_SERVICE_ID++;
 
   constructor(
-    private readonly coordinateTransformer: CoordinateTransformer
+    private readonly coordinateTransformer: CoordinateTransformer,
   ) {}
 
   createLinearGradient(
     gradient: LinearGradient,
-    rect: { x: number; y: number; width: number; height: number },
-    colorSpace: "DeviceRGB" = "DeviceRGB"
-  ): GradientPattern {
-    // Generate a unique name for this gradient pattern
-    const patternName = this.generatePatternName();
-    
-    // Calculate gradient coordinates based on direction
+    rect: { width: number; height: number },
+  ): GradientShading {
+    const shadingName = this.generateShadingName();
+    const stops = this.normalizeStops(gradient.stops);
     const coords = this.calculateGradientCoordinates(gradient, rect);
-    
-    // Calculate bounding box for the pattern
-    const bbox = this.calculatePatternBbox(gradient, rect);
-    
-    // Create PDF pattern definition
-    const patternDef = this.createPatternDefinition(
-      patternName,
-      gradient,
-      coords,
-      bbox,
-      colorSpace
-    );
-    
-    // Store the pattern
-    this.patterns.set(patternName, {
-      patternName,
-      commands: patternDef
-    });
+    const interpolationFn = this.buildInterpolationFunction(stops);
 
-    return {
-      patternName,
-      commands: patternDef
-    };
+    const dictionary = [
+      "<<",
+      "/ShadingType 2",
+      "/ColorSpace /DeviceRGB",
+      `/Coords [${coords.map(formatNumber).join(" ")}]`,
+      "/Domain [0 1]",
+      `/Function ${interpolationFn}`,
+      "/Extend [true true]",
+      ">>",
+    ].join("\n");
+
+    const shading: GradientShading = { shadingName, dictionary };
+    this.shadings.set(shadingName, shading);
+    return shading;
   }
 
-  private generatePatternName(): string {
-    return `Grad${this.patternCounter++}`;
+  getShadings(): Map<string, string> {
+    const result = new Map<string, string>();
+    for (const { shadingName, dictionary } of this.shadings.values()) {
+      result.set(shadingName, dictionary);
+    }
+    return result;
+  }
+
+  clear(): void {
+    this.shadings.clear();
+    this.shadingCounter = 0;
+  }
+
+  private generateShadingName(): string {
+    return `Sh${this.serviceId}_${this.shadingCounter++}`;
   }
 
   private calculateGradientCoordinates(
     gradient: LinearGradient,
-    rect: { x: number; y: number; width: number; height: number }
+    rect: { width: number; height: number },
   ): [number, number, number, number] {
+    const widthPt = Math.max(this.coordinateTransformer.convertPxToPt(rect.width), 0);
+    const heightPt = Math.max(this.coordinateTransformer.convertPxToPt(rect.height), 0);
+    const safeWidth = widthPt > 0 ? widthPt : 1;
+    const safeHeight = heightPt > 0 ? heightPt : 1;
+    const centerX = safeWidth / 2;
+    const centerY = safeHeight / 2;
+
     switch (gradient.direction) {
       case "to right":
-        return [
-          this.coordinateTransformer.convertPxToPt(rect.x),
-          this.coordinateTransformer.convertPxToPt(rect.y + rect.height / 2),
-          this.coordinateTransformer.convertPxToPt(rect.x + rect.width),
-          this.coordinateTransformer.convertPxToPt(rect.y + rect.height / 2)
-        ];
+        return [0, centerY, safeWidth, centerY];
       case "to left":
-        return [
-          this.coordinateTransformer.convertPxToPt(rect.x + rect.width),
-          this.coordinateTransformer.convertPxToPt(rect.y + rect.height / 2),
-          this.coordinateTransformer.convertPxToPt(rect.x),
-          this.coordinateTransformer.convertPxToPt(rect.y + rect.height / 2)
-        ];
+        return [safeWidth, centerY, 0, centerY];
       case "to bottom":
-        return [
-          this.coordinateTransformer.convertPxToPt(rect.x + rect.width / 2),
-          this.coordinateTransformer.convertPxToPt(rect.y),
-          this.coordinateTransformer.convertPxToPt(rect.x + rect.width / 2),
-          this.coordinateTransformer.convertPxToPt(rect.y + rect.height)
-        ];
+        return [centerX, 0, centerX, safeHeight];
       case "to top":
-        return [
-          this.coordinateTransformer.convertPxToPt(rect.x + rect.width / 2),
-          this.coordinateTransformer.convertPxToPt(rect.y + rect.height),
-          this.coordinateTransformer.convertPxToPt(rect.x + rect.width / 2),
-          this.coordinateTransformer.convertPxToPt(rect.y)
-        ];
+        return [centerX, safeHeight, centerX, 0];
       case "to top right":
-        return [
-          this.coordinateTransformer.convertPxToPt(rect.x),
-          this.coordinateTransformer.convertPxToPt(rect.y + rect.height),
-          this.coordinateTransformer.convertPxToPt(rect.x + rect.width),
-          this.coordinateTransformer.convertPxToPt(rect.y)
-        ];
+        return [0, safeHeight, safeWidth, 0];
       case "to top left":
-        return [
-          this.coordinateTransformer.convertPxToPt(rect.x + rect.width),
-          this.coordinateTransformer.convertPxToPt(rect.y + rect.height),
-          this.coordinateTransformer.convertPxToPt(rect.x),
-          this.coordinateTransformer.convertPxToPt(rect.y)
-        ];
+        return [safeWidth, safeHeight, 0, 0];
       case "to bottom right":
-        return [
-          this.coordinateTransformer.convertPxToPt(rect.x),
-          this.coordinateTransformer.convertPxToPt(rect.y),
-          this.coordinateTransformer.convertPxToPt(rect.x + rect.width),
-          this.coordinateTransformer.convertPxToPt(rect.y + rect.height)
-        ];
+        return [0, 0, safeWidth, safeHeight];
       case "to bottom left":
-        return [
-          this.coordinateTransformer.convertPxToPt(rect.x + rect.width),
-          this.coordinateTransformer.convertPxToPt(rect.y),
-          this.coordinateTransformer.convertPxToPt(rect.x),
-          this.coordinateTransformer.convertPxToPt(rect.y + rect.height)
-        ];
+        return [safeWidth, 0, 0, safeHeight];
       default:
-        // Handle angle-based directions
         if (gradient.direction.endsWith("deg")) {
-          const angle = parseFloat(gradient.direction);
-          return this.calculateCoordinatesFromAngle(angle, rect);
+          const angle = Number.parseFloat(gradient.direction);
+          return this.calculateCoordinatesFromAngle(angle, safeWidth, safeHeight);
         }
-        // Default to horizontal gradient
-        return [
-          this.coordinateTransformer.convertPxToPt(rect.x),
-          this.coordinateTransformer.convertPxToPt(rect.y + rect.height / 2),
-          this.coordinateTransformer.convertPxToPt(rect.x + rect.width),
-          this.coordinateTransformer.convertPxToPt(rect.y + rect.height / 2)
-        ];
+        return [0, centerY, safeWidth, centerY];
     }
   }
 
   private calculateCoordinatesFromAngle(
-    angle: number,
-    rect: { x: number; y: number; width: number; height: number }
+    angleDeg: number,
+    widthPt: number,
+    heightPt: number,
   ): [number, number, number, number] {
-    // Convert angle to radians (0deg = to right, 90deg = to bottom)
-    const rad = (angle - 90) * Math.PI / 180;
-    
-    // Calculate center point
-    const centerX = rect.x + rect.width / 2;
-    const centerY = rect.y + rect.height / 2;
-    
-    // Calculate the length of the gradient line
-    const halfDiagonal = Math.sqrt(rect.width * rect.width + rect.height * rect.height) / 2;
-    
-    // Calculate start and end points
-    const startX = centerX - halfDiagonal * Math.cos(rad);
-    const startY = centerY - halfDiagonal * Math.sin(rad);
-    const endX = centerX + halfDiagonal * Math.cos(rad);
-    const endY = centerY + halfDiagonal * Math.sin(rad);
-    
-    return [
-      this.coordinateTransformer.convertPxToPt(startX),
-      this.coordinateTransformer.convertPxToPt(startY),
-      this.coordinateTransformer.convertPxToPt(endX),
-      this.coordinateTransformer.convertPxToPt(endY)
-    ];
-  }
-
-  private calculatePatternBbox(
-    gradient: LinearGradient,
-    rect: { x: number; y: number; width: number; height: number }
-  ): [number, number, number, number] {
-    // For linear gradients, the pattern bbox should match the rectangle
-    return [
-      this.coordinateTransformer.convertPxToPt(rect.x),
-      this.coordinateTransformer.convertPxToPt(rect.y),
-      this.coordinateTransformer.convertPxToPt(rect.width),
-      this.coordinateTransformer.convertPxToPt(rect.height)
-    ];
-  }
-
-  private createPatternDefinition(
-    patternName: string,
-    gradient: LinearGradient,
-    coords: [number, number, number, number],
-    bbox: [number, number, number, number],
-    colorSpace: string
-  ): string[] {
-    const commands: string[] = [];
-    
-    // Start pattern definition
-    commands.push(`/PatternType 2`);
-    commands.push(`/ShadingType 2`);
-    commands.push(`/ColorSpace /${colorSpace}`);
-    
-    // Add coordinates
-    commands.push(`/Coords [${coords.join(" ")}]`);
-    
-    // Add bounding box
-    commands.push(`/BBox [${bbox.join(" ")}]`);
-    
-    // Add color stops
-    if (gradient.stops.length >= 2) {
-      const c0 = this.parseColor(gradient.stops[0].color);
-      const c1 = this.parseColor(gradient.stops[gradient.stops.length - 1].color);
-      
-      commands.push(`/C0 [ ${formatNumber(c0.r)} ${formatNumber(c0.g)} ${formatNumber(c0.b)} ]`);
-      commands.push(`/C1 [ ${formatNumber(c1.r)} ${formatNumber(c1.g)} ${formatNumber(c1.b)} ]`);
-      commands.push(`/N 1`);
+    if (!Number.isFinite(angleDeg)) {
+      return [0, heightPt / 2, widthPt, heightPt / 2];
     }
-    
-    // Function definition
-    commands.push(`/Function <<`);
-    commands.push(`/FunctionType 2`);
-    commands.push(`/Domain [0 1]`);
-    commands.push(`/C0 [ ${formatNumber(this.parseColor(gradient.stops[0].color).r)} ${formatNumber(this.parseColor(gradient.stops[0].color).g)} ${formatNumber(this.parseColor(gradient.stops[0].color).b)} ]`);
-    commands.push(`/C1 [ ${formatNumber(this.parseColor(gradient.stops[gradient.stops.length - 1].color).r)} ${formatNumber(this.parseColor(gradient.stops[gradient.stops.length - 1].color).g)} ${formatNumber(this.parseColor(gradient.stops[gradient.stops.length - 1].color).b)} ]`);
-    commands.push(`/N 1`);
-    commands.push(`>>`);
-    
-    // End pattern definition
-    commands.push(`>>`);
-    commands.push(`def`);
-    
-    return commands;
+    const normalized = ((angleDeg % 360) + 360) % 360;
+    const radians = (normalized * Math.PI) / 180;
+    // CSS angles measure 0deg as pointing to the right and grow clockwise.
+    const dirX = Math.cos(radians);
+    const dirY = Math.sin(radians);
+
+    const halfWidth = widthPt / 2;
+    const halfHeight = heightPt / 2;
+    const extent = this.computeMaxExtent(dirX, dirY, halfWidth, halfHeight);
+
+    const startX = halfWidth - dirX * extent;
+    const startY = halfHeight - dirY * extent;
+    const endX = halfWidth + dirX * extent;
+    const endY = halfHeight + dirY * extent;
+    return [startX, startY, endX, endY];
   }
 
-   private parseColor(colorStr: string): { r: number; g: number; b: number } {
-    // Handle named colors - using standard CSS named colors
-    const namedColors: Record<string, { r: number; g: number; b: number }> = {
-      red: { r: 1, g: 0, b: 0 },      // #FF0000
-      green: { r: 0, g: 0.50196, b: 0 },  // #008000 (standard CSS green)
-      blue: { r: 0, g: 0, b: 1 },     // #0000FF
-      yellow: { r: 1, g: 1, b: 0 },   // #FFFF00
-      black: { r: 0, g: 0, b: 0 },    // #000000
-      white: { r: 1, g: 1, b: 1 },    // #FFFFFF
-      lime: { r: 0, g: 1, b: 0 },     // #00FF00 (pure green)
+  private computeMaxExtent(dirX: number, dirY: number, halfWidth: number, halfHeight: number): number {
+    const epsilon = 1e-6;
+    const tx = Math.abs(dirX) > epsilon ? halfWidth / Math.abs(dirX) : Number.POSITIVE_INFINITY;
+    const ty = Math.abs(dirY) > epsilon ? halfHeight / Math.abs(dirY) : Number.POSITIVE_INFINITY;
+    return Math.max(tx, ty);
+  }
+
+  private normalizeStops(stops: GradientStop[]): NormalizedStop[] {
+    if (stops.length === 0) {
+      return [{ color: this.parseColor("#000000"), position: 0 }];
+    }
+
+    const enriched = stops.map((stop) => ({
+      color: this.parseColor(stop.color),
+      position: stop.position,
+    }));
+
+    const hasExplicit = enriched.some((stop) => stop.position !== undefined);
+
+    if (!hasExplicit) {
+      if (enriched.length === 1) {
+        return [{ color: enriched[0].color, position: 0 }];
+      }
+      const denom = enriched.length - 1;
+      return enriched.map((stop, index) => ({
+        color: stop.color,
+        position: denom === 0 ? 0 : index / denom,
+      }));
+    }
+
+    const positions: Array<number | undefined> = enriched.map((stop) => stop.position);
+    if (positions[0] === undefined) {
+      positions[0] = 0;
+    }
+    if (positions[positions.length - 1] === undefined) {
+      positions[positions.length - 1] = 1;
+    }
+
+    let lastDefinedIndex = 0;
+    positions[lastDefinedIndex] = clampUnit(positions[lastDefinedIndex] ?? 0);
+
+    for (let i = 1; i < positions.length; i++) {
+      const current = positions[i];
+      if (current === undefined) {
+        continue;
+      }
+      const start = positions[lastDefinedIndex] ?? 0;
+      const end = clampUnit(current);
+      const span = i - lastDefinedIndex;
+      if (span > 1) {
+        for (let j = 1; j < span; j++) {
+          const ratio = j / span;
+          const value = start + (end - start) * ratio;
+          positions[lastDefinedIndex + j] = clampUnit(value);
+        }
+      }
+      positions[i] = end;
+      lastDefinedIndex = i;
+    }
+
+    for (let i = 1; i < positions.length; i++) {
+      if (positions[i] === undefined) {
+        positions[i] = positions[i - 1];
+      }
+    }
+
+    const normalized: NormalizedStop[] = [];
+    let previous = clampUnit(positions[0] ?? 0);
+    normalized.push({ color: enriched[0].color, position: previous });
+    for (let i = 1; i < positions.length; i++) {
+      const current = clampUnit(positions[i] ?? previous);
+      const monotonic = current < previous ? previous : current;
+      normalized.push({ color: enriched[i].color, position: monotonic });
+      previous = monotonic;
+    }
+
+    if (normalized.length === 1) {
+      const [only] = normalized;
+      return [{ color: only.color, position: 0 }, { color: only.color, position: 1 }];
+    }
+
+    normalized[0].position = 0;
+    normalized[normalized.length - 1].position = 1;
+    return normalized;
+  }
+
+  private buildInterpolationFunction(stops: NormalizedStop[]): string {
+    if (stops.length <= 1) {
+      const color = stops.length === 1 ? stops[0].color : this.parseColor("#000000");
+      return serializeType2Function(color, color);
+    }
+
+    const segments: Array<{ start: NormalizedStop; end: NormalizedStop }> = [];
+    for (let i = 0; i < stops.length - 1; i++) {
+      const start = stops[i];
+      const end = stops[i + 1];
+      if (end.position <= start.position) {
+        continue;
+      }
+      segments.push({ start, end });
+    }
+
+    if (segments.length === 0) {
+      const color = stops[stops.length - 1].color;
+      return serializeType2Function(color, color);
+    }
+
+    if (segments.length === 1) {
+      const [segment] = segments;
+      return serializeType2Function(segment.start.color, segment.end.color);
+    }
+
+    const bounds: string[] = [];
+    const encodeParts: string[] = [];
+    const functionParts: string[] = [];
+
+    for (let i = 0; i < segments.length; i++) {
+      const segment = segments[i];
+      if (i < segments.length - 1) {
+        bounds.push(formatNumber(segment.end.position));
+      }
+      encodeParts.push("0 1");
+      functionParts.push(serializeType2Function(segment.start.color, segment.end.color));
+    }
+
+    const functionDict = [
+      "<<",
+      "/FunctionType 3",
+      "/Domain [0 1]",
+      `/Bounds [${bounds.join(" ")}]`,
+      `/Encode [${encodeParts.join(" ")}]`,
+      "/Functions [",
+      functionParts.join("\n"),
+      "]",
+      ">>",
+    ].join("\n");
+
+    return functionDict;
+  }
+
+  private parseColor(colorStr: string): { r: number; g: number; b: number } {
+    const lower = colorStr.trim().toLowerCase();
+    const named: Record<string, { r: number; g: number; b: number }> = {
+      red: { r: 1, g: 0, b: 0 },
+      green: { r: 0, g: 0.50196, b: 0 },
+      blue: { r: 0, g: 0, b: 1 },
+      yellow: { r: 1, g: 1, b: 0 },
+      black: { r: 0, g: 0, b: 0 },
+      white: { r: 1, g: 1, b: 1 },
+      gray: { r: 0.50196, g: 0.50196, b: 0.50196 },
+      grey: { r: 0.50196, g: 0.50196, b: 0.50196 },
+      lime: { r: 0, g: 1, b: 0 },
+      fuchsia: { r: 1, g: 0, b: 1 },
+      aqua: { r: 0, g: 1, b: 1 },
     };
-    
-    if (namedColors[colorStr.toLowerCase()]) {
-      return namedColors[colorStr.toLowerCase()];
+    const namedMatch = named[lower];
+    if (namedMatch) {
+      return namedMatch;
     }
-    
-    // Handle hex colors
-    if (colorStr.startsWith("#")) {
-      const hex = colorStr.slice(1);
+
+    if (lower.startsWith("#")) {
+      const hex = lower.slice(1);
       if (hex.length === 3) {
-        // Parse shorthand hex (e.g., #RGB)
-        const r = parseInt(hex[0] + hex[0], 16) / 255;
-        const g = parseInt(hex[1] + hex[1], 16) / 255;
-        const b = parseInt(hex[2] + hex[2], 16) / 255;
+        const r = Number.parseInt(hex[0] + hex[0], 16) / 255;
+        const g = Number.parseInt(hex[1] + hex[1], 16) / 255;
+        const b = Number.parseInt(hex[2] + hex[2], 16) / 255;
         return { r, g, b };
-      } else if (hex.length === 6) {
-        // Parse full hex (e.g., #RRGGBB)
-        const r = parseInt(hex.slice(0, 2), 16) / 255;
-        const g = parseInt(hex.slice(2, 4), 16) / 255;
-        const b = parseInt(hex.slice(4, 6), 16) / 255;
+      }
+      if (hex.length === 6) {
+        const r = Number.parseInt(hex.slice(0, 2), 16) / 255;
+        const g = Number.parseInt(hex.slice(2, 4), 16) / 255;
+        const b = Number.parseInt(hex.slice(4, 6), 16) / 255;
         return { r, g, b };
       }
     }
-    
-    // Default to black if color can't be parsed
+
     return { r: 0, g: 0, b: 0 };
   }
+}
 
-  getPatternCommands(): string[] {
-    const allCommands: string[] = [];
-    
-    // Add all pattern definitions
-    this.patterns.forEach(pattern => {
-      allCommands.push(`/${pattern.patternName} ${pattern.commands.join("\n")}`);
-    });
-    
-    return allCommands;
-  }
+interface NormalizedStop {
+  color: { r: number; g: number; b: number };
+  position: number;
+}
 
-  getGraphicsStates(): Map<string, number> {
-    return new Map(this.graphicsStates);
+function clampUnit(value: number | undefined): number {
+  if (!Number.isFinite(value ?? NaN)) {
+    return 0;
   }
+  if ((value ?? 0) <= 0) {
+    return 0;
+  }
+  if ((value ?? 0) >= 1) {
+    return 1;
+  }
+  return value ?? 0;
+}
 
-  clearPatterns(): void {
-    this.patterns.clear();
-    this.patternCounter = 0;
-  }
+function serializeType2Function(
+  start: { r: number; g: number; b: number },
+  end: { r: number; g: number; b: number },
+): string {
+  return [
+    "<<",
+    "/FunctionType 2",
+    "/Domain [0 1]",
+    `/C0 [ ${formatNumber(start.r)} ${formatNumber(start.g)} ${formatNumber(start.b)} ]`,
+    `/C1 [ ${formatNumber(end.r)} ${formatNumber(end.g)} ${formatNumber(end.b)} ]`,
+    "/N 1",
+    ">>",
+  ].join("\n");
 }
 
 function formatNumber(value: number): string {
   if (!Number.isFinite(value)) {
     return "0";
   }
-  // Format to 5 decimal places to match expected test precision
   return Number.isInteger(value) ? value.toString() : value.toFixed(5).replace(/0+$/, "").replace(/\.$/, "");
 }

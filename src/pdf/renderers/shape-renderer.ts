@@ -5,6 +5,7 @@ import { parseLinearGradient, type LinearGradient } from "../../css/parsers/grad
 
 export interface ShapeRendererResult {
   readonly commands: string[];
+  readonly shadings: Map<string, string>;
 }
 
 export class ShapeRenderer {
@@ -27,26 +28,26 @@ export class ShapeRenderer {
     this.fillRect(rect, color);
   }
 
-  fillRoundedRect(rect: Rect, radii: Radius, color: RGBA | string): void {
+  fillRoundedRect(rect: Rect, radii: Radius, paint: RGBA | LinearGradient | string): void {
     const width = Math.max(rect.width, 0);
     const height = Math.max(rect.height, 0);
     if (width === 0 || height === 0) {
       return;
     }
-    
-    // Debug: Log the color parameter
-    console.log("fillRoundedRect called with:", typeof color, color);
-    
-    // Check if color is a gradient string
-    if (typeof color === 'string') {
-      console.log("Processing gradient string:", color);
-      this.fillRoundedRectWithGradient(rect, radii, color);
+
+    const gradient = resolveLinearGradient(paint);
+    if (gradient) {
+      this.fillRoundedRectWithGradient(rect, radii, gradient);
       return;
     }
-    
+
+    if (typeof paint !== "object" || paint === null) {
+      return;
+    }
+
     const adjusted = this.normalizeRadiiForRect(width, height, radii);
     if (this.isZeroRadius(adjusted)) {
-      this.fillRect(rect, color);
+      this.fillRect(rect, paint as RGBA);
       return;
     }
     const path = this.roundedRectPath(width, height, adjusted, 0, 0);
@@ -54,7 +55,7 @@ export class ShapeRenderer {
       return;
     }
     const commands = [this.transformForRect(rect), ...path, "f"];
-    this.pushFillCommands(color, commands, true);
+    this.pushFillCommands(paint as RGBA, commands, true);
   }
 
   // Allow low-level injection of drawing commands to preserve ordering (used for raster shadows)
@@ -63,14 +64,7 @@ export class ShapeRenderer {
     this.commands.push(...commands);
   }
 
-  private fillRoundedRectWithGradient(rect: Rect, radii: Radius, gradientStr: string): void {
-    const gradient = parseLinearGradient(gradientStr);
-    if (!gradient) {
-      // If gradient parsing fails, fall back to a default color
-      this.fillRoundedRect(rect, radii, { r: 0, g: 0, b: 0, a: 1 });
-      return;
-    }
-
+  private fillRoundedRectWithGradient(rect: Rect, radii: Radius, gradient: LinearGradient): void {
     const width = Math.max(rect.width, 0);
     const height = Math.max(rect.height, 0);
     if (width === 0 || height === 0) {
@@ -79,8 +73,7 @@ export class ShapeRenderer {
 
     const adjusted = this.normalizeRadiiForRect(width, height, radii);
     if (this.isZeroRadius(adjusted)) {
-      // Use gradient for rectangle if radius is zero
-      this.fillRectWithGradient(rect, `linear-gradient(${gradient.direction || 'to right'}, ${gradient.stops.map(s => s.color).join(', ')})`);
+      this.fillRectWithGradient(rect, gradient);
       return;
     }
 
@@ -89,53 +82,28 @@ export class ShapeRenderer {
       return;
     }
 
-    const gradientPattern = this.gradientService.createLinearGradient(gradient, rect);
-    const patternName = gradientPattern.patternName;
-    
-    // Set up the fill pattern
-    const commands = [
-      this.transformForRect(rect),
-      ...path,
-      `/${patternName} scn`
-    ];
-
-    // Push with isolation
+    const shading = this.gradientService.createLinearGradient(gradient, rect);
     this.commands.push("q");
-    this.commands.push(...commands);
+    this.commands.push(this.transformForRect(rect));
+    this.commands.push(...path);
+    this.commands.push("W n");
+    this.commands.push(`/${shading.shadingName} sh`);
     this.commands.push("Q");
   }
 
-  private fillRectWithGradient(rect: Rect, gradientStr: string): void {
-    const gradient = parseLinearGradient(gradientStr);
-    if (!gradient) {
-      // If gradient parsing fails, fall back to a default color
-      const pdfRect = this.rectToPdf(rect);
-      if (!pdfRect) {
-        return;
-      }
-      const commands = [`${pdfRect.x} ${pdfRect.y} ${pdfRect.width} ${pdfRect.height} re`, "f"];
-      this.pushFillCommands({ r: 0, g: 0, b: 0, a: 1 }, commands, false);
+  private fillRectWithGradient(rect: Rect, gradient: LinearGradient): void {
+    const width = Math.max(rect.width, 0);
+    const height = Math.max(rect.height, 0);
+    if (width === 0 || height === 0) {
       return;
     }
 
-    const pdfRect = this.rectToPdf(rect);
-    if (!pdfRect) {
-      return;
-    }
-
-    const gradientPattern = this.gradientService.createLinearGradient(gradient, rect);
-    const patternName = gradientPattern.patternName;
-    
-    // Set up the fill pattern for rectangle
-    const commands = [
-      "/Pattern cs",
-      `${pdfRect.x} ${pdfRect.y} ${pdfRect.width} ${pdfRect.height} re`,
-      `/${patternName} scn`
-    ];
-
-    // Push with isolation
+    const shading = this.gradientService.createLinearGradient(gradient, rect);
     this.commands.push("q");
-    this.commands.push(...commands);
+    this.commands.push(this.transformForRect(rect));
+    this.commands.push(`0 0 ${formatNumber(width)} ${formatNumber(height)} re`);
+    this.commands.push("W n");
+    this.commands.push(`/${shading.shadingName} sh`);
     this.commands.push("Q");
   }
 
@@ -169,19 +137,23 @@ export class ShapeRenderer {
     this.pushFillCommands(color, commands, true);
   }
 
-  fillRect(rect: Rect, color: RGBA | string): void {
-    // Check if color is a gradient string
-    if (typeof color === 'string') {
-      this.fillRectWithGradient(rect, color);
+  fillRect(rect: Rect, paint: RGBA | LinearGradient | string): void {
+    const gradient = resolveLinearGradient(paint);
+    if (gradient) {
+      this.fillRectWithGradient(rect, gradient);
       return;
     }
-    
+
+    if (typeof paint !== "object" || paint === null) {
+      return;
+    }
+
     const pdfRect = this.rectToPdf(rect);
     if (!pdfRect) {
       return;
     }
     const commands = [`${pdfRect.x} ${pdfRect.y} ${pdfRect.width} ${pdfRect.height} re`, "f"];
-    this.pushFillCommands(color, commands, false);
+    this.pushFillCommands(paint as RGBA, commands, false);
   }
 
   strokeRect(rect: Rect, color: RGBA): void {
@@ -424,10 +396,9 @@ export class ShapeRenderer {
   }
 
   getResult(): ShapeRendererResult {
-    // Include gradient patterns in the result
-    const gradientCommands = this.gradientService.getPatternCommands();
     return {
-      commands: [...this.commands, ...gradientCommands],
+      commands: [...this.commands],
+      shadings: this.gradientService.getShadings(),
     };
   }
 }
@@ -447,6 +418,24 @@ function strokeColorCommand(color: RGBA): string {
   const g = formatNumber(normalizeChannel(color.g));
   const b = formatNumber(normalizeChannel(color.b));
   return `${r} ${g} ${b} RG`;
+}
+
+function resolveLinearGradient(paint: unknown): LinearGradient | null {
+  if (isLinearGradientPaint(paint)) {
+    return paint;
+  }
+  if (typeof paint === "string") {
+    return parseLinearGradient(paint);
+  }
+  return null;
+}
+
+function isLinearGradientPaint(value: unknown): value is LinearGradient {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const candidate = value as Partial<LinearGradient>;
+  return candidate.type === "linear" && Array.isArray(candidate.stops);
 }
 
 function normalizeChannel(value: number): number {
