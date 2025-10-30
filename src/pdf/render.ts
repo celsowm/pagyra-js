@@ -360,51 +360,22 @@ function paintBackgrounds(painter: PagePainter, boxes: RenderBox[]): void {
     const gradient = box.background?.gradient;
     const color = box.background?.color;
 
+    if (!gradient && !color) {
+      continue;
+    }
+
+    const paintArea = determineBackgroundPaintArea(box);
+    if (!paintArea) {
+      continue;
+    }
+
     if (gradient) {
-      const isTableCell = box.tagName === "td" || box.tagName === "th";
-      const targetRect = isTableCell ? box.borderBox : box.paddingBox ?? box.contentBox;
-      if (!targetRect) {
-        continue;
-      }
-      if (isTableCell) {
-        painter.fillRoundedRect(box.borderBox, box.borderRadius, gradient as any);
-        continue;
-      }
-      let targetRadius = shrinkRadius(box.borderRadius, box.border.top, box.border.right, box.border.bottom, box.border.left);
-      if (targetRect === box.contentBox) {
-        targetRadius = shrinkRadius(
-          targetRadius,
-          box.padding.top,
-          box.padding.right,
-          box.padding.bottom,
-          box.padding.left,
-        );
-      }
-      painter.fillRoundedRect(targetRect, targetRadius, gradient as any);
+      painter.fillRoundedRect(paintArea.rect, paintArea.radius, gradient as any);
       continue;
     }
 
     if (color) {
-      const isTableCell = box.tagName === "td" || box.tagName === "th";
-      if (isTableCell) {
-        painter.fillRoundedRect(box.borderBox, box.borderRadius, color);
-        continue;
-      }
-      const targetRect = box.paddingBox ?? box.contentBox;
-      if (!targetRect) {
-        continue;
-      }
-      let targetRadius = shrinkRadius(box.borderRadius, box.border.top, box.border.right, box.border.bottom, box.border.left);
-      if (targetRect === box.contentBox) {
-        targetRadius = shrinkRadius(
-          targetRadius,
-          box.padding.top,
-          box.padding.right,
-          box.padding.bottom,
-          box.padding.left,
-        );
-      }
-      painter.fillRoundedRect(targetRect, targetRadius, color);
+      painter.fillRoundedRect(paintArea.rect, paintArea.radius, color);
     }
   }
 }
@@ -466,6 +437,24 @@ function clampRadiusComponent(value: number): number {
     return 0;
   }
   return value > 0 ? value : 0;
+}
+
+function determineBackgroundPaintArea(box: RenderBox): { rect: Rect; radius: Radius } | null {
+  const rect = box.borderBox ?? box.paddingBox ?? box.contentBox;
+  if (!rect) {
+    return null;
+  }
+
+  if (rect === box.borderBox) {
+    return { rect, radius: box.borderRadius };
+  }
+
+  let radius = shrinkRadius(box.borderRadius, box.border.top, box.border.right, box.border.bottom, box.border.left);
+  if (rect === box.contentBox) {
+    radius = shrinkRadius(radius, box.padding.top, box.padding.right, box.padding.bottom, box.padding.left);
+  }
+
+  return { rect, radius };
 }
 
 function hasVisibleBorder(border: Edges): boolean {
