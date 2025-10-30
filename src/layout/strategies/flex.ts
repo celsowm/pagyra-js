@@ -16,6 +16,23 @@ export class FlexLayoutStrategy implements LayoutStrategy {
   layout(node: LayoutNode, context: LayoutContext): void {
     const cb = containingBlock(node, context.env.viewport);
     const isRow = isRowDirection(node.style.flexDirection);
+    const cbMain = isRow ? cb.width : cb.height;
+    const cbCross = isRow ? cb.height : cb.width;
+    const specifiedMain = resolveFlexSize(isRow ? node.style.width : node.style.height, cbMain);
+    const specifiedCross = resolveFlexSize(isRow ? node.style.height : node.style.width, cbCross);
+
+    if (isRow) {
+      node.box.contentWidth = resolveInitialDimension(specifiedMain, cbMain);
+      node.box.contentHeight = resolveInitialDimension(specifiedCross, cbCross);
+    } else {
+      node.box.contentWidth = resolveInitialDimension(specifiedCross, cbCross);
+      node.box.contentHeight = resolveInitialDimension(specifiedMain, cbMain);
+    }
+
+    node.box.borderBoxWidth = node.box.contentWidth;
+    node.box.borderBoxHeight = node.box.contentHeight;
+    node.box.scrollWidth = Math.max(node.box.scrollWidth, node.box.contentWidth);
+    node.box.scrollHeight = Math.max(node.box.scrollHeight, node.box.contentHeight);
 
     interface FlexItemMetrics {
       node: LayoutNode;
@@ -99,12 +116,6 @@ export class FlexLayoutStrategy implements LayoutStrategy {
       maxCross = Math.max(maxCross, crossContribution);
     }
 
-    const cbMain = isRow ? cb.width : cb.height;
-    const cbCross = isRow ? cb.height : cb.width;
-
-    const specifiedMain = resolveFlexSize(isRow ? node.style.width : node.style.height, cbMain);
-    const specifiedCross = resolveFlexSize(isRow ? node.style.height : node.style.width, cbCross);
-
     let containerMainSize: number;
     if (specifiedMain !== undefined) {
       containerMainSize = specifiedMain;
@@ -162,6 +173,16 @@ export class FlexLayoutStrategy implements LayoutStrategy {
     node.box.scrollWidth = node.box.contentWidth;
     node.box.scrollHeight = node.box.contentHeight;
   }
+}
+
+function resolveInitialDimension(specified: number | undefined, fallback: number): number {
+  if (specified !== undefined && Number.isFinite(specified)) {
+    return Math.max(specified, 0);
+  }
+  if (Number.isFinite(fallback)) {
+    return Math.max(fallback, 0);
+  }
+  return 0;
 }
 
 function resolveFlexSize(value: LengthLike | undefined, reference: number): number | undefined {
