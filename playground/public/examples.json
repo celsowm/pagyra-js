@@ -79,5 +79,10 @@
     "id": "red-rectangle",
     "label": "Red Rectangle Example",
     "htmlUrl": "examples/red-rectangle.html"
+  },
+  {
+    "id": "very-complex-css",
+    "label": "Very Complex CSS Example (pt-BR)",
+    "htmlUrl": "examples/very-complex-css.html"
   }
 ]
