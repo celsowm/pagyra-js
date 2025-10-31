@@ -1,6 +1,18 @@
 import { PdfDocument } from "./primitives/pdf-document.js";
 import type { PdfObjectRef } from "./primitives/pdf-document.js";
-import type { LayoutTree, PageSize, PdfMetadata, RenderBox, Radius, Edges, Rect, ShadowLayer, RGBA, TextPaintOptions } from "./types.js";
+import type {
+  LayoutTree,
+  PageSize,
+  PdfMetadata,
+  RenderBox,
+  Radius,
+  Edges,
+  Rect,
+  ShadowLayer,
+  RGBA,
+  TextPaintOptions,
+  LayoutPageTree,
+} from "./types.js";
 import {
   initHeaderFooterContext,
   layoutHeaderFooterTrees,
@@ -9,11 +21,13 @@ import {
   pickHeaderVariant,
   pickFooterVariant,
   paintHeaderFooter,
+  type HeaderFooterLayout,
 } from "./header-footer.js";
 import { paginateTree } from "./pagination.js";
-import { PagePainter } from "./page-painter.js";
+import { PagePainter, type PainterResult } from "./page-painter.js";
 import { rasterizeDropShadowForRect } from "./utils/drop-shadow-raster.js";
 import { initFontSystem, finalizeFontSubsets, preflightFontsForPdfa } from "./font/font-registry.js";
+import type { FontRegistry } from "./font/font-registry.js";
 import { LayerMode } from "./types.js";
 import type { FontConfig } from "../types/fonts.js";
 
@@ -23,6 +37,28 @@ export interface RenderPdfOptions {
   readonly pageSize?: PageSize;
   readonly metadata?: PdfMetadata;
   readonly fontConfig?: FontConfig;
+}
+
+interface PageResources {
+  fonts: Map<string, PdfObjectRef>;
+  xObjects: Map<string, PdfObjectRef>;
+  extGStates: Map<string, PdfObjectRef>;
+  shadings: Map<string, PdfObjectRef>;
+}
+
+interface PagePaintInput {
+  readonly pageTree: LayoutPageTree;
+  readonly pageNumber: number;
+  readonly totalPages: number;
+  readonly pageSize: PageSize;
+  readonly pxToPt: (px: number) => number;
+  readonly pageWidthPx: number;
+  readonly pageHeightPx: number;
+  readonly fontRegistry: FontRegistry;
+  readonly headerFooterLayout: HeaderFooterLayout;
+  readonly tokens: Map<string, string | ((page: number, total: number) => string)>;
+  readonly headerFooterTextOptions: TextPaintOptions;
+  readonly pageBackground?: RGBA;
 }
 
 export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = {}): Promise<Uint8Array> {
@@ -57,56 +93,102 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
   for (let index = 0; index < pages.length; index++) {
     const pageTree = pages[index];
     const pageNumber = index + 1;
-    const painter = new PagePainter(pageSize.heightPt, pxToPt, fontRegistry, pageTree.pageOffsetY);
 
-    const headerVariant = pickHeaderVariant(hfLayout, pageNumber, totalPages);
-    const footerVariant = pickFooterVariant(hfLayout, pageNumber, totalPages);
+    const painterResult = await paintLayoutPage({
+      pageTree,
+      pageNumber,
+      totalPages,
+      pageSize,
+      pxToPt,
+      pageWidthPx,
+      pageHeightPx,
+      fontRegistry,
+      headerFooterLayout: hfLayout,
+      tokens,
+      headerFooterTextOptions,
+      pageBackground,
+    });
 
-    paintPageBackground(painter, pageBackground, pageWidthPx, pageHeightPx, pageTree.pageOffsetY);
+    const resources = registerPainterResources(doc, painterResult);
 
-    if (layout.hf.layerMode === LayerMode.Under) {
-      await paintHeaderFooter(painter, headerVariant, footerVariant, tokens, pageNumber, totalPages, headerFooterTextOptions, true);
-    }
-
-    paintBoxShadows(painter, pageTree.paintOrder, false);
-    paintBackgrounds(painter, pageTree.paintOrder);
-    paintBoxShadows(painter, pageTree.paintOrder, true);
-    paintBorders(painter, pageTree.paintOrder);
-    paintImages(painter, pageTree.flowContentOrder);
-    await paintText(painter, pageTree.flowContentOrder);
-
-    if (layout.hf.layerMode === LayerMode.Over) {
-      await paintHeaderFooter(painter, headerVariant, footerVariant, tokens, pageNumber, totalPages, headerFooterTextOptions, false);
-    }
-
-    const result = painter.result();
-    const xObjects = new Map<string, PdfObjectRef>();
-    for (const image of result.images) {
-      const ref = doc.registerImage(image.image);
-      image.ref = ref;
-      xObjects.set(image.alias, ref);
-    }
-    const extGStates = new Map<string, PdfObjectRef>();
-    for (const [name, alpha] of result.graphicsStates) {
-      const ref = doc.registerExtGState(alpha);
-      extGStates.set(name, ref);
-    }
-    const shadings = new Map<string, PdfObjectRef>();
-    for (const [name, dict] of result.shadings) {
-      const ref = doc.registerShading(name, dict);
-      shadings.set(name, ref);
-    }
     doc.addPage({
       width: pageSize.widthPt,
       height: pageSize.heightPt,
-      contents: result.content,
-      resources: { fonts: result.fonts, xObjects, extGStates, shadings },
+      contents: painterResult.content,
+      resources,
       annotations: [],
     });
   }
 
   finalizeFontSubsets(fontRegistry);
   return doc.finalize();
+}
+
+async function paintLayoutPage({
+  pageTree,
+  pageNumber,
+  totalPages,
+  pageSize,
+  pxToPt,
+  pageWidthPx,
+  pageHeightPx,
+  fontRegistry,
+  headerFooterLayout,
+  tokens,
+  headerFooterTextOptions,
+  pageBackground,
+}: PagePaintInput): Promise<PainterResult> {
+  const painter = new PagePainter(pageSize.heightPt, pxToPt, fontRegistry, pageTree.pageOffsetY);
+
+  const headerVariant = pickHeaderVariant(headerFooterLayout, pageNumber, totalPages);
+  const footerVariant = pickFooterVariant(headerFooterLayout, pageNumber, totalPages);
+
+  paintPageBackground(painter, pageBackground, pageWidthPx, pageHeightPx, pageTree.pageOffsetY);
+
+  if (headerFooterLayout.layerMode === LayerMode.Under) {
+    await paintHeaderFooter(painter, headerVariant, footerVariant, tokens, pageNumber, totalPages, headerFooterTextOptions, true);
+  }
+
+  paintBoxShadows(painter, pageTree.paintOrder, false);
+  paintBackgrounds(painter, pageTree.paintOrder);
+  paintBoxShadows(painter, pageTree.paintOrder, true);
+  paintBorders(painter, pageTree.paintOrder);
+  paintImages(painter, pageTree.flowContentOrder);
+  await paintText(painter, pageTree.flowContentOrder);
+
+  if (headerFooterLayout.layerMode === LayerMode.Over) {
+    await paintHeaderFooter(painter, headerVariant, footerVariant, tokens, pageNumber, totalPages, headerFooterTextOptions, false);
+  }
+
+  return painter.result();
+}
+
+function registerPainterResources(doc: PdfDocument, result: PainterResult): PageResources {
+  const xObjects = new Map<string, PdfObjectRef>();
+  for (const image of result.images) {
+    const ref = doc.registerImage(image.image);
+    image.ref = ref;
+    xObjects.set(image.alias, ref);
+  }
+
+  const extGStates = new Map<string, PdfObjectRef>();
+  for (const [name, alpha] of result.graphicsStates) {
+    const ref = doc.registerExtGState(alpha);
+    extGStates.set(name, ref);
+  }
+
+  const shadings = new Map<string, PdfObjectRef>();
+  for (const [name, dict] of result.shadings) {
+    const ref = doc.registerShading(name, dict);
+    shadings.set(name, ref);
+  }
+
+  return {
+    fonts: result.fonts,
+    xObjects,
+    extGStates,
+    shadings,
+  };
 }
 
 async function paintText(painter: PagePainter, boxes: RenderBox[]): Promise<void> {
@@ -199,11 +281,31 @@ interface ShadowRenderParams {
   spread: number;
 }
 
+interface ShadowIteration {
+  expansion: number;
+  color: RGBA;
+}
+
 function drawShadowLayers(painter: PagePainter, params: ShadowRenderParams): void {
-  const { mode, baseRect, baseRadius, color, blur, spread } = params;
+  const iterations = buildShadowIterations(params);
+  if (!iterations.length) {
+    return;
+  }
+
+  if (params.mode === "outer") {
+    renderOuterShadowIterations(painter, params.baseRect, params.baseRadius, iterations);
+    return;
+  }
+
+  renderInsetShadowIterations(painter, params.baseRect, params.baseRadius, iterations);
+}
+
+function buildShadowIterations(params: ShadowRenderParams): ShadowIteration[] {
+  const { mode, color, blur, spread } = params;
   const steps = blur > 0 ? Math.max(2, Math.ceil(blur / 2)) : 1;
   const weights = buildShadowWeights(steps);
   const baseAlpha = clampUnit(color.a ?? 1);
+  const iterations: ShadowIteration[] = [];
   for (let index = 0; index < steps; index++) {
     const fraction =
       steps === 1
@@ -216,24 +318,50 @@ function drawShadowLayers(painter: PagePainter, params: ShadowRenderParams): voi
     if (weight <= 0) {
       continue;
     }
-    const stepColor: RGBA = { r: color.r, g: color.g, b: color.b, a: clampUnit(baseAlpha * weight) };
-    if (mode === "outer") {
-      const rect = inflateRect(baseRect, expansion);
-      if (rect.width <= 0 || rect.height <= 0) {
-        continue;
-      }
-      const radius = adjustRadius(baseRadius, expansion);
-      painter.fillRoundedRect(rect, radius, stepColor);
-    } else {
-      const contraction = Math.max(0, expansion);
-      const innerRect = inflateRect(baseRect, -contraction);
-      if (innerRect.width <= 0 || innerRect.height <= 0) {
-        continue;
-      }
-      const outerRadius = cloneRadius(baseRadius);
-      const innerRadius = adjustRadius(baseRadius, -contraction);
-      painter.fillRoundedRectDifference(baseRect, outerRadius, innerRect, innerRadius, stepColor);
+    iterations.push({
+      expansion,
+      color: {
+        r: color.r,
+        g: color.g,
+        b: color.b,
+        a: clampUnit(baseAlpha * weight),
+      },
+    });
+  }
+  return iterations;
+}
+
+function renderOuterShadowIterations(
+  painter: PagePainter,
+  baseRect: Rect,
+  baseRadius: Radius,
+  iterations: ShadowIteration[],
+): void {
+  for (const iteration of iterations) {
+    const rect = inflateRect(baseRect, iteration.expansion);
+    if (rect.width <= 0 || rect.height <= 0) {
+      continue;
     }
+    const radius = adjustRadius(baseRadius, iteration.expansion);
+    painter.fillRoundedRect(rect, radius, iteration.color);
+  }
+}
+
+function renderInsetShadowIterations(
+  painter: PagePainter,
+  baseRect: Rect,
+  baseRadius: Radius,
+  iterations: ShadowIteration[],
+): void {
+  for (const iteration of iterations) {
+    const contraction = Math.max(0, iteration.expansion);
+    const innerRect = inflateRect(baseRect, -contraction);
+    if (innerRect.width <= 0 || innerRect.height <= 0) {
+      continue;
+    }
+    const outerRadius = cloneRadius(baseRadius);
+    const innerRadius = adjustRadius(baseRadius, -contraction);
+    painter.fillRoundedRectDifference(baseRect, outerRadius, innerRect, innerRadius, iteration.color);
   }
 }
 
@@ -382,12 +510,7 @@ function paintBackgrounds(painter: PagePainter, boxes: RenderBox[]): void {
 
 function paintBorders(painter: PagePainter, boxes: RenderBox[]): void {
   for (const box of boxes) {
-    // Default to black if borderColor is not set and this is a table cell
-    let color = box.borderColor;
-    const isTableCell = box.tagName === 'td' || box.tagName === 'th';
-    if (!color && isTableCell) {
-      color = { r: 0, g: 0, b: 0, a: 1 };
-    }
+    const color = box.borderColor;
     if (!color) {
       continue;
     }

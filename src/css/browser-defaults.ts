@@ -31,6 +31,7 @@ export interface ElementDefaults {
   fontFamily: string;
   fontWeight: number;
   color: string;
+  borderColor?: string;
   listStyleType?: string;
   textAlign?: string;
   verticalAlign?: string;
@@ -528,6 +529,7 @@ export class BrowserDefaults {
       fontWeight: TypographyDefaults.getFontWeight(),
       lineHeight: TypographyDefaults.getLineHeight(),
       color: TypographyDefaults.getColor(),
+      borderColor: TypographyDefaults.getColor(),
       letterSpacing: TypographyDefaults.getLetterSpacing(),
       wordSpacing: TypographyDefaults.getWordSpacing(),
       textDecorationLine: "none",
@@ -626,6 +628,9 @@ export class BrowserDefaults {
     }
     if (elementDefaults.color !== undefined) {
       merged.color = elementDefaults.color;
+    }
+    if (elementDefaults.borderColor !== undefined) {
+      merged.borderColor = elementDefaults.borderColor;
     }
     if (elementDefaults.margin !== undefined) {
       merged.marginTop = elementDefaults.margin;
