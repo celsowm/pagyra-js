@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>SVG Path Gallery</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 24px;
+        line-height: 1.6;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 24px;
+      }
+
+      figure {
+        border: 1px solid #ccd5dd;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 0;
+        background: #f9fbfd;
+      }
+
+      figcaption {
+        margin-top: 12px;
+        font-size: 0.9rem;
+        color: #44505d;
+      }
+
+      svg {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>SVG Path Gallery</h1>
+    <p>
+      A set of path-heavy shapes covering lines, cubic and quadratic curves, and elliptical arcs. Each drawing exercises
+      the new path renderer, fill rules, and stroke settings.
+    </p>
+    <section class="grid">
+      <figure>
+        <svg viewBox="0 0 160 160">
+          <path
+            d="M20 140 L80 20 L140 140 Z"
+            fill="#ffb347"
+            stroke="#cc6d00"
+            stroke-width="6"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M80 46 C66 66 54 86 44 108 C58 112 70 118 80 128 C90 118 102 112 116 108 C106 86 94 66 80 46 Z"
+            fill="#ffffff"
+            fill-opacity="0.6"
+            stroke="#333333"
+            stroke-width="2"
+          />
+        </svg>
+        <figcaption>Quadratic fan and cubic ribbon layered inside a stroked triangle.</figcaption>
+      </figure>
+      <figure>
+        <svg viewBox="0 0 200 200">
+          <path
+            d="M40 100 A60 60 0 0 1 160 100 A60 60 0 0 1 40 100 Z"
+            fill="#4fb4d8"
+            stroke="#0f4c75"
+            stroke-width="5"
+          />
+          <path
+            d="M60 100 A40 40 0 0 0 140 100 A40 40 0 0 0 60 100 Z"
+            fill="#ffffff"
+            fill-opacity="0.7"
+            stroke="#0f4c75"
+            stroke-width="2"
+            stroke-dasharray="4 4"
+          />
+          <path
+            d="M100 70 L112 130 L88 130 Z"
+            fill="#0f4c75"
+          />
+        </svg>
+        <figcaption>Nested elliptical arcs with an inset triangle to show arc conversion.</figcaption>
+      </figure>
+      <figure>
+        <svg viewBox="0 0 180 180">
+          <path
+            d="M40 30 L140 30 L140 150 L40 150 Z
+               M70 60 L110 60 L110 120 L70 120 Z"
+            fill="#ffd166"
+            fill-rule="evenodd"
+            stroke="#ef476f"
+            stroke-width="8"
+          />
+          <path
+            d="M52 42 C74 82 106 82 128 42"
+            fill="none"
+            stroke="#073b4c"
+            stroke-width="4"
+            stroke-linecap="round"
+          />
+          <path
+            d="M52 138 C74 98 106 98 128 138"
+            fill="none"
+            stroke="#073b4c"
+            stroke-width="4"
+            stroke-linecap="round"
+          />
+        </svg>
+        <figcaption>Even-odd filling with interior hole plus bezier curves along top and bottom.</figcaption>
+      </figure>
+    </section>
+  </body>
+</html>

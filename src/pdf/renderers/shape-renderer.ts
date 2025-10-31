@@ -8,6 +8,12 @@ export interface ShapePoint {
   y: number;
 }
 
+export type PathCommand =
+  | { type: "moveTo"; x: number; y: number }
+  | { type: "lineTo"; x: number; y: number }
+  | { type: "curveTo"; x1: number; y1: number; x2: number; y2: number; x: number; y: number }
+  | { type: "closePath" };
+
 export interface ShapeRendererResult {
   readonly commands: string[];
   readonly shadings: Map<string, string>;
@@ -252,6 +258,48 @@ export class ShapeRenderer {
     this.commands.push(...commands, "Q");
   }
 
+  fillPath(commands: PathCommand[], color: RGBA, options: { fillRule?: "nonzero" | "evenodd" } = {}): void {
+    if (commands.length === 0) {
+      return;
+    }
+    const pdfCommands = this.pathCommandsToPdf(commands);
+    if (!pdfCommands || pdfCommands.length === 0) {
+      return;
+    }
+    const operator = options.fillRule === "evenodd" ? "f*" : "f";
+    this.pushFillCommands(color, [...pdfCommands, operator], false);
+  }
+
+  strokePath(
+    commands: PathCommand[],
+    color: RGBA,
+    options: { lineWidth?: number; lineCap?: "butt" | "round" | "square"; lineJoin?: "miter" | "round" | "bevel" } = {},
+  ): void {
+    if (commands.length === 0) {
+      return;
+    }
+    const pdfCommands = this.pathCommandsToPdf(commands);
+    if (!pdfCommands || pdfCommands.length === 0) {
+      return;
+    }
+    this.commands.push("q", strokeColorCommand(color));
+    if (options.lineWidth !== undefined) {
+      const widthPt = this.coordinateTransformer.convertPxToPt(Math.max(options.lineWidth, 0));
+      if (widthPt > 0) {
+        this.commands.push(`${formatNumber(widthPt)} w`);
+      }
+    }
+    const cap = mapLineCap(options.lineCap);
+    if (cap !== undefined) {
+      this.commands.push(`${cap} J`);
+    }
+    const join = mapLineJoin(options.lineJoin);
+    if (join !== undefined) {
+      this.commands.push(`${join} j`);
+    }
+    this.commands.push(...pdfCommands, "S", "Q");
+  }
+
   private pushFillCommands(color: RGBA, commands: string[], wrapWithQ: boolean): void {
     const alpha = this.normalizeAlpha(color.a);
     const hasAlpha = alpha < 1;
@@ -352,6 +400,46 @@ export class ShapeRenderer {
       }
     }
 
+    return result;
+  }
+
+  private pathCommandsToPdf(commands: PathCommand[]): string[] | null {
+    const result: string[] = [];
+    for (const command of commands) {
+      switch (command.type) {
+        case "moveTo": {
+          const point = this.pointToPdf({ x: command.x, y: command.y });
+          if (!point) {
+            return null;
+          }
+          result.push(`${point.x} ${point.y} m`);
+          break;
+        }
+        case "lineTo": {
+          const point = this.pointToPdf({ x: command.x, y: command.y });
+          if (!point) {
+            return null;
+          }
+          result.push(`${point.x} ${point.y} l`);
+          break;
+        }
+        case "curveTo": {
+          const cp1 = this.pointToPdf({ x: command.x1, y: command.y1 });
+          const cp2 = this.pointToPdf({ x: command.x2, y: command.y2 });
+          const end = this.pointToPdf({ x: command.x, y: command.y });
+          if (!cp1 || !cp2 || !end) {
+            return null;
+          }
+          result.push(`${cp1.x} ${cp1.y} ${cp2.x} ${cp2.y} ${end.x} ${end.y} c`);
+          break;
+        }
+        case "closePath":
+          result.push("h");
+          break;
+        default:
+          return null;
+      }
+    }
     return result;
   }
 

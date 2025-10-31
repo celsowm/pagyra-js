@@ -6,7 +6,7 @@ import { log } from "../debug/log.js";
 import { CoordinateTransformer } from "./utils/coordinate-transformer.js";
 import { TextRenderer } from "./renderers/text-renderer.js";
 import { ImageRenderer } from "./renderers/image-renderer.js";
-import { ShapeRenderer, type ShapePoint } from "./renderers/shape-renderer.js";
+import { ShapeRenderer, type ShapePoint, type PathCommand } from "./renderers/shape-renderer.js";
 import { GraphicsStateManager } from "./renderers/graphics-state-manager.js";
 
 export interface PainterResult {
@@ -118,12 +118,24 @@ export class PagePainter {
     this.shapeRenderer.fillPolygon(points, color, close);
   }
 
+  fillPath(commands: PathCommand[], color: RGBA, options: { fillRule?: "nonzero" | "evenodd" } = {}): void {
+    this.shapeRenderer.fillPath(commands, color, options);
+  }
+
   strokePolyline(
     points: ShapePoint[],
     color: RGBA,
     options: { lineWidth?: number; lineCap?: "butt" | "round" | "square"; lineJoin?: "miter" | "round" | "bevel"; close?: boolean } = {},
   ): void {
     this.shapeRenderer.strokePolyline(points, color, options);
+  }
+
+  strokePath(
+    commands: PathCommand[],
+    color: RGBA,
+    options: { lineWidth?: number; lineCap?: "butt" | "round" | "square"; lineJoin?: "miter" | "round" | "bevel" } = {},
+  ): void {
+    this.shapeRenderer.strokePath(commands, color, options);
   }
 
   convertPxToPt(value: number): number {

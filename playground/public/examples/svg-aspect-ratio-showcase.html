@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>SVG preserveAspectRatio Showcase</title>
+    <style>
+      body {
+        font-family: "Segoe UI", system-ui, sans-serif;
+        margin: 32px;
+        background: #fefefe;
+        color: #24303f;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+
+      th, td {
+        border: 1px solid #dcdfe6;
+        padding: 16px;
+        vertical-align: top;
+        background: #ffffff;
+      }
+
+      th {
+        background: #eef2f8;
+        text-align: left;
+        font-size: 0.95rem;
+      }
+
+      svg {
+        width: 100%;
+        background: #f0f4f9;
+        border: 1px solid #b9c4d3;
+      }
+
+      .frame {
+        width: 220px;
+        height: 140px;
+      }
+
+      caption {
+        caption-side: bottom;
+        text-align: left;
+        font-size: 0.9rem;
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>SVG preserveAspectRatio Showcase</h1>
+    <p>
+      Each frame renders the same star path inside different viewports while changing
+      <code>preserveAspectRatio</code>. The PDF backend should match the browser layout by honoring the alignment and
+      meet/slice rules.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th>Preview</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>preserveAspectRatio="none"</code></td>
+          <td>
+            <div class="frame">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+                <rect x="0" y="0" width="100" height="100" fill="#e0f2fe" />
+                <path
+                  d="M50 5 L61 38 L96 38 L67 58 L78 92 L50 72 L22 92 L33 58 L4 38 L39 38 Z"
+                  fill="#0284c7"
+                />
+              </svg>
+            </div>
+          </td>
+          <td>Shape stretches to fill the viewport, distorting the star horizontally.</td>
+        </tr>
+        <tr>
+          <td><code>preserveAspectRatio="xMidYMid meet"</code></td>
+          <td>
+            <div class="frame">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
+                <rect x="0" y="0" width="100" height="100" fill="#fff7ed" />
+                <path
+                  d="M50 5 L61 38 L96 38 L67 58 L78 92 L50 72 L22 92 L33 58 L4 38 L39 38 Z"
+                  fill="#f97316"
+                />
+              </svg>
+            </div>
+          </td>
+          <td>Uniform scaling with letterboxing; extra space is evenly distributed.</td>
+        </tr>
+        <tr>
+          <td><code>preserveAspectRatio="xMaxYMid slice"</code></td>
+          <td>
+            <div class="frame">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="xMaxYMid slice">
+                <rect x="0" y="0" width="100" height="100" fill="#fdf2f8" />
+                <path
+                  d="M50 5 L61 38 L96 38 L67 58 L78 92 L50 72 L22 92 L33 58 L4 38 L39 38 Z"
+                  fill="#ec4899"
+                />
+              </svg>
+            </div>
+          </td>
+          <td>Shape remains proportional while cropping to fill height, anchored to the right edge.</td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>SVG Transform Stack</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 24px;
+        line-height: 1.5;
+        background: #f4f7fb;
+        color: #1f2a3a;
+      }
+
+      .canvas {
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 24px;
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 16px 32px rgba(21, 45, 72, 0.12);
+      }
+
+      h1, h2 {
+        text-align: center;
+      }
+
+      svg {
+        width: 100%;
+        height: auto;
+        display: block;
+        border-radius: 8px;
+        overflow: visible;
+      }
+
+      dl {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: 4px 12px;
+        margin-top: 20px;
+        font-size: 0.95rem;
+      }
+
+      dt {
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="canvas">
+      <h1>SVG Transform Stack</h1>
+      <p>
+        Nested groups with translate, rotate, scale, and skew transforms rendered into PDF path commands. Each axis helper
+        is generated once and reused with different transforms to confirm the push/pop logic.
+      </p>
+      <svg viewBox="0 0 320 200">
+        <defs>
+          <g id="axes">
+            <line x1="0" y1="0" x2="60" y2="0" stroke="#1f77b4" stroke-width="4" stroke-linecap="round" />
+            <line x1="0" y1="0" x2="0" y2="60" stroke="#ff7f0e" stroke-width="4" stroke-linecap="round" />
+            <circle cx="0" cy="0" r="5" fill="#1f2a3a" />
+          </g>
+        </defs>
+
+        <g transform="translate(70 60)">
+          <use href="#axes" />
+          <text x="68" y="-6" font-size="12" text-anchor="start">Origin</text>
+        </g>
+
+        <g transform="translate(200 60) rotate(25)">
+          <use href="#axes" />
+          <text x="64" y="-8" font-size="12" text-anchor="start">Rotate 25°</text>
+        </g>
+
+        <g transform="translate(70 150) skewX(25)">
+          <use href="#axes" />
+          <text x="64" y="-8" font-size="12" text-anchor="start">SkewX 25°</text>
+        </g>
+
+        <g transform="translate(200 140) scale(1.2 0.6) rotate(-30)">
+          <use href="#axes" />
+          <path
+            d="M0 -10 L30 0 L0 10 Z"
+            fill="#d62728"
+            stroke="#7f1d1d"
+            stroke-width="2"
+          />
+          <text x="40" y="-12" font-size="12">Scale + Rotate</text>
+        </g>
+      </svg>
+
+      <h2>What To Look For</h2>
+      <dl>
+        <dt>Nested state:</dt>
+        <dd>Each group uses a different combination of transforms; the renderer must compose matrices per node.</dd>
+        <dt>Stroke scaling:</dt>
+        <dd>Line thickness adapts to the combined scale so axes remain balanced.</dd>
+        <dt>Text orientation:</dt>
+        <dd>Labels follow the final matrix, proving text rendering respects transforms.</dd>
+      </dl>
+    </div>
+  </body>
+</html>

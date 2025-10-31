@@ -86,6 +86,21 @@
     "htmlUrl": "examples/simple-svg.html"
   },
   {
+    "id": "svg-path-gallery",
+    "label": "SVG Path Gallery",
+    "htmlUrl": "examples/svg-path-gallery.html"
+  },
+  {
+    "id": "svg-transform-stack",
+    "label": "SVG Transform Stack",
+    "htmlUrl": "examples/svg-transform-stack.html"
+  },
+  {
+    "id": "svg-aspect-ratio-showcase",
+    "label": "SVG Aspect Ratio Showcase",
+    "htmlUrl": "examples/svg-aspect-ratio-showcase.html"
+  },
+  {
     "id": "very-complex-css",
     "label": "Very Complex CSS Example (pt-BR)",
     "htmlUrl": "examples/very-complex-css.html"
