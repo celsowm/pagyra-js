@@ -48,7 +48,7 @@ export class FlexLayoutStrategy implements LayoutStrategy {
 
     const items: FlexItemMetrics[] = [];
     let totalMain = 0;
-    let maxCross = 0;
+    let maxCrossContribution = 0;
 
     for (const child of node.children) {
       context.layoutChild(child);
@@ -64,7 +64,14 @@ export class FlexLayoutStrategy implements LayoutStrategy {
       const crossMarginEnd = isRow ? marginBottom : marginRight;
 
       let mainSize = isRow ? child.box.borderBoxWidth : child.box.borderBoxHeight;
-      if (isRow && isAutoMainSize(child.style.width)) {
+      const childDisplay = child.style.display;
+      const allowPreferredShrink =
+        childDisplay !== Display.Flex &&
+        childDisplay !== Display.InlineFlex &&
+        childDisplay !== Display.Grid &&
+        childDisplay !== Display.InlineGrid;
+
+      if (isRow && allowPreferredShrink && isAutoMainSize(child.style.width)) {
         const preferredContent = computePreferredInlineWidth(child);
         if (preferredContent !== undefined && preferredContent >= 0) {
           const minWidth =
@@ -113,7 +120,7 @@ export class FlexLayoutStrategy implements LayoutStrategy {
       });
 
       totalMain += mainContribution;
-      maxCross = Math.max(maxCross, crossContribution);
+      maxCrossContribution = Math.max(maxCrossContribution, crossContribution);
     }
 
     let containerMainSize: number;
@@ -126,11 +133,23 @@ export class FlexLayoutStrategy implements LayoutStrategy {
 
     let containerCrossSize: number;
     if (specifiedCross !== undefined) {
-      containerCrossSize = Math.max(specifiedCross, maxCross);
+      containerCrossSize = Math.max(specifiedCross, maxCrossContribution);
     } else {
-      const reference = Number.isFinite(cbCross) && cbCross > 0 ? cbCross : maxCross;
-      containerCrossSize = Math.max(reference, maxCross);
+      containerCrossSize = maxCrossContribution;
     }
+
+    const minCrossValue = isRow ? node.style.minHeight : node.style.minWidth;
+    const maxCrossValue = isRow ? node.style.maxHeight : node.style.maxWidth;
+    const minCross = minCrossValue !== undefined ? resolveLength(minCrossValue, cbCross, { auto: "zero" }) : undefined;
+    const maxCross = maxCrossValue !== undefined ? resolveLength(maxCrossValue, cbCross, { auto: "reference" }) : undefined;
+
+    if (minCross !== undefined) {
+      containerCrossSize = Math.max(containerCrossSize, minCross);
+    }
+    if (maxCross !== undefined) {
+      containerCrossSize = Math.min(containerCrossSize, maxCross);
+    }
+
 
     const justify = node.style.justifyContent ?? JustifyContent.FlexStart;
     const align = node.style.alignItems ?? AlignItems.Stretch;
