@@ -58,12 +58,7 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
       const baseWidth = line.width ?? estimateLineWidth(normalizedText, node.style);
       const lineYOffset = i * lineHeight;
       const baseline = alignY + lineYOffset + fontSize;
-      let startX = node.box.x;
-      if (effectiveTextAlign === "center") {
-        startX = node.box.x + Math.max((contentWidth - baseWidth) / 2, 0);
-      } else if (effectiveTextAlign === "right") {
-        startX = node.box.x + Math.max(contentWidth - baseWidth, 0);
-      }
+      const startX = node.box.x;
       let wordSpacing: number | undefined;
       if (justify && i < node.lineBoxes.length - 1) {
         const gapCount = line.spaceCount ?? 0;
@@ -103,13 +98,7 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
     // Se não houver lineBoxes, a baseline é a calculada para a caixa inteira.
     const baseline = node.box.baseline > 0 ? node.box.baseline : node.box.y + node.box.contentHeight;
     const advanceWidth = Math.max(estimateLineWidth(normalized, node.style), 0);
-    const contentWidth = Math.max(node.box.contentWidth, 0);
-    let startX = node.box.x;
-    if (effectiveTextAlign === "center") {
-      startX = node.box.x + Math.max((contentWidth - advanceWidth) / 2, 0);
-    } else if (effectiveTextAlign === "right") {
-      startX = node.box.x + Math.max(contentWidth - advanceWidth, 0);
-    }
+    const startX = node.box.x;
 
     return [{
       text: normalized,

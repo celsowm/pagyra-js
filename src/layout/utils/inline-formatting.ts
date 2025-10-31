@@ -42,6 +42,21 @@ interface InlineLayoutResult {
   newCursorY: number;
 }
 
+function resolveInlineTextAlign(node: LayoutNode): string | undefined {
+  let current: LayoutNode | null = node;
+  while (current) {
+    const value = current.style.textAlign;
+    if (value) {
+      const normalized = value.toLowerCase();
+      if (normalized !== "start" && normalized !== "auto") {
+        return normalized;
+      }
+    }
+    current = current.parent;
+  }
+  return undefined;
+}
+
 export function layoutInlineFormattingContext(options: InlineLayoutOptions): InlineLayoutResult {
   const { container, inlineNodes, context, floatContext, contentX, contentWidth } = options;
   let cursorX = 0;
@@ -55,11 +70,33 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
   let availableWidth = Math.max(0, inlineOffset.end - inlineOffset.start);
 
   container.establishesIFC = true;
+  const textAlign = resolveInlineTextAlign(container);
 
   const commitLine = () => {
     if (lineItems.length === 0) {
       return;
     }
+
+    const currentAvailableWidth = Math.max(availableWidth, 0);
+    if (textAlign && currentAvailableWidth > 0) {
+      const lineWidth = lineItems.reduce(
+        (max, item) => Math.max(max, item.lineOffset + item.outerWidth),
+        0
+      );
+      const slack = Math.max(currentAvailableWidth - lineWidth, 0);
+      let offset = 0;
+      if (textAlign === "center") {
+        offset = slack / 2;
+      } else if (textAlign === "right" || textAlign === "end") {
+        offset = slack;
+      }
+      if (offset !== 0) {
+        for (const item of lineItems) {
+          item.lineOffset += offset;
+        }
+      }
+    }
+
     for (const item of lineItems) {
       placeInlineItem(item, contentX + inlineOffset.start, lineTop);
     }
