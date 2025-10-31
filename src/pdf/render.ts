@@ -13,6 +13,7 @@ import type {
   TextPaintOptions,
   LayoutPageTree,
 } from "./types.js";
+import { NodeKind } from "./types.js";
 import {
   initHeaderFooterContext,
   layoutHeaderFooterTrees,
@@ -153,6 +154,7 @@ async function paintLayoutPage({
   paintBackgrounds(painter, pageTree.paintOrder);
   paintBoxShadows(painter, pageTree.paintOrder, true);
   paintBorders(painter, pageTree.paintOrder);
+  await paintSvg(painter, pageTree.flowContentOrder);
   paintImages(painter, pageTree.flowContentOrder);
   await paintText(painter, pageTree.flowContentOrder);
 
@@ -592,6 +594,17 @@ function paintImages(painter: PagePainter, boxes: RenderBox[]): void {
   }
 }
 
+async function paintSvg(painter: PagePainter, boxes: RenderBox[]): Promise<void> {
+  for (const box of boxes) {
+    if (box.kind === NodeKind.Svg || (box.tagName === "svg" && box.customData?.svg)) {
+      await renderSvgBox(painter, box);
+    }
+    if (box.children.length > 0) {
+      await paintSvg(painter, box.children);
+    }
+  }
+}
+
 function createPxToPt(dpi: number): (px: number) => number {
   const safeDpi = dpi > 0 ? dpi : 96;
   const factor = 72 / safeDpi;
@@ -621,3 +634,4 @@ function computeBaseContentBox(root: RenderBox, pageSize: PageSize, pxToPt: (px:
     height: heightPx,
   };
 }
+import { renderSvgBox } from "./svg/render-svg.js";

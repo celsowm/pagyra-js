@@ -3,6 +3,11 @@ import { CoordinateTransformer } from "../utils/coordinate-transformer.js";
 import { GradientService } from "../shading/gradient-service.js";
 import { parseLinearGradient, type LinearGradient } from "../../css/parsers/gradient-parser.js";
 
+export interface ShapePoint {
+  x: number;
+  y: number;
+}
+
 export interface ShapeRendererResult {
   readonly commands: string[];
   readonly shadings: Map<string, string>;
@@ -163,6 +168,88 @@ export class ShapeRenderer {
       return;
     }
     this.commands.push(strokeColorCommand(color), `${pdfRect.x} ${pdfRect.y} ${pdfRect.width} ${pdfRect.height} re`, "S");
+  }
+
+  strokeRoundedRect(rect: Rect, radii: Radius, color: RGBA, lineWidth?: number): void {
+    const width = Math.max(rect.width, 0);
+    const height = Math.max(rect.height, 0);
+    if (width === 0 || height === 0) {
+      return;
+    }
+    const adjusted = this.normalizeRadiiForRect(width, height, radii);
+    const path = this.roundedRectPath(width, height, adjusted, 0, 0);
+    if (path.length === 0) {
+      return;
+    }
+    this.commands.push("q", strokeColorCommand(color));
+    if (lineWidth !== undefined) {
+      const strokeWidthPt = this.coordinateTransformer.convertPxToPt(Math.max(lineWidth, 0));
+      if (strokeWidthPt > 0) {
+        this.commands.push(`${formatNumber(strokeWidthPt)} w`);
+      }
+    }
+    this.commands.push(this.transformForRect(rect), ...path, "S", "Q");
+  }
+
+  fillPolygon(points: ShapePoint[], color: RGBA, close: boolean = true): void {
+    if (points.length < 2) {
+      return;
+    }
+    const pdfPoints = this.pointsToPdf(points);
+    if (!pdfPoints) {
+      return;
+    }
+    const commands: string[] = [];
+    commands.push(`${pdfPoints[0].x} ${pdfPoints[0].y} m`);
+    for (let index = 1; index < pdfPoints.length; index++) {
+      const point = pdfPoints[index];
+      commands.push(`${point.x} ${point.y} l`);
+    }
+    if (close) {
+      commands.push("h");
+    }
+    commands.push("f");
+    this.pushFillCommands(color, commands, true);
+  }
+
+  strokePolyline(
+    points: ShapePoint[],
+    color: RGBA,
+    options: { lineWidth?: number; lineCap?: "butt" | "round" | "square"; lineJoin?: "miter" | "round" | "bevel"; close?: boolean } = {},
+  ): void {
+    if (points.length < 2) {
+      return;
+    }
+    const pdfPoints = this.pointsToPdf(points);
+    if (!pdfPoints) {
+      return;
+    }
+    const commands: string[] = [];
+    commands.push(`${pdfPoints[0].x} ${pdfPoints[0].y} m`);
+    for (let index = 1; index < pdfPoints.length; index++) {
+      const point = pdfPoints[index];
+      commands.push(`${point.x} ${point.y} l`);
+    }
+    if (options.close) {
+      commands.push("h");
+    }
+    commands.push("S");
+    this.commands.push("q", strokeColorCommand(color));
+    if (options.lineWidth !== undefined) {
+      const widthPt = this.coordinateTransformer.convertPxToPt(Math.max(options.lineWidth, 0));
+      if (widthPt > 0) {
+        this.commands.push(`${formatNumber(widthPt)} w`);
+      }
+    }
+    const cap = mapLineCap(options.lineCap);
+    if (cap !== undefined) {
+      this.commands.push(`${cap} J`);
+    }
+    const join = mapLineJoin(options.lineJoin);
+    if (join !== undefined) {
+      this.commands.push(`${join} j`);
+    }
+    this.commands.push(...commands, "Q");
   }
 
   private pushFillCommands(color: RGBA, commands: string[], wrapWithQ: boolean): void {
@@ -396,6 +483,33 @@ export class ShapeRenderer {
     };
   }
 
+  private pointToPdf(point: ShapePoint):
+    | { x: string; y: string }
+    | null {
+    const localY = point.y - this.coordinateTransformer.pageOffsetPx;
+    const x = this.coordinateTransformer.convertPxToPt(point.x);
+    const y = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localY);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      return null;
+    }
+    return {
+      x: formatNumber(x),
+      y: formatNumber(y),
+    };
+  }
+
+  private pointsToPdf(points: ShapePoint[]): Array<{ x: string; y: string }> | null {
+    const result: Array<{ x: string; y: string }> = [];
+    for (const point of points) {
+      const converted = this.pointToPdf(point);
+      if (!converted) {
+        return null;
+      }
+      result.push(converted);
+    }
+    return result;
+  }
+
   getResult(): ShapeRendererResult {
     return {
       commands: [...this.commands],
@@ -418,6 +532,32 @@ function strokeColorCommand(color: RGBA): string {
   const g = formatNumber(normalizeChannel(color.g));
   const b = formatNumber(normalizeChannel(color.b));
   return `${r} ${g} ${b} RG`;
+}
+
+function mapLineCap(cap: "butt" | "round" | "square" | undefined): number | undefined {
+  switch (cap) {
+    case "butt":
+      return 0;
+    case "round":
+      return 1;
+    case "square":
+      return 2;
+    default:
+      return undefined;
+  }
+}
+
+function mapLineJoin(join: "miter" | "round" | "bevel" | undefined): number | undefined {
+  switch (join) {
+    case "miter":
+      return 0;
+    case "round":
+      return 1;
+    case "bevel":
+      return 2;
+    default:
+      return undefined;
+  }
 }
 
 function resolveLinearGradient(paint: unknown): LinearGradient | null {

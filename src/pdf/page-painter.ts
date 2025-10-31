@@ -6,7 +6,7 @@ import { log } from "../debug/log.js";
 import { CoordinateTransformer } from "./utils/coordinate-transformer.js";
 import { TextRenderer } from "./renderers/text-renderer.js";
 import { ImageRenderer } from "./renderers/image-renderer.js";
-import { ShapeRenderer } from "./renderers/shape-renderer.js";
+import { ShapeRenderer, type ShapePoint } from "./renderers/shape-renderer.js";
 import { GraphicsStateManager } from "./renderers/graphics-state-manager.js";
 
 export interface PainterResult {
@@ -108,6 +108,26 @@ export class PagePainter {
 
   strokeRect(rect: Rect, color: RGBA): void {
     this.shapeRenderer.strokeRect(rect, color);
+  }
+
+  strokeRoundedRect(rect: Rect, radii: Radius, color: RGBA, lineWidth?: number): void {
+    this.shapeRenderer.strokeRoundedRect(rect, radii, color, lineWidth);
+  }
+
+  fillPolygon(points: ShapePoint[], color: RGBA, close: boolean = true): void {
+    this.shapeRenderer.fillPolygon(points, color, close);
+  }
+
+  strokePolyline(
+    points: ShapePoint[],
+    color: RGBA,
+    options: { lineWidth?: number; lineCap?: "butt" | "round" | "square"; lineJoin?: "miter" | "round" | "bevel"; close?: boolean } = {},
+  ): void {
+    this.shapeRenderer.strokePolyline(points, color, options);
+  }
+
+  convertPxToPt(value: number): number {
+    return this.coordinateTransformer.convertPxToPt(value);
   }
 
   result(): PainterResult {

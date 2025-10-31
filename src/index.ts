@@ -1,5 +1,6 @@
 export * from "./core.js";
 export * from "./html-to-pdf.js";
+export * from "./svg/index.js";
 
 import { LayoutNode } from "./dom/node.js";
 import { ComputedStyle } from "./css/style.js";

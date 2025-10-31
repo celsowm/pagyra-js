@@ -77,6 +77,9 @@ function mapNodeKind(node: LayoutNode): NodeKind {
   if (node.tagName === "img") {
     return NodeKind.Image;
   }
+  if (node.tagName === "svg" && node.customData && "svg" in node.customData) {
+    return NodeKind.Svg;
+  }
   if (node.tagName === "li") {
     return NodeKind.ListItem;
   }
@@ -210,5 +213,6 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
     color: textColor,
     background,
     image: imageRef,
+    customData: node.customData ? { ...node.customData } : undefined,
   };
 }

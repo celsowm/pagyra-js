@@ -6,6 +6,8 @@ import { ComputedStyle } from "../css/style.js";
 import { computeStyleForElement } from "../css/compute-style.js";
 import { convertImageElement, type ConversionContext } from "./image-converter.js";
 import { Display, WhiteSpace } from "../css/enums.js";
+import { parseSvg } from "../svg/parser.js";
+import type { SvgRootNode } from "../svg/types.js";
 
 function findMeaningfulSibling(start: Node | null, direction: "previous" | "next"): Node | null {
   let current = start;
@@ -138,6 +140,28 @@ export async function convertDomNode(
     return await convertImageElement(element, cssRules, parentStyle, context);
   }
 
+  if (tagName === "svg") {
+    const ownStyle = computeStyleForElement(element, cssRules, parentStyle, context.units);
+    console.log("convertDomNode - computed style backgroundLayers:", ownStyle.backgroundLayers);
+    const svgRoot = parseSvg(element, { warn: (message) => console.warn(`[svg-parser] ${message}`) });
+    if (!svgRoot) {
+      return new LayoutNode(ownStyle, [], { tagName });
+    }
+    const intrinsic = resolveSvgIntrinsicSize(svgRoot, element);
+    return new LayoutNode(ownStyle, [], {
+      tagName,
+      intrinsicInlineSize: intrinsic.width,
+      intrinsicBlockSize: intrinsic.height,
+      customData: {
+        svg: {
+          root: svgRoot,
+          intrinsicWidth: intrinsic.width,
+          intrinsicHeight: intrinsic.height,
+        },
+      },
+    });
+  }
+
   if (tagName === "br") {
     const textStyle = new ComputedStyle({
       display: Display.Inline,
@@ -225,4 +249,35 @@ export async function convertDomNode(
   }
 
   return new LayoutNode(ownStyle, layoutChildren, { tagName });
+}
+
+function resolveSvgIntrinsicSize(svg: SvgRootNode, element: Element): { width: number; height: number } {
+  let width = svg.width;
+  let height = svg.height;
+  if (svg.viewBox) {
+    if (!width || width <= 0) {
+      width = svg.viewBox.width;
+    }
+    if (!height || height <= 0) {
+      height = svg.viewBox.height;
+    }
+  }
+  if (!width || width <= 0) {
+    width = attributeToNumber(element.getAttribute("width")) ?? 100;
+  }
+  if (!height || height <= 0) {
+    height = attributeToNumber(element.getAttribute("height")) ?? width;
+  }
+  return {
+    width: Number.isFinite(width) && width > 0 ? width : 100,
+    height: Number.isFinite(height) && height > 0 ? height : 100,
+  };
+}
+
+function attributeToNumber(raw: string | null): number | undefined {
+  if (!raw) {
+    return undefined;
+  }
+  const value = Number.parseFloat(raw);
+  return Number.isFinite(value) ? value : undefined;
 }

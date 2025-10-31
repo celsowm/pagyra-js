@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Simple SVG Example</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    color: #333;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 40px;
+    gap: 16px;
+  }
+
+  svg {
+    border: 1px solid #999;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    border-radius: 8px;
+    background-color: #f9fafc;
+  }
+</style>
+</head>
+<body>
+<h1>Simple SVG Badge</h1>
+<p>This example illustrates a basic SVG scene with common shapes.</p>
+<svg width="240" height="160" viewBox="0 0 240 160" role="img" aria-labelledby="svg-title">
+  <title id="svg-title">Friendly SVG badge with layered shapes</title>
+  <rect x="20" y="20" width="200" height="120" rx="16" ry="16" fill="#4c6ef5" stroke="#1c3faa" stroke-width="4"></rect>
+  <circle cx="100" cy="80" r="32" fill="#74c0fc" stroke="#1864ab" stroke-width="4"></circle>
+  <polygon points="150,56 188,80 150,104" fill="#ff922b"></polygon>
+  <line x1="40" y1="134" x2="200" y2="134" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity="0.6"></line>
+  <text x="120" y="86" font-size="24" text-anchor="middle" fill="#102a43" font-family="Arial, sans-serif">SVG</text>
+</svg>
+</body>
+</html>

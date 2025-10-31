@@ -81,6 +81,11 @@
     "htmlUrl": "examples/red-rectangle.html"
   },
   {
+    "id": "simple-svg",
+    "label": "Simple SVG Example",
+    "htmlUrl": "examples/simple-svg.html"
+  },
+  {
     "id": "very-complex-css",
     "label": "Very Complex CSS Example (pt-BR)",
     "htmlUrl": "examples/very-complex-css.html"

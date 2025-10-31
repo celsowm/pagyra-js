@@ -2,6 +2,7 @@ export enum NodeKind {
   Container = "container",
   TextRuns = "text-runs",
   Image = "image",
+  Svg = "svg",
   ListItem = "list-item",
   Table = "table",
   Hr = "hr",

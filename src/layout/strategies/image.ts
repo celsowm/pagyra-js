@@ -172,7 +172,14 @@ export function calculateImagePosition(
 
 export class ImageLayoutStrategy implements LayoutStrategy {
   canLayout(node: LayoutNode): boolean {
-    return (node.tagName?.toLowerCase() ?? "") === "img";
+    const tag = node.tagName?.toLowerCase() ?? "";
+    if (tag === "img") {
+      return true;
+    }
+    if (tag === "svg") {
+      return Boolean(node.customData && "svg" in node.customData);
+    }
+    return false;
   }
 
   layout(node: LayoutNode, context: LayoutContext): void {
