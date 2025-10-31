@@ -5,7 +5,7 @@ import { LayoutNode } from "../dom/node.js";
 import { ComputedStyle } from "../css/style.js";
 import { computeStyleForElement } from "../css/compute-style.js";
 import { convertImageElement, type ConversionContext } from "./image-converter.js";
-import { Display } from "../css/enums.js";
+import { Display, WhiteSpace } from "../css/enums.js";
 
 function findMeaningfulSibling(start: Node | null, direction: "previous" | "next"): Node | null {
   let current = start;
@@ -35,6 +35,24 @@ function hasMeaningfulPreviousSibling(node: Node): boolean {
 
 function hasMeaningfulNextSibling(node: Node): boolean {
   return findMeaningfulSibling(node.nextSibling, "next") !== null;
+}
+
+function isInlineDisplay(display: Display): boolean {
+  return (
+    display === Display.Inline ||
+    display === Display.InlineBlock ||
+    display === Display.InlineFlex ||
+    display === Display.InlineGrid ||
+    display === Display.InlineTable
+  );
+}
+
+function shouldPreserveCollapsedWhitespace(children: LayoutNode[], style: ComputedStyle): boolean {
+  if (style.whiteSpace === WhiteSpace.Pre || style.whiteSpace === WhiteSpace.PreWrap) {
+    return true;
+  }
+  const lastChild = children.length > 0 ? children[children.length - 1] : null;
+  return !!lastChild && isInlineDisplay(lastChild.style.display);
 }
 
 export async function convertDomNode(
@@ -152,7 +170,7 @@ export async function convertDomNode(
     if (textBuf) {
       let normalized = textBuf.replace(/\s+/g, " ").normalize("NFC");
       if (normalized.trim().length === 0) {
-        normalized = layoutChildren.length > 0 ? " " : "";
+        normalized = shouldPreserveCollapsedWhitespace(layoutChildren, ownStyle) ? " " : "";
       }
       if (normalized) {
         const preserveLeading = normalized.startsWith(" ");
@@ -182,7 +200,7 @@ export async function convertDomNode(
   if (textBuf) {
     let normalized = textBuf.replace(/\s+/g, " ").normalize("NFC");
     if (normalized.trim().length === 0) {
-      normalized = layoutChildren.length > 0 ? " " : "";
+      normalized = shouldPreserveCollapsedWhitespace(layoutChildren, ownStyle) ? " " : "";
     }
     if (normalized) {
       const preserveLeading = normalized.startsWith(" ");

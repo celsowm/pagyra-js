@@ -301,7 +301,6 @@ export class ElementSpecificDefaults {
     },
     li: {
       display: Display.Block,
-      marginBottom: 8,
       fontSize: 16,
       lineHeight: TypographyDefaults.getLineHeight(),
       fontFamily: TypographyDefaults.getFontFamily(),
