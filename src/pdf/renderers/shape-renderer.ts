@@ -322,6 +322,52 @@ export class ShapeRenderer {
     this.pushFillCommands(color, [...pdfCommands, operator], false);
   }
 
+  // New: fill an arbitrary path with a gradient. We compute a bounding box of the path
+  // (in page pixels) and use it as the gradient rectangle when creating the shading.
+  // The path itself is converted to PDF commands and used as the clipping path before
+  // painting the shading.
+  fillPathWithGradient(commands: PathCommand[], gradient: LinearGradient | RadialGradient, options: { fillRule?: "nonzero" | "evenodd" } = {}): void {
+    if (!commands || commands.length === 0) return;
+    const pdfCommands = this.pathCommandsToPdf(commands);
+    if (!pdfCommands || pdfCommands.length === 0) return;
+
+    // Compute bounding box in page pixels from PathCommand (these are given in page px)
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    for (const cmd of commands) {
+      if (cmd.type === "moveTo" || cmd.type === "lineTo") {
+        minX = Math.min(minX, cmd.x);
+        minY = Math.min(minY, cmd.y);
+        maxX = Math.max(maxX, cmd.x);
+        maxY = Math.max(maxY, cmd.y);
+      } else if (cmd.type === "curveTo") {
+        minX = Math.min(minX, cmd.x1, cmd.x2, cmd.x);
+        minY = Math.min(minY, cmd.y1, cmd.y2, cmd.y);
+        maxX = Math.max(maxX, cmd.x1, cmd.x2, cmd.x);
+        maxY = Math.max(maxY, cmd.y1, cmd.y2, cmd.y);
+      }
+    }
+    if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+      return;
+    }
+    const rect = { x: minX, y: minY, width: Math.max(0, maxX - minX), height: Math.max(0, maxY - minY) };
+
+    // Create shading
+    const shading = (gradient as RadialGradient).type === "radial"
+      ? this.gradientService.createRadialGradient(gradient as RadialGradient, rect)
+      : this.gradientService.createLinearGradient(gradient as LinearGradient, rect);
+
+    // Emit clipping path then shading
+    this.commands.push("q");
+    this.commands.push(...pdfCommands);
+    // Use W n to set clipping path (nonzero/even-odd determined by the fill operator we use)
+    this.commands.push("W n");
+    this.commands.push(`/${shading.shadingName} sh`);
+    this.commands.push("Q");
+  }
+
   strokePath(
     commands: PathCommand[],
     color: RGBA,

@@ -190,12 +190,9 @@ function parseGradientStop(value: string): GradientStop | null {
   let position: number | undefined;
   if (parts.length > 1) {
     const positionStr = parts[1].trim();
-    // Try to parse as percentage
-    if (positionStr.endsWith("%")) {
       const num = parseFloat(positionStr.slice(0, -1));
       if (!isNaN(num)) {
         position = num / 100;
-      }
     } else {
       // Try to parse as a number (0-1 range)
       const num = parseFloat(positionStr);

@@ -100,6 +100,34 @@ export function renderCircle(node: SvgCircleNode, style: SvgStyle, context: SvgR
   }
   const cx = Number.isFinite(node.cx ?? NaN) ? node.cx ?? 0 : 0;
   const cy = Number.isFinite(node.cy ?? NaN) ? node.cy ?? 0 : 0;
+  // Try resolving gradient paint first. For circle fills we special-case gradients and
+  // draw them by creating a rounded-rect (square) clipping path sized to the circle's
+  // bounding box. This reuses the ShapeRenderer's rounded-rect clipping + shading logic
+  // and produces a visually correct circular fill via the cubic-curve approximation.
+  const gradient = resolveGradientPaint(style.fill, context);
+  if (gradient) {
+    // Map center and an edge point to page pixels
+    const center = mapSvgPoint(cx, cy, context);
+    const edge = mapSvgPoint(cx + radius, cy, context);
+    if (center && edge) {
+      const rPx = Math.sqrt((edge.x - center.x) ** 2 + (edge.y - center.y) ** 2);
+      const pxRect = { x: center.x - rPx, y: center.y - rPx, width: rPx * 2, height: rPx * 2 };
+      const radii = {
+        topLeft: { x: rPx, y: rPx },
+        topRight: { x: rPx, y: rPx },
+        bottomRight: { x: rPx, y: rPx },
+        bottomLeft: { x: rPx, y: rPx },
+      };
+      if ((gradient as RadialGradient).type === "radial") {
+        context.painter.fillRoundedRect(pxRect, radii, gradient as RadialGradient);
+      } else {
+        context.painter.fillRoundedRect(pxRect, radii, gradient as LinearGradient);
+      }
+      return;
+    }
+    // If mapping failed, fall back to path-based fill below
+  }
+
   const segments = buildEllipseSegments(cx, cy, radius, radius);
   const commands = mapPathSegments(segments, context);
   if (!commands || commands.length === 0) {
@@ -217,11 +245,10 @@ function paintPathCommands(commands: PathCommand[], style: SvgStyle, context: Sv
   // Try to resolve a gradient paint server first (supports url(#id) references and CSS gradients)
   const gradient = resolveGradientPaint(style.fill, context);
   if (gradient) {
-    // ShapeRenderer supports linear and radial gradients for rect-like fills via the painter API, but fillPath is color-only.
-    // For non-rect paths we fall back to filling via path->clip + shading (not implemented fully for arbitrary paths yet).
-    // Currently, for path fills we try to create a shading covering the path bbox — best-effort.
-    // As a simpler first step, if we have a gradient we convert it to a CSS-like linear gradient and use the painter's
-    // fillPath by generating a temporary rect shading over the path bounds is more involved; for now, prefer color fallback.
+    // Use the new painter API to paint arbitrary path commands with a gradient. The ShapeRenderer will
+    // create a clipping path from the provided commands and paint the shading clipped to the path.
+    context.painter.fillPathWithGradient(commands, gradient, { fillRule });
+    return;
   }
   const fillColor = resolvePaint(style.fill, style.opacity * style.fillOpacity);
   if (fillColor) {

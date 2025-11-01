@@ -122,6 +122,12 @@ export class PagePainter {
     this.shapeRenderer.fillPath(commands, color, options);
   }
 
+  // New: fill an arbitrary path with a gradient (linear or radial). The ShapeRenderer will
+  // create a clipping path from the provided commands and paint the shading clipped to that path.
+  fillPathWithGradient(commands: PathCommand[], gradient: LinearGradient | RadialGradient, options: { fillRule?: "nonzero" | "evenodd" } = {}): void {
+    this.shapeRenderer.fillPathWithGradient(commands, gradient, options);
+  }
+
   strokePolyline(
     points: ShapePoint[],
     color: RGBA,
