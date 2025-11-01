@@ -9,6 +9,21 @@ export interface LinearGradient {
   type: "linear";
   direction: string;
   stops: GradientStop[];
+  // Optional coordinate hints (used when converting SVG gradients)
+  coords?: { x1: number; y1: number; x2: number; y2: number; units: "ratio" | "userSpace" };
+}
+
+export interface RadialGradient {
+  type: "radial";
+  cx: number;
+  cy: number;
+  r: number;
+  fx?: number;
+  fy?: number;
+  stops: GradientStop[];
+  // Optional coordinate units: "ratio" = objectBoundingBox (0..1), "userSpace" = absolute page pixels
+  coordsUnits?: "ratio" | "userSpace";
+  // gradientUnits omitted for CSS radial gradients; SVG will supply via its own node conversion
 }
 
 export function parseLinearGradient(value: string): LinearGradient | null {

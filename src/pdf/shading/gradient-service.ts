@@ -19,16 +19,115 @@ export class GradientService {
 
   createLinearGradient(
     gradient: LinearGradient,
-    rect: { width: number; height: number },
+    rect: { x?: number; y?: number; width: number; height: number },
   ): GradientShading {
     const shadingName = this.generateShadingName();
     const stops = this.normalizeStops(gradient.stops);
-    const coords = this.calculateGradientCoordinates(gradient, rect);
+    // If gradient provides explicit coords (from SVG), honor them
+    let coords: [number, number, number, number];
+    if (gradient.coords && gradient.coords.units === "userSpace") {
+      // coords are absolute page pixels; convert to rectangle-local points
+      const x0 = gradient.coords.x1 - (rect.x ?? 0);
+      const y0 = gradient.coords.y1 - (rect.y ?? 0);
+      const x1 = gradient.coords.x2 - (rect.x ?? 0);
+      const y1 = gradient.coords.y2 - (rect.y ?? 0);
+      coords = [
+        this.coordinateTransformer.convertPxToPt(x0),
+        this.coordinateTransformer.convertPxToPt(y0),
+        this.coordinateTransformer.convertPxToPt(x1),
+        this.coordinateTransformer.convertPxToPt(y1),
+      ];
+    } else if (gradient.coords && gradient.coords.units === "ratio") {
+      // coords are in objectBoundingBox (0..1) relative to rect
+      const widthPt = Math.max(this.coordinateTransformer.convertPxToPt(rect.width), 0);
+      const heightPt = Math.max(this.coordinateTransformer.convertPxToPt(rect.height), 0);
+      const x0 = gradient.coords.x1 * widthPt;
+      const y0 = gradient.coords.y1 * heightPt;
+      const x1 = gradient.coords.x2 * widthPt;
+      const y1 = gradient.coords.y2 * heightPt;
+      coords = [x0, y0, x1, y1];
+    } else {
+      coords = this.calculateGradientCoordinates(gradient, rect);
+    }
     const interpolationFn = this.buildInterpolationFunction(stops);
 
     const dictionary = [
       "<<",
       "/ShadingType 2",
+      "/ColorSpace /DeviceRGB",
+      `/Coords [${coords.map(formatNumber).join(" ")}]`,
+      "/Domain [0 1]",
+      `/Function ${interpolationFn}`,
+      "/Extend [true true]",
+      ">>",
+    ].join("\n");
+
+    const shading: GradientShading = { shadingName, dictionary };
+    this.shadings.set(shadingName, shading);
+    return shading;
+  }
+
+  createRadialGradient(
+    gradient: import("../../css/parsers/gradient-parser.js").RadialGradient,
+    rect: { x?: number; y?: number; width: number; height: number },
+  ): GradientShading {
+    const shadingName = this.generateShadingName();
+    const stops = this.normalizeStops(gradient.stops);
+
+    const widthPt = Math.max(this.coordinateTransformer.convertPxToPt(rect.width), 0);
+    const heightPt = Math.max(this.coordinateTransformer.convertPxToPt(rect.height), 0);
+    const safeWidth = widthPt > 0 ? widthPt : 1;
+    const safeHeight = heightPt > 0 ? heightPt : 1;
+
+    let coords: [number, number, number, number, number, number];
+
+    if (gradient.coordsUnits === "userSpace") {
+      // gradient.cx/cy/r are in page pixels; convert to rectangle-local px then to points
+      const cxPx = gradient.cx ?? 0;
+      const cyPx = gradient.cy ?? 0;
+      const rPx = gradient.r ?? 0;
+
+      const localCxPx = cxPx - (rect.x ?? 0);
+      const localCyPx = cyPx - (rect.y ?? 0);
+
+      const centerX = this.coordinateTransformer.convertPxToPt(localCxPx);
+      const centerY = this.coordinateTransformer.convertPxToPt(localCyPx);
+      const radius = this.coordinateTransformer.convertPxToPt(rPx);
+
+      // If focal point provided, place inner circle at focal, otherwise inner circle at center with r0 = 0
+      if (gradient.fx !== undefined && gradient.fy !== undefined) {
+        const fxPx = gradient.fx - (rect.x ?? 0);
+        const fyPx = gradient.fy - (rect.y ?? 0);
+        const focalX = this.coordinateTransformer.convertPxToPt(fxPx);
+        const focalY = this.coordinateTransformer.convertPxToPt(fyPx);
+        coords = [focalX, focalY, 0, centerX, centerY, radius];
+      } else {
+        coords = [centerX, centerY, 0, centerX, centerY, radius];
+      }
+    } else {
+      // Treat as ratio (objectBoundingBox)
+      const cx = gradient.cx ?? 0.5;
+      const cy = gradient.cy ?? 0.5;
+      const r = gradient.r ?? 0.5;
+
+      const centerX = cx * safeWidth;
+      const centerY = cy * safeHeight;
+      const radius = r * Math.max(safeWidth, safeHeight);
+
+      if (gradient.fx !== undefined && gradient.fy !== undefined) {
+        const fx = gradient.fx * safeWidth;
+        const fy = gradient.fy * safeHeight;
+        coords = [fx, fy, 0, centerX, centerY, radius];
+      } else {
+        coords = [centerX, centerY, 0, centerX, centerY, radius];
+      }
+    }
+
+    const interpolationFn = this.buildInterpolationFunction(stops);
+
+    const dictionary = [
+      "<<",
+      "/ShadingType 3",
       "/ColorSpace /DeviceRGB",
       `/Coords [${coords.map(formatNumber).join(" ")}]`,
       "/Domain [0 1]",

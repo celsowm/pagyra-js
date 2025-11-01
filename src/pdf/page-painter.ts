@@ -1,5 +1,5 @@
 import type { Rect, Run, RenderBox, RGBA, ImageRef, Radius, TextPaintOptions } from "./types.js";
-import type { LinearGradient } from "../css/parsers/gradient-parser.js";
+import type { LinearGradient, RadialGradient } from "../css/parsers/gradient-parser.js";
 import type { FontRegistry } from "./font/font-registry.js";
 import type { PdfObjectRef } from "./primitives/pdf-document.js";
 import { log } from "../debug/log.js";
@@ -94,7 +94,7 @@ export class PagePainter {
     await this.textRenderer.drawTextRun(run);
   }
 
-  fillRoundedRect(rect: Rect, radii: Radius, paint: RGBA | LinearGradient | string): void {
+  fillRoundedRect(rect: Rect, radii: Radius, paint: RGBA | LinearGradient | RadialGradient | string): void {
     this.shapeRenderer.fillRoundedRect(rect, radii, paint);
   }
 
@@ -102,7 +102,7 @@ export class PagePainter {
     this.shapeRenderer.fillRoundedRectDifference(outerRect, outerRadii, innerRect, innerRadii, color);
   }
 
-  fillRect(rect: Rect, paint: RGBA | LinearGradient | string): void {
+  fillRect(rect: Rect, paint: RGBA | LinearGradient | RadialGradient | string): void {
     this.shapeRenderer.fillRect(rect, paint);
   }
 

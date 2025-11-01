@@ -16,7 +16,23 @@ import { buildEllipseSegments, buildRectSegments, buildRoundedRectSegments } fro
 import { mapPathSegments, mapPoints, mapSvgPoint } from "./coordinate-mapper.js";
 import { resolvePaint } from "./style-computer.js";
 import { clampAlpha } from "../utils/color-utils.js";
-import { applyMatrixToPoint, multiplyMatrices } from "./matrix-utils.js";
+import { applyMatrixToPoint, multiplyMatrices, parseTransform } from "./matrix-utils.js";
+import type { SvgLinearGradientNode } from "../../svg/types.js";
+import type { SvgRadialGradientNode } from "../../svg/types.js";
+import { parseLinearGradient, type LinearGradient } from "../../css/parsers/gradient-parser.js";
+import type { RadialGradient } from "../../css/parsers/gradient-parser.js";
+
+function isLinearGradientPaint(value: unknown): value is LinearGradient {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Partial<LinearGradient>;
+  return candidate.type === "linear" && Array.isArray((candidate as any).stops);
+}
+
+function isRadialGradientPaint(value: unknown): value is RadialGradient {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Partial<RadialGradient>;
+  return candidate.type === "radial" && typeof (candidate as any).r === "number";
+}
 
 export function renderRect(node: SvgRectNode, style: SvgStyle, context: SvgRenderContext): void {
   const width = Number.isFinite(node.width ?? NaN) ? node.width ?? 0 : 0;
@@ -35,6 +51,41 @@ export function renderRect(node: SvgRectNode, style: SvgStyle, context: SvgRende
   ry = clampRadius(ry, height / 2);
 
   const segments = rx > 0 || ry > 0 ? buildRoundedRectSegments(x, y, width, height, rx, ry) : buildRectSegments(x, y, width, height);
+  // If fill is a gradient (including url(...) referencing a <linearGradient> or <radialGradient> in defs), handle via painter gradient APIs
+  const gradient = resolveGradientPaint(style.fill, context);
+  if (gradient) {
+    // Map rectangle corners to viewport/page coordinates
+    const p1 = mapSvgPoint(x, y, context);
+    const p2 = mapSvgPoint(x + width, y + height, context);
+    if (p1 && p2) {
+      const pxRect = { x: p1.x, y: p1.y, width: p2.x - p1.x, height: p2.y - p1.y };
+      if ((gradient as RadialGradient).type === "radial") {
+        if (rx > 0 || ry > 0) {
+          context.painter.fillRoundedRect(pxRect, {
+            topLeft: { x: rx, y: ry },
+            topRight: { x: rx, y: ry },
+            bottomRight: { x: rx, y: ry },
+            bottomLeft: { x: rx, y: ry },
+          }, gradient as RadialGradient);
+        } else {
+          context.painter.fillRect(pxRect, gradient as RadialGradient);
+        }
+      } else {
+        if (rx > 0 || ry > 0) {
+          context.painter.fillRoundedRect(pxRect, {
+            topLeft: { x: rx, y: ry },
+            topRight: { x: rx, y: ry },
+            bottomRight: { x: rx, y: ry },
+            bottomLeft: { x: rx, y: ry },
+          }, gradient as LinearGradient);
+        } else {
+          context.painter.fillRect(pxRect, gradient as LinearGradient);
+        }
+      }
+      return;
+    }
+  }
+
   const commands = mapPathSegments(segments, context);
   if (!commands || commands.length === 0) {
     return;
@@ -163,6 +214,15 @@ function paintPathCommands(commands: PathCommand[], style: SvgStyle, context: Sv
   if (commands.length === 0) {
     return;
   }
+  // Try to resolve a gradient paint server first (supports url(#id) references and CSS gradients)
+  const gradient = resolveGradientPaint(style.fill, context);
+  if (gradient) {
+    // ShapeRenderer supports linear and radial gradients for rect-like fills via the painter API, but fillPath is color-only.
+    // For non-rect paths we fall back to filling via path->clip + shading (not implemented fully for arbitrary paths yet).
+    // Currently, for path fills we try to create a shading covering the path bbox — best-effort.
+    // As a simpler first step, if we have a gradient we convert it to a CSS-like linear gradient and use the painter's
+    // fillPath by generating a temporary rect shading over the path bounds is more involved; for now, prefer color fallback.
+  }
   const fillColor = resolvePaint(style.fill, style.opacity * style.fillOpacity);
   if (fillColor) {
     context.painter.fillPath(commands, fillColor, { fillRule: fillRule ?? style.fillRule });
@@ -228,4 +288,181 @@ function estimateTextWidth(text: string, fontSize: number): number {
   }
   const averageFactor = 0.6;
   return text.length * fontSize * averageFactor;
+}
+
+function resolveLinearGradient(paint: unknown, context?: SvgRenderContext): LinearGradient | null {
+  // If it's already a LinearGradient object, return it
+  if (isLinearGradientPaint(paint)) return paint as LinearGradient;
+  if (typeof paint === "string") {
+    const trimmed = paint.trim();
+    // url(#id) reference
+    const urlMatch = trimmed.match(/^url\(\s*#([^\)\s]+)\s*\)$/i);
+    if (urlMatch && context) {
+      const defs = (context as any).defs as Map<string, any> | undefined;
+      if (defs) {
+        const node = defs.get(urlMatch[1]);
+        if (node && (node.type === "lineargradient" || node.type === "radialgradient")) {
+          if (node.type === "lineargradient") {
+            return svgLinearNodeToLinearGradient(node as unknown as SvgLinearGradientNode, context);
+          }
+          // if radial, convert and return as LinearGradient? no — radial handled by separate resolver
+        }
+      }
+    }
+    // fallback to CSS linear-gradient(...) strings
+    return parseLinearGradient(paint);
+  }
+  return null;
+}
+
+function resolveGradientPaint(paint: unknown, context?: SvgRenderContext): LinearGradient | RadialGradient | null {
+  // If already gradient object, return it
+  if (isLinearGradientPaint(paint) || isRadialGradientPaint(paint)) return paint as LinearGradient | RadialGradient;
+  if (typeof paint === "string") {
+    const trimmed = paint.trim();
+    const urlMatch = trimmed.match(/^url\(\s*#([^\)\s]+)\s*\)$/i);
+    if (urlMatch && context) {
+      const defs = (context as any).defs as Map<string, any> | undefined;
+      if (defs) {
+        const node = defs.get(urlMatch[1]);
+        if (node && (node.type === "lineargradient" || node.type === "radialgradient")) {
+          if (node.type === "lineargradient") {
+            return svgLinearNodeToLinearGradient(node as unknown as SvgLinearGradientNode, context);
+          }
+          return svgRadialNodeToRadialGradient(node as unknown as SvgRadialGradientNode, context);
+        }
+      }
+    }
+    // fallback to CSS linear-gradient(...) strings
+    return parseLinearGradient(paint);
+  }
+  return null;
+}
+
+function svgLinearNodeToLinearGradient(node: SvgLinearGradientNode, context?: SvgRenderContext): LinearGradient {
+  const x1 = node.x1 ?? 0;
+  const y1 = node.y1 ?? 0;
+  const x2 = node.x2 ?? 1;
+  const y2 = node.y2 ?? 0;
+
+  const stops = (node.stops ?? []).map((s) => ({ color: s.color, position: s.offset }));
+
+  // Default: objectBoundingBox coordinates (ratio 0..1)
+  const units = node.gradientUnits === "userSpaceOnUse" ? "userSpace" : "ratio";
+
+  // If userSpaceOnUse, map points to page pixels using the SVG render context
+  if (units === "userSpace" && context) {
+    const p1 = mapSvgPoint(x1, y1, context);
+    const p2 = mapSvgPoint(x2, y2, context);
+    if (p1 && p2) {
+      // coords in absolute page pixels; gradient-service will convert to rectangle-local points
+      return { type: "linear", direction: "to right", stops, coords: { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, units: "userSpace" } };
+    }
+    // fallback to ratio if mapping failed
+  }
+
+  // objectBoundingBox: keep ratio coords (0..1)
+  // Apply gradientTransform if present — treat it as operating in gradient coordinate space
+  let rp1 = { x: x1, y: y1 };
+  let rp2 = { x: x2, y: y2 };
+  const rawTransform = (node.attributes && (node.attributes["gradientTransform"] ?? node.attributes["gradienttransform"])) as string | undefined;
+  if (rawTransform) {
+    const t = parseTransform(rawTransform) || undefined;
+    if (t) {
+      rp1 = applyMatrixToPoint(t, rp1.x, rp1.y);
+      rp2 = applyMatrixToPoint(t, rp2.x, rp2.y);
+    }
+  }
+
+  // compute direction angle from ratio coords (useful when no explicit coords provided)
+  const dx = rp2.x - rp1.x;
+  const dy = rp2.y - rp1.y;
+  const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+  const direction = `${angle.toFixed(2)}deg`;
+
+  return { type: "linear", direction, stops, coords: { x1: rp1.x, y1: rp1.y, x2: rp2.x, y2: rp2.y, units: "ratio" } };
+}
+
+function svgRadialNodeToRadialGradient(node: SvgRadialGradientNode, context?: SvgRenderContext): RadialGradient {
+  const cx = node.cx ?? 0.5;
+  const cy = node.cy ?? 0.5;
+  const r = node.r ?? 0.5;
+  const fx = node.fx;
+  const fy = node.fy;
+  const stops = (node.stops ?? []).map((s) => ({ color: s.color, position: s.offset }));
+
+  const units = node.gradientUnits === "userSpaceOnUse" ? "userSpace" : "ratio";
+
+    if (units === "userSpace" && context) {
+    const center = mapSvgPoint(cx, cy, context);
+    const focal = fx !== undefined && fy !== undefined ? mapSvgPoint(fx, fy, context) : undefined;
+    const radiusPt = (() => {
+      // map a point at cx + r, cy to user space and compute distance
+      const edge = mapSvgPoint(cx + r, cy, context);
+      if (center && edge) {
+        const dx = edge.x - center.x;
+        const dy = edge.y - center.y;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+      return undefined;
+    })();
+
+    // If mapping succeeded, return a userSpace radial gradient with absolute coords
+    if (center && radiusPt !== undefined) {
+      const rad: RadialGradient = {
+        type: "radial",
+        cx: center.x,
+        cy: center.y,
+        r: radiusPt,
+        stops,
+        coordsUnits: "userSpace",
+      };
+      if (focal) {
+        rad.fx = focal.x;
+        rad.fy = focal.y;
+      }
+      return rad;
+    }
+    // fallback to ratio below
+  }
+
+  // objectBoundingBox (ratio) coordinates; apply gradientTransform if present
+  let rcx = cx;
+  let rcy = cy;
+  let rr = r;
+  let rfx = fx;
+  let rfy = fy;
+  const rawTransform = (node.attributes && (node.attributes["gradientTransform"] ?? node.attributes["gradienttransform"])) as string | undefined;
+  if (rawTransform) {
+    const t = parseTransform(rawTransform) || undefined;
+    if (t) {
+      // Apply transform to original coordinates (don't reuse transformed values when computing the radius)
+      const origCx = rcx;
+      const origCy = rcy;
+      const c = applyMatrixToPoint(t, origCx, origCy);
+      rcx = c.x;
+      rcy = c.y;
+      if (rfx !== undefined && rfy !== undefined) {
+        const f = applyMatrixToPoint(t, rfx, rfy);
+        rfx = f.x;
+        rfy = f.y;
+      }
+      // radius transform: map an edge point (origCx + rr, origCy) through the transform and measure distance to transformed center
+      const edge = applyMatrixToPoint(t, origCx + rr, origCy);
+      rr = Math.sqrt((edge.x - c.x) ** 2 + (edge.y - c.y) ** 2);
+    }
+  }
+
+  const radRatio: RadialGradient = {
+    type: "radial",
+    cx: rcx,
+    cy: rcy,
+    r: rr,
+    stops,
+  };
+  if (rfx !== undefined && rfy !== undefined) {
+    radRatio.fx = rfx;
+    radRatio.fy = rfy;
+  }
+  return radRatio;
 }

@@ -28,6 +28,9 @@ export interface SvgRenderContext {
   strokeScale: number;
 }
 
+// Map of defs by id (gradients, clipPaths, etc.) built once per svg render
+export type SvgDefsMap = Map<string, any>;
+
 export async function renderSvgBox(painter: PagePainter, box: RenderBox): Promise<void> {
   const svgData = extractSvgCustomData(box);
   if (!svgData) {
@@ -90,8 +93,29 @@ export async function renderSvgBox(painter: PagePainter, box: RenderBox): Promis
     strokeScale,
   };
 
+  // Build defs map (id -> node) so paint servers like gradients can be resolved during rendering
+  const defs = new Map<string, any>();
+  collectDefs(root, defs);
+  // Attach to context for downstream use
+  (context as any).defs = defs;
+
   const baseStyle = createDefaultStyle();
   await renderNode(root, baseStyle, context);
+}
+
+function collectDefs(node: SvgNode, map: Map<string, any>): void {
+  if (!node) return;
+  // If node has an id, register it
+  const id = (node as any).id;
+  if (id && typeof id === "string") {
+    map.set(id, node);
+  }
+  // Recurse into children for container nodes
+  if ((node as any).children && Array.isArray((node as any).children)) {
+    for (const child of (node as any).children) {
+      collectDefs(child, map);
+    }
+  }
 }
 
 function extractSvgCustomData(box: RenderBox): SvgCustomData | null {

@@ -1,7 +1,7 @@
 import type { RGBA, Rect, Radius } from "../types.js";
 import { CoordinateTransformer } from "../utils/coordinate-transformer.js";
 import { GradientService } from "../shading/gradient-service.js";
-import { parseLinearGradient, type LinearGradient } from "../../css/parsers/gradient-parser.js";
+import { parseLinearGradient, type LinearGradient, type RadialGradient } from "../../css/parsers/gradient-parser.js";
 
 export interface ShapePoint {
   x: number;
@@ -40,16 +40,21 @@ export class ShapeRenderer {
     this.fillRect(rect, color);
   }
 
-  fillRoundedRect(rect: Rect, radii: Radius, paint: RGBA | LinearGradient | string): void {
+  fillRoundedRect(rect: Rect, radii: Radius, paint: RGBA | LinearGradient | RadialGradient | string): void {
+    // Note: RadialGradient support will be accepted via painter API too
     const width = Math.max(rect.width, 0);
     const height = Math.max(rect.height, 0);
     if (width === 0 || height === 0) {
       return;
     }
 
-    const gradient = resolveLinearGradient(paint);
+    const gradient = resolveGradientPaint(paint) as LinearGradient | RadialGradient | null;
     if (gradient) {
-      this.fillRoundedRectWithGradient(rect, radii, gradient);
+      if ((gradient as RadialGradient).type === "radial") {
+        this.fillRoundedRectWithRadialGradient(rect, radii, gradient as RadialGradient);
+      } else {
+        this.fillRoundedRectWithGradient(rect, radii, gradient as LinearGradient);
+      }
       return;
     }
 
@@ -119,6 +124,49 @@ export class ShapeRenderer {
     this.commands.push("Q");
   }
 
+  private fillRoundedRectWithRadialGradient(rect: Rect, radii: Radius, gradient: RadialGradient): void {
+    const width = Math.max(rect.width, 0);
+    const height = Math.max(rect.height, 0);
+    if (width === 0 || height === 0) {
+      return;
+    }
+
+    const adjusted = this.normalizeRadiiForRect(width, height, radii);
+    if (this.isZeroRadius(adjusted)) {
+      this.fillRectWithRadialGradient(rect, gradient);
+      return;
+    }
+
+    const path = this.roundedRectPath(width, height, adjusted, 0, 0);
+    if (path.length === 0) {
+      return;
+    }
+
+    const shading = this.gradientService.createRadialGradient(gradient, rect);
+    this.commands.push("q");
+    this.commands.push(this.transformForRect(rect));
+    this.commands.push(...path);
+    this.commands.push("W n");
+    this.commands.push(`/${shading.shadingName} sh`);
+    this.commands.push("Q");
+  }
+
+  private fillRectWithRadialGradient(rect: Rect, gradient: RadialGradient): void {
+    const width = Math.max(rect.width, 0);
+    const height = Math.max(rect.height, 0);
+    if (width === 0 || height === 0) {
+      return;
+    }
+
+    const shading = this.gradientService.createRadialGradient(gradient, rect);
+    this.commands.push("q");
+    this.commands.push(this.transformForRect(rect));
+    this.commands.push(`0 0 ${formatNumber(width)} ${formatNumber(height)} re`);
+    this.commands.push("W n");
+    this.commands.push(`/${shading.shadingName} sh`);
+    this.commands.push("Q");
+  }
+
   fillRoundedRectDifference(outerRect: Rect, outerRadii: Radius, innerRect: Rect, innerRadii: Radius, color: RGBA): void {
     const outerWidth = Math.max(outerRect.width, 0);
     const outerHeight = Math.max(outerRect.height, 0);
@@ -149,10 +197,14 @@ export class ShapeRenderer {
     this.pushFillCommands(color, commands, true);
   }
 
-  fillRect(rect: Rect, paint: RGBA | LinearGradient | string): void {
-    const gradient = resolveLinearGradient(paint);
+  fillRect(rect: Rect, paint: RGBA | LinearGradient | RadialGradient | string): void {
+    const gradient = resolveGradientPaint(paint);
     if (gradient) {
-      this.fillRectWithGradient(rect, gradient);
+      if ((gradient as RadialGradient).type === "radial") {
+        this.fillRectWithRadialGradient(rect, gradient as RadialGradient);
+      } else {
+        this.fillRectWithGradient(rect, gradient as LinearGradient);
+      }
       return;
     }
 
@@ -648,9 +700,9 @@ function mapLineJoin(join: "miter" | "round" | "bevel" | undefined): number | un
   }
 }
 
-function resolveLinearGradient(paint: unknown): LinearGradient | null {
-  if (isLinearGradientPaint(paint)) {
-    return paint;
+function resolveGradientPaint(paint: unknown): LinearGradient | RadialGradient | null {
+  if (isLinearGradientPaint(paint) || isRadialGradientPaint(paint)) {
+    return paint as LinearGradient | RadialGradient;
   }
   if (typeof paint === "string") {
     return parseLinearGradient(paint);
@@ -659,11 +711,15 @@ function resolveLinearGradient(paint: unknown): LinearGradient | null {
 }
 
 function isLinearGradientPaint(value: unknown): value is LinearGradient {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
+  if (typeof value !== "object" || value === null) return false;
   const candidate = value as Partial<LinearGradient>;
-  return candidate.type === "linear" && Array.isArray(candidate.stops);
+  return candidate.type === "linear" && Array.isArray((candidate as any).stops);
+}
+
+function isRadialGradientPaint(value: unknown): value is RadialGradient {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Partial<RadialGradient>;
+  return candidate.type === "radial" && typeof (candidate as any).r === "number";
 }
 
 function normalizeChannel(value: number): number {
