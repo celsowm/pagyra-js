@@ -6,6 +6,7 @@ import {
   type SvgEllipseNode,
   type SvgGradientStop,
   type SvgGroupNode,
+  type SvgDefsNode,
   type SvgImageNode,
   type SvgLineNode,
   type SvgLinearGradientNode,
@@ -54,6 +55,8 @@ export function parseElement(element: Element, context: SvgParseContext): SvgNod
       return parseSvgRoot(element, context);
     case "g":
       return parseGroup(element, context);
+    case "defs":
+      return parseDefs(element, context);
     case "rect":
       return parseRect(element);
     case "circle":
@@ -113,6 +116,17 @@ function parseGroup(element: Element, context: SvgParseContext): SvgGroupNode | 
   return {
     ...base,
     type: "g",
+  };
+}
+
+function parseDefs(element: Element, context: SvgParseContext): SvgDefsNode | null {
+  const base = createContainerBase(element, "defs", context);
+  if (!base) {
+    return null;
+  }
+  return {
+    ...base,
+    type: "defs",
   };
 }
 

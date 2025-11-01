@@ -315,6 +315,34 @@ describe('SVG Parser - New Node Types', () => {
     });
   });
 
+  describe('parseDefs container', () => {
+    it('should parse <defs> containing a linearGradient when parsing full <svg>', () => {
+      const { document } = parseHTML('<svg></svg>');
+      const svg = document.documentElement as Element;
+      const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      const lg = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+      lg.setAttribute('id', 'g1');
+      const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+      stop1.setAttribute('offset', '0');
+      stop1.setAttribute('stop-color', 'red');
+      lg.appendChild(stop1);
+      defs.appendChild(lg);
+      svg.appendChild(defs);
+
+      const parsed = parseSvg(svg, { warn: mockWarn });
+      expect(parsed).not.toBeNull();
+      const foundDefs = parsed!.children.find((c) => c.type === 'defs');
+      expect(foundDefs).not.toBeUndefined();
+      // @ts-ignore - narrow to container for test
+      const defsNode = foundDefs as any;
+      expect(Array.isArray(defsNode.children)).toBe(true);
+      const foundLg = defsNode.children.find((c: any) => c.type === 'lineargradient');
+      expect(foundLg).not.toBeUndefined();
+      expect(foundLg.stops).toHaveLength(1);
+      expect(foundLg.stops[0].color).toBe('red');
+    });
+  });
+
   describe('Transform matrix parsing', () => {
     it('should parse transform and store matrix', () => {
       const element = createElement('rect', {

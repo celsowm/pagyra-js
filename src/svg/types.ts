@@ -3,6 +3,7 @@ import type { Matrix } from "../pdf/svg/matrix-utils.js";
 export type SvgNodeType =
   | "svg"
   | "g"
+  | "defs"
   | "rect"
   | "circle"
   | "ellipse"
@@ -27,8 +28,12 @@ export interface SvgCommon {
 }
 
 export interface SvgContainerNode extends SvgCommon {
-  type: "svg" | "g" | "clippath";
+  type: "svg" | "g" | "clippath" | "defs";
   children: SvgNode[];
+}
+
+export interface SvgDefsNode extends SvgContainerNode {
+  type: "defs";
 }
 
 export interface SvgRootNode extends SvgContainerNode {
@@ -182,6 +187,7 @@ export type SvgNode =
   | SvgImageNode
   | SvgUseNode
   | SvgClipPathNode
+  | SvgDefsNode
   | SvgLinearGradientNode
   | SvgRadialGradientNode;
 
