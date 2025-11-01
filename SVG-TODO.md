@@ -25,47 +25,47 @@ Tracking outstanding work to round out SVG support. Delete when complete.
   - Parse `preserveAspectRatio` on `<svg>`; compute meet/slice + alignment; adjust mapping and stroke-scale.
 
 ### P2 — Geometry, units, paint
-- [ ] Length units beyond px: support `pt`, `pc`, `in`, `cm`, `mm` (and `%` where applicable)
+- [x] Length units beyond px: support `pt`, `pc`, `in`, `cm`, `mm` (and `%` where applicable)
   - Parser rejects non-`px`: `src/svg/parser.ts:257`, `src/svg/parser.ts:274`.
   - Decide `%` reference (viewport vs bbox) per attribute.
 
-- [ ] Stroke dashing / miter limit
+- [x] Stroke dashing / miter limit
   - Add support for `stroke-dasharray`, `stroke-dashoffset`, `stroke-miterlimit`.
   - PDF ops: `d` (dash pattern), `M` (miter limit). Wire through ShapeRenderer.
 
-- [ ] Expand color support
+- [x] Expand color support
   - Add `hsl()/hsla()` and `currentColor` (fallback to inherited color).
   - File: `src/pdf/utils/color-utils.ts` and style resolution in `src/pdf/svg/render-svg.ts`.
 
-- [ ] Fill/stroke opacity interplay at group level
+- [x] Fill/stroke opacity interplay at group level
   - Ensure group `opacity` multiplies children (base present in `deriveStyle`, verify nested accumulation).
 
 ### P3 — Paint servers, clipping, images
-- [ ] Paint servers: `fill="url(#...)"` / `stroke="url(#...)"`
+- [x] Paint servers: `fill="url(#...)"` / `stroke="url(#...)"`
   - Implement `<defs>` and resource resolution; support `<linearGradient>` and `<radialGradient>` first.
   - Map to existing PDF shading via `GradientService` (see CSS gradients) with `gradientTransform`.
 
-- [ ] Clipping and masking
+- [x] Clipping and masking
   - `<clipPath>` and `clip-path` → build path, emit `W n` clip in PDF.
   - `<mask>` (alpha/luminance) — stretch goal.
 
-- [ ] `<image>` inside SVG
+- [x] `<image>` inside SVG
   - Add `image` node type and render via PagePainter.drawImage with proper transforms and preserveAspectRatio.
 
 ### P4 — Text and styling
-- [ ] Advanced text
+- [x] Advanced text
   - `<tspan>` with x/y/dx/dy arrays; `textLength`/`lengthAdjust`; baseline alignment; kerning/letter/word spacing.
   - Optional: `textPath`.
 
-- [ ] Parse `style="..."` on SVG elements
+- [x] Parse `style="..."` on SVG elements
   - Currently only presentation attributes are read; parse inline CSS declarations and merge into `deriveStyle`.
   - Consider limited selector support for SVG-internal `<style>` as a later phase.
 
 ### P5 — Reuse and markers
-- [ ] `<defs>` / `<use>` referencing
+- [x] `<defs>` / `<use>` referencing
   - Build ID map during parse; clone/instantiate with transforms and style inheritance.
 
-- [ ] Markers
+- [x] Markers
   - `marker-start` / `marker-mid` / `marker-end` on paths/lines/polylines.
 
 ## Parser and data model tasks
