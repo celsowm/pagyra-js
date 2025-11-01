@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SVG Radial Gradients</title>
+    <style>body{font-family:Arial,sans-serif;margin:20px}.demo{margin:20px 0;border:1px solid #ccc;padding:15px}svg{border:1px solid #ddd;margin:10px 0}</style>
+</head>
+<body>
+    <h1>SVG Radial Gradients</h1>
+    <div class="demo">
+        <h3>Radial & Opacity</h3>
+        <svg width="300" height="80">
+            <defs>
+                <radialGradient id="r" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="white"/><stop offset="100%" stop-color="#3498db"/>
+                </radialGradient>
+                <linearGradient id="o">
+                    <stop offset="0%" stop-color="red" stop-opacity="1"/>
+                    <stop offset="100%" stop-color="blue" stop-opacity="0.2"/>
+                </linearGradient>
+            </defs>
+            <circle cx="60" cy="40" r="35" fill="url(#r)"/>
+            <rect x="150" y="10" width="120" height="60" fill="url(#o)"/>
+            <text x="60" y="75" text-anchor="middle">Radial</text>
+            <text x="210" y="75" text-anchor="middle">Opacity</text>
+        </svg>
+    </div>
+</body>
+</html>

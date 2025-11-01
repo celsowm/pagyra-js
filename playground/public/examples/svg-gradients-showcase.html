@@ -5,126 +5,62 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SVG Gradients Showcase</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        .demo-section {
-            margin-bottom: 30px;
-            border: 1px solid #ccc;
-            padding: 20px;
-        }
-        .demo-title {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-        svg {
-            border: 1px solid #ddd;
-            margin: 10px 0;
-        }
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .demo { margin: 20px 0; border: 1px solid #ccc; padding: 15px; }
+        svg { border: 1px solid #ddd; margin: 10px 0; }
     </style>
 </head>
 <body>
-    <h1>SVG Gradients Showcase</h1>
-    <p>This example demonstrates the newly implemented SVG gradient features: linearGradient and radialGradient with gradient stops.</p>
+    <h1>SVG Gradients Demo</h1>
+    <p>SVG gradient features: linearGradient and radialGradient with stops.</p>
 
-    <div class="demo-section">
-        <div class="demo-title">1. Linear Gradients</div>
-        <svg width="400" height="150" viewBox="0 0 400 150">
+    <div class="demo">
+        <h3>Linear Gradients</h3>
+        <svg width="300" height="100">
             <defs>
-                <linearGradient id="rainbow-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stop-color="red"/>
-                    <stop offset="16.67%" stop-color="orange"/>
-                    <stop offset="33.33%" stop-color="yellow"/>
-                    <stop offset="50%" stop-color="green"/>
-                    <stop offset="66.67%" stop-color="blue"/>
-                    <stop offset="83.33%" stop-color="indigo"/>
-                    <stop offset="100%" stop-color="violet"/>
+                <linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="red"/><stop offset="100%" stop-color="blue"/>
                 </linearGradient>
-                <linearGradient id="simple-gradient" x1="0" y1="0" x2="0" y2="50">
-                    <stop offset="0" stop-color="#ff6b6b"/>
-                    <stop offset="1" stop-color="#4ecdc4"/>
-                </linearGradient>
-                <linearGradient id="diagonal-gradient" x1="0" y1="0" x2="100" y2="50">
-                    <stop offset="0%" stop-color="#667eea"/>
-                    <stop offset="100%" stop-color="#764ba2"/>
+                <linearGradient id="lg2" x1="0" y1="0" x2="0" y2="50">
+                    <stop offset="0" stop-color="#ff6b6b"/><stop offset="1" stop-color="#4ecdc4"/>
                 </linearGradient>
             </defs>
-            <rect x="20" y="20" width="150" height="50" fill="url(#rainbow-gradient)"/>
-            <rect x="200" y="20" width="150" height="50" fill="url(#simple-gradient)"/>
-            <rect x="20" y="90" width="330" height="30" fill="url(#diagonal-gradient)"/>
-            <text x="95" y="85" text-anchor="middle" font-size="12">Rainbow</text>
-            <text x="275" y="85" text-anchor="middle" font-size="12">Vertical</text>
-            <text x="185" y="140" text-anchor="middle" font-size="12">Diagonal</text>
+            <rect x="10" y="10" width="120" height="40" fill="url(#lg1)"/>
+            <rect x="150" y="10" width="120" height="40" fill="url(#lg2)"/>
+            <text x="70" y="75" text-anchor="middle">Horizontal</text>
+            <text x="210" y="75" text-anchor="middle">Vertical</text>
         </svg>
     </div>
 
-    <div class="demo-section">
-        <div class="demo-title">2. Radial Gradients</div>
-        <svg width="400" height="200" viewBox="0 0 400 200">
+    <div class="demo">
+        <h3>Radial Gradients</h3>
+        <svg width="300" height="100">
             <defs>
-                <radialGradient id="radial1" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stop-color="white"/>
-                    <stop offset="100%" stop-color="#3498db"/>
+                <radialGradient id="rg1" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="white"/><stop offset="100%" stop-color="#3498db"/>
                 </radialGradient>
-                <radialGradient id="radial2" cx="30%" cy="30%" r="70%" fx="70%" fy="30%">
-                    <stop offset="0%" stop-color="#e74c3c"/>
-                    <stop offset="50%" stop-color="#f39c12"/>
-                    <stop offset="100%" stop-color="#27ae60"/>
-                </radialGradient>
-                <radialGradient id="radial3" cx="50%" cy="50%" r="30%" gradientUnits="userSpaceOnUse">
-                    <stop offset="0%" stop-color="#9b59b6"/>
-                    <stop offset="70%" stop-color="#3498db"/>
-                    <stop offset="100%" stop-color="#2ecc71"/>
+                <radialGradient id="rg2" cx="30%" cy="30%" r="70%">
+                    <stop offset="0%" stop-color="#e74c3c"/><stop offset="100%" stop-color="#27ae60"/>
                 </radialGradient>
             </defs>
-            <circle cx="75" cy="75" r="60" fill="url(#radial1)"/>
-            <circle cx="275" cy="75" r="60" fill="url(#radial2)"/>
-            <circle cx="75" cy="175" r="40" fill="url(#radial3)"/>
-            <circle cx="275" cy="175" r="40" fill="none" stroke="url(#radial3)" stroke-width="3"/>
-            <text x="75" y="145" text-anchor="middle" font-size="12">Simple Radial</text>
-            <text x="275" y="145" text-anchor="middle" font-size="12">Focal Point</text>
-            <text x="75" y="195" text-anchor="middle" font-size="10">userSpaceOnUse</text>
-            <text x="275" y="195" text-anchor="middle" font-size="10">As Stroke</text>
+            <circle cx="60" cy="50" r="40" fill="url(#rg1)"/>
+            <circle cx="180" cy="50" r="40" fill="url(#rg2)"/>
+            <text x="60" y="95" text-anchor="middle">Simple</text>
+            <text x="180" y="95" text-anchor="middle">Offset</text>
         </svg>
     </div>
 
-    <div class="demo-section">
-        <div class="demo-title">3. Gradient Stops with Opacity</div>
-        <svg width="400" height="150" viewBox="0 0 400 150">
+    <div class="demo">
+        <h3>Gradient with Opacity</h3>
+        <svg width="200" height="100">
             <defs>
-                <linearGradient id="opacity-gradient">
+                <linearGradient id="og">
                     <stop offset="0%" stop-color="red" stop-opacity="1"/>
-                    <stop offset="25%" stop-color="orange" stop-opacity="0.8"/>
-                    <stop offset="50%" stop-color="yellow" stop-opacity="0.6"/>
-                    <stop offset="75%" stop-color="green" stop-opacity="0.4"/>
                     <stop offset="100%" stop-color="blue" stop-opacity="0.2"/>
                 </linearGradient>
-                <radialGradient id="multi-stop-radial" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stop-color="#ff6b6b" stop-opacity="0"/>
-                    <stop offset="30%" stop-color="#4ecdc4" stop-opacity="0.5"/>
-                    <stop offset="70%" stop-color="#45b7d1" stop-opacity="0.8"/>
-                    <stop offset="100%" stop-color="#96ceb4" stop-opacity="1"/>
-                </radialGradient>
             </defs>
-            <rect x="20" y="20" width="150" height="100" fill="url(#opacity-gradient)"/>
-            <circle cx="275" cy="70" r="60" fill="url(#multi-stop-radial)"/>
-            <text x="95" y="135" text-anchor="middle" font-size="12">Opacity Stops</text>
-            <text x="275" y="135" text-anchor="middle" font-size="12">Multi-stop Radial</text>
+            <rect x="20" y="20" width="160" height="60" fill="url(#og)"/>
         </svg>
-    </div>
-
-    <div class="demo-section">
-        <h2>Implementation Notes</h2>
-        <ul>
-            <li><strong>Linear Gradients:</strong> Support for x1, y1, x2, y2 coordinates and gradientUnits</li>
-            <li><strong>Radial Gradients:</strong> Support for cx, cy, r, fx, fy with focal point handling</li>
-            <li><strong>Gradient Stops:</strong> Full support for offset, stop-color, and stop-opacity</li>
-            <li><strong>Spread Methods:</strong> Support for pad, reflect, and repeat methods</li>
-            <li><strong>Units:</strong> Both objectBoundingBox and userSpaceOnUse coordinate systems</li>
-        </ul>
-        <p><em>Note: Gradient rendering would require additional renderer updates, but the parsing and data structures are fully implemented.</em></p>
     </div>
 </body>
 </html>

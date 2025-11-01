@@ -111,6 +111,16 @@
     "htmlUrl": "examples/svg-gradients-showcase.html"
   },
   {
+    "id": "svg-gradients-linear",
+    "label": "SVG Linear Gradients",
+    "htmlUrl": "examples/svg-gradients-linear.html"
+  },
+  {
+    "id": "svg-gradients-radial",
+    "label": "SVG Radial Gradients",
+    "htmlUrl": "examples/svg-gradients-radial.html"
+  },
+  {
     "id": "svg-transforms-demo",
     "label": "SVG Transforms Demo",
     "htmlUrl": "examples/svg-transforms-demo.html"

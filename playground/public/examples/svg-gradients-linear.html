@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SVG Linear Gradients</title>
+    <style>body{font-family:Arial,sans-serif;margin:20px}.demo{margin:20px 0;border:1px solid #ccc;padding:15px}svg{border:1px solid #ddd;margin:10px 0}</style>
+</head>
+<body>
+    <h1>SVG Linear Gradients</h1>
+    <div class="demo">
+        <h3>Horizontal & Vertical</h3>
+        <svg width="300" height="80">
+            <defs>
+                <linearGradient id="h" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="red"/><stop offset="100%" stop-color="blue"/>
+                </linearGradient>
+                <linearGradient id="v" x1="0" y1="0" x2="0" y2="50">
+                    <stop offset="0" stop-color="#ff6b6b"/><stop offset="1" stop-color="#4ecdc4"/>
+                </linearGradient>
+            </defs>
+            <rect x="10" y="10" width="120" height="40" fill="url(#h)"/>
+            <rect x="150" y="10" width="120" height="40" fill="url(#v)"/>
+            <text x="70" y="65" text-anchor="middle">Horizontal</text>
+            <text x="210" y="65" text-anchor="middle">Vertical</text>
+        </svg>
+    </div>
+</body>
+</html>
