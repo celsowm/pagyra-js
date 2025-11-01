@@ -23,6 +23,8 @@ export interface RadialGradient {
   stops: GradientStop[];
   // Optional coordinate units: "ratio" = objectBoundingBox (0..1), "userSpace" = absolute page pixels
   coordsUnits?: "ratio" | "userSpace";
+  // Optional transform parsed from SVG's gradientTransform (matrix with a,b,c,d,e,f)
+  transform?: { a: number; b: number; c: number; d: number; e: number; f: number };
   // gradientUnits omitted for CSS radial gradients; SVG will supply via its own node conversion
 }
 

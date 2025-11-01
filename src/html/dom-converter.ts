@@ -157,6 +157,9 @@ export async function convertDomNode(
           root: svgRoot,
           intrinsicWidth: intrinsic.width,
           intrinsicHeight: intrinsic.height,
+          // Propagate resource roots so SVG rendering can resolve image hrefs
+          resourceBaseDir: context && (context as any).resourceBaseDir,
+          assetRootDir: context && (context as any).assetRootDir,
         },
       },
     });

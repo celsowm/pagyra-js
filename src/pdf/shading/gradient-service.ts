@@ -79,9 +79,10 @@ export class GradientService {
     const safeWidth = widthPt > 0 ? widthPt : 1;
     const safeHeight = heightPt > 0 ? heightPt : 1;
 
-    let coords: [number, number, number, number, number, number];
+  let coords: [number, number, number, number, number, number];
+  let matrixEntry: string | null = null;
 
-    if (gradient.coordsUnits === "userSpace") {
+  if (gradient.coordsUnits === "userSpace") {
       // gradient.cx/cy/r are in page pixels; convert to rectangle-local px then to points
       const cxPx = gradient.cx ?? 0;
       const cyPx = gradient.cy ?? 0;
@@ -110,16 +111,52 @@ export class GradientService {
       const cy = gradient.cy ?? 0.5;
       const r = gradient.r ?? 0.5;
 
-      const centerX = cx * safeWidth;
-      const centerY = cy * safeHeight;
-      const radius = r * Math.max(safeWidth, safeHeight);
+      // If the gradient supplied a transform (from SVG gradientTransform), we will
+      // provide coordinates in ratio-space and emit a /Matrix that maps ratio-space
+      // shading coordinates into local page points. This allows an exact mapping of
+      // circles in shading space to ellipses in device space.
+      if (gradient.transform) {
+        // Apply the gradientTransform to center/focal and an edge point in ratio-space,
+        // then convert those transformed ratio coords into local points. This preserves
+        // the SVG semantics while producing absolute coords in the shading dictionary.
+        const t = gradient.transform;
+        const apply = (x: number, y: number) => {
+          return {
+            x: t.a * x + t.c * y + t.e,
+            y: t.b * x + t.d * y + t.f,
+          };
+        };
 
-      if (gradient.fx !== undefined && gradient.fy !== undefined) {
-        const fx = gradient.fx * safeWidth;
-        const fy = gradient.fy * safeHeight;
-        coords = [fx, fy, 0, centerX, centerY, radius];
+        const tc = apply(cx, cy);
+        const te = apply(cx + r, cy);
+
+        const centerX = tc.x * safeWidth;
+        const centerY = tc.y * safeHeight;
+        const edgeX = te.x * safeWidth;
+        const edgeY = te.y * safeHeight;
+        const radius = Math.sqrt((edgeX - centerX) * (edgeX - centerX) + (edgeY - centerY) * (edgeY - centerY));
+
+        if (gradient.fx !== undefined && gradient.fy !== undefined) {
+          const tf = apply(gradient.fx, gradient.fy);
+          const fx = tf.x * safeWidth;
+          const fy = tf.y * safeHeight;
+          coords = [fx, fy, 0, centerX, centerY, radius];
+        } else {
+          coords = [centerX, centerY, 0, centerX, centerY, radius];
+        }
       } else {
-        coords = [centerX, centerY, 0, centerX, centerY, radius];
+        // No transform: convert ratio coords into local points (legacy behavior)
+        const centerX = cx * safeWidth;
+        const centerY = cy * safeHeight;
+        const radius = r * Math.max(safeWidth, safeHeight);
+
+        if (gradient.fx !== undefined && gradient.fy !== undefined) {
+          const fx = gradient.fx * safeWidth;
+          const fy = gradient.fy * safeHeight;
+          coords = [fx, fy, 0, centerX, centerY, radius];
+        } else {
+          coords = [centerX, centerY, 0, centerX, centerY, radius];
+        }
       }
     }
 
@@ -130,6 +167,7 @@ export class GradientService {
       "/ShadingType 3",
       "/ColorSpace /DeviceRGB",
       `/Coords [${coords.map(formatNumber).join(" ")}]`,
+      ...(matrixEntry ? [matrixEntry] : []),
       "/Domain [0 1]",
       `/Function ${interpolationFn}`,
       "/Extend [true true]",

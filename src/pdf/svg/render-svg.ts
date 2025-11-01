@@ -1,6 +1,7 @@
 import type { PagePainter } from "../page-painter.js";
 import type { RenderBox } from "../types.js";
-import type { SvgNode, SvgRootNode } from "../../svg/types.js";
+import type { SvgNode, SvgRootNode, SvgImageNode } from "../../svg/types.js";
+import path from "path";
 import {
   renderCircle,
   renderEllipse,
@@ -13,12 +14,16 @@ import {
 } from "./shape-renderer.js";
 import { createDefaultStyle, deriveStyle, type SvgStyle } from "./style-computer.js";
 import { computeStrokeScale, identityMatrix, type Matrix, multiplyMatrices, parseTransform } from "./matrix-utils.js";
+import { mapSvgPoint } from "./coordinate-mapper.js";
+import { ImageService } from "../../image/image-service.js";
 import { getAlignFactors, parsePreserveAspectRatio } from "./aspect-ratio.js";
 
 interface SvgCustomData {
   root: SvgRootNode;
   intrinsicWidth: number;
   intrinsicHeight: number;
+  resourceBaseDir?: string;
+  assetRootDir?: string;
 }
 
 export interface SvgRenderContext {
@@ -26,6 +31,9 @@ export interface SvgRenderContext {
   viewportMatrix: Matrix;
   transform: Matrix;
   strokeScale: number;
+  // optional resource roots propagated from HTML conversion
+  resourceBaseDir?: string;
+  assetRootDir?: string;
 }
 
 // Map of defs by id (gradients, clipPaths, etc.) built once per svg render
@@ -91,6 +99,7 @@ export async function renderSvgBox(painter: PagePainter, box: RenderBox): Promis
     viewportMatrix,
     transform: initialTransform,
     strokeScale,
+    // resource roots will be set below from the box customData if available
   };
 
   // Build defs map (id -> node) so paint servers like gradients can be resolved during rendering
@@ -98,6 +107,14 @@ export async function renderSvgBox(painter: PagePainter, box: RenderBox): Promis
   collectDefs(root, defs);
   // Attach to context for downstream use
   (context as any).defs = defs;
+
+  // If convertDomNode attached resource roots into the customData for this SVG, copy them to context
+  if ((svgData as any).resourceBaseDir) {
+    context.resourceBaseDir = (svgData as any).resourceBaseDir as string;
+  }
+  if ((svgData as any).assetRootDir) {
+    context.assetRootDir = (svgData as any).assetRootDir as string;
+  }
 
   const baseStyle = createDefaultStyle();
   await renderNode(root, baseStyle, context);
@@ -131,6 +148,8 @@ function extractSvgCustomData(box: RenderBox): SvgCustomData | null {
     root: candidate.root,
     intrinsicWidth: resolvePositive(candidate.intrinsicWidth ?? 0),
     intrinsicHeight: resolvePositive(candidate.intrinsicHeight ?? 0),
+    resourceBaseDir: candidate.resourceBaseDir,
+    assetRootDir: candidate.assetRootDir,
   };
 }
 
@@ -170,6 +189,9 @@ async function renderNode(node: SvgNode, style: SvgStyle, context: SvgRenderCont
       return renderLine(node, deriveStyle(style, node), workingContext);
     case "text":
       return renderText(node, deriveStyle(style, node), workingContext);
+    case "image":
+      // Render SVG <image> elements by loading the referenced image and drawing it
+      return await renderImage(node as SvgImageNode, deriveStyle(style, node), workingContext);
     case "path":
       return renderPath(node, deriveStyle(style, node), workingContext);
     default:
@@ -189,4 +211,76 @@ function resolvePositive(value: number): number {
     return 1;
   }
   return value;
+}
+
+async function renderImage(node: SvgImageNode, style: SvgStyle, context: SvgRenderContext): Promise<void> {
+  const hrefAttr = node.href ?? node.attributes?.href ?? node.attributes?.["xlink:href"];
+  if (!hrefAttr || typeof hrefAttr !== "string") {
+    return;
+  }
+
+  let imageInfo;
+  const imageService = ImageService.getInstance();
+  try {
+    if (hrefAttr.startsWith("data:")) {
+      // data URI
+      const comma = hrefAttr.indexOf(",");
+      if (comma < 0) return;
+      const meta = hrefAttr.substring(5, comma);
+      const isBase64 = meta.endsWith(";base64");
+      const payload = hrefAttr.substring(comma + 1);
+      const buffer = isBase64 ? Buffer.from(payload, "base64") : Buffer.from(decodeURIComponent(payload), "utf8");
+      const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+      imageInfo = await imageService.decodeImage(arrayBuffer);
+    } else if (/^https?:\/\//i.test(hrefAttr)) {
+      // Remote images not supported in this offline renderer
+      console.debug("Skipping remote image in SVG:", hrefAttr);
+      return;
+    } else {
+      // Local file reference. Resolve using assetRootDir for absolute (/images/...) or resourceBaseDir for relative
+      let resolved: string;
+      if (hrefAttr.startsWith("/")) {
+        const root = context.assetRootDir ?? process.cwd();
+        resolved = path.join(root, hrefAttr.replace(/^\//, ""));
+      } else {
+        const base = context.resourceBaseDir ?? process.cwd();
+        resolved = path.resolve(base, hrefAttr);
+      }
+      imageInfo = await imageService.loadImage(resolved);
+      // Attach resolved path back to href for later reporting
+      (node as any)._resolvedHref = resolved;
+    }
+  } catch (err) {
+    console.debug("Failed to load SVG image", hrefAttr, err instanceof Error ? err.message : err);
+    return;
+  }
+
+  if (!imageInfo) return;
+
+  const drawWidth = Number.isFinite(node.width as number) ? (node.width as number) : imageInfo.width;
+  const drawHeight = Number.isFinite(node.height as number) ? (node.height as number) : imageInfo.height;
+
+  const p1 = mapSvgPoint(Number(node.x ?? 0), Number(node.y ?? 0), context);
+  const p2 = mapSvgPoint(Number(node.x ?? 0) + drawWidth, Number(node.y ?? 0) + drawHeight, context);
+  if (!p1 || !p2) {
+    return;
+  }
+
+  const rect = { x: p1.x, y: p1.y, width: p2.x - p1.x, height: p2.y - p1.y };
+
+  const imageRef = {
+    src: (node as any)._resolvedHref ?? hrefAttr,
+    width: imageInfo.width,
+    height: imageInfo.height,
+    format: imageInfo.format,
+    channels: imageInfo.channels,
+    bitsPerComponent: imageInfo.bitsPerChannel,
+    data: imageInfo.data,
+  } as const;
+
+  try {
+    context.painter.drawImage(imageRef as any, rect);
+  } catch (err) {
+    console.debug("Failed to draw image in SVG", hrefAttr, err instanceof Error ? err.message : err);
+  }
 }

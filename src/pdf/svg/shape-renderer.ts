@@ -420,7 +420,7 @@ function svgRadialNodeToRadialGradient(node: SvgRadialGradientNode, context?: Sv
 
   const units = node.gradientUnits === "userSpaceOnUse" ? "userSpace" : "ratio";
 
-    if (units === "userSpace" && context) {
+  if (units === "userSpace" && context) {
     const center = mapSvgPoint(cx, cy, context);
     const focal = fx !== undefined && fy !== undefined ? mapSvgPoint(fx, fy, context) : undefined;
     const radiusPt = (() => {
@@ -452,44 +452,31 @@ function svgRadialNodeToRadialGradient(node: SvgRadialGradientNode, context?: Sv
     }
     // fallback to ratio below
   }
+  // objectBoundingBox (ratio) coordinates;
+  // Keep raw coords in ratio units and, if a gradientTransform is present, preserve it
+  // on the returned RadialGradient so the shading creation can emit a PDF /Matrix that
+  // maps ratio-space circles to device-space ellipses exactly.
+  const radRatio: RadialGradient = {
+    type: "radial",
+    cx: cx,
+    cy: cy,
+    r: r,
+    stops,
+  };
+  if (fx !== undefined && fy !== undefined) {
+    radRatio.fx = fx;
+    radRatio.fy = fy;
+  }
 
-  // objectBoundingBox (ratio) coordinates; apply gradientTransform if present
-  let rcx = cx;
-  let rcy = cy;
-  let rr = r;
-  let rfx = fx;
-  let rfy = fy;
   const rawTransform = (node.attributes && (node.attributes["gradientTransform"] ?? node.attributes["gradienttransform"])) as string | undefined;
   if (rawTransform) {
     const t = parseTransform(rawTransform) || undefined;
     if (t) {
-      // Apply transform to original coordinates (don't reuse transformed values when computing the radius)
-      const origCx = rcx;
-      const origCy = rcy;
-      const c = applyMatrixToPoint(t, origCx, origCy);
-      rcx = c.x;
-      rcy = c.y;
-      if (rfx !== undefined && rfy !== undefined) {
-        const f = applyMatrixToPoint(t, rfx, rfy);
-        rfx = f.x;
-        rfy = f.y;
-      }
-      // radius transform: map an edge point (origCx + rr, origCy) through the transform and measure distance to transformed center
-      const edge = applyMatrixToPoint(t, origCx + rr, origCy);
-      rr = Math.sqrt((edge.x - c.x) ** 2 + (edge.y - c.y) ** 2);
+      // Preserve the parsed transform matrix on the RadialGradient for use by the
+      // gradient service when building the PDF shading dictionary.
+      radRatio.transform = { a: t.a, b: t.b, c: t.c, d: t.d, e: t.e, f: t.f };
     }
   }
 
-  const radRatio: RadialGradient = {
-    type: "radial",
-    cx: rcx,
-    cy: rcy,
-    r: rr,
-    stops,
-  };
-  if (rfx !== undefined && rfy !== undefined) {
-    radRatio.fx = rfx;
-    radRatio.fy = rfy;
-  }
   return radRatio;
 }

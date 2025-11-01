@@ -1,195 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SVG Images and Clipping</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        .demo-section {
-            margin-bottom: 30px;
-            border: 1px solid #ccc;
-            padding: 20px;
-        }
-        .demo-title {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-        svg {
-            border: 1px solid #ddd;
-            margin: 10px 0;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <title>SVG Images (compact)</title>
+  <style>body{font-family:Arial;margin:10px}svg{border:1px solid #ddd}</style>
 </head>
 <body>
-    <h1>SVG Images and Clipping</h1>
-    <p>This example demonstrates SVG image support and clipping paths using actual images from the playground.</p>
+  <h1>SVG Images (compact)</h1>
 
-    <div class="demo-section">
-        <div class="demo-title">1. SVG Images with Different Attributes</div>
-        <svg width="500" height="200" viewBox="0 0 500 200">
-            <defs>
-                <rect id="image-frame" width="80" height="60" fill="none" stroke="#ccc" stroke-width="2"/>
-            </defs>
-            <!-- Using actual images from playground -->
-            <use href="#image-frame" x="20" y="20"/>
-            <image x="25" y="25" width="70" height="50" href="images/duck.jpg" preserveAspectRatio="xMidYMid meet"/>
-            <text x="60" y="95" text-anchor="middle" font-size="10">Duck (meet)</text>
+  <!-- Minimal image examples to reduce console noise -->
+  <svg width="500" height="140" viewBox="0 0 500 140">
+    <defs>
+      <clipPath id="c1"><circle cx="45" cy="45" r="40"/></clipPath>
+    </defs>
 
-            <use href="#image-frame" x="120" y="20"/>
-            <image x="125" y="25" width="70" height="50" href="images/dice.png" preserveAspectRatio="xMidYMid slice"/>
-            <text x="160" y="95" text-anchor="middle" font-size="10">Dice (slice)</text>
+    <!-- two inline images (absolute /images/ path) -->
+    <image x="10" y="10" width="80" height="80" href="/images/duck.jpg" clip-path="url(#c1)"/>
+    <image x="110" y="10" width="80" height="80" href="/images/dice.png"/>
 
-            <use href="#image-frame" x="220" y="20"/>
-            <image x="225" y="25" width="70" height="50" href="images/duck.jpg" preserveAspectRatio="none"/>
-            <text x="260" y="95" text-anchor="middle" font-size="10">Duck (none)</text>
+    <!-- a small decorative rect to keep the SVG non-empty visually -->
+    <rect x="220" y="10" width="120" height="80" fill="#e0e0e0" stroke="#bbb"/>
+  </svg>
 
-            <!-- Image with transforms -->
-            <use href="#image-frame" x="320" y="20"/>
-            <image x="325" y="25" width="70" height="50" href="images/dice.png" transform="rotate(15 360 50)"/>
-            <text x="360" y="95" text-anchor="middle" font-size="10">Rotated Dice</text>
-        </svg>
-    </div>
-
-    <div class="demo-section">
-        <div class="demo-title">2. SVG Use Elements (References)</div>
-        <svg width="500" height="150" viewBox="0 0 500 150">
-            <defs>
-                <rect id="base-rect" x="0" y="0" width="40" height="30" fill="#3498db" stroke="#2980b9"/>
-                <circle id="base-circle" cx="20" cy="20" r="15" fill="#e74c3c" stroke="#c0392b"/>
-                <polygon id="base-star" points="20,5 25,15 35,15 27,22 30,32 20,26 10,32 13,22 5,15 15,15" fill="#f39c12" stroke="#e67e22"/>
-            </defs>
-
-            <!-- Original elements -->
-            <use href="#base-rect" x="20" y="20"/>
-            <text x="40" y="65" text-anchor="middle" font-size="10">Original</text>
-
-            <!-- Referenced with different positions -->
-            <use href="#base-circle" x="80" y="20"/>
-            <text x="100" y="65" text-anchor="middle" font-size="10">Referenced</text>
-
-            <!-- Referenced with transforms -->
-            <use href="#base-star" x="140" y="20" transform="scale(0.8)"/>
-            <text x="160" y="65" text-anchor="middle" font-size="10">Scaled</text>
-
-            <!-- Multiple references -->
-            <use href="#base-rect" x="200" y="20"/>
-            <use href="#base-rect" x="250" y="20" transform="rotate(45 20 15)"/>
-            <use href="#base-rect" x="300" y="20" transform="skewX(15)"/>
-            <text x="250" y="65" text-anchor="middle" font-size="10">Multiple Uses</text>
-
-            <!-- Use with width/height overrides -->
-            <use href="#base-circle" x="380" y="20" width="25" height="25"/>
-            <text x="392" y="65" text-anchor="middle" font-size="10">Override Size</text>
-        </svg>
-    </div>
-
-    <div class="demo-section">
-        <div class="demo-title">3. Clipping Paths</div>
-        <svg width="500" height="200" viewBox="0 0 500 200">
-            <defs>
-                <!-- Circle clip path -->
-                <clipPath id="circle-clip">
-                    <circle cx="40" cy="40" r="35"/>
-                </clipPath>
-
-                <!-- Star clip path -->
-                <clipPath id="star-clip">
-                    <polygon points="40,15 50,35 70,35 55,50 60,70 40,58 20,70 25,50 10,35 30,35" clipPathUnits="userSpaceOnUse"/>
-                </clipPath>
-
-                <!-- Complex clip path -->
-                <clipPath id="heart-clip">
-                    <path d="M40,25 C35,15 20,15 20,25 C20,35 35,45 40,50 C45,45 60,35 60,25 C60,15 45,15 40,25 Z"/>
-                </clipPath>
-
-                <!-- Text-based clip path -->
-                <clipPath id="text-clip">
-                    <text x="40" y="45" font-size="36" font-weight="bold" text-anchor="middle">SVG</text>
-                </clipPath>
-            </defs>
-
-            <!-- Images clipped with different paths -->
-            <image x="10" y="10" width="60" height="60" href="images/duck.jpg" clip-path="url(#circle-clip)"/>
-            <text x="40" y="85" text-anchor="middle" font-size="10">Circle Clip</text>
-
-            <image x="90" y="10" width="60" height="60" href="images/dice.png" clip-path="url(#star-clip)"/>
-            <text x="120" y="85" text-anchor="middle" font-size="10">Star Clip</text>
-
-            <image x="170" y="10" width="60" height="60" href="images/duck.jpg" clip-path="url(#heart-clip)"/>
-            <text x="200" y="85" text-anchor="middle" font-size="10">Heart Clip</text>
-
-            <!-- Gradient clipped with text -->
-            <defs>
-                <linearGradient id="text-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stop-color="#667eea"/>
-                    <stop offset="50%" stop-color="#764ba2"/>
-                    <stop offset="100%" stop-color="#f093fb"/>
-                </linearGradient>
-            </defs>
-            <rect x="250" y="10" width="60" height="60" fill="url(#text-grad)" clip-path="url(#text-clip)"/>
-            <text x="280" y="85" text-anchor="middle" font-size="10">Text Clip</text>
-
-            <!-- Complex clipping with multiple shapes -->
-            <clipPath id="multi-shape-clip">
-                <rect x="330" y="10" width="30" height="30"/>
-                <circle cx="360" cy="25" r="15"/>
-                <polygon points="345,40 355,55 365,40"/>
-            </clipPath>
-            <image x="330" y="10" width="60" height="60" href="images/dice.png" clip-path="url(#multi-shape-clip)"/>
-            <text x="360" y="85" text-anchor="middle" font-size="10">Multi-shape Clip</text>
-        </svg>
-    </div>
-
-    <div class="demo-section">
-        <div class="demo-title">4. Combined Features</div>
-        <svg width="500" height="200" viewBox="0 0 500 200">
-            <defs>
-                <clipPath id="combined-clip">
-                    <circle cx="50" cy="50" r="40"/>
-                    <rect x="30" y="30" width="40" height="40"/>
-                </clipPath>
-                <linearGradient id="combined-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#ff9a9e"/>
-                    <stop offset="100%" stop-color="#fecfef"/>
-                </linearGradient>
-            </defs>
-
-            <!-- Background -->
-            <rect width="500" height="200" fill="url(#combined-grad)"/>
-
-            <!-- Clipped image -->
-            <image x="50" y="25" width="100" height="100" href="images/duck.jpg" clip-path="url(#combined-clip)"/>
-
-            <!-- Referenced elements with transforms -->
-            <use href="#image-frame" x="200" y="50" transform="rotate(15 40 30)"/>
-            <image x="205" y="55" width="70" height="50" href="images/dice.png" transform="rotate(15 240 80)"/>
-
-            <!-- Decorative elements -->
-            <circle cx="400" cy="50" r="30" fill="#3498db" opacity="0.7"/>
-            <text x="400" y="55" text-anchor="middle" font-size="16" fill="white" font-weight="bold">SVG</text>
-
-            <text x="250" y="180" text-anchor="middle" font-size="14" fill="#666">
-                Images, References, Clipping, and Transforms Combined
-            </text>
-        </svg>
-    </div>
-
-    <div class="demo-section">
-        <h2>Implementation Notes</h2>
-        <ul>
-            <li><strong>Images:</strong> Support for <image> elements with href/xlink:href and preserveAspectRatio</li>
-            <li><strong>Use:</strong> Support for <use> elements for referencing other elements with position/size overrides</li>
-            <li><strong>Clipping:</strong> Support for <clipPath> elements with clipPathUnits and complex clip shapes</li>
-            <li><strong>Real Images:</strong> Using actual images (duck.jpg, dice.png) from the playground folder</li>
-            <li><strong>Aspect Ratios:</strong> Support for different preserveAspectRatio values (meet, slice, none)</li>
-            <li><strong>Complex Clips:</strong> Clipping paths can contain multiple shapes and even text</li>
-        </ul>
-        <p><em>Note: This demonstrates the parsing capabilities. Full rendering would show the visual effects of clipping and image display.</em></p>
-    </div>
+  <p>Shortened demo for faster console runs.</p>
 </body>
 </html>

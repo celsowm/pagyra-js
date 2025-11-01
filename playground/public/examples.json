@@ -130,4 +130,10 @@
     "label": "SVG Images and Clipping",
     "htmlUrl": "examples/svg-images-clipping.html"
   }
+  ,
+  {
+    "id": "svg-radial-transform-demo",
+    "label": "SVG Radial Gradient Transform Demo",
+    "htmlUrl": "examples/svg-radial-transform-demo.html"
+  }
 ]

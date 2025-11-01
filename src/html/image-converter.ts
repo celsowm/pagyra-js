@@ -55,7 +55,9 @@ export async function convertImageElement(
   context: ConversionContext,
 ): Promise<LayoutNode> {
   const style = computeStyleForElement(element, cssRules, parentStyle, context.units);
-  const srcAttr = element.getAttribute("src")?.trim() ?? "";
+  // SVG <image> elements commonly use 'href' or 'xlink:href'; HTML <img> uses 'src'.
+  const rawSrc = element.getAttribute("href") ?? element.getAttribute("xlink:href") ?? element.getAttribute("src") ?? "";
+  const srcAttr = rawSrc?.trim() ?? "";
 
   const widthAttr = element.getAttribute("width");
   const heightAttr = element.getAttribute("height");
