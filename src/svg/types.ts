@@ -1,3 +1,5 @@
+import type { Matrix } from "../pdf/svg/matrix-utils.js";
+
 export type SvgNodeType =
   | "svg"
   | "g"
@@ -8,7 +10,12 @@ export type SvgNodeType =
   | "path"
   | "polyline"
   | "polygon"
-  | "text";
+  | "text"
+  | "image"
+  | "use"
+  | "clippath"
+  | "lineargradient"
+  | "radialgradient";
 
 export interface SvgCommon {
   type: SvgNodeType;
@@ -16,10 +23,11 @@ export interface SvgCommon {
   classes: string[];
   attributes: Record<string, string>;
   transform?: string;
+  transformMatrix?: Matrix;
 }
 
 export interface SvgContainerNode extends SvgCommon {
-  type: "svg" | "g";
+  type: "svg" | "g" | "clippath";
   children: SvgNode[];
 }
 
@@ -92,6 +100,59 @@ export interface SvgTextNode extends SvgCommon {
   textAnchor?: "start" | "middle" | "end";
 }
 
+export interface SvgImageNode extends SvgCommon {
+  type: "image";
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  href?: string;
+  preserveAspectRatio?: string;
+}
+
+export interface SvgUseNode extends SvgCommon {
+  type: "use";
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  href?: string;
+}
+
+export interface SvgClipPathNode extends SvgContainerNode {
+  type: "clippath";
+  clipPathUnits?: "userSpaceOnUse" | "objectBoundingBox";
+}
+
+export interface SvgGradientStop {
+  offset: number;
+  color: string;
+  opacity?: number;
+}
+
+export interface SvgLinearGradientNode extends SvgCommon {
+  type: "lineargradient";
+  x1?: number;
+  y1?: number;
+  x2?: number;
+  y2?: number;
+  gradientUnits?: "userSpaceOnUse" | "objectBoundingBox";
+  spreadMethod?: "pad" | "reflect" | "repeat";
+  stops: SvgGradientStop[];
+}
+
+export interface SvgRadialGradientNode extends SvgCommon {
+  type: "radialgradient";
+  cx?: number;
+  cy?: number;
+  r?: number;
+  fx?: number;
+  fy?: number;
+  gradientUnits?: "userSpaceOnUse" | "objectBoundingBox";
+  spreadMethod?: "pad" | "reflect" | "repeat";
+  stops: SvgGradientStop[];
+}
+
 export interface SvgPoint {
   x: number;
   y: number;
@@ -113,6 +174,15 @@ export type SvgShapeNode =
   | SvgPolylineNode
   | SvgPolygonNode;
 
-export type SvgNode = SvgRootNode | SvgGroupNode | SvgShapeNode | SvgTextNode;
+export type SvgNode =
+  | SvgRootNode
+  | SvgGroupNode
+  | SvgShapeNode
+  | SvgTextNode
+  | SvgImageNode
+  | SvgUseNode
+  | SvgClipPathNode
+  | SvgLinearGradientNode
+  | SvgRadialGradientNode;
 
-export type SvgDrawableNode = SvgShapeNode | SvgTextNode;
+export type SvgDrawableNode = SvgShapeNode | SvgTextNode | SvgImageNode;

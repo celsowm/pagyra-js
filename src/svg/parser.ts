@@ -1,21 +1,28 @@
 import {
-  type SvgCommon,
   type SvgCircleNode,
+  type SvgClipPathNode,
+  type SvgCommon,
   type SvgContainerNode,
   type SvgEllipseNode,
+  type SvgGradientStop,
   type SvgGroupNode,
+  type SvgImageNode,
   type SvgLineNode,
+  type SvgLinearGradientNode,
   type SvgNode,
   type SvgNodeType,
   type SvgPathNode,
   type SvgPoint,
   type SvgPolygonNode,
   type SvgPolylineNode,
+  type SvgRadialGradientNode,
   type SvgRectNode,
   type SvgRootNode,
   type SvgTextNode,
+  type SvgUseNode,
   type SvgViewBox,
 } from "./types.js";
+import { parseTransform } from "../pdf/svg/matrix-utils.js";
 
 export interface ParseSvgOptions {
   warn?: (message: string) => void;
@@ -63,6 +70,16 @@ export function parseElement(element: Element, context: SvgParseContext): SvgNod
       return parsePolygon(element);
     case "text":
       return parseText(element);
+    case "image":
+      return parseImage(element);
+    case "use":
+      return parseUse(element);
+    case "clippath":
+      return parseClipPath(element, context);
+    case "lineargradient":
+      return parseLinearGradient(element, context);
+    case "radialgradient":
+      return parseRadialGradient(element, context);
     default:
       context.warn(`Unsupported <${tag}> element ignored.`);
       return null;
@@ -244,6 +261,7 @@ function collectCommon(element: Element, type: SvgNodeType): SvgCommon {
   const classes = classAttr ? classAttr.split(/\s+/).filter(Boolean) : [];
 
   const transform = element.getAttribute("transform") ?? undefined;
+  const transformMatrix = transform ? parseTransform(transform) || undefined : undefined;
 
   return {
     type,
@@ -251,6 +269,7 @@ function collectCommon(element: Element, type: SvgNodeType): SvgCommon {
     classes,
     attributes,
     transform,
+    transformMatrix,
   };
 }
 
@@ -294,6 +313,126 @@ function parseViewBox(raw: string | null): SvgViewBox | undefined {
     width: tokens[2],
     height: tokens[3],
   };
+}
+
+function parseImage(element: Element): SvgImageNode {
+  const common = collectCommon(element, "image");
+  return {
+    ...common,
+    type: "image",
+    x: parseLength(element.getAttribute("x")),
+    y: parseLength(element.getAttribute("y")),
+    width: parseLength(element.getAttribute("width")),
+    height: parseLength(element.getAttribute("height")),
+    href: element.getAttribute("href") || element.getAttribute("xlink:href") || undefined,
+    preserveAspectRatio: element.getAttribute("preserveAspectRatio") || undefined,
+  };
+}
+
+function parseUse(element: Element): SvgUseNode {
+  const common = collectCommon(element, "use");
+  return {
+    ...common,
+    type: "use",
+    x: parseLength(element.getAttribute("x")),
+    y: parseLength(element.getAttribute("y")),
+    width: parseLength(element.getAttribute("width")),
+    height: parseLength(element.getAttribute("height")),
+    href: element.getAttribute("href") || element.getAttribute("xlink:href") || undefined,
+  };
+}
+
+function parseClipPath(element: Element, context: SvgParseContext): SvgClipPathNode | null {
+  const base = createContainerBase(element, "clippath", context);
+  if (!base) {
+    return null;
+  }
+  const clipPathUnits = element.getAttribute("clipPathUnits");
+  return {
+    ...base,
+    type: "clippath",
+    clipPathUnits: clipPathUnits === "objectBoundingBox" ? "objectBoundingBox" : "userSpaceOnUse",
+  };
+}
+
+function parseLinearGradient(element: Element, context: SvgParseContext): SvgLinearGradientNode | null {
+  const common = collectCommon(element, "lineargradient");
+  const stops = parseGradientStops(element, context);
+  return {
+    ...common,
+    type: "lineargradient",
+    x1: parseLength(element.getAttribute("x1")) ?? 0,
+    y1: parseLength(element.getAttribute("y1")) ?? 0,
+    x2: parseLength(element.getAttribute("x2")) ?? 1,
+    y2: parseLength(element.getAttribute("y2")) ?? 0,
+    gradientUnits: element.getAttribute("gradientUnits") === "userSpaceOnUse" ? "userSpaceOnUse" : "objectBoundingBox",
+    spreadMethod: normalizeSpreadMethod(element.getAttribute("spreadMethod")),
+    stops,
+  };
+}
+
+function parseRadialGradient(element: Element, context: SvgParseContext): SvgRadialGradientNode | null {
+  const common = collectCommon(element, "radialgradient");
+  const stops = parseGradientStops(element, context);
+  return {
+    ...common,
+    type: "radialgradient",
+    cx: parseLength(element.getAttribute("cx")) ?? 0.5,
+    cy: parseLength(element.getAttribute("cy")) ?? 0.5,
+    r: parseLength(element.getAttribute("r")) ?? 0.5,
+    fx: parseLength(element.getAttribute("fx")),
+    fy: parseLength(element.getAttribute("fy")),
+    gradientUnits: element.getAttribute("gradientUnits") === "userSpaceOnUse" ? "userSpaceOnUse" : "objectBoundingBox",
+    spreadMethod: normalizeSpreadMethod(element.getAttribute("spreadMethod")),
+    stops,
+  };
+}
+
+function parseGradientStops(element: Element, context: SvgParseContext): SvgGradientStop[] {
+  const stops: SvgGradientStop[] = [];
+  for (const child of Array.from(element.children)) {
+    if (child.tagName.toLowerCase() === "stop") {
+      const offset = parseGradientOffset(child.getAttribute("offset"));
+      const color = child.getAttribute("stop-color") || "#000000";
+      const opacity = parseOpacity(child.getAttribute("stop-opacity"));
+      if (offset !== undefined) {
+        stops.push({ offset, color, opacity });
+      }
+    }
+  }
+  return stops;
+}
+
+function parseGradientOffset(raw: string | null): number | undefined {
+  if (!raw) {
+    return undefined;
+  }
+  const trimmed = raw.trim();
+  if (trimmed.endsWith("%")) {
+    const value = Number.parseFloat(trimmed.slice(0, -1));
+    return Number.isFinite(value) ? value / 100 : undefined;
+  }
+  const value = Number.parseFloat(trimmed);
+  return Number.isFinite(value) ? value : undefined;
+}
+
+function parseOpacity(raw: string | null): number | undefined {
+  if (!raw) {
+    return undefined;
+  }
+  const value = Number.parseFloat(raw.trim());
+  return Number.isFinite(value) && value >= 0 && value <= 1 ? value : undefined;
+}
+
+function normalizeSpreadMethod(method: string | null): "pad" | "reflect" | "repeat" | undefined {
+  if (!method) {
+    return undefined;
+  }
+  const lower = method.trim().toLowerCase();
+  if (lower === "pad" || lower === "reflect" || lower === "repeat") {
+    return lower;
+  }
+  return undefined;
 }
 
 function parsePointList(raw: string | null): readonly SvgPoint[] | undefined {

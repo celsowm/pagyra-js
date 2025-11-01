@@ -104,5 +104,20 @@
     "id": "very-complex-css",
     "label": "Very Complex CSS Example (pt-BR)",
     "htmlUrl": "examples/very-complex-css.html"
+  },
+  {
+    "id": "svg-gradients-showcase",
+    "label": "SVG Gradients Showcase",
+    "htmlUrl": "examples/svg-gradients-showcase.html"
+  },
+  {
+    "id": "svg-transforms-demo",
+    "label": "SVG Transforms Demo",
+    "htmlUrl": "examples/svg-transforms-demo.html"
+  },
+  {
+    "id": "svg-images-clipping",
+    "label": "SVG Images and Clipping",
+    "htmlUrl": "examples/svg-images-clipping.html"
   }
 ]
