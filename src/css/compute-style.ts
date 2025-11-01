@@ -261,6 +261,21 @@ export function computeStyleForElement(
   if (styleInit.height !== undefined) styleOptions.height = styleInit.height;
   if (styleInit.minHeight !== undefined) styleOptions.minHeight = styleInit.minHeight;
   if (styleInit.maxHeight !== undefined) styleOptions.maxHeight = styleInit.maxHeight;
+  if (styleInit.trackListColumns !== undefined) {
+    styleOptions.trackListColumns = [...styleInit.trackListColumns];
+  }
+  if (styleInit.trackListRows !== undefined) {
+    styleOptions.trackListRows = [...styleInit.trackListRows];
+  }
+  if (styleInit.autoFlow !== undefined) {
+    styleOptions.autoFlow = styleInit.autoFlow;
+  }
+  if (styleInit.rowGap !== undefined) {
+    styleOptions.rowGap = styleInit.rowGap;
+  }
+  if (styleInit.columnGap !== undefined) {
+    styleOptions.columnGap = styleInit.columnGap;
+  }
   if (styleInit.justifyContent !== undefined) styleOptions.justifyContent = styleInit.justifyContent;
   if (styleInit.alignItems !== undefined) styleOptions.alignItems = styleInit.alignItems;
   if (styleInit.alignContent !== undefined) styleOptions.alignContent = styleInit.alignContent;

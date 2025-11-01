@@ -594,6 +594,8 @@ export class BrowserDefaults {
       trackListColumns: [],
       trackListRows: [],
       autoFlow: "row",
+      rowGap: 0,
+      columnGap: 0,
 
       // Table (defaults)
       tableLayout: TableLayoutMode.Auto,

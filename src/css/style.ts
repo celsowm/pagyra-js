@@ -22,7 +22,39 @@ export type FlexDirection = "row" | "row-reverse" | "column" | "column-reverse";
 export type GridAutoFlow = "row" | "column" | "row dense" | "column dense";
 export type AlignSelfValue = AlignItems | "auto";
 
-export type TrackDefinition = string | CSSLength;
+export interface FixedTrackSize {
+  kind: "fixed";
+  size: number;
+}
+
+export interface FlexTrackSize {
+  kind: "flex";
+  flex: number;
+  min?: number;
+  max?: number;
+}
+
+export interface AutoTrackSize {
+  kind: "auto";
+  min?: number;
+  max?: number;
+}
+
+export type TrackSize = FixedTrackSize | FlexTrackSize | AutoTrackSize;
+
+export interface RepeatTrackDefinition {
+  kind: "repeat";
+  count: number;
+  track: TrackSize;
+}
+
+export interface AutoRepeatTrackDefinition {
+  kind: "repeat-auto";
+  mode: "auto-fit" | "auto-fill";
+  track: TrackSize;
+}
+
+export type TrackDefinition = TrackSize | RepeatTrackDefinition | AutoRepeatTrackDefinition;
 
 export interface BoxShadow {
   inset: boolean;
@@ -82,6 +114,11 @@ export interface StyleAccumulator {
   alignSelf?: AlignSelfValue;
   flexDirection?: FlexDirection;
   flexWrap?: boolean;
+  trackListColumns?: TrackDefinition[];
+  trackListRows?: TrackDefinition[];
+  autoFlow?: GridAutoFlow;
+  rowGap?: number;
+  columnGap?: number;
 }
 
 export interface StyleProperties {
@@ -156,6 +193,8 @@ export interface StyleProperties {
   trackListColumns: TrackDefinition[];
   trackListRows: TrackDefinition[];
   autoFlow: GridAutoFlow;
+  rowGap: number;
+  columnGap: number;
   tableLayout: TableLayoutMode;
   borderModel: BorderModel;
   breakBefore: string;
@@ -239,6 +278,8 @@ export class ComputedStyle implements StyleProperties {
   trackListColumns: TrackDefinition[];
   trackListRows: TrackDefinition[];
   autoFlow: GridAutoFlow;
+  rowGap: number;
+  columnGap: number;
   tableLayout: TableLayoutMode;
   borderModel: BorderModel;
   breakBefore: string;
@@ -325,6 +366,8 @@ export class ComputedStyle implements StyleProperties {
     this.trackListColumns = data.trackListColumns;
     this.trackListRows = data.trackListRows;
     this.autoFlow = data.autoFlow;
+    this.rowGap = data.rowGap;
+    this.columnGap = data.columnGap;
     this.tableLayout = data.tableLayout;
     this.borderModel = data.borderModel;
     this.breakBefore = data.breakBefore;

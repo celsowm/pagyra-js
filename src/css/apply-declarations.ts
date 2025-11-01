@@ -20,6 +20,7 @@ import { parseLength, parseLineHeight, parseNumeric } from "./parsers/length-par
 import { parseLinearGradient } from "./parsers/gradient-parser.js";
 import { parseTextDecorationLine } from "./parsers/text-parser.js";
 import { parseBackgroundShorthand, applyBackgroundSize } from "./parsers/background-parser.js";
+import { parseGap, parseGridTemplate } from "./parsers/grid-parser.js";
 import {
   applyBorderColorShorthand,
   applyBorderStyleShorthand,
@@ -27,7 +28,7 @@ import {
   isNoneBorderStyle,
 } from "./shorthands/border-shorthand.js";
 import { applyBoxShorthand } from "./shorthands/box-shorthand.js";
-import { type StyleAccumulator } from "./style.js";
+import { type GridAutoFlow, type StyleAccumulator } from "./style.js";
 import { type UnitParsers } from "../units/units.js";
 
 export { setViewportSize } from "./viewport.js";
@@ -373,6 +374,56 @@ export function applyDeclarationsToStyle(
             target.backgroundLayers = [];
           }
           target.backgroundLayers.push(...layers);
+        }
+        break;
+      }
+      case "grid-template-columns": {
+        const parsed = parseGridTemplate(value);
+        if (parsed) {
+          target.trackListColumns = parsed;
+        }
+        break;
+      }
+      case "grid-template-rows": {
+        const parsed = parseGridTemplate(value);
+        if (parsed) {
+          target.trackListRows = parsed;
+        }
+        break;
+      }
+      case "grid-auto-flow": {
+        const normalized = value.trim().toLowerCase();
+        switch (normalized) {
+          case "row":
+          case "column":
+          case "row dense":
+          case "column dense":
+            target.autoFlow = normalized as GridAutoFlow;
+            break;
+          default:
+            break;
+        }
+        break;
+      }
+      case "gap": {
+        const parsed = parseGap(value);
+        if (parsed) {
+          target.rowGap = parsed.row;
+          target.columnGap = parsed.column;
+        }
+        break;
+      }
+      case "row-gap": {
+        const parsed = parseLength(value);
+        if (parsed !== undefined) {
+          target.rowGap = parsed;
+        }
+        break;
+      }
+      case "column-gap": {
+        const parsed = parseLength(value);
+        if (parsed !== undefined) {
+          target.columnGap = parsed;
         }
         break;
       }
