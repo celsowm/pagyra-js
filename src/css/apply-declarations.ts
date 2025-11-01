@@ -17,6 +17,8 @@ import {
   parseFlexDirectionValue,
 } from "./parsers/flex-parser.js";
 import { parseLength, parseLineHeight, parseNumeric } from "./parsers/length-parser.js";
+import { percent } from "./length.js";
+import type { LengthLike } from "./length.js";
 import { parseLinearGradient } from "./parsers/gradient-parser.js";
 import { parseTextDecorationLine } from "./parsers/text-parser.js";
 import { parseBackgroundShorthand, applyBackgroundSize } from "./parsers/background-parser.js";
@@ -32,6 +34,24 @@ import { type GridAutoFlow, type StyleAccumulator } from "./style.js";
 import { type UnitParsers } from "../units/units.js";
 
 export { setViewportSize } from "./viewport.js";
+
+const PERCENT_LENGTH_REGEX = /^(-?\d+(?:\.\d+)?)%$/;
+
+function parseLengthOrPercent(value: string): LengthLike | undefined {
+  const parsed = parseLength(value);
+  if (parsed !== undefined) {
+    return parsed;
+  }
+  const match = PERCENT_LENGTH_REGEX.exec(value.trim());
+  if (!match) {
+    return undefined;
+  }
+  const numeric = Number.parseFloat(match[1]);
+  if (Number.isNaN(numeric)) {
+    return undefined;
+  }
+  return percent(numeric / 100);
+}
 
 export function applyDeclarationsToStyle(
   declarations: Record<string, string>,
@@ -296,15 +316,27 @@ export function applyDeclarationsToStyle(
       case "padding-left":
         target.paddingLeft = parseLength(value) ?? target.paddingLeft;
         break;
-      case "width":
-        target.width = parseLength(value) ?? target.width;
+      case "width": {
+        const parsed = parseLengthOrPercent(value);
+        if (parsed !== undefined) {
+          target.width = parsed;
+        }
         break;
-      case "min-width":
-        target.minWidth = parseLength(value) ?? target.minWidth;
+      }
+      case "min-width": {
+        const parsed = parseLengthOrPercent(value);
+        if (parsed !== undefined) {
+          target.minWidth = parsed;
+        }
         break;
-      case "max-width":
-        target.maxWidth = parseLength(value) ?? target.maxWidth;
+      }
+      case "max-width": {
+        const parsed = parseLengthOrPercent(value);
+        if (parsed !== undefined) {
+          target.maxWidth = parsed;
+        }
         break;
+      }
       case "height":
         target.height = parseLength(value) ?? target.height;
         break;

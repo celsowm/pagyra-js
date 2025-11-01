@@ -93,17 +93,17 @@ export interface StyleAccumulator {
   paddingRight?: number;
   paddingBottom?: number;
   paddingLeft?: number;
-  width?: number;
-  minWidth?: number;
-  height?: number;
-  minHeight?: number;
-  maxHeight?: number;
+  width?: LengthLike;
+  minWidth?: LengthLike;
+  height?: LengthLike;
+  minHeight?: LengthLike;
+  maxHeight?: LengthLike;
   fontSize?: number;
   lineHeight?: number;
   fontFamily?: string;
   fontWeight?: number;
   borderModel?: BorderModel;
-  maxWidth?: number;
+  maxWidth?: LengthLike;
   textAlign?: string;
   objectFit?: string;
 
