@@ -3,24 +3,24 @@
 Tracking outstanding work to round out SVG support. Delete when complete.
 
 ## Current Status (short)
-- Implemented: `svg`, `g`, `rect`, `circle`, `ellipse`, `line`, `polyline`, `polygon`, `text`; basic fill/stroke; `viewBox` mapping; text anchor.
-- Missing: `<path>` rendering, transforms, `preserveAspectRatio`, more units, dashing, fill rules, gradients/patterns/paint servers, clipping/masking/filters, images, advanced text, CSS styling inside SVG, defs/use/markers.
+- Implemented: `svg`, `g`, `rect`, `circle`, `ellipse`, `line`, `polyline`, `polygon`, `text`, `path`; basic fill/stroke; `viewBox` mapping; text anchor; transforms; preserveAspectRatio; fill-rule.
+- Missing: more units, dashing, gradients/patterns/paint servers, clipping/masking/filters, images, advanced text, CSS styling inside SVG, defs/use/markers.
 
 ## Priorities (P1 first)
 
 ### P1 — Core completeness
-- [ ] Implement `<path>` rendering (currently parsed, not drawn)
+- [x] Implement `<path>` rendering (currently parsed, not drawn)
   - Hook point: `src/pdf/svg/render-svg.ts:146` ("TODO: Implement path rendering").
   - Add a lightweight path-data parser for `d` (M/m, L/l, H/V, C/S, Q/T, A, Z), output normalized segments.
   - Extend ShapeRenderer with generic path helpers: fillPath/strokePath (emit `m`, `l`, `c`, `h`, `f`/`S`).
   - Implement `fill-rule` (`nonzero` vs `evenodd` → use `f` vs `f*`).
 
-- [ ] Apply `transform` on containers and drawables
+- [x] Apply `transform` on containers and drawables
   - Collected but unused: `transform?: string` in nodes (`src/svg/types.ts:18`).
   - Add transform parsing (matrix/translate/scale/rotate/skewX/skewY).
   - Maintain a transform stack in render pass; wrap drawing with `q`/`cm`/`Q`.
 
-- [ ] Implement `preserveAspectRatio`
+- [x] Implement `preserveAspectRatio`
   - Currently scaleX/scaleY are independent: `src/pdf/svg/render-svg.ts:66`.
   - Parse `preserveAspectRatio` on `<svg>`; compute meet/slice + alignment; adjust mapping and stroke-scale.
 
@@ -93,4 +93,3 @@ Tracking outstanding work to round out SVG support. Delete when complete.
 - Parse: `src/svg/parser.ts` (extend for units, transforms, path data, defs/resources).
 - Render: `src/pdf/svg/render-svg.ts` (main SVG renderer; add transforms/paths/paint servers/clip).
 - PDF shapes: `src/pdf/renderers/shape-renderer.ts` (low-level path/paint ops; add dash/miter/even-odd).
-
