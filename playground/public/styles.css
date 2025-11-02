@@ -224,10 +224,24 @@ textarea:focus {
   padding: 1rem;
 }
 
+.editor-panel .tab-content {
+  position: static;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .editor-panel .tab-pane {
   position: static;
   padding: 0;
   flex: 1;
+  display: none;
+  min-height: 0;
+}
+
+.editor-panel .tab-pane.active {
+  display: flex;
+  flex-direction: column;
 }
 
 .tab-pane.active {
