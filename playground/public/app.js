@@ -1,3 +1,5 @@
+/* global CodeMirror */
+
 const DOM = {
   htmlInput: /** @type {HTMLTextAreaElement} */ (document.getElementById("html-input")),
   cssInput: /** @type {HTMLTextAreaElement} */ (document.getElementById("css-input")),
@@ -44,6 +46,76 @@ const STATUS_COLORS = {
 };
 
 let currentObjectUrl = "";
+/** @type {CodeMirror.EditorFromTextArea | null} */
+let htmlEditor = null;
+/** @type {CodeMirror.EditorFromTextArea | null} */
+let cssEditor = null;
+
+const CODEMIRROR_BASE_OPTIONS = {
+  theme: "darcula",
+  lineNumbers: true,
+  lineWrapping: true,
+  tabSize: 2,
+  indentUnit: 2,
+  indentWithTabs: false,
+};
+
+function getHtmlValue() {
+  if (htmlEditor) {
+    return htmlEditor.getValue();
+  }
+  return DOM.htmlInput.value;
+}
+
+function getCssValue() {
+  if (cssEditor) {
+    return cssEditor.getValue();
+  }
+  return DOM.cssInput.value;
+}
+
+function setHtmlValue(value) {
+  if (htmlEditor) {
+    htmlEditor.setValue(value);
+    htmlEditor.refresh();
+  } else {
+    DOM.htmlInput.value = value;
+  }
+}
+
+function setCssValue(value) {
+  if (cssEditor) {
+    cssEditor.setValue(value);
+    cssEditor.refresh();
+  } else {
+    DOM.cssInput.value = value;
+  }
+}
+
+function initializeEditors() {
+  if (typeof CodeMirror === "undefined") {
+    console.warn("CodeMirror not loaded. Falling back to plain textareas.");
+    return;
+  }
+
+  if (DOM.htmlInput && !htmlEditor) {
+    htmlEditor = CodeMirror.fromTextArea(DOM.htmlInput, {
+      ...CODEMIRROR_BASE_OPTIONS,
+      mode: "htmlmixed",
+    });
+    htmlEditor.setSize("100%", "100%");
+    htmlEditor.on("change", handleInputChange);
+  }
+
+  if (DOM.cssInput && !cssEditor) {
+    cssEditor = CodeMirror.fromTextArea(DOM.cssInput, {
+      ...CODEMIRROR_BASE_OPTIONS,
+      mode: "css",
+    });
+    cssEditor.setSize("100%", "100%");
+    cssEditor.on("change", handleInputChange);
+  }
+}
 
 /**
  * @typedef {{ id: string; label: string; htmlUrl: string; cssUrl?: string }} PlaygroundExample
@@ -105,8 +177,8 @@ function computePageSize(viewport) {
 }
 
 async function renderPdf() {
-  const html = DOM.htmlInput.value;
-  const css = DOM.cssInput.value;
+  const html = getHtmlValue();
+  const css = getCssValue();
   const viewport = getViewportDimensions();
   const page = computePageSize(viewport);
   const selectedExample = activeExampleId ? exampleLookup.get(activeExampleId) : undefined;
@@ -185,8 +257,8 @@ async function loadExample(example) {
 
     const [html, css] = await Promise.all([htmlResponse.text(), cssResponse.text()]);
 
-    DOM.htmlInput.value = html;
-    DOM.cssInput.value = css;
+    setHtmlValue(html);
+    setCssValue(css);
     DOM.exampleSelect.value = example.id;
     activeExampleId = example.id;
 
@@ -222,6 +294,15 @@ function switchEditorTab(tabName) {
     const isActive = pane.id === `editor-${tabName}-tab`;
     pane.classList.toggle("active", isActive);
     pane.setAttribute("aria-hidden", (!isActive).toString());
+
+    if (isActive) {
+      if (pane.id === "editor-html-tab" && htmlEditor) {
+        htmlEditor.refresh();
+      }
+      if (pane.id === "editor-css-tab" && cssEditor) {
+        cssEditor.refresh();
+      }
+    }
   });
 }
 
@@ -247,8 +328,8 @@ function updateHtmlPreview() {
     return;
   }
 
-  const html = DOM.htmlInput.value;
-  const css = DOM.cssInput.value;
+  const html = getHtmlValue();
+  const css = getCssValue();
 
   // Create a complete HTML document with the user's input
   const fullHtml = `
@@ -309,6 +390,7 @@ async function init() {
   }
 
   setViewportDefaults();
+  initializeEditors();
 
   // Add event listeners
   DOM.renderButton.addEventListener("click", () => {
@@ -326,8 +408,12 @@ async function init() {
   });
 
   // Update HTML preview when inputs change
-  DOM.htmlInput.addEventListener("input", handleInputChange);
-  DOM.cssInput.addEventListener("input", handleInputChange);
+  if (DOM.htmlInput) {
+    DOM.htmlInput.addEventListener("input", handleInputChange);
+  }
+  if (DOM.cssInput) {
+    DOM.cssInput.addEventListener("input", handleInputChange);
+  }
 
   try {
     const response = await fetch("examples.json");

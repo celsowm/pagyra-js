@@ -91,6 +91,48 @@ textarea:focus {
   outline-offset: 2px;
 }
 
+.editor-panel .CodeMirror {
+  flex: 1;
+  min-height: 280px;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(15, 23, 42, 0.85);
+  color: #e2e8f0;
+  font-family: "Fira Code", "SFMono-Regular", Consolas, monospace;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.editor-panel .CodeMirror-scroll {
+  padding: 0.75rem;
+}
+
+.editor-panel .cm-s-darcula.CodeMirror {
+  background: rgba(15, 23, 42, 0.85);
+  color: #e2e8f0;
+}
+
+.editor-panel .cm-s-darcula .CodeMirror-gutters {
+  background: transparent;
+  border-right: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.editor-panel .cm-s-darcula .CodeMirror-linenumber {
+  color: #64748b;
+}
+
+.editor-panel .cm-s-darcula .CodeMirror-cursor {
+  border-left: 2px solid #38bdf8;
+}
+
+.editor-panel .cm-s-darcula .CodeMirror-selected {
+  background: rgba(56, 189, 248, 0.2) !important;
+}
+
+.editor-panel .cm-s-darcula .CodeMirror-activeline-background {
+  background: rgba(56, 189, 248, 0.08) !important;
+}
+
 .controls {
   display: flex;
   flex-direction: column;
