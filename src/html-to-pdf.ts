@@ -12,7 +12,7 @@ import { layoutTree } from "./layout/pipeline/layout-tree.js";
 import { buildRenderTree } from "./pdf/layout-tree-builder.js";
 import { renderPdf } from "./pdf/render.js";
 import { convertDomNode } from "./html/dom-converter.js";
-import { offsetRenderTree } from "./render/offset.js";
+import { applyPageVerticalMargins, offsetRenderTree } from "./render/offset.js";
 import { setViewportSize } from "./css/apply-declarations.js";
 import { type PageMarginsPx } from "./units/page-utils.js";
 import { computeStyleForElement } from "./css/compute-style.js";
@@ -122,7 +122,8 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   log("LAYOUT", "DEBUG", "Layout complete");
 
   const renderTree = buildRenderTree(rootLayout);
-  offsetRenderTree(renderTree.root, margins.left, margins.top, debug);
+  applyPageVerticalMargins(renderTree.root, pageHeight, margins);
+  offsetRenderTree(renderTree.root, margins.left, 0, debug);
 
   const pageSize = { widthPt: pxToPt(pageWidth), heightPt: pxToPt(pageHeight) };
   return { layoutRoot: rootLayout, renderTree, pageSize };

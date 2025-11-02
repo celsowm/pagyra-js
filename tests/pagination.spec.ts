@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { paginateTree } from "../src/pdf/pagination.js";
+import { applyPageVerticalMargins } from "../src/render/offset.js";
 import {
   NodeKind,
   Overflow,
@@ -10,6 +11,7 @@ import {
   type Background,
   type Run,
 } from "../src/pdf/types.js";
+import type { PageMarginsPx } from "../src/units/page-utils.js";
 
 const ZERO_EDGES: Edges = { top: 0, right: 0, bottom: 0, left: 0 };
 const ZERO_RADIUS: Radius = {
@@ -120,5 +122,37 @@ describe("paginateTree", () => {
     expect(pages).toHaveLength(2);
     expect(pages[0].flowContentOrder).toContain(textBox);
     expect(pages[1].flowContentOrder).toContain(textBox);
+  });
+
+  it("respects bottom margin when distributing content across pages", () => {
+    const pageHeight = 1000;
+    const margins: PageMarginsPx = { top: 50, right: 0, bottom: 50, left: 0 };
+
+    const root = createBox("root", NodeKind.Container, 0, 0);
+    const first = createBox("first", NodeKind.Container, 0, 400);
+    const second = createBox("second", NodeKind.Container, 950, 100);
+
+    root.children = [first, second];
+
+    applyPageVerticalMargins(root, pageHeight, margins);
+
+    const pages = paginateTree(root, { pageHeight });
+
+    expect(pages).toHaveLength(2);
+
+    const firstPage = pages[0];
+    const secondPage = pages[1];
+
+    expect(first.contentBox.y).toBe(margins.top);
+    expect(second.contentBox.y).toBeGreaterThanOrEqual(pageHeight + margins.top);
+
+    const firstPageMaxBottom = Math.max(
+      ...firstPage.paintOrder.map((box) => box.contentBox.y + box.contentBox.height - firstPage.pageOffsetY),
+    );
+    expect(firstPageMaxBottom).toBeLessThanOrEqual(pageHeight - margins.bottom);
+
+    expect(firstPage.paintOrder).toContain(first);
+    expect(firstPage.paintOrder).not.toContain(second);
+    expect(secondPage.paintOrder).toContain(second);
   });
 });
