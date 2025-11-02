@@ -17,6 +17,13 @@ import { FloatContext } from "../context/float-context.js";
 import { clearForBlock, placeFloat } from "../utils/floats.js";
 import { layoutInlineFormattingContext } from "../utils/inline-formatting.js";
 
+const LAYOUT_DEBUG = process.env.PAGYRA_DEBUG_LAYOUT === "1";
+const layoutDebug = (...args: unknown[]): void => {
+  if (LAYOUT_DEBUG) {
+    console.log(...args);
+  }
+};
+
 export class BlockLayoutStrategy implements LayoutStrategy {
   private readonly supportedDisplays = new Set<Display>([Display.Block, Display.FlowRoot, Display.InlineBlock, Display.TableCell]);
 
@@ -29,6 +36,12 @@ export class BlockLayoutStrategy implements LayoutStrategy {
     node.establishesBFC = establishesBFC(node);
 
     let contentWidth = resolveWidthBlock(node, cb.width);
+    const debugTag = node.tagName ?? "(anonymous)";
+    if (node.style.display === Display.InlineBlock) {
+      layoutDebug(
+        `[BlockLayout] start inline-block tag=${debugTag} style.width=${node.style.width} resolvedContentWidth=${contentWidth} cb.width=${cb.width}`,
+      );
+    }
     const availableWidth = contentWidth;
     node.box.contentWidth = contentWidth;
 
@@ -126,9 +139,9 @@ export class BlockLayoutStrategy implements LayoutStrategy {
       cursorY = child.box.y + child.box.borderBoxHeight + childMarginBottom;
     }
 
-    const measuredContentWidth = measureInFlowContentWidth(node, contentWidth, contentX);
-    if (Number.isFinite(measuredContentWidth)) {
-      const intrinsicWidth = Math.max(0, measuredContentWidth);
+    const measurement = measureInFlowContentWidth(node, contentWidth, contentX);
+    if (Number.isFinite(measurement.width)) {
+      const intrinsicWidth = Math.max(0, measurement.width);
       node.box.scrollWidth = Math.max(node.box.scrollWidth, intrinsicWidth);
 
       if (node.style.display === Display.InlineBlock && node.style.width === "auto") {
@@ -149,11 +162,27 @@ export class BlockLayoutStrategy implements LayoutStrategy {
         }
         targetContentWidth = Math.max(0, targetContentWidth);
 
+        if (node.style.display === Display.InlineBlock) {
+          layoutDebug(
+            `[BlockLayout] intrinsic measurement tag=${debugTag} intrinsic=${intrinsicWidth} current=${node.box.contentWidth} horizontalExtras=${horizontalExtras} available=${availableWidth}`,
+          );
+        }
+        if (measurement.leftOffset > 0) {
+          layoutDebug(
+            `[BlockLayout] shifting inline-block children tag=${debugTag} offset=${measurement.leftOffset}`,
+          );
+          shiftInFlowChildrenX(node, measurement.leftOffset);
+        }
         if (targetContentWidth !== node.box.contentWidth) {
           node.box.contentWidth = targetContentWidth;
           contentWidth = targetContentWidth;
           node.box.borderBoxWidth = node.box.contentWidth + horizontalExtras;
           node.box.marginBoxWidth = node.box.borderBoxWidth + horizontalMarginSize;
+          if (node.style.display === Display.InlineBlock) {
+            layoutDebug(
+              `[BlockLayout] updated inline-block tag=${debugTag} newContentWidth=${node.box.contentWidth} borderBoxWidth=${node.box.borderBoxWidth}`,
+            );
+          }
         }
       }
     }
@@ -188,9 +217,13 @@ function isInlineLevel(node: LayoutNode): boolean {
   }
 }
 
-function measureInFlowContentWidth(node: LayoutNode, referenceWidth: number, contentStartX: number): number {
-  let minStart = 0;
-  let maxEnd = 0;
+function measureInFlowContentWidth(
+  node: LayoutNode,
+  referenceWidth: number,
+  contentStartX: number,
+): { width: number; leftOffset: number } {
+  let minStart = Number.POSITIVE_INFINITY;
+  let maxEnd = Number.NEGATIVE_INFINITY;
   let hasContent = false;
 
   for (const child of node.children) {
@@ -213,6 +246,9 @@ function measureInFlowContentWidth(node: LayoutNode, referenceWidth: number, con
     const marginStart = child.box.x - paddingLeft - borderLeft - marginLeft;
     const relativeStart = marginStart - contentStartX;
     const relativeEnd = relativeStart + marginBoxWidth;
+    layoutDebug(
+      `[measureInFlowContentWidth] parent=${node.tagName ?? "(anonymous)"} child=${child.tagName ?? "(anonymous)"} marginStart=${marginStart} relativeStart=${relativeStart} marginBoxWidth=${marginBoxWidth} borderBoxWidth=${borderBoxWidth} child.box.x=${child.box.x} contentStartX=${contentStartX}`,
+    );
 
     minStart = Math.min(minStart, relativeStart);
     maxEnd = Math.max(maxEnd, relativeEnd);
@@ -220,9 +256,37 @@ function measureInFlowContentWidth(node: LayoutNode, referenceWidth: number, con
   }
 
   if (!hasContent) {
-    return 0;
+    return { width: 0, leftOffset: 0 };
   }
 
-  const minOffset = Math.min(minStart, 0);
-  return Math.max(0, maxEnd - minOffset);
+  if (!Number.isFinite(minStart)) {
+    minStart = 0;
+  }
+  if (!Number.isFinite(maxEnd)) {
+    maxEnd = minStart;
+  }
+
+  const width = Math.max(0, maxEnd - minStart);
+  const leftOffset = minStart > 0 ? minStart : 0;
+  return { width, leftOffset };
+}
+
+function shiftInFlowChildrenX(node: LayoutNode, deltaX: number): void {
+  if (deltaX === 0) {
+    return;
+  }
+  for (const child of node.children) {
+    if (!inFlow(child)) {
+      continue;
+    }
+    if (child.style.display === Display.None) {
+      continue;
+    }
+    child.walk((desc) => {
+      if (desc === node) {
+        return;
+      }
+      desc.box.x -= deltaX;
+    });
+  }
 }

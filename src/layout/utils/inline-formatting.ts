@@ -7,6 +7,13 @@ import type { LayoutContext } from "../pipeline/strategy.js";
 import { breakTextIntoLines } from "../../text/line-breaker.js";
 import { estimateLineWidth } from "./text-metrics.js";
 
+const LAYOUT_DEBUG = process.env.PAGYRA_DEBUG_LAYOUT === "1";
+const layoutDebug = (...args: unknown[]): void => {
+  if (LAYOUT_DEBUG) {
+    console.log(...args);
+  }
+};
+
 interface InlineLayoutOptions {
   container: LayoutNode;
   inlineNodes: LayoutNode[];
@@ -68,9 +75,16 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
   const offsets = () => floatContext.inlineOffsets(lineTop, lineTop + lineHeight, contentWidth);
   let inlineOffset = offsets();
   let availableWidth = Math.max(0, inlineOffset.end - inlineOffset.start);
+  layoutDebug(
+    `[layoutIFC] start container=${container.tagName ?? "(anonymous)"} display=${container.style.display} contentWidth=${contentWidth} inlineOffset.start=${inlineOffset.start} inlineOffset.end=${inlineOffset.end}`,
+  );
 
   container.establishesIFC = true;
-  const textAlign = resolveInlineTextAlign(container);
+  const textAlign =
+    container.style.display === Display.Inline ? undefined : resolveInlineTextAlign(container);
+  layoutDebug(
+    `[layoutIFC] container=${container.tagName ?? "(anonymous)"} effectiveTextAlign=${textAlign}`,
+  );
 
   const commitLine = () => {
     if (lineItems.length === 0) {
@@ -111,6 +125,9 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
 
   for (const node of inlineNodes) {
     const metrics = measureInlineNode(node, contentWidth, context);
+    layoutDebug(
+      `[layoutIFC] node=${node.tagName ?? "(anonymous)"} display=${node.style.display} cursorX=${cursorX} available=${availableWidth} outerWidth=${metrics.outerWidth} contentWidth=${metrics.contentWidth}`,
+    );
 
     while (true) {
       if (availableWidth <= 0) {
@@ -301,6 +318,9 @@ function placeInlineItem(item: InlineMetrics, lineStartX: number, lineTop: numbe
   const { node } = item;
   const contentX = lineStartX + item.lineOffset + item.marginLeft + item.borderLeft + item.paddingLeft;
   const contentY = lineTop + item.marginTop + item.borderTop + item.paddingTop;
+  layoutDebug(
+    `[placeInlineItem] node=${node.tagName ?? "(anonymous)"} lineStartX=${lineStartX} lineOffset=${item.lineOffset} marginLeft=${item.marginLeft} paddingLeft=${item.paddingLeft} borderLeft=${item.borderLeft} -> contentX=${contentX}`,
+  );
 
   const previousX = node.box.x;
   const previousY = node.box.y;
