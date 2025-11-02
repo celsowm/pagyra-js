@@ -3,6 +3,8 @@
 const DOM = {
   htmlInput: /** @type {HTMLTextAreaElement} */ (document.getElementById("html-input")),
   cssInput: /** @type {HTMLTextAreaElement} */ (document.getElementById("css-input")),
+  headerInput: /** @type {HTMLTextAreaElement} */ (document.getElementById("header-input")),
+  footerInput: /** @type {HTMLTextAreaElement} */ (document.getElementById("footer-input")),
   renderButton: /** @type {HTMLButtonElement} */ (document.getElementById("render-btn")),
   exampleSelect: /** @type {HTMLSelectElement} */ (document.getElementById("example-select")),
   status: /** @type {HTMLParagraphElement} */ (document.getElementById("status")),
@@ -50,6 +52,10 @@ let currentObjectUrl = "";
 let htmlEditor = null;
 /** @type {CodeMirror.EditorFromTextArea | null} */
 let cssEditor = null;
+/** @type {CodeMirror.EditorFromTextArea | null} */
+let headerEditor = null;
+/** @type {CodeMirror.EditorFromTextArea | null} */
+let footerEditor = null;
 
 const CODEMIRROR_BASE_OPTIONS = {
   theme: "darcula",
@@ -74,6 +80,20 @@ function getCssValue() {
   return DOM.cssInput.value;
 }
 
+function getHeaderValue() {
+  if (headerEditor) {
+    return headerEditor.getValue();
+  }
+  return DOM.headerInput.value;
+}
+
+function getFooterValue() {
+  if (footerEditor) {
+    return footerEditor.getValue();
+  }
+  return DOM.footerInput.value;
+}
+
 function setHtmlValue(value) {
   if (htmlEditor) {
     htmlEditor.setValue(value);
@@ -89,6 +109,24 @@ function setCssValue(value) {
     cssEditor.refresh();
   } else {
     DOM.cssInput.value = value;
+  }
+}
+
+function setHeaderValue(value) {
+  if (headerEditor) {
+    headerEditor.setValue(value);
+    headerEditor.refresh();
+  } else {
+    DOM.headerInput.value = value;
+  }
+}
+
+function setFooterValue(value) {
+  if (footerEditor) {
+    footerEditor.setValue(value);
+    footerEditor.refresh();
+  } else {
+    DOM.footerInput.value = value;
   }
 }
 
@@ -114,6 +152,22 @@ function initializeEditors() {
     });
     cssEditor.setSize("100%", "100%");
     cssEditor.on("change", handleInputChange);
+  }
+
+  if (DOM.headerInput && !headerEditor) {
+    headerEditor = CodeMirror.fromTextArea(DOM.headerInput, {
+      ...CODEMIRROR_BASE_OPTIONS,
+      mode: "htmlmixed",
+    });
+    headerEditor.setSize("100%", "100%");
+  }
+
+  if (DOM.footerInput && !footerEditor) {
+    footerEditor = CodeMirror.fromTextArea(DOM.footerInput, {
+      ...CODEMIRROR_BASE_OPTIONS,
+      mode: "htmlmixed",
+    });
+    footerEditor.setSize("100%", "100%");
   }
 }
 
@@ -179,6 +233,8 @@ function computePageSize(viewport) {
 async function renderPdf() {
   const html = getHtmlValue();
   const css = getCssValue();
+  const headerHtml = getHeaderValue().trim();
+  const footerHtml = getFooterValue().trim();
   const viewport = getViewportDimensions();
   const page = computePageSize(viewport);
   const selectedExample = activeExampleId ? exampleLookup.get(activeExampleId) : undefined;
@@ -196,6 +252,8 @@ async function renderPdf() {
       body: JSON.stringify({
         html,
         css,
+        headerHtml: headerHtml || undefined,
+        footerHtml: footerHtml || undefined,
         viewportWidth: viewport.width,
         viewportHeight: viewport.height,
         pageWidth: page.width,
@@ -301,6 +359,12 @@ function switchEditorTab(tabName) {
       }
       if (pane.id === "editor-css-tab" && cssEditor) {
         cssEditor.refresh();
+      }
+      if (pane.id === "editor-header-tab" && headerEditor) {
+        headerEditor.refresh();
+      }
+      if (pane.id === "editor-footer-tab" && footerEditor) {
+        footerEditor.refresh();
       }
     }
   });

@@ -9,6 +9,7 @@ import {
   sanitizeDimension,
   maxContentDimension,
 } from "../src/units/page-utils.js";
+import type { HeaderFooterHTML } from "../src/pdf/types.js";
 
 interface RenderRequestBody {
   html?: string;
@@ -18,6 +19,8 @@ interface RenderRequestBody {
   pageWidth?: number;
   pageHeight?: number;
   documentPath?: string;
+  headerHtml?: string;
+  footerHtml?: string;
 }
 
 const __filename = fileURLToPath(import.meta.url);
@@ -63,6 +66,19 @@ app.post("/render", async (req: express.Request, res: express.Response) => {
       }
     }
 
+    const headerHtml = typeof body.headerHtml === "string" ? body.headerHtml.trim() : "";
+    const footerHtml = typeof body.footerHtml === "string" ? body.footerHtml.trim() : "";
+
+    const headerFooter: Partial<HeaderFooterHTML> = {};
+    if (headerHtml) {
+      headerFooter.headerHtml = headerHtml;
+      headerFooter.maxHeaderHeightPx = headerFooter.maxHeaderHeightPx ?? 64;
+    }
+    if (footerHtml) {
+      headerFooter.footerHtml = footerHtml;
+      headerFooter.maxFooterHeightPx = headerFooter.maxFooterHeightPx ?? 64;
+    }
+
     const pdfBytes = await renderHtmlToPdf({
       html: htmlInput,
       css: cssInput,
@@ -75,6 +91,7 @@ app.post("/render", async (req: express.Request, res: express.Response) => {
       debugCats: ["PARSE","STYLE","RENDER_TREE","ENCODING","FONT","PAINT"] as const,
       resourceBaseDir,
       assetRootDir: PUBLIC_DIR,
+      headerFooter: Object.keys(headerFooter).length > 0 ? headerFooter : undefined,
     });
 
     res.setHeader("Content-Type", "application/pdf");
