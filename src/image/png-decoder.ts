@@ -1,11 +1,34 @@
 import type { ImageInfo } from "./types.js";
 
+// --- Type Definitions ---
+
+type FilterType = 0 | 1 | 2 | 3 | 4;
+type ColorType = 0 | 2 | 3 | 4 | 6;
+type BitDepth = 1 | 2 | 4 | 8 | 16;
+
+interface PngChunk {
+  type: string;
+  data: Uint8Array;
+  offset: number;
+}
+
+interface PngMetadata {
+  width: number;
+  height: number;
+  bitDepth: BitDepth;
+  colorType: ColorType;
+  interlaceMethod: number;
+  palette: Uint8Array | null;
+  transparency: Uint8Array | null;
+}
+
 // --- Helper Functions ---
 
 async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
   if (typeof DecompressionStream !== "undefined") {
     const ds = new DecompressionStream('deflate-raw');
-    const out = await new Response(new Blob([data as any]).stream().pipeThrough(ds)).arrayBuffer();
+    const stream = new Blob([data as any]).stream().pipeThrough(ds);
+    const out = await new Response(stream).arrayBuffer();
     return new Uint8Array(out);
   } else {
     const { inflateRawSync } = await import('node:zlib');
@@ -16,7 +39,8 @@ async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
 async function inflateZlib(data: Uint8Array): Promise<Uint8Array> {
   if (typeof DecompressionStream !== "undefined") {
     const ds = new DecompressionStream('deflate');
-    const out = await new Response(new Blob([data as any]).stream().pipeThrough(ds)).arrayBuffer();
+    const stream = new Blob([data as any]).stream().pipeThrough(ds);
+    const out = await new Response(stream).arrayBuffer();
     return new Uint8Array(out);
   } else {
     const { inflateSync } = await import('node:zlib');
@@ -24,41 +48,66 @@ async function inflateZlib(data: Uint8Array): Promise<Uint8Array> {
   }
 }
 
-function resizeNN(src: Uint8Array, sw: number, sh: number, tw: number, th: number): Uint8Array {
+// Optimized nearest-neighbor resize
+function resizeNN(
+  src: Uint8Array,
+  sw: number,
+  sh: number,
+  tw: number,
+  th: number
+): Uint8Array {
   if (sw === tw && sh === th) return src;
+
   const dst = new Uint8Array(tw * th * 4);
+  const xRatio = sw / tw;
+  const yRatio = sh / th;
+
   for (let y = 0; y < th; y++) {
-    const sy = Math.min(sh - 1, Math.floor(y * sh / th));
+    const sy = Math.min(sh - 1, Math.floor(y * yRatio));
+    const srcRowOffset = sy * sw * 4;
+    const dstRowOffset = y * tw * 4;
+
     for (let x = 0; x < tw; x++) {
-      const sx = Math.min(sw - 1, Math.floor(x * sw / tw));
-      const si = (sy * sw + sx) * 4;
-      const di = (y * tw + x) * 4;
-      dst[di]   = src[si];
-      dst[di+1] = src[si+1];
-      dst[di+2] = src[si+2];
-      dst[di+3] = src[si+3];
+      const sx = Math.min(sw - 1, Math.floor(x * xRatio));
+      const si = srcRowOffset + sx * 4;
+      const di = dstRowOffset + x * 4;
+
+      dst[di]     = src[si];
+      dst[di + 1] = src[si + 1];
+      dst[di + 2] = src[si + 2];
+      dst[di + 3] = src[si + 3];
     }
   }
   return dst;
 }
 
-function extractSampleFromPacked(bytes: Uint8Array, sampleIndex: number, bitDepth: 1|2|4): number {
-  const bitsPerByte = 8;
-  const samplesPerByte = bitsPerByte / bitDepth;
-  const byteIndex = Math.floor(sampleIndex / samplesPerByte);
-  const insideByteIndex = sampleIndex % samplesPerByte;
-  const shift = bitsPerByte - bitDepth * (insideByteIndex + 1);
+// Extract sample from packed bits
+function extractSample(bytes: Uint8Array, index: number, bitDepth: 1 | 2 | 4): number {
+  const samplesPerByte = 8 / bitDepth;
+  const byteIndex = Math.floor(index / samplesPerByte);
+  const sampleOffset = index % samplesPerByte;
+  const shift = 8 - bitDepth * (sampleOffset + 1);
   const mask = (1 << bitDepth) - 1;
   return (bytes[byteIndex] >> shift) & mask;
 }
 
-function scaleTo8bit(v:number, bitDepth:1|2|4): number {
-  const max = (1 << bitDepth) - 1;
-  return Math.round((v / max) * 255);
+// Scale value from arbitrary bit depth to 8-bit
+function scaleTo8bit(value: number, bitDepth: number): number {
+  const maxValue = (1 << bitDepth) - 1;
+  return Math.round((value / maxValue) * 255);
+}
+
+// Paeth predictor for filter type 4
+function paethPredictor(a: number, b: number, c: number): number {
+  const p = a + b - c;
+  const pa = Math.abs(p - a);
+  const pb = Math.abs(p - b);
+  const pc = Math.abs(p - c);
+  return (pa <= pb && pa <= pc) ? a : (pb <= pc ? b : c);
 }
 
 /**
- * PNG decoder that extracts metadata and decodes the image data.
+ * PNG decoder with improved error handling and performance
  */
 export class PngDecoder {
   private static readonly PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
@@ -69,242 +118,36 @@ export class PngDecoder {
   ): Promise<ImageInfo> {
     const view = new DataView(buffer);
 
-    for (let i = 0; i < this.PNG_SIGNATURE.length; i++) {
-      if (view.getUint8(i) !== this.PNG_SIGNATURE[i]) {
-        throw new Error("Invalid PNG: missing signature");
-      }
-    }
+    // Validate PNG signature
+    this.validateSignature(view);
 
-    let offset = 8;
-    const idatData: Uint8Array[] = [];
-    let width = 0, height = 0, bitDepth = 0, colorType = 0, interlaceMethod = 0;
-    let palette: Uint8Array | null = null;
-    let trns: Uint8Array | null = null;
-    let sawIDAT = false, sawIEND = false;
+    // Parse chunks
+    const { metadata, idatChunks } = this.parseChunks(buffer, view);
 
-    while (offset < buffer.byteLength) {
-      const length = view.getUint32(offset, false);
-      const type = String.fromCharCode(
-        view.getUint8(offset + 4), view.getUint8(offset + 5),
-        view.getUint8(offset + 6), view.getUint8(offset + 7)
-      );
-      const chunkDataOffset = offset + 8;
+    // Validate metadata
+    this.validateMetadata(metadata);
 
-      if (offset + 12 + length > buffer.byteLength) {
-        throw new Error(`Corrupt PNG: chunk ${type} overruns file`);
-      }
+    // Decompress image data
+    const decompressed = await this.decompressImageData(idatChunks);
 
-      if (type === 'IHDR') {
-        width = view.getUint32(chunkDataOffset, false);
-        height = view.getUint32(chunkDataOffset + 4, false);
-        bitDepth = view.getUint8(chunkDataOffset + 8);
-        colorType = view.getUint8(chunkDataOffset + 9);
-        const compressionMethod = view.getUint8(chunkDataOffset + 10);
-        const filterMethod = view.getUint8(chunkDataOffset + 11);
-        interlaceMethod = view.getUint8(chunkDataOffset + 12);
-        if (compressionMethod !== 0) throw new Error("Unsupported PNG compression method");
-        if (filterMethod !== 0) throw new Error("Unsupported PNG filter method");
-      } else if (type === 'PLTE') {
-        if (sawIDAT) throw new Error("Invalid PNG: PLTE after IDAT");
-        if (length % 3 !== 0) throw new Error("Invalid PLTE length");
-        if (length / 3 > 256) throw new Error("Invalid PLTE: >256 entries");
-        palette = new Uint8Array(buffer, chunkDataOffset, length);
-      } else if (type === 'tRNS') {
-        if (colorType === 3 && palette && length > palette.length / 3) {
-          throw new Error("Invalid tRNS length for indexed PNG");
-        }
-        trns = new Uint8Array(buffer, chunkDataOffset, length);
-      } else if (type === 'IDAT') {
-        sawIDAT = true;
-        idatData.push(new Uint8Array(buffer, chunkDataOffset, length));
-      } else if (type === 'IEND') {
-        sawIEND = true;
-        offset += 12 + length;
-        break;
-      }
-      offset += 12 + length;
-    }
+    // Decode scanlines
+    const pixelData = this.decodeScanlines(decompressed, metadata);
 
-    if (!sawIEND) throw new Error("Invalid PNG: missing IEND chunk");
-    if (!sawIDAT) throw new Error("Invalid PNG: missing IDAT chunk");
-    if (colorType === 3 && !palette) throw new Error("Indexed PNG missing PLTE chunk");
-    if (width === 0 || height === 0) throw new Error("Invalid PNG: missing IHDR chunk");
-    if (interlaceMethod !== 0) throw new Error("Interlaced PNGs are not supported");
+    // Calculate target dimensions
+    const { targetWidth, targetHeight } = this.calculateDimensions(
+      metadata.width,
+      metadata.height,
+      options
+    );
 
-    const totalIdatLength = idatData.reduce((acc, val) => acc + val.length, 0);
-    const compressedData = new Uint8Array(totalIdatLength);
-    let currentOffset = 0;
-    for (const chunk of idatData) {
-      compressedData.set(chunk, currentOffset);
-      currentOffset += chunk.length;
-    }
-
-    const isLikelyZlib = (compressedData[0] & 0x0F) === 0x08;
-    const decompressed = isLikelyZlib
-      ? await inflateZlib(compressedData)
-      : await inflateRaw(compressedData.slice(2, -4));
-
-    let channels = 0;
-    switch (colorType) {
-      case 0: channels = 1; break;
-      case 2: channels = 3; break;
-      case 3: channels = 1; break;
-      case 4: channels = 2; break;
-      case 6: channels = 4; break;
-      default: throw new Error(`Invalid colorType: ${colorType}`);
-    }
-
-    const bitsPerPixel = bitDepth * channels;
-    const rowBytes = Math.ceil((bitsPerPixel * width) / 8);
-    const pixelData = new Uint8Array(width * height * 4);
-    const bpp = Math.max(1, Math.ceil(bitDepth * channels / 8));
-
-    let prevRecon = new Uint8Array(rowBytes);
-    let decompressedOffset = 0;
-
-    const paeth = (a:number,b:number,c:number) => {
-      const p = a + b - c;
-      const pa = Math.abs(p - a);
-      const pb = Math.abs(p - b);
-      const pc = Math.abs(p - c);
-      return (pa <= pb && pa <= pc) ? a : (pb <= pc ? b : c);
-    };
-
-    for (let y = 0; y < height; y++) {
-        const filterType = decompressed[decompressedOffset++];
-        const scanline = decompressed.subarray(decompressedOffset, decompressedOffset + rowBytes);
-        decompressedOffset += rowBytes;
-
-        let recon = new Uint8Array(rowBytes);
-        for (let x = 0; x < rowBytes; x++) {
-            const a = x >= bpp ? recon[x - bpp] : 0;
-            const b = prevRecon[x];
-            const c = x >= bpp ? prevRecon[x - bpp] : 0;
-            let val = 0;
-            switch (filterType) {
-                case 0: val = scanline[x]; break;
-                case 1: val = (scanline[x] + a) & 0xFF; break;
-                case 2: val = (scanline[x] + b) & 0xFF; break;
-                case 3: val = (scanline[x] + ((a + b) >>> 1)) & 0xFF; break;
-                case 4: val = (scanline[x] + paeth(a, b, c)) & 0xFF; break;
-                default: throw new Error(`Invalid PNG filter: ${filterType}`);
-            }
-            recon[x] = val;
-        }
-
-        // Convert recon to RGBA and apply transparency
-        if (colorType === 6) { // RGBA
-            if (bitDepth === 8) {
-                for (let x = 0; x < width; x++) {
-                    const idx = (y * width + x) * 4;
-                    const reconIdx = x * 4;
-                    pixelData.set(recon.subarray(reconIdx, reconIdx + 4), idx);
-                }
-            } else if (bitDepth === 16) {
-                for (let x = 0; x < width; x++) {
-                    const src = x * 8;
-                    const dst = (y * width + x) * 4;
-                    pixelData[dst]   = recon[src];
-                    pixelData[dst+1] = recon[src+2];
-                    pixelData[dst+2] = recon[src+4];
-                    pixelData[dst+3] = recon[src+6];
-                }
-            }
-        } else if (colorType === 2) { // RGB
-            const applyTrns = (r:number, g:number, b:number) => {
-                if (!trns) return 255;
-                return (r === trns[0] && g === trns[2] && b === trns[4]) ? 0 : 255;
-            };
-            if (bitDepth === 8) {
-                for (let x = 0; x < width; x++) {
-                    const idx = (y * width + x) * 4;
-                    const reconIdx = x * 3;
-                    const r = recon[reconIdx], g = recon[reconIdx + 1], b = recon[reconIdx + 2];
-                    pixelData[idx] = r; pixelData[idx + 1] = g; pixelData[idx + 2] = b;
-                    pixelData[idx + 3] = applyTrns(r, g, b);
-                }
-            } else if (bitDepth === 16) {
-                for (let x = 0; x < width; x++) {
-                    const src = x * 6;
-                    const dst = (y * width + x) * 4;
-                    const r = recon[src], g = recon[src+2], b = recon[src+4];
-                    pixelData[dst] = r; pixelData[dst+1] = g; pixelData[dst+2] = b;
-                    pixelData[dst+3] = applyTrns(r, g, b);
-                }
-            }
-        } else if (colorType === 3) { // Indexed
-            for (let x = 0; x < width; x++) {
-                const byteIndex = (bitDepth === 8) ? recon[x] : extractSampleFromPacked(recon, x, bitDepth as 1|2|4);
-                const p = byteIndex * 3;
-                const dst = (y * width + x) * 4;
-                pixelData[dst]     = palette![p];
-                pixelData[dst + 1] = palette![p + 1];
-                pixelData[dst + 2] = palette![p + 2];
-                pixelData[dst + 3] = trns && byteIndex < trns.length ? trns[byteIndex] : 255;
-            }
-        } else if (colorType === 0) { // Grayscale
-            const applyTrns = (g: number) => (!trns || g !== trns[0]) ? 255 : 0;
-            if (bitDepth === 8) {
-                for (let x = 0; x < width; x++) {
-                    const g = recon[x];
-                    const dst = ((y * width) + x) * 4;
-                    pixelData[dst] = pixelData[dst+1] = pixelData[dst+2] = g;
-                    pixelData[dst+3] = applyTrns(g);
-                }
-            } else if (bitDepth === 1 || bitDepth === 2 || bitDepth === 4) {
-                for (let x = 0; x < width; x++) {
-                    const s = extractSampleFromPacked(recon, x, bitDepth as 1|2|4);
-                    const g = scaleTo8bit(s, bitDepth as 1|2|4);
-                    const dst = ((y * width) + x) * 4;
-                    pixelData[dst] = pixelData[dst+1] = pixelData[dst+2] = g;
-                    pixelData[dst+3] = applyTrns(g);
-                }
-            } else if (bitDepth === 16) {
-                for (let x = 0; x < width; x++) {
-                    const g = recon[x*2];
-                    const dst = ((y * width) + x) * 4;
-                    pixelData[dst] = pixelData[dst+1] = pixelData[dst+2] = g;
-                    pixelData[dst+3] = applyTrns(g);
-                }
-            }
-        } else if (colorType === 4) { // Grayscale + Alpha
-            if (bitDepth === 8) {
-                for (let x = 0; x < width; x++) {
-                    const dst = ((y * width) + x) * 4;
-                    const g = recon[x*2], a = recon[x*2+1];
-                    pixelData[dst] = pixelData[dst+1] = pixelData[dst+2] = g;
-                    pixelData[dst+3] = a;
-                }
-            } else if (bitDepth === 16) {
-                for (let x = 0; x < width; x++) {
-                    const dst = ((y * width) + x) * 4;
-                    const g = recon[x*4], a = recon[x*4 + 2];
-                    pixelData[dst] = pixelData[dst+1] = pixelData[dst+2] = g;
-                    pixelData[dst+3] = a;
-                }
-            }
-        }
-        prevRecon = recon;
-    }
-
-    let targetWidth = width;
-    let targetHeight = height;
-
-    if (options.scale && options.scale > 0) {
-      targetWidth = Math.max(1, Math.round(width * options.scale));
-      targetHeight = Math.max(1, Math.round(height * options.scale));
-    } else if (options.maxWidth || options.maxHeight) {
-      const scale = Math.min(
-        options.maxWidth ? options.maxWidth / width : 1,
-        options.maxHeight ? options.maxHeight / height : 1,
-      );
-      if (scale > 0 && scale < 1) {
-        targetWidth = Math.max(1, Math.round(width * scale));
-        targetHeight = Math.max(1, Math.round(height * scale));
-      }
-    }
-
-    const finalData = resizeNN(pixelData, width, height, targetWidth, targetHeight);
+    // Resize if needed
+    const finalData = resizeNN(
+      pixelData,
+      metadata.width,
+      metadata.height,
+      targetWidth,
+      targetHeight
+    );
 
     return {
       width: targetWidth,
@@ -314,5 +157,446 @@ export class PngDecoder {
       bitsPerChannel: 8,
       data: finalData.buffer as ArrayBuffer,
     };
+  }
+
+  // --- Private Methods ---
+
+  private static validateSignature(view: DataView): void {
+    for (let i = 0; i < this.PNG_SIGNATURE.length; i++) {
+      if (view.getUint8(i) !== this.PNG_SIGNATURE[i]) {
+        throw new Error("Invalid PNG signature");
+      }
+    }
+  }
+
+  private static parseChunks(buffer: ArrayBuffer, view: DataView) {
+    let offset = 8;
+    const idatChunks: Uint8Array[] = [];
+    const metadata: Partial<PngMetadata> = {
+      palette: null,
+      transparency: null,
+    };
+
+    let sawIDAT = false;
+    let sawIEND = false;
+
+    while (offset < buffer.byteLength) {
+      if (offset + 8 > buffer.byteLength) {
+        throw new Error("Incomplete chunk header");
+      }
+
+      const length = view.getUint32(offset, false);
+      const type = String.fromCharCode(
+        view.getUint8(offset + 4),
+        view.getUint8(offset + 5),
+        view.getUint8(offset + 6),
+        view.getUint8(offset + 7)
+      );
+
+      const dataOffset = offset + 8;
+
+      if (offset + 12 + length > buffer.byteLength) {
+        throw new Error(`Chunk ${type} extends beyond file boundary`);
+      }
+
+      switch (type) {
+        case 'IHDR':
+          this.parseIHDR(view, dataOffset, metadata);
+          break;
+        case 'PLTE':
+          if (sawIDAT) throw new Error("PLTE chunk must appear before IDAT");
+          this.parsePLTE(buffer, dataOffset, length, metadata);
+          break;
+        case 'tRNS':
+          if (sawIDAT) throw new Error("tRNS chunk must appear before IDAT");
+          this.parseTRNS(buffer, dataOffset, length, metadata);
+          break;
+        case 'IDAT':
+          sawIDAT = true;
+          idatChunks.push(new Uint8Array(buffer, dataOffset, length));
+          break;
+        case 'IEND':
+          sawIEND = true;
+          offset += 12 + length;
+          break;
+        default:
+          // Skip unknown chunks
+          break;
+      }
+
+      if (sawIEND) break;
+      offset += 12 + length;
+    }
+
+    if (!sawIEND) throw new Error("Missing IEND chunk");
+    if (!sawIDAT) throw new Error("Missing IDAT chunk");
+
+    return { metadata: metadata as PngMetadata, idatChunks };
+  }
+
+  private static parseIHDR(view: DataView, offset: number, metadata: Partial<PngMetadata>): void {
+    metadata.width = view.getUint32(offset, false);
+    metadata.height = view.getUint32(offset + 4, false);
+    metadata.bitDepth = view.getUint8(offset + 8) as BitDepth;
+    metadata.colorType = view.getUint8(offset + 9) as ColorType;
+
+    const compressionMethod = view.getUint8(offset + 10);
+    const filterMethod = view.getUint8(offset + 11);
+    metadata.interlaceMethod = view.getUint8(offset + 12);
+
+    if (compressionMethod !== 0) throw new Error("Unsupported compression method");
+    if (filterMethod !== 0) throw new Error("Unsupported filter method");
+  }
+
+  private static parsePLTE(
+    buffer: ArrayBuffer,
+    offset: number,
+    length: number,
+    metadata: Partial<PngMetadata>
+  ): void {
+    if (length % 3 !== 0) throw new Error("Invalid PLTE chunk length");
+    if (length / 3 > 256) throw new Error("PLTE has too many entries");
+    metadata.palette = new Uint8Array(buffer, offset, length);
+  }
+
+  private static parseTRNS(
+    buffer: ArrayBuffer,
+    offset: number,
+    length: number,
+    metadata: Partial<PngMetadata>
+  ): void {
+    metadata.transparency = new Uint8Array(buffer, offset, length);
+  }
+
+  private static validateMetadata(metadata: PngMetadata): void {
+    if (!metadata.width || !metadata.height) {
+      throw new Error("Missing or invalid IHDR chunk");
+    }
+    if (metadata.colorType === 3 && !metadata.palette) {
+      throw new Error("Indexed color PNG missing PLTE chunk");
+    }
+    if (metadata.interlaceMethod !== 0) {
+      throw new Error("Interlaced PNGs are not supported");
+    }
+
+    // Validate bit depth for color type
+    const validBitDepths: Record<ColorType, BitDepth[]> = {
+      0: [1, 2, 4, 8, 16],
+      2: [8, 16],
+      3: [1, 2, 4, 8],
+      4: [8, 16],
+      6: [8, 16],
+    };
+
+    if (!validBitDepths[metadata.colorType]?.includes(metadata.bitDepth)) {
+      throw new Error(
+        `Invalid bit depth ${metadata.bitDepth} for color type ${metadata.colorType}`
+      );
+    }
+  }
+
+  private static async decompressImageData(chunks: Uint8Array[]): Promise<Uint8Array> {
+    // Concatenate all IDAT chunks
+    const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    const compressed = new Uint8Array(totalLength);
+
+    let offset = 0;
+    for (const chunk of chunks) {
+      compressed.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    // Detect compression format and decompress
+    const isZlib = (compressed[0] & 0x0F) === 0x08;
+
+    try {
+      return isZlib
+        ? await inflateZlib(compressed)
+        : await inflateRaw(compressed.slice(2, -4));
+    } catch (error) {
+      throw new Error(`Decompression failed: ${error}`);
+    }
+  }
+
+  private static decodeScanlines(
+    decompressed: Uint8Array,
+    metadata: PngMetadata
+  ): Uint8Array {
+    const { width, height, bitDepth, colorType } = metadata;
+
+    const channels = this.getChannelCount(colorType);
+    const bitsPerPixel = bitDepth * channels;
+    const bytesPerRow = Math.ceil((bitsPerPixel * width) / 8);
+    const bytesPerPixel = Math.max(1, Math.ceil(bitsPerPixel / 8));
+
+    const pixelData = new Uint8Array(width * height * 4);
+    let prevRow: Uint8Array = new Uint8Array(bytesPerRow);
+    let offset = 0;
+
+    for (let y = 0; y < height; y++) {
+      // Read filter type
+      const filterType = decompressed[offset++] as FilterType;
+
+      // Read scanline
+      const scanline = decompressed.subarray(offset, offset + bytesPerRow);
+      offset += bytesPerRow;
+
+      // Reconstruct filtered row
+      const currentRow = this.reconstructRow(
+        scanline,
+        prevRow,
+        filterType,
+        bytesPerPixel
+      );
+
+      // Convert to RGBA
+      this.convertRowToRGBA(
+        currentRow,
+        pixelData,
+        y,
+        width,
+        metadata
+      );
+
+      prevRow = currentRow;
+    }
+
+    return pixelData;
+  }
+
+  private static getChannelCount(colorType: ColorType): number {
+    const channelMap: Record<ColorType, number> = {
+      0: 1, // Grayscale
+      2: 3, // RGB
+      3: 1, // Indexed
+      4: 2, // Grayscale + Alpha
+      6: 4, // RGBA
+    };
+    return channelMap[colorType];
+  }
+
+  private static reconstructRow(
+    scanline: Uint8Array,
+    prevRow: Uint8Array,
+    filterType: FilterType,
+    bpp: number
+  ): Uint8Array {
+    const row = new Uint8Array(scanline.length);
+
+    for (let i = 0; i < scanline.length; i++) {
+      const left = i >= bpp ? row[i - bpp] : 0;
+      const up = prevRow[i];
+      const upLeft = i >= bpp ? prevRow[i - bpp] : 0;
+
+      let value: number;
+      switch (filterType) {
+        case 0: // None
+          value = scanline[i];
+          break;
+        case 1: // Sub
+          value = scanline[i] + left;
+          break;
+        case 2: // Up
+          value = scanline[i] + up;
+          break;
+        case 3: // Average
+          value = scanline[i] + ((left + up) >>> 1);
+          break;
+        case 4: // Paeth
+          value = scanline[i] + paethPredictor(left, up, upLeft);
+          break;
+        default:
+          throw new Error(`Invalid filter type: ${filterType}`);
+      }
+
+      row[i] = value & 0xFF;
+    }
+
+    return row;
+  }
+
+  private static convertRowToRGBA(
+    row: Uint8Array,
+    pixelData: Uint8Array,
+    y: number,
+    width: number,
+    metadata: PngMetadata
+  ): void {
+    const { colorType, bitDepth, palette, transparency } = metadata;
+
+    switch (colorType) {
+      case 0: // Grayscale
+        this.convertGrayscale(row, pixelData, y, width, bitDepth, transparency);
+        break;
+      case 2: // RGB
+        this.convertRGB(row, pixelData, y, width, bitDepth, transparency);
+        break;
+      case 3: // Indexed
+        this.convertIndexed(row, pixelData, y, width, bitDepth, palette!, transparency);
+        break;
+      case 4: // Grayscale + Alpha
+        this.convertGrayscaleAlpha(row, pixelData, y, width, bitDepth);
+        break;
+      case 6: // RGBA
+        this.convertRGBA(row, pixelData, y, width, bitDepth);
+        break;
+    }
+  }
+
+  private static convertGrayscale(
+    row: Uint8Array,
+    pixelData: Uint8Array,
+    y: number,
+    width: number,
+    bitDepth: BitDepth,
+    transparency: Uint8Array | null
+  ): void {
+    for (let x = 0; x < width; x++) {
+      let gray: number;
+
+      if (bitDepth === 8) {
+        gray = row[x];
+      } else if (bitDepth === 16) {
+        gray = row[x * 2]; // Use high byte
+      } else {
+        const sample = extractSample(row, x, bitDepth as 1 | 2 | 4);
+        gray = scaleTo8bit(sample, bitDepth);
+      }
+
+      const offset = (y * width + x) * 4;
+      pixelData[offset] = gray;
+      pixelData[offset + 1] = gray;
+      pixelData[offset + 2] = gray;
+      pixelData[offset + 3] = (transparency && gray === transparency[1]) ? 0 : 255;
+    }
+  }
+
+  private static convertRGB(
+    row: Uint8Array,
+    pixelData: Uint8Array,
+    y: number,
+    width: number,
+    bitDepth: BitDepth,
+    transparency: Uint8Array | null
+  ): void {
+    const bytesPerPixel = bitDepth === 16 ? 6 : 3;
+    const step = bitDepth === 16 ? 2 : 1;
+
+    for (let x = 0; x < width; x++) {
+      const srcOffset = x * bytesPerPixel;
+      const dstOffset = (y * width + x) * 4;
+
+      const r = row[srcOffset];
+      const g = row[srcOffset + step];
+      const b = row[srcOffset + step * 2];
+
+      pixelData[dstOffset] = r;
+      pixelData[dstOffset + 1] = g;
+      pixelData[dstOffset + 2] = b;
+
+      // Check transparency
+      const isTransparent = transparency &&
+        r === transparency[1] &&
+        g === transparency[3] &&
+        b === transparency[5];
+
+      pixelData[dstOffset + 3] = isTransparent ? 0 : 255;
+    }
+  }
+
+  private static convertIndexed(
+    row: Uint8Array,
+    pixelData: Uint8Array,
+    y: number,
+    width: number,
+    bitDepth: BitDepth,
+    palette: Uint8Array,
+    transparency: Uint8Array | null
+  ): void {
+    for (let x = 0; x < width; x++) {
+      const index = bitDepth === 8
+        ? row[x]
+        : extractSample(row, x, bitDepth as 1 | 2 | 4);
+
+      const paletteOffset = index * 3;
+      const pixelOffset = (y * width + x) * 4;
+
+      pixelData[pixelOffset] = palette[paletteOffset];
+      pixelData[pixelOffset + 1] = palette[paletteOffset + 1];
+      pixelData[pixelOffset + 2] = palette[paletteOffset + 2];
+      pixelData[pixelOffset + 3] =
+        (transparency && index < transparency.length) ? transparency[index] : 255;
+    }
+  }
+
+  private static convertGrayscaleAlpha(
+    row: Uint8Array,
+    pixelData: Uint8Array,
+    y: number,
+    width: number,
+    bitDepth: BitDepth
+  ): void {
+    const bytesPerPixel = bitDepth === 16 ? 4 : 2;
+    const step = bitDepth === 16 ? 2 : 1;
+
+    for (let x = 0; x < width; x++) {
+      const srcOffset = x * bytesPerPixel;
+      const dstOffset = (y * width + x) * 4;
+
+      const gray = row[srcOffset];
+      const alpha = row[srcOffset + step];
+
+      pixelData[dstOffset] = gray;
+      pixelData[dstOffset + 1] = gray;
+      pixelData[dstOffset + 2] = gray;
+      pixelData[dstOffset + 3] = alpha;
+    }
+  }
+
+  private static convertRGBA(
+    row: Uint8Array,
+    pixelData: Uint8Array,
+    y: number,
+    width: number,
+    bitDepth: BitDepth
+  ): void {
+    const bytesPerPixel = bitDepth === 16 ? 8 : 4;
+    const step = bitDepth === 16 ? 2 : 1;
+
+    for (let x = 0; x < width; x++) {
+      const srcOffset = x * bytesPerPixel;
+      const dstOffset = (y * width + x) * 4;
+
+      pixelData[dstOffset] = row[srcOffset];
+      pixelData[dstOffset + 1] = row[srcOffset + step];
+      pixelData[dstOffset + 2] = row[srcOffset + step * 2];
+      pixelData[dstOffset + 3] = row[srcOffset + step * 3];
+    }
+  }
+
+  private static calculateDimensions(
+    width: number,
+    height: number,
+    options: { maxWidth?: number; maxHeight?: number; scale?: number }
+  ): { targetWidth: number; targetHeight: number } {
+    let targetWidth = width;
+    let targetHeight = height;
+
+    if (options.scale && options.scale > 0) {
+      targetWidth = Math.max(1, Math.round(width * options.scale));
+      targetHeight = Math.max(1, Math.round(height * options.scale));
+    } else if (options.maxWidth || options.maxHeight) {
+      const scale = Math.min(
+        options.maxWidth ? options.maxWidth / width : Infinity,
+        options.maxHeight ? options.maxHeight / height : Infinity
+      );
+
+      if (scale > 0 && scale < 1) {
+        targetWidth = Math.max(1, Math.round(width * scale));
+        targetHeight = Math.max(1, Math.round(height * scale));
+      }
+    }
+
+    return { targetWidth, targetHeight };
   }
 }
