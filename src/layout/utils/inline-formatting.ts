@@ -130,17 +130,22 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
     );
 
     while (true) {
-      if (availableWidth <= 0) {
-        const nextLineTop = floatContext.nextUnblockedY(lineTop, lineTop + lineHeight);
-        if (nextLineTop === null) {
-          break;
-        }
-        lineTop = nextLineTop;
-        inlineOffset = floatContext.inlineOffsets(lineTop, lineTop + lineHeight, contentWidth);
-        availableWidth = Math.max(0, inlineOffset.end - inlineOffset.start);
-        cursorX = 0;
-        continue;
+    if (availableWidth <= 0) {
+      const nextLineTop = floatContext.nextUnblockedY(lineTop, lineTop + lineHeight);
+      if (nextLineTop === null) {
+        // No floats to skip; force the content onto this line and allow it to overflow.
+        metrics.lineOffset = cursorX;
+        lineItems.push(metrics);
+        cursorX += metrics.outerWidth;
+        lineHeight = Math.max(lineHeight, metrics.outerHeight, resolvedLineHeight(container.style));
+        break;
       }
+      lineTop = nextLineTop;
+      inlineOffset = floatContext.inlineOffsets(lineTop, lineTop + lineHeight, contentWidth);
+      availableWidth = Math.max(0, inlineOffset.end - inlineOffset.start);
+      cursorX = 0;
+      continue;
+    }
 
       if (cursorX > 0 && cursorX + metrics.outerWidth > availableWidth) {
         commitLine();
@@ -149,17 +154,22 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
         continue;
       }
 
-      if (cursorX === 0 && metrics.outerWidth > availableWidth) {
-        const nextLineTop = floatContext.nextUnblockedY(lineTop, lineTop + lineHeight);
-        if (nextLineTop === null) {
-          break;
-        }
-        lineTop = nextLineTop;
-        inlineOffset = floatContext.inlineOffsets(lineTop, lineTop + lineHeight, contentWidth);
-        availableWidth = Math.max(0, inlineOffset.end - inlineOffset.start);
-        cursorX = 0;
-        continue;
+    if (cursorX === 0 && metrics.outerWidth > availableWidth) {
+      const nextLineTop = floatContext.nextUnblockedY(lineTop, lineTop + lineHeight);
+      if (nextLineTop === null) {
+        // No alternate vertical position: lay out the item anyway and let it overflow.
+        metrics.lineOffset = cursorX;
+        lineItems.push(metrics);
+        cursorX += metrics.outerWidth;
+        lineHeight = Math.max(lineHeight, metrics.outerHeight, resolvedLineHeight(container.style));
+        break;
       }
+      lineTop = nextLineTop;
+      inlineOffset = floatContext.inlineOffsets(lineTop, lineTop + lineHeight, contentWidth);
+      availableWidth = Math.max(0, inlineOffset.end - inlineOffset.start);
+      cursorX = 0;
+      continue;
+    }
 
       metrics.lineOffset = cursorX;
       lineItems.push(metrics);
