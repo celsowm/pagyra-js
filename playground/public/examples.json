@@ -135,5 +135,12 @@
     "id": "svg-radial-transform-demo",
     "label": "SVG Radial Gradient Transform Demo",
     "htmlUrl": "examples/svg-radial-transform-demo.html"
+  },
+  {
+    "id": "header-footer-example",
+    "label": "Header and Footer Example (pt-BR)",
+    "htmlUrl": "examples/header-footer-example.html",
+    "headerUrl": "examples/header-example.html",
+    "footerUrl": "examples/footer-example.html"
   }
 ]

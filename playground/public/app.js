@@ -172,7 +172,7 @@ function initializeEditors() {
 }
 
 /**
- * @typedef {{ id: string; label: string; htmlUrl: string; cssUrl?: string }} PlaygroundExample
+ * @typedef {{ id: string; label: string; htmlUrl: string; cssUrl?: string; headerUrl?: string; footerUrl?: string }} PlaygroundExample
  */
 
 /** @type {PlaygroundExample[]} */
@@ -301,22 +301,37 @@ async function loadExample(example) {
   }
 
   try {
-    const [htmlResponse, cssResponse] = await Promise.all([
+    const [htmlResponse, cssResponse, headerResponse, footerResponse] = await Promise.all([
       fetch(example.htmlUrl),
       example.cssUrl ? fetch(example.cssUrl) : Promise.resolve(new Response("")),
+      example.headerUrl ? fetch(example.headerUrl) : Promise.resolve(new Response("")),
+      example.footerUrl ? fetch(example.footerUrl) : Promise.resolve(new Response("")),
     ]);
 
     if (!htmlResponse.ok) {
       throw new Error(`Failed to load ${example.htmlUrl}`);
     }
-    if (!cssResponse.ok) {
-      throw new Error(`Failed to load ${example.cssUrl ?? ""}`);
+    if (example.cssUrl && !cssResponse.ok) {
+      throw new Error(`Failed to load ${example.cssUrl}`);
+    }
+    if (example.headerUrl && !headerResponse.ok) {
+      throw new Error(`Failed to load ${example.headerUrl}`);
+    }
+    if (example.footerUrl && !footerResponse.ok) {
+      throw new Error(`Failed to load ${example.footerUrl}`);
     }
 
-    const [html, css] = await Promise.all([htmlResponse.text(), cssResponse.text()]);
+    const [html, css, header, footer] = await Promise.all([
+      htmlResponse.text(),
+      cssResponse.text(),
+      headerResponse.text(),
+      footerResponse.text(),
+    ]);
 
     setHtmlValue(html);
     setCssValue(css);
+    setHeaderValue(header);
+    setFooterValue(footer);
     DOM.exampleSelect.value = example.id;
     activeExampleId = example.id;
 
