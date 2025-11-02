@@ -87,4 +87,28 @@ describe("layout engine", () => {
 
     expect(constrained.box.contentWidth).toBeLessThanOrEqual(240);
   });
+
+  it("keeps overly wide inline content in flow instead of dropping it", () => {
+    const root = new LayoutNode(new ComputedStyle());
+    const paragraph = new LayoutNode(
+      new ComputedStyle({ display: Display.Block }),
+    );
+    root.appendChild(paragraph);
+
+    const longText =
+      "Need multiple pages? Just let the text flow - Pagyra will handle the pagination.";
+    const inline = new LayoutNode(
+      new ComputedStyle({ display: Display.Inline }),
+      [],
+      { textContent: longText },
+    );
+    paragraph.appendChild(inline);
+
+    layoutTree(root, { width: 200, height: 400 });
+
+    expect(paragraph.establishesIFC).toBe(true);
+    expect(paragraph.box.contentHeight).toBeGreaterThan(0);
+    expect(inline.box.contentHeight).toBeGreaterThan(0);
+    expect(inline.box.y).toBeGreaterThanOrEqual(paragraph.box.y);
+  });
 });
