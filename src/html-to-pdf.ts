@@ -17,6 +17,7 @@ import { setViewportSize } from "./css/apply-declarations.js";
 import { type PageMarginsPx } from "./units/page-utils.js";
 import { computeStyleForElement } from "./css/compute-style.js";
 import type { RenderBox } from "./pdf/types.js";
+import type { HeaderFooterHTML } from "./pdf/types.js";
 
 export interface RenderHtmlOptions {
   html: string;
@@ -32,6 +33,7 @@ export interface RenderHtmlOptions {
   fontConfig?: FontConfig;
   resourceBaseDir?: string;
   assetRootDir?: string;
+  headerFooter?: Partial<HeaderFooterHTML>;
 }
 
 export interface PreparedRender {
@@ -46,7 +48,8 @@ export async function renderHtmlToPdf(options: RenderHtmlOptions): Promise<Uint8
 }
 
 export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<PreparedRender> {
-  const { html, css, viewportWidth, viewportHeight, pageWidth, pageHeight, margins, debug = false, debugLevel, debugCats } = options;
+  const { html, css, viewportWidth, viewportHeight, pageWidth, pageHeight, margins, debug = false, debugLevel, debugCats, headerFooter } =
+    options;
 
   setViewportSize(viewportWidth, viewportHeight);
 
@@ -121,7 +124,7 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   layoutTree(rootLayout, { width: viewportWidth, height: viewportHeight });
   log("LAYOUT", "DEBUG", "Layout complete");
 
-  const renderTree = buildRenderTree(rootLayout);
+  const renderTree = buildRenderTree(rootLayout, { headerFooter });
   applyPageVerticalMargins(renderTree.root, pageHeight, margins);
   offsetRenderTree(renderTree.root, margins.left, 0, debug);
 

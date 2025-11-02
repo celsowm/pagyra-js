@@ -58,6 +58,28 @@ describe("PDF renderer", () => {
     expect(content).toContain("(Page 1 of 1)");
   });
 
+  it("supports header/footer HTML via renderHtmlToPdf options", async () => {
+    const { renderHtmlToPdf } = await import("../src/html-to-pdf.js");
+    const pdfBytes = await renderHtmlToPdf({
+      html: "<html><body><p>Hello body</p></body></html>",
+      css: "",
+      viewportWidth: 300,
+      viewportHeight: 200,
+      pageWidth: 300,
+      pageHeight: 200,
+      margins: { top: 0, right: 0, bottom: 0, left: 0 },
+      headerFooter: {
+        headerHtml: "Header {page}/{pages}",
+        footerHtml: "Footer {page}/{pages}",
+        maxHeaderHeightPx: 32,
+        maxFooterHeightPx: 32,
+      },
+    });
+    const content = Buffer.from(pdfBytes).toString("ascii");
+    expect(content).toContain("(Header 1/1)");
+    expect(content).toContain("(Footer 1/1)");
+  });
+
   it("paints backgrounds and borders based on computed style", async () => {
     const root = new LayoutNode(new ComputedStyle());
     const block = new LayoutNode(
