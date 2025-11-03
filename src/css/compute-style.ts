@@ -150,7 +150,12 @@ export function computeStyleForElement(
       if (rule.declarations.display) {
         log("STYLE","DEBUG","Display declaration found", { selector: rule.selector, display: rule.declarations.display });
       }
-      Object.assign(aggregated, rule.declarations);
+      // Normalize rule declarations to lowercase keys
+      const normalizedRuleDeclarations: Record<string, string> = {};
+      for (const [prop, value] of Object.entries(rule.declarations)) {
+        normalizedRuleDeclarations[prop.toLowerCase()] = value;
+      }
+      Object.assign(aggregated, normalizedRuleDeclarations);
     }
   }
 

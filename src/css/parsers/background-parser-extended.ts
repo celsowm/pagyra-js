@@ -5,7 +5,7 @@ import { parseBackgroundShorthand, applyBackgroundSize } from "./background-pars
 import type { StyleAccumulator } from "../style.js";
 import type { UnitParsers } from "../../units/units.js";
 
-export function parseBackgroundSize(value: string, target: StyleAccumulator): void {
+export function applyBackgroundSizeDecl(value: string, target: StyleAccumulator): void {
   applyBackgroundSize(target, value);
 }
 

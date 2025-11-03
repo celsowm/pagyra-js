@@ -90,7 +90,7 @@ import {
 
 // Background
 import {
-  parseBackgroundSize,
+  applyBackgroundSizeDecl,
   parseBackgroundImage,
   parseBackground,
   parseObjectFit,
@@ -106,7 +106,16 @@ import {
   parseColumnGap,
 } from "./grid-parser-extended.js";
 
+// Flag to ensure parsers are registered only once
+let parsersRegistered = false;
+
 export function registerAllPropertyParsers(): void {
+  // Idempotency guard
+  if (parsersRegistered) {
+    return;
+  }
+  parsersRegistered = true;
+
   // Display and Flex
   registerPropertyParser("display", parseDisplay);
   registerPropertyParser("justify-content", parseJustifyContent);
@@ -184,7 +193,7 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("float", parseFloat);
 
   // Background
-  registerPropertyParser("background-size", parseBackgroundSize);
+  registerPropertyParser("background-size", applyBackgroundSizeDecl);
   registerPropertyParser("background-image", parseBackgroundImage);
   registerPropertyParser("background", parseBackground);
   registerPropertyParser("object-fit", parseObjectFit);

@@ -160,7 +160,7 @@ function parseImageLayer(value: string): BackgroundLayer | null {
 
     // Check for size (contains /)
     if (part.includes('/')) {
-      size = parseBackgroundSize(part);
+      size = parseBackgroundSizeValue(part);
       currentIndex++;
     }
     // Check for position keywords
@@ -190,7 +190,7 @@ function parseImageLayer(value: string): BackgroundLayer | null {
 /**
  * Parses background-size value
  */
-function parseBackgroundSize(value: string): BackgroundSize {
+function parseBackgroundSizeValue(value: string): BackgroundSize {
   const tokens = value.split('/');
   if (tokens.length === 1) {
     const v = tokens[0].trim().toLowerCase();
