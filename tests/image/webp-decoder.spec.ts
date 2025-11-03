@@ -1,4 +1,4 @@
-import { WebpDecoder } from '../../src/image/webp-decoder';
+import { WebpDecoder } from '../../src/image/webp-decoder.js';
 import { readFileSync } from 'fs';
 import { describe, it, expect } from 'vitest';
 
