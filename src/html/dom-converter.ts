@@ -4,10 +4,12 @@ import { type DomEl, type CssRuleEntry } from "./css/parse-css.js";
 import { LayoutNode } from "../dom/node.js";
 import { ComputedStyle } from "../css/style.js";
 import { computeStyleForElement } from "../css/compute-style.js";
-import { convertImageElement, type ConversionContext } from "./image-converter.js";
+import { convertImageElement, resolveImageSource, type ConversionContext } from "./image-converter.js";
 import { Display, WhiteSpace } from "../css/enums.js";
 import { parseSvg } from "../svg/parser.js";
 import type { SvgRootNode } from "../svg/types.js";
+import { ImageService } from "../image/image-service.js";
+import type { ImageInfo } from "../image/types.js";
 
 function findMeaningfulSibling(start: Node | null, direction: "previous" | "next"): Node | null {
   let current = start;
@@ -55,6 +57,98 @@ function shouldPreserveCollapsedWhitespace(children: LayoutNode[], style: Comput
   }
   const lastChild = children.length > 0 ? children[children.length - 1] : null;
   return !!lastChild && isInlineDisplay(lastChild.style.display);
+}
+
+function extractCssUrl(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (trimmed.startsWith("url(") && trimmed.endsWith(")")) {
+    let inner = trimmed.slice(4, -1).trim();
+    if (
+      (inner.startsWith("'") && inner.endsWith("'")) ||
+      (inner.startsWith("\"") && inner.endsWith("\""))
+    ) {
+      inner = inner.slice(1, -1);
+    }
+    return inner;
+  }
+  if (
+    (trimmed.startsWith("'") && trimmed.endsWith("'")) ||
+    (trimmed.startsWith("\"") && trimmed.endsWith("\""))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+function isDataUri(value: string): boolean {
+  return /^data:/i.test(value);
+}
+
+function isHttpUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value);
+}
+
+async function loadBackgroundImage(
+  cssUrl: string,
+  context: ConversionContext,
+): Promise<{ info: ImageInfo; resolvedSrc: string } | null> {
+  const imageService = ImageService.getInstance();
+  const resolvedSrc = resolveImageSource(cssUrl, context);
+
+  if (isHttpUrl(resolvedSrc)) {
+    console.warn(`Skipping remote background image (${resolvedSrc}); remote assets are not supported.`);
+    return null;
+  }
+
+  try {
+    let imageInfo: ImageInfo;
+    if (isDataUri(resolvedSrc)) {
+      const match = resolvedSrc.match(/^data:image\/(.+);base64,(.+)$/);
+      if (!match) {
+        console.warn(`Unsupported data URI format for background image: ${cssUrl}`);
+        return null;
+      }
+      const buffer = Buffer.from(match[2], "base64");
+      const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+      imageInfo = await imageService.decodeImage(arrayBuffer);
+    } else {
+      imageInfo = await imageService.loadImage(resolvedSrc);
+    }
+    return { info: imageInfo, resolvedSrc };
+  } catch (error) {
+    console.warn(`Failed to load background image ${cssUrl}:`, error instanceof Error ? error.message : String(error));
+    return null;
+  }
+}
+
+async function hydrateBackgroundImages(style: ComputedStyle, context: ConversionContext): Promise<void> {
+  if (!style.backgroundLayers || style.backgroundLayers.length === 0) {
+    return;
+  }
+
+  for (const layer of style.backgroundLayers) {
+    if (layer.kind !== "image") {
+      continue;
+    }
+    if (layer.imageInfo) {
+      continue;
+    }
+    const cssUrl = extractCssUrl(layer.url);
+    if (!cssUrl) {
+      continue;
+    }
+
+    const loaded = await loadBackgroundImage(cssUrl, context);
+    if (!loaded) {
+      continue;
+    }
+    layer.originalUrl = cssUrl;
+    layer.resolvedUrl = loaded.resolvedSrc;
+    layer.imageInfo = loaded.info;
+  }
 }
 
 export async function convertDomNode(
@@ -180,6 +274,7 @@ export async function convertDomNode(
 
   // ✅ Coalescing de #text
   const ownStyle = computeStyleForElement(element, cssRules, parentStyle, context.units);
+  await hydrateBackgroundImages(ownStyle, context);
   console.log("convertDomNode - computed style backgroundLayers:", ownStyle.backgroundLayers);
   
   // Log if this is the div element that should have the gradient

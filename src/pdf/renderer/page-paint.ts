@@ -72,10 +72,8 @@ async function paintText(painter: PagePainter, boxes: RenderBox[]): Promise<void
 
 function paintBackgrounds(painter: PagePainter, boxes: RenderBox[]): void {
   for (const box of boxes) {
-    const gradient = box.background?.gradient;
-    const color = box.background?.color;
-
-    if (!gradient && !color) {
+    const background = box.background;
+    if (!background) {
       continue;
     }
 
@@ -84,15 +82,28 @@ function paintBackgrounds(painter: PagePainter, boxes: RenderBox[]): void {
       continue;
     }
 
-    if (gradient) {
-      painter.fillRoundedRect(paintArea.rect, paintArea.radius, gradient as any);
-      continue;
+    if (background.color) {
+      painter.fillRoundedRect(paintArea.rect, paintArea.radius, background.color);
     }
 
-    if (color) {
-      painter.fillRoundedRect(paintArea.rect, paintArea.radius, color);
+    if (background.gradient) {
+      painter.fillRoundedRect(paintArea.rect, paintArea.radius, background.gradient as any);
+    }
+
+    if (background.image) {
+      paintBackgroundImageLayer(painter, background.image);
     }
   }
+}
+
+function paintBackgroundImageLayer(painter: PagePainter, layer: RenderBox["background"]["image"]): void {
+  if (!layer) {
+    return;
+  }
+  if (layer.repeat && layer.repeat !== "no-repeat") {
+    console.warn(`Background repeat mode "${layer.repeat}" is not fully supported yet. Rendering first tile only.`);
+  }
+  painter.drawImage(layer.image, layer.rect);
 }
 
 function paintBorders(painter: PagePainter, boxes: RenderBox[]): void {

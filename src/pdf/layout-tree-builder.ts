@@ -2,9 +2,6 @@ import { FloatMode, OverflowMode, Position } from "../css/enums.js";
 import type { ComputedStyle } from "../css/style.js";
 import { LayoutNode } from "../dom/node.js";
 import { resolveLength } from "../css/length.js";
-import { parseLinearGradient } from "../css/parsers/gradient-parser.js";
-import { GradientService } from "./shading/gradient-service.js";
-import { CoordinateTransformer } from "./utils/coordinate-transformer.js";
 import { log } from "../debug/log.js";
 import {
   type LayoutTree,
@@ -15,6 +12,9 @@ import {
   type Positioning,
   type RGBA,
   type Run,
+  type ImageRef,
+  type Background,
+  type BackgroundImage,
   NodeKind,
   Overflow,
   LayerMode,
@@ -26,6 +26,8 @@ import { createListMarkerRun } from "./utils/list-utils.js";
 import { resolveBoxShadows, calculateVisualOverflow } from "./utils/shadow-utils.js";
 import { extractImageRef } from "./utils/image-utils.js";
 import { calculateBoxDimensions } from "./utils/box-dimensions-utils.js";
+import type { ImageBackgroundLayer, BackgroundSize, BackgroundPosition } from "../css/background-types.js";
+import type { ImageInfo } from "../image/types.js";
 
 // Note: We don't import NAMED_COLORS since it's no longer needed with the new color-utils module
 
@@ -124,21 +126,209 @@ function mapOverflow(mode: OverflowMode): Overflow {
 // BACKGROUND HANDLING
 // ====================
 
-function handleBackground(style: ComputedStyle, borderBox: Rect): { color?: RGBA; image?: unknown; gradient?: unknown } {
-  console.log("handleBackground - style.backgroundLayers:", style.backgroundLayers);
-  // Check for gradients first
-  if (style.backgroundLayers) {
-    const gradientLayer = style.backgroundLayers.find(layer => layer.kind === "gradient");
-    console.log("handleBackground - gradientLayer:", gradientLayer);
-    if (gradientLayer) {
-      return { gradient: gradientLayer.gradient };
+function selectBackgroundOriginRect(
+  layer: ImageBackgroundLayer,
+  borderBox: Rect,
+  paddingBox: Rect,
+  contentBox: Rect,
+): Rect {
+  const origin = layer.origin ?? "padding-box";
+  switch (origin) {
+    case "border-box":
+      return { ...borderBox };
+    case "content-box":
+      return { ...contentBox };
+    default:
+      return { ...paddingBox };
+  }
+}
+
+function parseBackgroundSizeComponent(component: string | undefined, axisLength: number, intrinsic: number): number | undefined {
+  if (!component) {
+    return undefined;
+  }
+  const normalized = component.trim().toLowerCase();
+  if (!normalized || normalized === "auto") {
+    return undefined;
+  }
+  if (normalized.endsWith("%")) {
+    const value = Number.parseFloat(normalized.slice(0, -1));
+    if (Number.isFinite(value)) {
+      return (axisLength * value) / 100;
+    }
+    return undefined;
+  }
+  if (normalized.endsWith("px")) {
+    const value = Number.parseFloat(normalized.slice(0, -2));
+    return Number.isFinite(value) ? value : undefined;
+  }
+  const numeric = Number.parseFloat(normalized);
+  return Number.isFinite(numeric) ? numeric : intrinsic;
+}
+
+function resolveBackgroundImageSize(size: BackgroundSize | undefined, area: Rect, info: ImageInfo): { width: number; height: number } {
+  const intrinsicWidth = info.width;
+  const intrinsicHeight = info.height;
+  if (!size || size === "auto") {
+    return { width: intrinsicWidth, height: intrinsicHeight };
+  }
+  if (size === "cover") {
+    const scale = Math.max(
+      area.width > 0 && intrinsicWidth > 0 ? area.width / intrinsicWidth : 0,
+      area.height > 0 && intrinsicHeight > 0 ? area.height / intrinsicHeight : 0,
+    );
+    const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+    return {
+      width: intrinsicWidth * safeScale,
+      height: intrinsicHeight * safeScale,
+    };
+  }
+  if (size === "contain") {
+    const scale = Math.min(
+      area.width > 0 && intrinsicWidth > 0 ? area.width / intrinsicWidth : Number.POSITIVE_INFINITY,
+      area.height > 0 && intrinsicHeight > 0 ? area.height / intrinsicHeight : Number.POSITIVE_INFINITY,
+    );
+    const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+    return {
+      width: intrinsicWidth * safeScale,
+      height: intrinsicHeight * safeScale,
+    };
+  }
+  const widthComponent = parseBackgroundSizeComponent(size.width, area.width, intrinsicWidth);
+  const heightComponent = parseBackgroundSizeComponent(size.height, area.height, intrinsicHeight);
+
+  let width = widthComponent ?? intrinsicWidth;
+  let height = heightComponent ?? intrinsicHeight;
+
+  if (widthComponent !== undefined && heightComponent === undefined && intrinsicWidth > 0) {
+    const scale = widthComponent / intrinsicWidth;
+    height = intrinsicHeight * scale;
+  } else if (heightComponent !== undefined && widthComponent === undefined && intrinsicHeight > 0) {
+    const scale = heightComponent / intrinsicHeight;
+    width = intrinsicWidth * scale;
+  }
+
+  return {
+    width,
+    height,
+  };
+}
+
+function resolvePositionComponent(value: string, start: number, available: number, size: number, axis: "x" | "y"): number {
+  const keyword = value.toLowerCase();
+  if (keyword === "center") {
+    return start + (available - size) / 2;
+  }
+  if (axis === "x") {
+    if (keyword === "right") {
+      return start + (available - size);
+    }
+    if (keyword === "left") {
+      return start;
+    }
+  } else {
+    if (keyword === "bottom") {
+      return start + (available - size);
+    }
+    if (keyword === "top") {
+      return start;
     }
   }
-  
-  // Fall back to solid color
+  if (keyword.endsWith("%")) {
+    const valuePct = Number.parseFloat(keyword.slice(0, -1));
+    if (Number.isFinite(valuePct)) {
+      return start + ((available - size) * valuePct) / 100;
+    }
+  }
+  const numeric = Number.parseFloat(keyword);
+  if (Number.isFinite(numeric)) {
+    return start + numeric;
+  }
+  return start;
+}
+
+function resolveBackgroundPosition(
+  position: BackgroundPosition | undefined,
+  area: Rect,
+  width: number,
+  height: number,
+): { x: number; y: number } {
+  const posX = position?.x ?? "left";
+  const posY = position?.y ?? "top";
+  const x = resolvePositionComponent(posX, area.x, area.width, width, "x");
+  const y = resolvePositionComponent(posY, area.y, area.height, height, "y");
+  return { x, y };
+}
+
+function convertToImageRef(layer: ImageBackgroundLayer, info: ImageInfo): ImageRef {
+  return {
+    src: layer.resolvedUrl ?? layer.originalUrl ?? "",
+    width: info.width,
+    height: info.height,
+    format: info.format,
+    channels: info.channels,
+    bitsPerComponent: info.bitsPerChannel,
+    data: info.data,
+  };
+}
+
+function createBackgroundImage(
+  layer: ImageBackgroundLayer,
+  borderBox: Rect,
+  paddingBox: Rect,
+  contentBox: Rect,
+): BackgroundImage | undefined {
+  if (!layer.imageInfo) {
+    return undefined;
+  }
+  const originRect = selectBackgroundOriginRect(layer, borderBox, paddingBox, contentBox);
+  const size = resolveBackgroundImageSize(layer.size, originRect, layer.imageInfo);
+  if (size.width <= 0 || size.height <= 0) {
+    return undefined;
+  }
+  const position = resolveBackgroundPosition(layer.position, originRect, size.width, size.height);
+  const imageRef = convertToImageRef(layer, layer.imageInfo);
+  return {
+    image: imageRef,
+    rect: {
+      x: position.x,
+      y: position.y,
+      width: size.width,
+      height: size.height,
+    },
+    repeat: layer.repeat ?? "repeat",
+    originRect,
+  };
+}
+
+function handleBackground(
+  node: LayoutNode,
+  borderBox: Rect,
+  paddingBox: Rect,
+  contentBox: Rect,
+): Background {
+  const style = node.style;
+  const layers = style.backgroundLayers ?? [];
+  const background: Background = {};
+
+  for (let i = layers.length - 1; i >= 0; i--) {
+    const layer = layers[i];
+    if (layer.kind === "gradient" && background.gradient === undefined) {
+      background.gradient = layer.gradient;
+    } else if (layer.kind === "image" && background.image === undefined) {
+      const image = createBackgroundImage(layer, borderBox, paddingBox, contentBox);
+      if (image) {
+        background.image = image;
+      }
+    }
+  }
+
   const color = parseColor(style.backgroundColor || undefined);
-  console.log("handleBackground - color:", color);
-  return { color };
+  if (color) {
+    background.color = color;
+  }
+
+  return background;
 }
 
 // ====================
@@ -173,8 +363,8 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
     contentBox,
   });
 
-  // Handle background (both colors and gradients)
-  const background = handleBackground(node.style, borderBox);
+  // Handle background (colors, gradients, images)
+  const background = handleBackground(node, borderBox, paddingBox, contentBox);
   
   return {
     id,

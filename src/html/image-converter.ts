@@ -18,7 +18,7 @@ export interface ConversionContext {
   units: UnitParsers;
 }
 
-function resolveImageSource(src: string, context: ConversionContext): string {
+export function resolveImageSource(src: string, context: ConversionContext): string {
   const trimmed = src.trim();
   if (!trimmed) {
     return trimmed;

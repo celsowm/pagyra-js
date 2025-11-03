@@ -1,3 +1,5 @@
+import type { BackgroundRepeat } from "../css/background-types.js";
+
 export enum NodeKind {
   Container = "container",
   TextRuns = "text-runs",
@@ -44,9 +46,16 @@ export interface Radius {
   bottomLeft: CornerRadius;
 }
 
+export interface BackgroundImage {
+  image: ImageRef;
+  rect: Rect;
+  repeat: BackgroundRepeat;
+  originRect: Rect;
+}
+
 export interface Background {
   color?: RGBA;
-  image?: unknown;
+  image?: BackgroundImage;
   gradient?: unknown;
 }
 
