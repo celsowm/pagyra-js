@@ -1,6 +1,6 @@
 // src/render/offset.ts
 
-import { type Rect, type RenderBox } from "../pdf/types.js";
+import { type Rect, type RenderBox, type Background } from "../pdf/types.js";
 import { log } from "../debug/log.js";
 import type { PageMarginsPx } from "../units/page-utils.js";
 
@@ -8,6 +8,14 @@ export function offsetRect(rect: Rect | null | undefined, dx: number, dy: number
   if (!rect) return;
   rect.x += dx;
   rect.y += dy;
+}
+
+function offsetBackground(background: Background | undefined, dx: number, dy: number): void {
+  if (!background || !background.image) {
+    return;
+  }
+  offsetRect(background.image.rect, dx, dy);
+  offsetRect(background.image.originRect, dx, dy);
 }
 
 export function offsetRenderTree(root: RenderBox, dx: number, dy: number, debug: boolean): void {
@@ -29,6 +37,7 @@ export function offsetRenderTree(root: RenderBox, dx: number, dy: number, debug:
     if (box.markerRect) {
       offsetRect(box.markerRect, dx, dy);
     }
+    offsetBackground(box.background, dx, dy);
     for (const link of box.links) {
       offsetRect(link.rect, dx, dy);
     }
@@ -70,6 +79,14 @@ export function applyPageVerticalMargins(root: RenderBox, pageHeight: number, ma
     rect.y = mapY(rect.y);
   };
 
+  const adjustBackground = (background: Background | undefined): void => {
+    if (!background || !background.image) {
+      return;
+    }
+    adjustRect(background.image.rect);
+    adjustRect(background.image.originRect);
+  };
+
   const stack: RenderBox[] = [root];
   while (stack.length > 0) {
     const box = stack.pop()!;
@@ -80,6 +97,7 @@ export function applyPageVerticalMargins(root: RenderBox, pageHeight: number, ma
     if (box.markerRect) {
       adjustRect(box.markerRect);
     }
+    adjustBackground(box.background);
     for (const link of box.links) {
       adjustRect(link.rect);
     }

@@ -91,19 +91,24 @@ function paintBackgrounds(painter: PagePainter, boxes: RenderBox[]): void {
     }
 
     if (background.image) {
-      paintBackgroundImageLayer(painter, background.image);
+      paintBackgroundImageLayer(painter, background.image, paintArea.rect, paintArea.radius);
     }
   }
 }
 
-function paintBackgroundImageLayer(painter: PagePainter, layer: RenderBox["background"]["image"]): void {
+function paintBackgroundImageLayer(
+  painter: PagePainter,
+  layer: RenderBox["background"]["image"],
+  clipRect: Rect,
+  clipRadius: Radius,
+): void {
   if (!layer) {
     return;
   }
   if (layer.repeat && layer.repeat !== "no-repeat") {
     console.warn(`Background repeat mode "${layer.repeat}" is not fully supported yet. Rendering first tile only.`);
   }
-  painter.drawImage(layer.image, layer.rect);
+  painter.drawBackgroundImage(layer.image, layer.rect, clipRect, clipRadius);
 }
 
 function paintBorders(painter: PagePainter, boxes: RenderBox[]): void {
