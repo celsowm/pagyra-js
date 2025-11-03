@@ -48,10 +48,14 @@ function parseSingleBoxShadow(input: string): BoxShadow | null {
       continue;
     }
     if (color === undefined) {
-      color = token;
-      continue;
+      // Check if this looks like a color
+      if (isColorLike(token)) {
+        color = token;
+        continue;
+      }
     }
-    return null;
+    // Ignore unknown tokens instead of failing
+    continue;
   }
 
   if (lengths.length < 2) {
@@ -71,4 +75,19 @@ function parseSingleBoxShadow(input: string): BoxShadow | null {
     spreadRadius,
     color,
   };
+}
+
+function isColorLike(value: string): boolean {
+  const lowerValue = value.toLowerCase();
+  // Basic color detection
+  if (lowerValue.startsWith('#') ||
+      lowerValue.startsWith('rgb(') ||
+      lowerValue.startsWith('rgba(') ||
+      lowerValue.startsWith('hsl(') ||
+      lowerValue.startsWith('hsla(')) {
+    return true;
+  }
+  // Common color names
+  const colorNames = ['transparent', 'black', 'white', 'red', 'green', 'blue', 'yellow', 'gray', 'grey'];
+  return colorNames.includes(lowerValue);
 }

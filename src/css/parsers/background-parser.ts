@@ -191,17 +191,20 @@ function parseImageLayer(value: string): BackgroundLayer | null {
  * Parses background-size value
  */
 function parseBackgroundSizeValue(value: string): BackgroundSize {
-  const tokens = value.split('/');
-  if (tokens.length === 1) {
-    const v = tokens[0].trim().toLowerCase();
+  // Split on '/' as independent token, not within tokens
+  const slashIndex = value.indexOf('/');
+  if (slashIndex === -1) {
+    const v = value.trim().toLowerCase();
     if (v === "cover" || v === "contain" || v === "auto") {
       return v;
     }
-    return { width: tokens[0].trim(), height: "auto" };
+    return { width: value.trim(), height: "auto" };
   } else {
+    const width = value.substring(0, slashIndex).trim();
+    const height = value.substring(slashIndex + 1).trim();
     return {
-      width: tokens[0]?.trim() || "auto",
-      height: tokens[1]?.trim() || "auto"
+      width: width || "auto",
+      height: height || "auto"
     };
   }
 }
@@ -271,5 +274,7 @@ export function applyBackgroundSize(style: any, value: string): void {
     size = { width: tokens[0], height: tokens[1] ?? "auto" };
   }
 
-  (layer as any).size = size;
+  if (layer.kind === "image") {
+    layer.size = size;
+  }
 }

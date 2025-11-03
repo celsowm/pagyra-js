@@ -15,6 +15,8 @@ function mapFloat(value: string | undefined): FloatMode | undefined {
       return FloatMode.Left;
     case "right":
       return FloatMode.Right;
+    case "none":
+      return FloatMode.None;
     default:
       return undefined;
   }
@@ -24,10 +26,12 @@ function parseInlineStyle(style: string): Record<string, string> {
   console.log("parseInlineStyle - input:", style);
   const declarations: Record<string, string> = {};
   for (const part of style.split(";")) {
-    const [rawProperty, rawValue] = part.split(":");
-    if (!rawProperty || !rawValue) {
+    const colonIndex = part.indexOf(":");
+    if (colonIndex === -1) {
       continue;
     }
+    const rawProperty = part.substring(0, colonIndex);
+    const rawValue = part.substring(colonIndex + 1);
     const property = rawProperty.trim().toLowerCase();
     const value = rawValue.trim();
     console.log("parseInlineStyle - parsed property:", property, "value:", value);
@@ -85,7 +89,6 @@ function defaultDisplayForTag(tag: string): Display {
     case "caption":
       display = Display.TableCaption;
       break;
-    case "flex":
     case "div":
     case "section":
     case "main":

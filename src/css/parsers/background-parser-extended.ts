@@ -10,12 +10,30 @@ export function applyBackgroundSizeDecl(value: string, target: StyleAccumulator)
 }
 
 export function parseBackgroundImage(value: string, target: StyleAccumulator): void {
+  const trimmed = value.trim();
+
+  // Try to parse as linear gradient first
   const gradient = parseLinearGradient(value);
   if (gradient) {
     if (!target.backgroundLayers) {
       target.backgroundLayers = [];
     }
     target.backgroundLayers.push({ kind: "gradient", gradient });
+    return;
+  }
+
+  // If not a gradient, treat as direct url
+  if (trimmed.startsWith('url(')) {
+    if (!target.backgroundLayers) {
+      target.backgroundLayers = [];
+    }
+    target.backgroundLayers.push({
+      kind: "image",
+      url: trimmed,
+      position: { x: "left", y: "top" },
+      size: "auto",
+      repeat: "repeat"
+    });
   }
 }
 

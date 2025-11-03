@@ -29,16 +29,16 @@ export interface RadialGradient {
 }
 
 export function parseLinearGradient(value: string): LinearGradient | null {
-  const trimmed = value.trim().toLowerCase();
+  const trimmed = value.trim();
   console.log("parseLinearGradient - input:", value);
   console.log("parseLinearGradient - trimmed:", trimmed);
-  
-  // Check if it's a linear gradient
-  if (!trimmed.startsWith("linear-gradient(")) {
+
+  // Check if it's a linear gradient (case-insensitive check)
+  if (!trimmed.toLowerCase().startsWith("linear-gradient(")) {
     console.log("parseLinearGradient - not a linear gradient, returning null");
     return null;
   }
-  
+
   // Extract the content inside parentheses
   const content = trimmed.slice("linear-gradient(".length, -1);
   if (!content) {
