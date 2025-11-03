@@ -35,11 +35,13 @@ export function resolveImageSource(src: string, context: ConversionContext): str
   } catch {
     // Not an absolute URL, fall through to filesystem resolution
   }
+  if (trimmed.startsWith("/")) {
+    const resolved = path.resolve(context.assetRootDir, `.${trimmed}`);
+    console.log("resolveImageSource - resolving absolute path:", { src, trimmed, assetRootDir: context.assetRootDir, resolved });
+    return resolved;
+  }
   if (path.isAbsolute(trimmed)) {
     return trimmed;
-  }
-  if (trimmed.startsWith("/")) {
-    return path.resolve(context.assetRootDir, `.${trimmed}`);
   }
   return path.resolve(context.resourceBaseDir, trimmed);
 }
