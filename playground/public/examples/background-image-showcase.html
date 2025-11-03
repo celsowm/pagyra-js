@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Background Image Showcase</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .example {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+
+        .bg-box {
+            width: 300px;
+            height: 200px;
+            border: 2px solid #333;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+        }
+
+        /* Background size examples */
+        .bg-cover {
+            background-image: url('../images/duck.jpg');
+            background-size: cover;
+            background-repeat: no-repeat;
+        }
+
+        .bg-contain {
+            background-image: url('../images/duck.jpg');
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+
+        .bg-auto {
+            background-image: url('../images/duck.jpg');
+            background-size: auto;
+            background-repeat: no-repeat;
+        }
+
+        .bg-50-percent {
+            background-image: url('../images/duck.jpg');
+            background-size: 50% 50%;
+            background-repeat: no-repeat;
+        }
+
+        /* Background position examples */
+        .bg-center {
+            background-image: url('../images/duck.jpg');
+            background-size: 100px 100px;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        .bg-top-left {
+            background-image: url('../images/duck.jpg');
+            background-size: 100px 100px;
+            background-repeat: no-repeat;
+            background-position: top left;
+        }
+
+        .bg-bottom-right {
+            background-image: url('../images/duck.jpg');
+            background-size: 100px 100px;
+            background-repeat: no-repeat;
+            background-position: bottom right;
+        }
+
+        .bg-20px-30px {
+            background-image: url('../images/duck.jpg');
+            background-size: 100px 100px;
+            background-repeat: no-repeat;
+            background-position: 20px 30px;
+        }
+
+        /* Background repeat examples */
+        .bg-repeat {
+            background-image: url('../images/duck.jpg');
+            background-size: 50px 50px;
+            background-repeat: repeat;
+        }
+
+        .bg-no-repeat {
+            background-image: url('../images/duck.jpg');
+            background-size: 80px 80px;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        .bg-repeat-x {
+            background-image: url('../images/duck.jpg');
+            background-size: 60px 60px;
+            background-repeat: repeat-x;
+        }
+
+        .bg-repeat-y {
+            background-image: url('../images/duck.jpg');
+            background-size: 60px 60px;
+            background-repeat: repeat-y;
+        }
+
+        /* Multiple background images */
+        .bg-multiple {
+            background-image:
+                url('../images/dice.png'),
+                url('../images/duck.jpg');
+            background-size: 50px 50px, cover;
+            background-repeat: no-repeat, no-repeat;
+            background-position: top left, center;
+        }
+
+        /* Background with color overlay */
+        .bg-with-color {
+            background-image: url('../images/duck.jpg');
+            background-color: rgba(255, 0, 0, 0.3);
+            background-size: cover;
+            background-blend-mode: multiply;
+        }
+
+        /* PNG background */
+        .bg-png {
+            background-image: url('../images/dice.png');
+            background-size: 100px 100px;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Background Image Showcase</h1>
+
+    <div class="example">
+        <h2>Background Size</h2>
+
+        <h3>Cover</h3>
+        <div class="bg-box bg-cover">Cover (fills entire area)</div>
+
+        <h3>Contain</h3>
+        <div class="bg-box bg-contain">Contain (fits within area)</div>
+
+        <h3>Auto</h3>
+        <div class="bg-box bg-auto">Auto (original size)</div>
+
+        <h3>50% 50%</h3>
+        <div class="bg-box bg-50-percent">50% 50% (percentage size)</div>
+    </div>
+
+    <div class="example">
+        <h2>Background Position</h2>
+
+        <h3>Center</h3>
+        <div class="bg-box bg-center">Center position</div>
+
+        <h3>Top Left</h3>
+        <div class="bg-box bg-top-left">Top left position</div>
+
+        <h3>Bottom Right</h3>
+        <div class="bg-box bg-bottom-right">Bottom right position</div>
+
+        <h3>20px 30px</h3>
+        <div class="bg-box bg-20px-30px">20px 30px offset</div>
+    </div>
+
+    <div class="example">
+        <h2>Background Repeat</h2>
+
+        <h3>Repeat</h3>
+        <div class="bg-box bg-repeat">Repeat (tiles)</div>
+
+        <h3>No Repeat</h3>
+        <div class="bg-box bg-no-repeat">No repeat</div>
+
+        <h3>Repeat X</h3>
+        <div class="bg-box bg-repeat-x">Repeat horizontally</div>
+
+        <h3>Repeat Y</h3>
+        <div class="bg-box bg-repeat-y">Repeat vertically</div>
+    </div>
+
+    <div class="example">
+        <h2>Multiple Background Images</h2>
+        <div class="bg-box bg-multiple">Multiple backgrounds (dice + duck)</div>
+    </div>
+
+    <div class="example">
+        <h2>Background with Color Overlay</h2>
+        <div class="bg-box bg-with-color">Background with red overlay</div>
+    </div>
+
+    <div class="example">
+        <h2>PNG Background</h2>
+        <div class="bg-box bg-png">PNG background image</div>
+    </div>
+</body>
+</html>

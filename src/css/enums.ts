@@ -14,6 +14,7 @@ export enum Display {
   TableRow = "table-row",
   TableCell = "table-cell",
   TableCaption = "table-caption",
+  ListItem = "list-item",
   None = "none",
   FlowRoot = "flow-root",
 }

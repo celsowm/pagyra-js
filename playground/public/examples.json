@@ -147,5 +147,10 @@
     "id": "advanced-selectors-demo",
     "label": "Advanced CSS Selectors Demo",
     "htmlUrl": "examples/advanced-selectors-demo.html"
+  },
+  {
+    "id": "background-image-showcase",
+    "label": "Background Image Showcase",
+    "htmlUrl": "examples/background-image-showcase.html"
   }
 ]
