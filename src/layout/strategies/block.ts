@@ -11,7 +11,15 @@ import {
   verticalNonContent,
 } from "../utils/node-math.js";
 import { resolveLength } from "../../css/length.js";
-import { collapsedGapBetween } from "../utils/margin.js";
+import {
+  canCollapseMarginEnd,
+  canCollapseMarginStart,
+  collapsedGapBetween,
+  effectiveMarginBottom,
+  effectiveMarginTop,
+  findFirstMarginCollapsibleChild,
+  findLastMarginCollapsibleChild,
+} from "../utils/margin.js";
 import { finalizeOverflow } from "../utils/overflow.js";
 import { FloatContext } from "../context/float-context.js";
 import { clearForBlock, placeFloat } from "../utils/floats.js";
@@ -56,6 +64,15 @@ export class BlockLayoutStrategy implements LayoutStrategy {
     const borderTop = resolveLength(node.style.borderTop, contentWidth, { auto: "zero" });
 
     const contentX = node.box.x + borderLeft + paddingLeft;
+    const collapseTopWithChildren = canCollapseMarginStart(node, contentWidth);
+    const collapseBottomWithChildren = canCollapseMarginEnd(node, contentWidth);
+    const firstCollapsibleChild = collapseTopWithChildren ? findFirstMarginCollapsibleChild(node) : undefined;
+    const lastCollapsibleChild = collapseBottomWithChildren ? findLastMarginCollapsibleChild(node) : undefined;
+    const topCollapseAmount =
+      collapseTopWithChildren && firstCollapsibleChild ? effectiveMarginTop(firstCollapsibleChild, contentWidth) : 0;
+    const bottomCollapseAmount =
+      collapseBottomWithChildren && lastCollapsibleChild ? effectiveMarginBottom(lastCollapsibleChild, contentWidth) : 0;
+
     let cursorY = node.box.y + paddingTop + borderTop;
     let previousBottomMargin = 0;
     const floatContext = new FloatContext();
@@ -112,12 +129,16 @@ export class BlockLayoutStrategy implements LayoutStrategy {
         continue;
       }
 
-      const childMarginTop = resolveLength(child.style.marginTop, contentWidth, { auto: "zero" });
+      const childMarginTopRaw = resolveLength(child.style.marginTop, contentWidth, { auto: "zero" });
       const childMarginLeft = resolveLength(child.style.marginLeft, contentWidth, { auto: "zero" });
-      const childMarginBottom = resolveLength(child.style.marginBottom, contentWidth, { auto: "zero" });
-      const childNonContentVertical = verticalNonContent(child, contentWidth);
+      const childMarginBottomRaw = resolveLength(child.style.marginBottom, contentWidth, { auto: "zero" });
+      const collapsedMarginTop = effectiveMarginTop(child, contentWidth);
+      const collapsedMarginBottom = effectiveMarginBottom(child, contentWidth);
 
-      const gap = collapsedGapBetween(previousBottomMargin, childMarginTop, node.establishesBFC);
+      let gap = collapsedGapBetween(previousBottomMargin, collapsedMarginTop, node.establishesBFC);
+      if (collapseTopWithChildren && child === firstCollapsibleChild) {
+        gap -= topCollapseAmount;
+      }
       cursorY += gap;
 
       const originX = contentX + childMarginLeft;
@@ -134,9 +155,14 @@ export class BlockLayoutStrategy implements LayoutStrategy {
 
       // Now, use the authoritative borderBoxHeight set by the child's layout strategy
       // to advance the cursor.
-      child.box.marginBoxHeight = child.box.borderBoxHeight + childMarginTop + childMarginBottom;
-      previousBottomMargin = childMarginBottom;
-      cursorY = child.box.y + child.box.borderBoxHeight + childMarginBottom;
+      child.box.marginBoxHeight = child.box.borderBoxHeight + childMarginTopRaw + childMarginBottomRaw;
+      previousBottomMargin = collapsedMarginBottom;
+      let nextCursor = child.box.y + child.box.borderBoxHeight + childMarginBottomRaw;
+      if (collapseBottomWithChildren && child === lastCollapsibleChild) {
+        nextCursor -= bottomCollapseAmount;
+        previousBottomMargin = 0;
+      }
+      cursorY = nextCursor;
     }
 
     const measurement = measureInFlowContentWidth(node, contentWidth, contentX);

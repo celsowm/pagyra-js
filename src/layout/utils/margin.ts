@@ -1,3 +1,28 @@
+import { LayoutNode } from "../../dom/node.js";
+import { Display } from "../../css/enums.js";
+import { resolveLength } from "../../css/length.js";
+import { establishesBFC, inFlow, resolveWidthBlock } from "./node-math.js";
+
+const EPSILON = 1e-7;
+
+function isApproximatelyZero(value: number): boolean {
+  return Math.abs(value) < EPSILON;
+}
+
+function isBlockLevel(node: LayoutNode): boolean {
+  switch (node.style.display) {
+    case Display.Block:
+    case Display.ListItem:
+      return true;
+    default:
+      return false;
+  }
+}
+
+function isMarginCollapsibleChild(node: LayoutNode): boolean {
+  return node.style.display !== Display.None && inFlow(node) && isBlockLevel(node) && !establishesBFC(node);
+}
+
 export function collapseMarginSet(margins: readonly number[]): number {
   const positives: number[] = [];
   const negatives: number[] = [];
@@ -27,4 +52,89 @@ export function collapsedGapBetween(
     return prevBottomMargin + nextTopMargin;
   }
   return collapseMarginSet([prevBottomMargin, nextTopMargin]);
+}
+
+export function findFirstMarginCollapsibleChild(node: LayoutNode): LayoutNode | undefined {
+  for (const child of node.children) {
+    if (!inFlow(child) || child.style.display === Display.None) {
+      continue;
+    }
+    if (isMarginCollapsibleChild(child)) {
+      return child;
+    }
+    break;
+  }
+  return undefined;
+}
+
+export function findLastMarginCollapsibleChild(node: LayoutNode): LayoutNode | undefined {
+  for (let i = node.children.length - 1; i >= 0; i -= 1) {
+    const child = node.children[i];
+    if (!inFlow(child) || child.style.display === Display.None) {
+      continue;
+    }
+    if (isMarginCollapsibleChild(child)) {
+      return child;
+    }
+    break;
+  }
+  return undefined;
+}
+
+export function canCollapseMarginStart(node: LayoutNode, containingBlockWidth: number): boolean {
+  if (!isBlockLevel(node) || establishesBFC(node)) {
+    return false;
+  }
+  const paddingTop = resolveLength(node.style.paddingTop, containingBlockWidth, { auto: "zero" });
+  const borderTop = resolveLength(node.style.borderTop, containingBlockWidth, { auto: "zero" });
+  if (!isApproximatelyZero(paddingTop) || !isApproximatelyZero(borderTop)) {
+    return false;
+  }
+  return findFirstMarginCollapsibleChild(node) !== undefined;
+}
+
+export function canCollapseMarginEnd(node: LayoutNode, containingBlockWidth: number): boolean {
+  if (!isBlockLevel(node) || establishesBFC(node)) {
+    return false;
+  }
+  const paddingBottom = resolveLength(node.style.paddingBottom, containingBlockWidth, { auto: "zero" });
+  const borderBottom = resolveLength(node.style.borderBottom, containingBlockWidth, { auto: "zero" });
+  if (!isApproximatelyZero(paddingBottom) || !isApproximatelyZero(borderBottom)) {
+    return false;
+  }
+  return findLastMarginCollapsibleChild(node) !== undefined;
+}
+
+export function effectiveMarginTop(node: LayoutNode, containingBlockWidth: number): number {
+  const ownMargin = resolveLength(node.style.marginTop, containingBlockWidth, { auto: "zero" });
+  if (!isBlockLevel(node)) {
+    return ownMargin;
+  }
+  if (!canCollapseMarginStart(node, containingBlockWidth)) {
+    return ownMargin;
+  }
+  const firstChild = findFirstMarginCollapsibleChild(node);
+  if (!firstChild) {
+    return ownMargin;
+  }
+  const childContainingWidth = resolveWidthBlock(node, containingBlockWidth);
+  const childMargin = effectiveMarginTop(firstChild, childContainingWidth);
+  return collapseMarginSet([ownMargin, childMargin]);
+}
+
+export function effectiveMarginBottom(node: LayoutNode, containingBlockWidth: number): number {
+  const ownMargin = resolveLength(node.style.marginBottom, containingBlockWidth, { auto: "zero" });
+  if (!isBlockLevel(node)) {
+    return ownMargin;
+  }
+  if (!canCollapseMarginEnd(node, containingBlockWidth)) {
+    return ownMargin;
+  }
+  const lastChild = findLastMarginCollapsibleChild(node);
+  if (!lastChild) {
+    return ownMargin;
+  }
+  const childContainingWidth = resolveWidthBlock(node, containingBlockWidth);
+  const childMargin = effectiveMarginBottom(lastChild, childContainingWidth);
+  return collapseMarginSet([ownMargin, childMargin]);
 }

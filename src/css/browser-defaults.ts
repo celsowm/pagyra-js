@@ -195,8 +195,8 @@ export class ElementSpecificDefaults {
     // Headings
     h1: {
       display: Display.Block,
-      marginTop: 0,
-      marginBottom: 0,
+      marginTop: TypographyDefaults.getFontSize() * 2 * 0.67,
+      marginBottom: TypographyDefaults.getFontSize() * 2 * 0.67,
       marginLeft: 0,
       marginRight: 0,
       fontSize: TypographyDefaults.getFontSize() * 2,
@@ -207,8 +207,8 @@ export class ElementSpecificDefaults {
     },
     h2: {
       display: Display.Block,
-      marginTop: 0,
-      marginBottom: 0,
+      marginTop: TypographyDefaults.getFontSize() * 1.5 * 0.83,
+      marginBottom: TypographyDefaults.getFontSize() * 1.5 * 0.83,
       marginLeft: 0,
       marginRight: 0,
       fontSize: TypographyDefaults.getFontSize() * 1.5,
@@ -219,8 +219,8 @@ export class ElementSpecificDefaults {
     },
     h3: {
       display: Display.Block,
-      marginTop: 0,
-      marginBottom: 0,
+      marginTop: TypographyDefaults.getFontSize() * 1.17,
+      marginBottom: TypographyDefaults.getFontSize() * 1.17,
       marginLeft: 0,
       marginRight: 0,
       fontSize: TypographyDefaults.getFontSize() * 1.17,
@@ -231,8 +231,8 @@ export class ElementSpecificDefaults {
     },
     h4: {
       display: Display.Block,
-      marginTop: 0,
-      marginBottom: 0,
+      marginTop: TypographyDefaults.getFontSize() * 1.33,
+      marginBottom: TypographyDefaults.getFontSize() * 1.33,
       marginLeft: 0,
       marginRight: 0,
       fontSize: TypographyDefaults.getFontSize(),
@@ -243,8 +243,8 @@ export class ElementSpecificDefaults {
     },
     h5: {
       display: Display.Block,
-      marginTop: 0,
-      marginBottom: 0,
+      marginTop: TypographyDefaults.getFontSize() * 0.83 * 1.67,
+      marginBottom: TypographyDefaults.getFontSize() * 0.83 * 1.67,
       marginLeft: 0,
       marginRight: 0,
       fontSize: TypographyDefaults.getFontSize() * 0.83,
@@ -255,8 +255,8 @@ export class ElementSpecificDefaults {
     },
     h6: {
       display: Display.Block,
-      marginTop: 0,
-      marginBottom: 0,
+      marginTop: TypographyDefaults.getFontSize() * 0.67 * 2.33,
+      marginBottom: TypographyDefaults.getFontSize() * 0.67 * 2.33,
       marginLeft: 0,
       marginRight: 0,
       fontSize: TypographyDefaults.getFontSize() * 0.67,
@@ -269,8 +269,10 @@ export class ElementSpecificDefaults {
     // Paragraphs
     p: {
       display: Display.Block,
-      margin: 16,
+      marginTop: 16,
+      marginRight: 0,
       marginBottom: 16,
+      marginLeft: 0,
       fontSize: 16,
       lineHeight: TypographyDefaults.getLineHeight(),
       fontFamily: TypographyDefaults.getFontFamily(),
