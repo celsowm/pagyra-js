@@ -1,5 +1,6 @@
 import { JpegDecoder } from './jpeg-decoder.js';
 import { PngDecoder } from './png-decoder.js';
+import { WebpDecoder } from './webp-decoder.js';
 import type { ImageInfo, ImageDecodeOptions } from './types.js';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -138,23 +139,10 @@ export class ImageService {
   }
 
   /**
-   * Placeholder WebP decoder
+   * WebP decoder
    */
-  private decodeWebp(buffer: ArrayBuffer, options?: ImageDecodeOptions): ImageInfo {
-    // For now, return placeholder data
-    const width = options?.maxWidth || 100;
-    const height = options?.maxHeight || 100;
-    const pixelCount = width * height;
-    const imageData = new ArrayBuffer(pixelCount * 4); // RGBA
-    
-    return {
-      width,
-      height,
-      format: 'webp',
-      channels: 4,
-      bitsPerChannel: 8,
-      data: imageData
-    };
+  private async decodeWebp(buffer: ArrayBuffer, options?: ImageDecodeOptions): Promise<ImageInfo> {
+    return WebpDecoder.decode(buffer, options);
   }
 
   /**

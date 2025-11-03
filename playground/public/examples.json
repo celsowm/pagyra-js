@@ -166,5 +166,10 @@
     "id": "background-advanced-showcase",
     "label": "Advanced Background Techniques",
     "htmlUrl": "examples/background-advanced-showcase.html"
+  },
+  {
+    "id": "webp-example",
+    "label": "WebP Image Example",
+    "htmlUrl": "examples/webp-example.html"
   }
 ]
