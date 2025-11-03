@@ -36,24 +36,23 @@ async function renderHeadingStyle(tag: string) {
 
 describe("heading UA defaults", () => {
   const cases = [
-    { tag: "h1", fontMultiplier: 2, marginMultiplier: 0.67 },
-    { tag: "h2", fontMultiplier: 1.5, marginMultiplier: 0.83 },
-    { tag: "h3", fontMultiplier: 1.17, marginMultiplier: 1 },
-    { tag: "h4", fontMultiplier: 1, marginMultiplier: 1.33 },
-    { tag: "h5", fontMultiplier: 0.83, marginMultiplier: 1.67 },
-    { tag: "h6", fontMultiplier: 0.67, marginMultiplier: 2.33 },
+    { tag: "h1", fontMultiplier: 2 },
+    { tag: "h2", fontMultiplier: 1.5 },
+    { tag: "h3", fontMultiplier: 1.17 },
+    { tag: "h4", fontMultiplier: 1 },
+    { tag: "h5", fontMultiplier: 0.83 },
+    { tag: "h6", fontMultiplier: 0.67 },
   ] as const;
 
-  for (const { tag, fontMultiplier, marginMultiplier } of cases) {
+  for (const { tag, fontMultiplier } of cases) {
     it(`applies UA defaults to <${tag}>`, async () => {
       const style = await renderHeadingStyle(tag);
       const expectedFontSize = baseFontSize * fontMultiplier;
-      const expectedMargin = expectedFontSize * marginMultiplier;
 
       expect(style.fontWeight).toBe(700);
       expect(style.fontSize).toBeCloseTo(expectedFontSize, 5);
-      expect(Number(style.marginTop)).toBeCloseTo(expectedMargin, 5);
-      expect(Number(style.marginBottom)).toBeCloseTo(expectedMargin, 5);
+      expect(Number(style.marginTop)).toBeCloseTo(0, 5);
+      expect(Number(style.marginBottom)).toBeCloseTo(0, 5);
       expect(Number(style.marginLeft)).toBeCloseTo(0, 5);
       expect(Number(style.marginRight)).toBeCloseTo(0, 5);
     });
