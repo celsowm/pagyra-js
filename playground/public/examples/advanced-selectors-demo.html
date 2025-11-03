@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+ <title>Advanced CSS Selectors Demo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    
+    /* Attribute selectors */
+    [data-featured="true"] {
+      background-color: #ffeb3b;
+      padding: 10px;
+      border: 2px solid #ffc107;
+    }
+    
+    [title^="Hello"] {
+      color: #e91e63;
+      font-weight: bold;
+    }
+    
+    [class*="test"] {
+      border: 1px solid #4caf50;
+    }
+    
+    [data-id$="end"] {
+      text-decoration: underline;
+    }
+    
+    /* Pseudo-selectors */
+    li:first-child {
+      color: #2196f3;
+      font-weight: bold;
+    }
+    
+    li:last-child {
+      color: #9c27b0;
+      font-style: italic;
+    }
+    
+    li:nth-child(odd) {
+      background-color: #f5f5f5;
+    }
+    
+    li:nth-child(even) {
+      background-color: #e0e0e0;
+    }
+    
+    /* Combinators */
+    .container > .direct-child {
+      color: #ff5722;
+      font-weight: bold;
+    }
+    
+    .sibling + p {
+      color: #795548;
+    }
+    
+    .general-sibling ~ p {
+      border-left: 3px solid #9e9e9e;
+      padding-left: 10px;
+    }
+    
+    /* :not() pseudo-class */
+    p:not(.special) {
+      background-color: #ffebee;
+    }
+    
+    div:not(#main) {
+      margin: 10px 0;
+      padding: 5px;
+      background-color: #f1f8e9;
+    }
+  </style>
+</head>
+<body>
+ <h1>Advanced CSS Selectors Demo</h1>
+  
+  <h2>Attribute Selectors</h2>
+  <p data-featured="true">This paragraph has data-featured="true" and is styled with a yellow background</p>
+ <p title="Hello World">This paragraph has title starting with "Hello" and is styled in pink</p>
+  <p class="mytestclass">This paragraph has a class containing "test" and has a green border</p>
+  <p data-id="myend">This paragraph has data-id ending with "end" and is underlined</p>
+  
+  <h2>Pseudo-selectors</h2>
+  <ul>
+    <li>First item (should be blue and bold)</li>
+    <li>Second item (should have gray background)</li>
+    <li>Third item (should have light gray background)</li>
+    <li>Fourth item (should have gray background)</li>
+    <li>Last item (should be purple and italic)</li>
+  </ul>
+  
+  <h2>Combinators</h2>
+  <div class="container">
+    <p class="direct-child">Direct child of container (should be orange and bold)</p>
+    <div>
+      <p>Not a direct child of container</p>
+    </div>
+  </div>
+  
+  <p class="sibling">This paragraph has the "sibling" class</p>
+  <p>The next paragraph is an adjacent sibling (should be brown)</p>
+  
+  <div class="general-sibling">General sibling container</div>
+  <p>First general sibling paragraph</p>
+  <p>Second general sibling paragraph (should have gray left border)</p>
+  <p>Third general sibling paragraph (should have gray left border)</p>
+  
+  <h2>:not() Pseudo-class</h2>
+  <p>This paragraph is not special (should have light red background)</p>
+ <p class="special">This paragraph is special (should NOT have light red background)</p>
+  <div>This div is not #main (should have light green background)</div>
+  <div id="main">This div IS #main (should NOT have light green background)</div>
+</body>
+</html>

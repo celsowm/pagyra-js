@@ -1,4 +1,5 @@
 import * as cssParser from "css";
+import { createSelectorMatcher } from "../../css/selectors/matcher.js";
 
 export type DomEl = any; // adapt to your DOM type, e.g. HTMLElement or any
 
@@ -39,51 +40,13 @@ export function buildCssRules(cssText: string): CssRuleEntry[] {
     for (const selector of selectors) {
       const matcher = createSelectorMatcher(selector.trim());
       if (!matcher) {
+        console.warn(`Invalid CSS selector: ${selector.trim()}`);
         continue;
       }
       result.push({ selector, declarations: { ...declarations }, match: matcher });
     }
   }
   return result;
-}
-
-function createSelectorMatcher(selector: string): ((element: DomEl) => boolean) | null {
-  if (!selector || selector.includes(" ")) {
-    return null;
-  }
-
-  let working = selector;
-  let id: string | null = null;
-  const classes: string[] = [];
-
-  const idMatch = working.match(/#[^.#]+/g);
-  if (idMatch) {
-    id = idMatch[0].slice(1);
-    working = working.replace(idMatch[0], "");
-  }
-
-  const classMatches = working.match(/\.[^.#]+/g) ?? [];
-  for (const cls of classMatches) {
-    classes.push(cls.slice(1));
-    working = working.replace(cls, "");
-  }
-
-  const tag = working.length > 0 ? working.toLowerCase() : null;
-
-  return (element: DomEl) => {
-    if (tag && element.tagName.toLowerCase() !== tag) {
-      return false;
-    }
-    if (id && element.id !== id) {
-      return false;
-    }
-    for (const cls of classes) {
-      if (!element.classList.contains(cls)) {
-        return false;
-      }
-    }
-    return true;
-  };
 }
 
 export function parseCss(cssText: string): CssRuleEntry[] {

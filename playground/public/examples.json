@@ -142,5 +142,10 @@
     "htmlUrl": "examples/header-footer-example.html",
     "headerUrl": "examples/header-example.html",
     "footerUrl": "examples/footer-example.html"
+  },
+  {
+    "id": "advanced-selectors-demo",
+    "label": "Advanced CSS Selectors Demo",
+    "htmlUrl": "examples/advanced-selectors-demo.html"
   }
 ]
