@@ -526,6 +526,7 @@ export class BrowserDefaults {
       // Typography
       fontFamily: TypographyDefaults.getFontFamily(),
       fontSize: TypographyDefaults.getFontSize(),
+      fontStyle: "normal",
       fontWeight: TypographyDefaults.getFontWeight(),
       lineHeight: TypographyDefaults.getLineHeight(),
       color: TypographyDefaults.getColor(),

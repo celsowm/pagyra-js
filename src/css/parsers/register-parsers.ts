@@ -78,7 +78,7 @@ import {
 } from "./dimension-parser.js";
 
 // Font
-import { parseFontFamily, parseFontWeight } from "./font-parser.js";
+import { parseFontFamily, parseFontStyle, parseFontWeight } from "./font-parser.js";
 
 // Text
 import {
@@ -184,6 +184,7 @@ export function registerAllPropertyParsers(): void {
 
   // Font
   registerPropertyParser("font-family", parseFontFamily);
+  registerPropertyParser("font-style", parseFontStyle);
   registerPropertyParser("font-weight", parseFontWeight);
 
   // Text

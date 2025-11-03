@@ -139,6 +139,7 @@ export function computeStyleForElement(
     fontSize: parentStyle.fontSize,
     lineHeight: parentStyle.lineHeight,
     fontFamily: parentStyle.fontFamily ?? mergedDefaults.fontFamily,
+    fontStyle: parentStyle.fontStyle ?? mergedDefaults.fontStyle,
     fontWeight: parentStyle.fontWeight ?? mergedDefaults.fontWeight,
     textDecorationLine: parentStyle.textDecorationLine ?? mergedDefaults.textDecorationLine,
   };
@@ -216,6 +217,7 @@ export function computeStyleForElement(
   // 4. CSS rules
   // 5. Inline styles (already applied in aggregated)
   const elementDefinesFontWeight = elementDefaults.fontWeight !== undefined;
+  const elementDefinesFontStyle = elementDefaults.fontStyle !== undefined;
   const elementDefinesFontSize = mergedDefaults.fontSize !== baseDefaults.fontSize;
   const elementDefinesLineHeight = mergedDefaults.lineHeight !== baseDefaults.lineHeight;
 
@@ -227,6 +229,7 @@ export function computeStyleForElement(
     fontSize: elementDefinesFontSize ? mergedDefaults.fontSize : inherited.fontSize,
     lineHeight: elementDefinesLineHeight ? mergedDefaults.lineHeight : inherited.lineHeight,
     fontFamily: inherited.fontFamily,
+    fontStyle: elementDefinesFontStyle ? mergedDefaults.fontStyle : inherited.fontStyle,
     fontWeight: elementDefinesFontWeight ? mergedDefaults.fontWeight : normalizeFontWeight(inherited.fontWeight),
     // Apply computed values
     display,
@@ -242,6 +245,7 @@ export function computeStyleForElement(
   if (styleInit.fontSize !== undefined) styleOptions.fontSize = styleInit.fontSize;
   if (styleInit.lineHeight !== undefined) styleOptions.lineHeight = styleInit.lineHeight;
   if (styleInit.fontFamily !== undefined) styleOptions.fontFamily = styleInit.fontFamily;
+  if (styleInit.fontStyle !== undefined) styleOptions.fontStyle = styleInit.fontStyle;
   if (styleInit.fontWeight !== undefined) styleOptions.fontWeight = normalizeFontWeight(styleInit.fontWeight);
   if (styleInit.marginTop !== undefined) styleOptions.marginTop = styleInit.marginTop;
   if (styleInit.marginRight !== undefined) styleOptions.marginRight = styleInit.marginRight;
@@ -312,9 +316,10 @@ export function computeStyleForElement(
       mergedFontStyle: mergedDefaults.fontStyle,
       finalFontStyle: styleOptions.fontStyle
     };
-    console.log("🔍 FONTSTYLE DEBUG:", debugInfo);
+    console.log("[FONTSTYLE] DEBUG:", debugInfo);
     log("STYLE", "DEBUG", "element fontStyle", debugInfo);
   }
 
   return new ComputedStyle(styleOptions);
 }
+

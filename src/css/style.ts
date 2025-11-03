@@ -101,6 +101,7 @@ export interface StyleAccumulator {
   fontSize?: number;
   lineHeight?: number;
   fontFamily?: string;
+  fontStyle?: string;
   fontWeight?: number;
   borderModel?: BorderModel;
   maxWidth?: LengthLike;

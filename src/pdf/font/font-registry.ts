@@ -161,44 +161,46 @@ export class FontRegistry {
 
   private familyWeightKey(normalizedFamily: string, weight: number, style?: string): string {
     const familyToken = normalizedFamily && normalizedFamily.length > 0 ? normalizedFamily : "__default";
-    const styleToken = style && style.toLowerCase() === "italic" ? "_italic" : "";
+    const styleToken = isItalicStyle(style) ? "_italic" : "";
     return `${familyToken}@${fontWeightCacheKey(weight)}${styleToken}`;
   }
 
   private applyWeightToBaseFont(baseFont: string, weight: number, style?: string): string {
+    const wantsItalic = isItalicStyle(style);
+    const wantsBold = isBoldFontWeight(weight);
+
+    const base14Family = detectBase14Family(baseFont);
+    if (base14Family) {
+      const variants = BASE14_FAMILY_VARIANTS[base14Family];
+      const currentVariant = classifyBase14Variant(baseFont);
+      const targetVariant: Base14Variant =
+        wantsBold && wantsItalic ? "boldItalic"
+        : wantsBold ? "bold"
+        : wantsItalic ? "italic"
+        : "normal";
+
+      if (currentVariant === targetVariant) {
+        return baseFont;
+      }
+      return variants[targetVariant];
+    }
+
     let result = baseFont;
-    
-    // Apply font style (italic)
-    if (style && style.toLowerCase() === "italic") {
-      if (!/-italic$/i.test(result)) {
-        result = result + "-Italic";
-      }
+
+    if (wantsItalic && !/-italic$/i.test(result) && !/-oblique$/i.test(result)) {
+      result = `${result}-Italic`;
     }
-    
-    // Apply font weight (bold)
-    if (isBoldFontWeight(weight)) {
-      if (!/-bold$/i.test(result)) {
-        // Remove existing italic for bold variants, then re-add if needed
-        if (/-italic$/i.test(result)) {
-          result = result.replace(/-italic$/i, "");
-        }
-        switch (result) {
-          case "Helvetica":
-            return style && style.toLowerCase() === "italic" ? "Helvetica-BoldItalic" : "Helvetica-Bold";
-          case "Times-Roman":
-            return style && style.toLowerCase() === "italic" ? "Times-BoldItalic" : "Times-Bold";
-          case "Courier":
-            return style && style.toLowerCase() === "italic" ? "Courier-BoldItalic" : "Courier-Bold";
-          default:
-            if (style && style.toLowerCase() === "italic") {
-              return result + "-BoldItalic";
-            } else {
-              return result + "-Bold";
-            }
-        }
+
+    if (wantsBold && !/-bold$/i.test(result)) {
+      if (/-italic$/i.test(result)) {
+        result = result.replace(/-italic$/i, "");
+      } else if (/-oblique$/i.test(result)) {
+        result = result.replace(/-oblique$/i, "");
       }
+
+      return wantsItalic ? `${result}-BoldItalic` : `${result}-Bold`;
     }
-    
+
     return result;
   }
 
@@ -304,6 +306,37 @@ const GENERIC_FAMILIES = new Map<string, string>([
   ["fantasy", "Helvetica"],
 ]);
 
+const BASE14_FAMILY_VARIANTS = {
+  "Helvetica": {
+    normal: "Helvetica",
+    italic: "Helvetica-Oblique",
+    bold: "Helvetica-Bold",
+    boldItalic: "Helvetica-BoldOblique",
+  },
+  "Times-Roman": {
+    normal: "Times-Roman",
+    italic: "Times-Italic",
+    bold: "Times-Bold",
+    boldItalic: "Times-BoldItalic",
+  },
+  "Courier": {
+    normal: "Courier",
+    italic: "Courier-Oblique",
+    bold: "Courier-Bold",
+    boldItalic: "Courier-BoldOblique",
+  },
+} as const;
+
+type Base14Family = keyof typeof BASE14_FAMILY_VARIANTS;
+type Base14Variant = "normal" | "italic" | "bold" | "boldItalic";
+
+const BASE14_VARIANT_LOOKUP = new Map<string, { family: Base14Family; variant: Base14Variant }>();
+for (const [family, variants] of Object.entries(BASE14_FAMILY_VARIANTS) as Array<[Base14Family, Record<Base14Variant, string>]>) {
+  for (const [variant, name] of Object.entries(variants) as Array<[Base14Variant, string]>) {
+    BASE14_VARIANT_LOOKUP.set(name.toLowerCase(), { family, variant });
+  }
+}
+
 function parseFamilyList(value: string | undefined): string[] {
   if (!value) {
     return [];
@@ -312,6 +345,24 @@ function parseFamilyList(value: string | undefined): string[] {
     .split(",")
     .map((token) => stripQuotes(token.trim()))
     .filter((token) => token.length > 0);
+}
+
+function isItalicStyle(style: string | undefined): boolean {
+  if (!style) {
+    return false;
+  }
+  const normalized = style.toLowerCase();
+  return normalized === "italic" || normalized === "oblique";
+}
+
+function detectBase14Family(baseFont: string): Base14Family | null {
+  const entry = BASE14_VARIANT_LOOKUP.get(baseFont.toLowerCase());
+  return entry ? entry.family : null;
+}
+
+function classifyBase14Variant(baseFont: string): Base14Variant {
+  const entry = BASE14_VARIANT_LOOKUP.get(baseFont.toLowerCase());
+  return entry ? entry.variant : "normal";
 }
 
 function normalizeToken(value: string | undefined): string {

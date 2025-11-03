@@ -111,6 +111,38 @@ describe("bold text support", () => {
   });
 });
 
+describe("italic text support", () => {
+  it("selects italic base14 variants when requested", () => {
+    const doc = new PdfDocument();
+    const registry = new FontRegistry(doc, { fontFaces: [] });
+
+    const normal = registry.ensureFontResourceSync(undefined, 400);
+    const italic = registry.ensureFontResourceSync(undefined, 400, "italic");
+
+    expect(normal.baseFont).toBe("Helvetica");
+    expect(italic.baseFont).toBe("Helvetica-Oblique");
+  });
+
+  it("applies font-style from CSS rules into render runs", async () => {
+    const html = `
+      <ul>
+        <li>First item</li>
+        <li>Last item (should be italic)</li>
+      </ul>
+    `;
+    const css = `
+      li:last-child { font-style: italic; }
+    `;
+
+    const runs = await renderRuns(html, css);
+    const lastRun = runs.find((run) => run.text.includes("Last item"));
+    const firstRun = runs.find((run) => run.text.includes("First item"));
+
+    expect(lastRun?.fontStyle).toBe("italic");
+    expect(firstRun?.fontStyle ?? "normal").toBe("normal");
+  });
+});
+
 describe("text decorations", () => {
   it("marks <s> runs as line-through", async () => {
     const runs = await renderRuns("<p><s>Removed</s> text</p>");
