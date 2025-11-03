@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Background Techniques</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .example {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+
+        .description {
+            color: #555;
+            margin-bottom: 12px;
+        }
+
+        .bg-box {
+            width: 300px;
+            height: 200px;
+            border: 2px solid #333;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+        }
+
+        .bg-multiple {
+            background-image:
+                url('../images/dice.png'),
+                url('../images/duck.jpg');
+            background-size: 50px 50px, cover;
+            background-repeat: no-repeat, no-repeat;
+            background-position: top left, center;
+        }
+
+        .bg-with-color {
+            background-image: url('../images/duck.jpg');
+            background-color: rgba(255, 0, 0, 0.3);
+            background-size: cover;
+            background-blend-mode: multiply;
+        }
+
+        .bg-png {
+            background-image: url('../images/dice.png');
+            background-size: 100px 100px;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Advanced Background Techniques</h1>
+    <p class="description">
+        A few extra patterns that combine multiple background layers, color blends, and PNG transparency.
+    </p>
+
+    <div class="example">
+        <h2>Multiple Backgrounds</h2>
+        <div class="bg-box bg-multiple">Dice + Duck</div>
+    </div>
+
+    <div class="example">
+        <h2>Color Overlay</h2>
+        <div class="bg-box bg-with-color">Red overlay</div>
+    </div>
+
+    <div class="example">
+        <h2>PNG Transparency</h2>
+        <div class="bg-box bg-png">PNG background</div>
+    </div>
+</body>
+</html>

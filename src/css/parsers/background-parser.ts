@@ -1,6 +1,37 @@
 import type { BackgroundLayer, BackgroundSize } from "../background-types.js";
 import { parseLinearGradient, type LinearGradient } from "./gradient-parser.js";
 
+function normalizeBackgroundSizeKeyword(value: string): "cover" | "contain" | "auto" | undefined {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const matchesKeyword = (keyword: "cover" | "contain" | "auto") => {
+    return (
+      trimmed === keyword ||
+      trimmed.startsWith(`${keyword} `) ||
+      trimmed.startsWith(`${keyword}(`)
+    );
+  };
+
+  if (matchesKeyword("cover")) {
+    return "cover";
+  }
+  if (matchesKeyword("contain")) {
+    return "contain";
+  }
+  if (matchesKeyword("auto")) {
+    return "auto";
+  }
+  return undefined;
+}
+
+function normalizeBackgroundSizeComponent(value: string): string {
+  const keyword = normalizeBackgroundSizeKeyword(value);
+  return keyword ?? value.trim();
+}
+
 /**
  * Ensures background layers array exists and returns the top renderable layer
  */
@@ -194,17 +225,24 @@ function parseBackgroundSizeValue(value: string): BackgroundSize {
   // Split on '/' as independent token, not within tokens
   const slashIndex = value.indexOf('/');
   if (slashIndex === -1) {
-    const v = value.trim().toLowerCase();
-    if (v === "cover" || v === "contain" || v === "auto") {
-      return v;
+    const keyword = normalizeBackgroundSizeKeyword(value);
+    if (keyword) {
+      return keyword;
     }
-    return { width: value.trim(), height: "auto" };
+    const tokens = value.trim().split(/\s+/).filter(Boolean);
+    if (tokens.length === 1) {
+      return { width: normalizeBackgroundSizeComponent(tokens[0]), height: "auto" };
+    }
+    return {
+      width: normalizeBackgroundSizeComponent(tokens[0]),
+      height: normalizeBackgroundSizeComponent(tokens[1] ?? "auto"),
+    };
   } else {
     const width = value.substring(0, slashIndex).trim();
     const height = value.substring(slashIndex + 1).trim();
     return {
-      width: width || "auto",
-      height: height || "auto"
+      width: width ? normalizeBackgroundSizeComponent(width) : "auto",
+      height: height ? normalizeBackgroundSizeComponent(height) : "auto"
     };
   }
 }
@@ -262,16 +300,23 @@ function isRepeatKeyword(value: string): boolean {
 export function applyBackgroundSize(style: any, value: string): void {
   ensureLayers(style);
   const layer = getOrCreateTopRenderableLayer(style);
-  const tokens = value.trim().split(/\s+/);
+  const keyword = normalizeBackgroundSizeKeyword(value);
   let size: BackgroundSize;
 
-  if (tokens.length === 1) {
-    const v = tokens[0].toLowerCase();
-    size = v === "cover" || v === "contain" || v === "auto"
-      ? v
-      : { width: tokens[0], height: "auto" };
+  if (keyword) {
+    size = keyword;
   } else {
-    size = { width: tokens[0], height: tokens[1] ?? "auto" };
+    const tokens = value.trim().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) {
+      size = "auto";
+    } else if (tokens.length === 1) {
+      size = { width: normalizeBackgroundSizeComponent(tokens[0]), height: "auto" };
+    } else {
+      size = {
+        width: normalizeBackgroundSizeComponent(tokens[0]),
+        height: normalizeBackgroundSizeComponent(tokens[1] ?? "auto"),
+      };
+    }
   }
 
   if (layer.kind === "image") {

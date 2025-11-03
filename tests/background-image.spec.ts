@@ -52,4 +52,36 @@ describe("Background images", () => {
     expect(imageLayer.repeat).toBe("repeat");
     expect(imageLayer.size).toBe("cover");
   });
+
+  const sizeCases: Array<[string, "cover" | "contain" | "auto" | { width: string; height: string }]> = [
+    ["cover", "cover"],
+    ["Cover", "cover"],
+    ["Cover (fills entire area)", "cover"],
+    ["contain", "contain"],
+    ["Contain (fits within area)", "contain"],
+    ["auto", "auto"],
+    ["Auto (original size)", "auto"],
+    ["50% 50%", { width: "50%", height: "50%" }],
+  ];
+
+  for (const [value, expected] of sizeCases) {
+    it(`normalizes background-size value "${value}"`, async () => {
+      const root = await renderElement(
+        '<div class="with-bg">conteúdo</div>',
+        `.with-bg { width: 120px; height: 80px; background-image: url(example.png); background-size: ${value}; }`
+      );
+      const div = findNode(root, "div");
+      const imageLayer = div.style.backgroundLayers?.find((layer) => layer.kind === "image");
+      expect(imageLayer).toBeDefined();
+      if (!imageLayer) {
+        return;
+      }
+
+      if (typeof expected === "string") {
+        expect(imageLayer.size).toBe(expected);
+      } else {
+        expect(imageLayer.size).toEqual(expected);
+      }
+    });
+  }
 });

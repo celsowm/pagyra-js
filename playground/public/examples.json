@@ -129,8 +129,7 @@
     "id": "svg-images-clipping",
     "label": "SVG Images and Clipping",
     "htmlUrl": "examples/svg-images-clipping.html"
-  }
-  ,
+  },
   {
     "id": "svg-radial-transform-demo",
     "label": "SVG Radial Gradient Transform Demo",
@@ -149,8 +148,23 @@
     "htmlUrl": "examples/advanced-selectors-demo.html"
   },
   {
-    "id": "background-image-showcase",
-    "label": "Background Image Showcase",
-    "htmlUrl": "examples/background-image-showcase.html"
+    "id": "background-size-showcase",
+    "label": "Background Size Examples",
+    "htmlUrl": "examples/background-size-showcase.html"
+  },
+  {
+    "id": "background-position-showcase",
+    "label": "Background Position Examples",
+    "htmlUrl": "examples/background-position-showcase.html"
+  },
+  {
+    "id": "background-repeat-showcase",
+    "label": "Background Repeat Examples",
+    "htmlUrl": "examples/background-repeat-showcase.html"
+  },
+  {
+    "id": "background-advanced-showcase",
+    "label": "Advanced Background Techniques",
+    "htmlUrl": "examples/background-advanced-showcase.html"
   }
 ]

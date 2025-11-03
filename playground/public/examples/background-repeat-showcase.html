@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Background Repeat Examples</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .example {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+
+        .description {
+            color: #555;
+            margin-bottom: 12px;
+        }
+
+        .bg-box {
+            width: 300px;
+            height: 200px;
+            border: 2px solid #333;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+            background-image: url('../images/duck.jpg');
+            background-size: 80px 80px;
+        }
+
+        .bg-repeat {
+            background-repeat: repeat;
+        }
+
+        .bg-no-repeat {
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        .bg-repeat-x {
+            background-repeat: repeat-x;
+        }
+
+        .bg-repeat-y {
+            background-repeat: repeat-y;
+        }
+    </style>
+</head>
+<body>
+    <h1>Background Repeat Examples</h1>
+    <p class="description">
+        Highlights how different <code>background-repeat</code> values tile an image inside a container.
+    </p>
+
+    <div class="example">
+        <h2>Repeat</h2>
+        <div class="bg-box bg-repeat">Repeat (tiles)</div>
+    </div>
+
+    <div class="example">
+        <h2>No Repeat</h2>
+        <div class="bg-box bg-no-repeat">No repeat</div>
+    </div>
+
+    <div class="example">
+        <h2>Repeat X</h2>
+        <div class="bg-box bg-repeat-x">Repeat horizontally</div>
+    </div>
+
+    <div class="example">
+        <h2>Repeat Y</h2>
+        <div class="bg-box bg-repeat-y">Repeat vertically</div>
+    </div>
+</body>
+</html>
