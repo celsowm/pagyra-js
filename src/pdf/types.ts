@@ -178,6 +178,7 @@ export interface Positioning {
 }
 
 export interface LayoutPageTree {
+  root: RenderBox;
   paintOrder: RenderBox[];
   floatLayerOrder: RenderBox[];
   flowContentOrder: RenderBox[];

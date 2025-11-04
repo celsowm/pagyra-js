@@ -366,9 +366,11 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
   // Handle background (colors, gradients, images)
   const background = handleBackground(node, borderBox, paddingBox, contentBox);
   
+  const position = node.style.position;
   const zIndex = typeof node.style.zIndex === "number" ? node.style.zIndex : 0;
-  const establishesStackingContext =
-    typeof node.style.zIndex === "number" && node.style.position !== Position.Static;
+  const opacity = typeof node.style.opacity === "number" ? node.style.opacity : 1;
+  const isPositioned = position !== Position.Static;
+  const establishesStackingContext = (isPositioned && typeof node.style.zIndex === "number") || opacity < 1;
 
   return {
     id,
@@ -392,7 +394,7 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
       left: resolveLength(node.style.borderLeft, Math.max(node.box.contentWidth, 0), { auto: "zero" }),
     },
     borderRadius,
-    opacity: 1,
+    opacity,
     overflow: mapOverflow(node.style.overflowX ?? OverflowMode.Visible),
     textRuns,
     decorations: decorations ?? {},

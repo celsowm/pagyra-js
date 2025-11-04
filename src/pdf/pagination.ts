@@ -34,7 +34,13 @@ export function paginateTree(root: RenderBox, options: PaginationOptions): Layou
 
     const decorations: DecorationCommand[] = []; // Placeholder until decoration pagination is implemented
 
+    const pageRoot: RenderBox = {
+      ...root,
+      children: paintOrder,
+    };
+
     pages.push({
+      root: pageRoot,
       paintOrder,
       floatLayerOrder: [],
       flowContentOrder,
