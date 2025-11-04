@@ -126,6 +126,7 @@ export interface StyleAccumulator {
   right?: LengthLike;
   bottom?: LengthLike;
   left?: LengthLike;
+  opacity?: number;
 }
 
 export interface StyleProperties {
@@ -210,6 +211,7 @@ export interface StyleProperties {
   breakInside: string;
   widows: number;
   orphans: number;
+  opacity: number;
 }
 
 const defaultStyle = BrowserDefaults.createBaseDefaults() as StyleProperties;
@@ -296,6 +298,7 @@ export class ComputedStyle implements StyleProperties {
   breakInside: string;
   widows: number;
   orphans: number;
+  opacity: number;
 
   constructor(init?: Partial<StyleProperties>) {
     const data: StyleProperties = {
@@ -386,6 +389,7 @@ export class ComputedStyle implements StyleProperties {
     this.breakInside = data.breakInside;
     this.widows = data.widows;
     this.orphans = data.orphans;
+    this.opacity = data.opacity;
     this.textAlign = init?.textAlign ?? undefined;
     this.verticalAlign = init?.verticalAlign ?? undefined;
     this.textDecorationLine = init?.textDecorationLine ?? defaultStyle.textDecorationLine;
