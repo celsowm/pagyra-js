@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body {
+    margin: 0;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+  }
+
+  .container {
+    position: relative;
+    width: 400px;
+    height: 300px;
+    border: 1px solid #ccc;
+    margin: 20px;
+  }
+
+  .box {
+    position: absolute;
+    width: 150px;
+    height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: white;
+    border: 2px solid black;
+  }
+
+  .red-box {
+    background-color: red;
+    top: 20px;
+    left: 20px;
+    z-index: 1;
+  }
+
+  .blue-box {
+    background-color: blue;
+    top: 50px;
+    left: 50px;
+    z-index: 2;
+  }
+
+  .green-box {
+    background-color: green;
+    top: 80px;
+    left: 80px;
+    z-index: 3;
+  }
+
+
+
+  .info {
+    margin: 20px;
+    padding: 15px;
+    background-color: #f5f5f5;
+    border-radius: 5px;
+  }
+
+  .info h3 {
+    margin-top: 0;
+    color: #333;
+  }
+
+  .info p {
+    margin: 5px 0;
+  }
+</style>
+</head>
+<body>
+
+<h1>Z-Index Demo</h1>
+
+<div class="info">
+  <h3>Z-Index Stacking Order</h3>
+  <p><strong>Red box:</strong> z-index: 1 (bottom)</p>
+  <p><strong>Blue box:</strong> z-index: 2 (middle)</p>
+  <p><strong>Green box:</strong> z-index: 3 (top)</p>
+</div>
+
+<div class="container">
+  <div class="box red-box">Red<br/>z-index: 1</div>
+  <div class="box blue-box">Blue<br/>z-index: 2</div>
+  <div class="box green-box">Green<br/>z-index: 3</div>
+</div>
+
+<div class="info">
+  <p>The green box appears on top, followed by blue, then red.</p>
+</div>
+
+</body>
+</html>

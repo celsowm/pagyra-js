@@ -366,6 +366,10 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
   // Handle background (colors, gradients, images)
   const background = handleBackground(node, borderBox, paddingBox, contentBox);
   
+  const zIndex = typeof node.style.zIndex === "number" ? node.style.zIndex : 0;
+  const establishesStackingContext =
+    typeof node.style.zIndex === "number" && node.style.position !== Position.Static;
+
   return {
     id,
     tagName: node.tagName,
@@ -394,8 +398,8 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
     decorations: decorations ?? {},
     textShadows: [],
     boxShadows: resolveBoxShadows(node, textColor ?? DEFAULT_TEXT_COLOR),
-    establishesStackingContext: false,
-    zIndexComputed: 0,
+    establishesStackingContext,
+    zIndexComputed: zIndex,
     positioning: mapPosition(node.style),
     children,
     links: [],

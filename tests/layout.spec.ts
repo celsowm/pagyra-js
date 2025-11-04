@@ -5,6 +5,7 @@ import {
   FloatMode,
   LayoutNode,
   layoutTree,
+  Position,
 } from "../src/index.js";
 
 describe("layout engine", () => {
@@ -110,5 +111,46 @@ describe("layout engine", () => {
     expect(paragraph.box.contentHeight).toBeGreaterThan(0);
     expect(inline.box.contentHeight).toBeGreaterThan(0);
     expect(inline.box.y).toBeGreaterThanOrEqual(paragraph.box.y);
+  });
+
+  it("positions absolutely positioned elements using inset offsets", () => {
+    const root = new LayoutNode(new ComputedStyle());
+
+    const absoluteLeftTop = new LayoutNode(
+      new ComputedStyle({
+        display: Display.Block,
+        position: Position.Absolute,
+        width: 120,
+        height: 80,
+        left: 30,
+        top: 40,
+      }),
+    );
+
+    const absoluteRightBottom = new LayoutNode(
+      new ComputedStyle({
+        display: Display.Block,
+        position: Position.Absolute,
+        width: 60,
+        height: 40,
+        right: 10,
+        bottom: 20,
+      }),
+    );
+
+    root.appendChild(absoluteLeftTop);
+    root.appendChild(absoluteRightBottom);
+
+    layoutTree(root, { width: 300, height: 200 });
+
+    expect(absoluteLeftTop.box.x).toBeCloseTo(30);
+    expect(absoluteLeftTop.box.y).toBeCloseTo(40);
+    expect(absoluteLeftTop.box.contentWidth).toBeCloseTo(120);
+    expect(absoluteLeftTop.box.contentHeight).toBeCloseTo(80);
+
+    expect(absoluteRightBottom.box.x).toBeCloseTo(230);
+    expect(absoluteRightBottom.box.y).toBeCloseTo(140);
+    expect(absoluteRightBottom.box.contentWidth).toBeCloseTo(60);
+    expect(absoluteRightBottom.box.contentHeight).toBeCloseTo(40);
   });
 });

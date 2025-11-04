@@ -237,6 +237,11 @@ export function computeStyleForElement(
     borderModel: styleInit.borderModel ?? mergedDefaults.borderModel,
   };
 
+  if (styleInit.position !== undefined) styleOptions.position = styleInit.position;
+  if (styleInit.top !== undefined) styleOptions.top = styleInit.top;
+  if (styleInit.right !== undefined) styleOptions.right = styleInit.right;
+  if (styleInit.bottom !== undefined) styleOptions.bottom = styleInit.bottom;
+  if (styleInit.left !== undefined) styleOptions.left = styleInit.left;
   // Apply specific overrides from CSS/inline styles
   if (styleInit.color !== undefined) styleOptions.color = styleInit.color;
   if (styleInit.backgroundLayers !== undefined) styleOptions.backgroundLayers = styleInit.backgroundLayers;

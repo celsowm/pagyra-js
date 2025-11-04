@@ -6,45 +6,35 @@ import type { Part, Simple, AttrCond, AttrOp, Pseudo } from "./types.js";
  * Combinadores: ' ' (desc), '>' (filho), '+' (irmão adjacente), '~' (irmãos)
  */
 export function parseSelector(selector: string): Part[] | null {
-  console.log(`[SELECTOR DEBUG] Parsing selector: ${selector}`);
   if (!selector?.trim()) {
-    console.log(`[SELECTOR DEBUG] Selector is empty or null`);
     return null;
   }
 
   function parseNth(expr: string): { a: number; b: number } | null {
-    console.log(`[SELECTOR DEBUG] Parsing nth expression: ${expr}`);
     const s = expr.replace(/\s+/g, '');
     if (s === 'odd') {
-      console.log(`[SELECTOR DEBUG] nth expression is 'odd': { a: 2, b: 1 }`);
       return { a: 2, b: 1 };
     }
     if (s === 'even') {
-      console.log(`[SELECTOR DEBUG] nth expression is 'even': { a: 2, b: 0 }`);
       return { a: 2, b: 0 };
     }
     if (/^[+-]?\d+$/.test(s)) {
       const result = { a: 0, b: parseInt(s, 10) };
-      console.log(`[SELECTOR DEBUG] nth expression is number:`, result);
       return result;
     }
     const m = /^([+-]?\d*)n([+-]?\d+)?$/.exec(s);
     if (!m) {
-      console.log(`[SELECTOR DEBUG] nth expression doesn't match pattern`);
       return null;
     }
     const a = m[1] === '' || m[1] === '+' ? 1 : (m[1] === '-' ? -1 : parseInt(m[1], 10));
     const b = m[2] ? parseInt(m[2], 10) : 0;
     const result = { a, b };
-    console.log(`[SELECTOR DEBUG] nth expression parsed:`, result);
     return result;
   }
 
   function parseSimpleToken(tok: string): Simple | null {
-    console.log(`[SELECTOR DEBUG] Parsing simple token: ${tok}`);
     let rest = tok.trim();
     if (!rest) {
-      console.log(`[SELECTOR DEBUG] Token is empty after trim`);
       return null;
     }
 
@@ -67,7 +57,6 @@ export function parseSelector(selector: string): Part[] | null {
         if (!m) break;
         id = m[0].slice(1);
         rest = rest.slice(m[0].length);
-        console.log(`[SELECTOR DEBUG] Parsed ID: ${id}`);
         continue;
       }
       if (ch === '.') {
@@ -75,7 +64,6 @@ export function parseSelector(selector: string): Part[] | null {
         if (!m) break;
         classes.push(m[0].slice(1));
         rest = rest.slice(m[0].length);
-        console.log(`[SELECTOR DEBUG] Parsed class: ${m[0].slice(1)}`);
         continue;
       }
       if (ch === '[') {
@@ -87,21 +75,19 @@ export function parseSelector(selector: string): Part[] | null {
         const attr = op === 'exists' ? { name, op } : { name, op, value: val! };
         attrs.push(attr);
         rest = rest.slice(m[0].length);
-        console.log(`[SELECTOR DEBUG] Parsed attribute:`, attr);
         continue;
       }
       if (ch === ':') {
         // pseudos básicas
         let m = /^:first-child/.exec(rest);
-        if (m) { pseudos.push({ kind: 'first-child' }); rest = rest.slice(m[0].length); console.log(`[SELECTOR DEBUG] Parsed first-child pseudo`); continue; }
+        if (m) { pseudos.push({ kind: 'first-child' }); rest = rest.slice(m[0].length); continue; }
         m = /^:last-child/.exec(rest);
-        if (m) { pseudos.push({ kind: 'last-child' }); rest = rest.slice(m[0].length); console.log(`[SELECTOR DEBUG] Parsed last-child pseudo`); continue; }
+        if (m) { pseudos.push({ kind: 'last-child' }); rest = rest.slice(m[0].length); continue; }
         m = /^:nth-child\(\s*([^)]+)\s*\)/.exec(rest);
         if (m) {
-          const nb = parseNth(m[1]); 
+          const nb = parseNth(m[1]);
           if (nb) {
             pseudos.push({ kind: 'nth-child', a: nb.a, b: nb.b });
-            console.log(`[SELECTOR DEBUG] Parsed nth-child pseudo:`, { kind: 'nth-child', a: nb.a, b: nb.b });
           }
           rest = rest.slice(m[0].length); continue;
         }
@@ -110,32 +96,28 @@ export function parseSelector(selector: string): Part[] | null {
           const innerTok = m[1];
           const inner = parseSimpleToken(innerTok); // um nível simples
           if (inner) pseudos.push({ kind: 'not', inner });
-          rest = rest.slice(m[0].length); 
-          console.log(`[SELECTOR DEBUG] Parsed not() pseudo with inner:`, inner);
+          rest = rest.slice(m[0].length);
           continue;
         }
         // pseudo desconhecida → aborta para manter comportamento previsível
-        console.log(`[SELECTOR DEBUG] Unknown pseudo class, returning null`);
         return null;
       }
       break; // nada mais reconhecido
     }
 
     const result = { tag, id, classes, attrs, pseudos };
-    console.log(`[SELECTOR DEBUG] Parsed simple token result:`, result);
     return result;
   }
 
   // Tokenização topo-nível preservando combinadores (não entra em []/())
   const s = selector.trim().replace(/\s+/g, ' ');
-  console.log(`[SELECTOR DEBUG] Normalized selector: ${s}`);
   const tokens: (Simple | ' ' | '>' | '+' | '~')[] = [];
   let i = 0;
   while (i < s.length) {
     const c = s[i];
     if (c === ' ' || c === '>' || c === '+' || c === '~') {
-      if (c === ' ') { while (s[i] === ' ') i++; tokens.push(' '); console.log(`[SELECTOR DEBUG] Added space combinator`); }
-      else { tokens.push(c as any); i++; if (s[i] === ' ') i++; console.log(`[SELECTOR DEBUG] Added combinator: ${c}`); }
+      if (c === ' ') { while (s[i] === ' ') i++; tokens.push(' '); }
+      else { tokens.push(c as any); i++; if (s[i] === ' ') i++; }
       continue;
     }
     let j = i, depthSq = 0, depthPar = 0;
@@ -149,10 +131,8 @@ export function parseSelector(selector: string): Part[] | null {
       j++;
     }
     const raw = s.slice(i, j);
-    console.log(`[SELECTOR DEBUG] Processing raw token: ${raw}`);
     const simp = parseSimpleToken(raw);
     if (!simp) {
-      console.log(`[SELECTOR DEBUG] Failed to parse simple token: ${raw}`);
       return null;
     }
     tokens.push(simp);
@@ -174,10 +154,8 @@ export function parseSelector(selector: string): Part[] | null {
 
       const part = { simple: t, combinatorToLeft: comb };
       parts.push(part);
-      console.log(`[SELECTOR DEBUG] Created part:`, part);
     }
   }
   const result = parts.length ? parts : null;
-  console.log(`[SELECTOR DEBUG] Final parse result:`, result);
   return result;
 }

@@ -75,10 +75,14 @@ import {
   parseMaxHeight,
   parseFontSize,
   parseLineHeight,
+  parseZIndex,
 } from "./dimension-parser.js";
 
 // Font
 import { parseFontFamily, parseFontStyle, parseFontWeight } from "./font-parser.js";
+
+// Positioning
+import { parsePosition, parseTop, parseRight, parseBottom, parseLeft } from "./position-parser.js";
 
 // Text
 import {
@@ -181,11 +185,19 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("max-height", parseMaxHeight);
   registerPropertyParser("font-size", parseFontSize);
   registerPropertyParser("line-height", parseLineHeight);
+  registerPropertyParser("z-index", parseZIndex);
 
   // Font
   registerPropertyParser("font-family", parseFontFamily);
   registerPropertyParser("font-style", parseFontStyle);
   registerPropertyParser("font-weight", parseFontWeight);
+
+  // Positioning
+  registerPropertyParser("position", parsePosition);
+  registerPropertyParser("top", parseTop);
+  registerPropertyParser("right", parseRight);
+  registerPropertyParser("bottom", parseBottom);
+  registerPropertyParser("left", parseLeft);
 
   // Text
   registerPropertyParser("text-align", parseTextAlign);

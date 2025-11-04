@@ -171,5 +171,10 @@
     "id": "webp-example",
     "label": "WebP Image Example",
     "htmlUrl": "examples/webp-example.html"
+  },
+  {
+    "id": "z-index-demo",
+    "label": "Z-Index Stacking Demo",
+    "htmlUrl": "examples/z-index-demo.html"
   }
 ]

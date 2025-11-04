@@ -1,10 +1,7 @@
-// src/css/parsers/dimension-parser.ts
-
 import { parseLength, parseNumeric } from "./length-parser.js";
 import { percent } from "../length.js";
 import type { LengthLike } from "../length.js";
 import type { StyleAccumulator } from "../style.js";
-import type { UnitParsers } from "../../units/units.js";
 
 const PERCENT_LENGTH_REGEX = /^(-?\d+(?:\.\d+)?)%$/;
 
@@ -63,4 +60,16 @@ export function parseFontSize(value: string, target: StyleAccumulator): void {
 
 export function parseLineHeight(value: string, target: StyleAccumulator): void {
   target.lineHeight = parseLength(value);
+}
+
+export function parseZIndex(value: string, target: StyleAccumulator): void {
+  const trimmed = value.trim();
+  if (trimmed.toLowerCase() === "auto") {
+    target.zIndex = "auto";
+  } else {
+    const numeric = Number.parseFloat(trimmed);
+    if (!Number.isNaN(numeric) && Number.isInteger(numeric) && !trimmed.includes(".")) {
+      target.zIndex = numeric;
+    }
+  }
 }

@@ -68,6 +68,7 @@ export interface BoxShadow {
 // src/css/apply-declarations.ts
 export interface StyleAccumulator {
   display?: Display;
+  position?: Position;
   float?: string;
   color?: string;
   backgroundLayers?: BackgroundLayer[];
@@ -120,6 +121,11 @@ export interface StyleAccumulator {
   autoFlow?: GridAutoFlow;
   rowGap?: number;
   columnGap?: number;
+  zIndex?: number | "auto";
+  top?: LengthLike;
+  right?: LengthLike;
+  bottom?: LengthLike;
+  left?: LengthLike;
 }
 
 export interface StyleProperties {
@@ -128,6 +134,7 @@ export interface StyleProperties {
   textDecorationLine?: string;
   display: Display;
   position: Position;
+  zIndex: number | "auto";
   float: FloatMode;
   clear: ClearMode;
   overflowX: OverflowMode;
@@ -213,6 +220,7 @@ export class ComputedStyle implements StyleProperties {
   textDecorationLine?: string;
   display: Display;
   position: Position;
+  zIndex: number | "auto";
   float: FloatMode;
   clear: ClearMode;
   overflowX: OverflowMode;
@@ -301,6 +309,7 @@ export class ComputedStyle implements StyleProperties {
 
     this.display = data.display;
     this.position = data.position;
+    this.zIndex = data.zIndex;
     this.float = data.float;
     this.clear = data.clear;
     this.overflowX = data.overflowX;
@@ -342,6 +351,7 @@ export class ComputedStyle implements StyleProperties {
     this.fontWeight = data.fontWeight;
     this.fontStyle = data.fontStyle;
     this.objectFit = data.objectFit;
+    this.zIndex = data.zIndex;
     this.left = data.left;
     this.right = data.right;
     this.top = data.top;
