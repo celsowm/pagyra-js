@@ -50,7 +50,7 @@ export async function paintLayoutPage({
 
   // Paint the entire render tree recursively. The paintRecursive function
   // handles the correct stacking context painting order.
-  await paintRecursive(painter, pageTree.root);
+  await paintRecursive(painter, pageTree.root, 0);
 
   if (headerFooterLayout.layerMode === LayerMode.Over) {
     await paintHeaderFooter(painter, headerVariant, footerVariant, tokens, pageNumber, totalPages, headerFooterTextOptions, false);
@@ -65,64 +65,58 @@ async function paintBoxContent(painter: PagePainter, box: RenderBox): Promise<vo
   await paintText(painter, [box]);
 }
 
-function paintBoxDecorations(painter: PagePainter, box: RenderBox): void {
+function paintBoxDecorations(painter: PagePainter, box: RenderBox, contextZ: number): void {
   paintBoxShadows(painter, [box], false);
-  paintBackgrounds(painter, [box]);
+  paintBackgrounds(painter, [box], contextZ);
   paintBoxShadows(painter, [box], true);
-  paintBorders(painter, [box]);
+  paintBorders(painter, [box], contextZ);
 }
 
 
-async function paintRecursive(painter: PagePainter, box: RenderBox): Promise<void> {
-  // This function implements the W3C painting algorithm for stacking contexts.
-  // Every box is treated as a potential stacking context root for its descendants.
+async function paintRecursive(painter: PagePainter, box: RenderBox, zForLogging: number): Promise<void> {
+  if (box.establishesStackingContext) {
+    paintBoxDecorations(painter, box, zForLogging);
+  }
 
-  // 1. Paint the background and borders of the element itself.
-  paintBoxDecorations(painter, box);
-
-  // Separate children into positioned and in-flow groups.
   const positionedChildren = box.children.filter(c => c.positioning.type !== 'normal');
   const inFlowChildren = box.children.filter(c => c.positioning.type === 'normal');
 
-  // Stably sort positioned elements by their computed z-index.
   const indexedPositioned = positionedChildren.map((child, index) => ({ child, index }));
   indexedPositioned.sort((a, b) => {
-    const zA = a.child.zIndexComputed ?? 0;
-    const zB = b.child.zIndexComputed ?? 0;
-    if (zA !== zB) {
-      return zA - zB;
-    }
-    return a.index - b.index; // Fallback to DOM order for stability
+    const zA = a.child.stackingContext?.zIndex;
+    const zB = b.child.stackingContext?.zIndex;
+    const valA = typeof zA === 'number' ? zA : 0;
+    const valB = typeof zB === 'number' ? zB : 0;
+    if (valA !== valB) return valA - valB;
+    return a.index - b.index;
   });
   const sortedPositionedChildren = indexedPositioned.map(item => item.child);
 
-  // 2. Paint positioned descendants with negative z-indexes.
+  const processChild = async (child: RenderBox, isPositioned: boolean) => {
+    const childZ = child.stackingContext?.zIndex;
+    const childZVal = typeof childZ === 'number' ? childZ : 0;
+    const childZForLogging = box.establishesStackingContext ? zForLogging : (isPositioned ? childZVal : 0);
+    await paintRecursive(painter, child, childZForLogging);
+  };
+
   for (const child of sortedPositionedChildren) {
-    if (child.zIndexComputed < 0) {
-      await paintRecursive(painter, child);
-    }
+    const val = typeof child.stackingContext?.zIndex === 'number' ? child.stackingContext.zIndex : 0;
+    if (val < 0) await processChild(child, true);
   }
 
-  // 3. Paint in-flow, non-positioned descendants.
+  if (!box.establishesStackingContext) {
+    paintBoxDecorations(painter, box, zForLogging);
+  }
+
   for (const child of inFlowChildren) {
-    await paintRecursive(painter, child);
+    await processChild(child, false);
   }
 
-  // 4. Paint the element's own content (text, images, etc.).
   await paintBoxContent(painter, box);
 
-  // 5. Paint positioned descendants with z-index: 0 / auto.
   for (const child of sortedPositionedChildren) {
-    if (child.zIndexComputed === 0) {
-      await paintRecursive(painter, child);
-    }
-  }
-
-  // 6. Paint positioned descendants with positive z-indexes.
-  for (const child of sortedPositionedChildren) {
-    if (child.zIndexComputed > 0) {
-      await paintRecursive(painter, child);
-    }
+    const val = typeof child.stackingContext?.zIndex === 'number' ? child.stackingContext.zIndex : 0;
+    if (val >= 0) await processChild(child, true);
   }
 }
 
@@ -134,13 +128,13 @@ async function paintText(painter: PagePainter, boxes: RenderBox[]): Promise<void
   }
 }
 
-function paintBackgrounds(painter: PagePainter, boxes: RenderBox[]): void {
+function paintBackgrounds(painter: PagePainter, boxes: RenderBox[], contextZ: number): void {
   for (const box of boxes) {
     const background = box.background;
     if (!background) {
       continue;
     }
-    log("PAINT_TRACE", "TRACE", `op=fill id=${box.htmlId ?? box.id} z=${box.zIndexComputed}`, { background });
+    log("PAINT_TRACE", "TRACE", `op=fill id=${box.htmlId ?? box.id} z=${contextZ}`, { background });
 
     const paintArea = determineBackgroundPaintArea(box);
     if (!paintArea) {
@@ -176,13 +170,13 @@ function paintBackgroundImageLayer(
   painter.drawBackgroundImage(layer.image, layer.rect, clipRect, clipRadius);
 }
 
-function paintBorders(painter: PagePainter, boxes: RenderBox[]): void {
+function paintBorders(painter: PagePainter, boxes: RenderBox[], contextZ: number): void {
   for (const box of boxes) {
     const color = box.borderColor;
     if (!color) {
       continue;
     }
-    log("PAINT_TRACE", "TRACE", `op=stroke id=${box.htmlId ?? box.id} z=${box.zIndexComputed}`, { border: box.border, color });
+    log("PAINT_TRACE", "TRACE", `op=stroke id=${box.htmlId ?? box.id} z=${contextZ}`, { border: box.border, color });
     const { border } = box;
     if (!hasVisibleBorder(border)) {
       continue;

@@ -228,7 +228,9 @@ export interface RenderBox {
   multicol?: MultiColModel;
   boxShadows: ShadowLayer[];
   establishesStackingContext: boolean;
-  zIndexComputed: number;
+  stackingContext?: {
+    zIndex: number | "auto";
+  };
   positioning: Positioning;
   containingBlockForAbs?: RenderBox | null;
   children: RenderBox[];

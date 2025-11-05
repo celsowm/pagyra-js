@@ -332,6 +332,42 @@ function handleBackground(
 }
 
 // ====================
+// STACKING CONTEXT LOGIC
+// ====================
+
+function doesStyleCreateStackingContext(style: ComputedStyle): boolean {
+  const isPositioned = style.position === Position.Absolute || style.position === Position.Relative;
+  const zIndex = style.zIndex;
+
+  // Stacking context is created by:
+  // 1. Positioned elements with a z-index other than 'auto'.
+  if (isPositioned && zIndex !== "auto") {
+    return true;
+  }
+  // 2. Elements with an opacity less than 1.
+  if ((style.opacity ?? 1) < 1) {
+    return true;
+  }
+  // 3. Elements with a transform, filter, or clip-path.
+  // Note: These properties are not fully implemented yet, but we include them for future-proofing.
+  if (style.transform && style.transform !== "none") {
+    return true;
+  }
+  if (style.filter && style.filter !== "none") {
+    return true;
+  }
+  if (style.clipPath && style.clipPath !== "none") {
+    return true;
+  }
+  // 4. Fixed or sticky positioned elements.
+  if (style.position === Position.Fixed || style.position === Position.Sticky) {
+    return true;
+  }
+
+  return false;
+}
+
+// ====================
 // MAIN CONVERSION FUNCTION
 // ====================
 
@@ -369,35 +405,9 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
   const isPositioned = node.style.position !== Position.Static;
   const zIndexValue = node.style.zIndex;
   
-  // An element creates a stacking context under specific conditions.
-  // Note: 'transform', 'filter', etc., also create stacking contexts but are not yet implemented.
-  const establishesStackingContext =
-    (isPositioned && zIndexValue !== "auto") ||
-    (node.style.opacity ?? 1) < 1 ||
-    node.style.position === Position.Fixed ||
-    node.style.position === Position.Sticky;
+  const establishesStackingContext = doesStyleCreateStackingContext(node.style);
 
-  // For sorting, 'auto' is treated as 0.
-  const zIndexForSorting = isPositioned && typeof zIndexValue === "number" ? zIndexValue : 0;
-
-  // The children of a stacking context are sorted according to z-index.
-  if (establishesStackingContext) {
-    const indexedChildren = children.map((child, index) => ({ child, index }));
-
-    indexedChildren.sort((a, b) => {
-      const zA = a.child.zIndexComputed ?? 0;
-      const zB = b.child.zIndexComputed ?? 0;
-
-      if (zA !== zB) {
-        return zA - zB;
-      }
-      
-      // For stability, if z-index is the same, maintain original DOM order.
-      return a.index - b.index;
-    });
-    
-    children = indexedChildren.map(item => item.child);
-  }
+  const zIndexForSorting = isPositioned && zIndexValue !== "auto" ? zIndexValue : "auto";
 
   return {
     id,
@@ -429,7 +439,9 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
     textShadows: [],
     boxShadows: resolveBoxShadows(node, textColor ?? DEFAULT_TEXT_COLOR),
     establishesStackingContext,
-    zIndexComputed: zIndexForSorting,
+    stackingContext: {
+      zIndex: zIndexForSorting,
+    },
     positioning: mapPosition(node.style),
     children,
     links: [],
