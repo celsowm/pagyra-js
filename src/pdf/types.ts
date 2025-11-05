@@ -178,14 +178,13 @@ export interface Positioning {
 }
 
 export interface LayoutPageTree {
-  root: RenderBox;
-  paintOrder: RenderBox[];
-  floatLayerOrder: RenderBox[];
-  flowContentOrder: RenderBox[];
-  positionedLayersSortedByZ: PositionedLayer[];
-  decorations: DecorationCommand[];
-  links: Link[];
-  pageOffsetY: number;
+  readonly root: RenderBox;
+  readonly paintOrder: RenderBox[];
+  readonly floatLayerOrder: RenderBox[];
+  readonly flowContentOrder: RenderBox[];
+  readonly decorations: DecorationCommand[];
+  readonly links: Link[];
+  readonly pageOffsetY: number;
 }
 
 export interface PositionedLayer {

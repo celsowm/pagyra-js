@@ -48,18 +48,9 @@ export async function paintLayoutPage({
     await paintHeaderFooter(painter, headerVariant, footerVariant, tokens, pageNumber, totalPages, headerFooterTextOptions, true);
   }
 
-  // 1. Paint the in-flow content first. This forms the base layer.
-  await paintInFlowContent(painter, pageTree.root);
-
-  // 2. Paint all positioned elements on top, in their correct z-index order.
-  //    The `positionedLayersSortedByZ` list is already sorted by the pagination step.
-  for (const layer of pageTree.positionedLayersSortedByZ) {
-    for (const box of layer.boxes) {
-      // Each positioned element might be a stacking context itself, so we use
-      // the full recursive paint function for it.
-      await paintRecursive(painter, box);
-    }
-  }
+  // Paint the entire render tree recursively. The paintRecursive function
+  // handles the correct stacking context painting order.
+  await paintRecursive(painter, pageTree.root);
 
   if (headerFooterLayout.layerMode === LayerMode.Over) {
     await paintHeaderFooter(painter, headerVariant, footerVariant, tokens, pageNumber, totalPages, headerFooterTextOptions, false);
@@ -81,66 +72,54 @@ function paintBoxDecorations(painter: PagePainter, box: RenderBox): void {
   paintBorders(painter, [box]);
 }
 
-async function paintInFlowContent(painter: PagePainter, box: RenderBox): Promise<void> {
-  // This function traverses the tree and paints only the non-positioned elements.
-  // Positioned elements are skipped because they will be painted later in their
-  // correct stacking order.
-  if (box.positioning.type === "normal") {
-    paintBoxDecorations(painter, box);
-    await paintBoxContent(painter, box);
-  }
-  // Recurse into all children, letting the recursive call decide if it should paint.
-  for (const child of box.children) {
-    await paintInFlowContent(painter, child);
-  }
-}
 
 async function paintRecursive(painter: PagePainter, box: RenderBox): Promise<void> {
-  if (!box.establishesStackingContext) {
-    // For non-stacking contexts, just paint the box and its children normally.
-    // This handles the bulk of in-flow content.
-    paintBoxDecorations(painter, box);
-    await paintBoxContent(painter, box);
-    for (const child of box.children) {
-      await paintRecursive(painter, child);
-    }
-    return;
-  }
+  // This function implements the W3C painting algorithm for stacking contexts.
+  // Every box is treated as a potential stacking context root for its descendants.
 
-  // --- Stacking Context Painting Order ---
-
-  // 1. Paint background and borders of the root element itself.
+  // 1. Paint the background and borders of the element itself.
   paintBoxDecorations(painter, box);
 
-  // The children of a stacking context are pre-sorted by z-index during layout.
-  // We iterate through them multiple times to paint them in the correct order.
+  // Separate children into positioned and in-flow groups.
+  const positionedChildren = box.children.filter(c => c.positioning.type !== 'normal');
+  const inFlowChildren = box.children.filter(c => c.positioning.type === 'normal');
+
+  // Stably sort positioned elements by their computed z-index.
+  const indexedPositioned = positionedChildren.map((child, index) => ({ child, index }));
+  indexedPositioned.sort((a, b) => {
+    const zA = a.child.zIndexComputed ?? 0;
+    const zB = b.child.zIndexComputed ?? 0;
+    if (zA !== zB) {
+      return zA - zB;
+    }
+    return a.index - b.index; // Fallback to DOM order for stability
+  });
+  const sortedPositionedChildren = indexedPositioned.map(item => item.child);
 
   // 2. Paint positioned descendants with negative z-indexes.
-  for (const child of box.children) {
+  for (const child of sortedPositionedChildren) {
     if (child.zIndexComputed < 0) {
       await paintRecursive(painter, child);
     }
   }
 
   // 3. Paint in-flow, non-positioned descendants.
-  for (const child of box.children) {
-    if (child.positioning.type === "normal") {
-      await paintRecursive(painter, child);
-    }
+  for (const child of inFlowChildren) {
+    await paintRecursive(painter, child);
   }
 
-  // 4. Paint the stacking context's own content (text, images, etc.).
+  // 4. Paint the element's own content (text, images, etc.).
   await paintBoxContent(painter, box);
 
   // 5. Paint positioned descendants with z-index: 0 / auto.
-  for (const child of box.children) {
-    if (child.zIndexComputed === 0 && child.positioning.type !== "normal") {
+  for (const child of sortedPositionedChildren) {
+    if (child.zIndexComputed === 0) {
       await paintRecursive(painter, child);
     }
   }
 
   // 6. Paint positioned descendants with positive z-indexes.
-  for (const child of box.children) {
+  for (const child of sortedPositionedChildren) {
     if (child.zIndexComputed > 0) {
       await paintRecursive(painter, child);
     }

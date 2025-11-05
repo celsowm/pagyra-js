@@ -367,22 +367,36 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
   const background = handleBackground(node, borderBox, paddingBox, contentBox);
 
   const isPositioned = node.style.position !== Position.Static;
-  const zIndex = isPositioned && typeof node.style.zIndex === "number" ? node.style.zIndex : 0;
+  const zIndexValue = node.style.zIndex;
+  
+  // An element creates a stacking context under specific conditions.
+  // Note: 'transform', 'filter', etc., also create stacking contexts but are not yet implemented.
   const establishesStackingContext =
-    (isPositioned && typeof node.style.zIndex === "number") ||
-    (node.style.opacity ?? 1) < 1;
+    (isPositioned && zIndexValue !== "auto") ||
+    (node.style.opacity ?? 1) < 1 ||
+    node.style.position === Position.Fixed ||
+    node.style.position === Position.Sticky;
 
+  // For sorting, 'auto' is treated as 0.
+  const zIndexForSorting = isPositioned && typeof zIndexValue === "number" ? zIndexValue : 0;
+
+  // The children of a stacking context are sorted according to z-index.
   if (establishesStackingContext) {
-    children.sort((a, b) => {
-      const zA = a.zIndexComputed ?? 0;
-      const zB = b.zIndexComputed ?? 0;
+    const indexedChildren = children.map((child, index) => ({ child, index }));
+
+    indexedChildren.sort((a, b) => {
+      const zA = a.child.zIndexComputed ?? 0;
+      const zB = b.child.zIndexComputed ?? 0;
+
       if (zA !== zB) {
         return zA - zB;
       }
-      // For stability, if z-index is the same, maintain original order.
-      // The original index is implicitly captured by their order in the array.
-      return 0;
+      
+      // For stability, if z-index is the same, maintain original DOM order.
+      return a.index - b.index;
     });
+    
+    children = indexedChildren.map(item => item.child);
   }
 
   return {
@@ -415,7 +429,7 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
     textShadows: [],
     boxShadows: resolveBoxShadows(node, textColor ?? DEFAULT_TEXT_COLOR),
     establishesStackingContext,
-    zIndexComputed: zIndex,
+    zIndexComputed: zIndexForSorting,
     positioning: mapPosition(node.style),
     children,
     links: [],
