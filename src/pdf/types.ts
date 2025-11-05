@@ -178,6 +178,7 @@ export interface Positioning {
 }
 
 export interface LayoutPageTree {
+  root: RenderBox;
   paintOrder: RenderBox[];
   floatLayerOrder: RenderBox[];
   flowContentOrder: RenderBox[];
@@ -200,6 +201,7 @@ export interface DecorationCommand {
 
 export interface RenderBox {
   tagName?: string;
+  htmlId?: string;
   textContent?: string;
   id: string;
   kind: NodeKind;

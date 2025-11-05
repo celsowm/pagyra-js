@@ -66,7 +66,14 @@ export function parseZIndex(value: string, target: StyleAccumulator): void {
   const trimmed = value.trim();
   if (trimmed.toLowerCase() === "auto") {
     target.zIndex = "auto";
-  } else if (/^-?\d+$/.test(trimmed)) {
+  } else if (/^[+-]?\d+$/.test(trimmed)) {
     target.zIndex = Number.parseInt(trimmed, 10);
+  }
+}
+
+export function parseOpacity(value: string, target: StyleAccumulator): void {
+  const num = Number.parseFloat(value.trim());
+  if (Number.isFinite(num)) {
+    target.opacity = Math.max(0, Math.min(1, num));
   }
 }

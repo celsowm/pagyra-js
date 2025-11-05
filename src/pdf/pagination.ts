@@ -35,6 +35,7 @@ export function paginateTree(root: RenderBox, options: PaginationOptions): Layou
     const decorations: DecorationCommand[] = []; // Placeholder until decoration pagination is implemented
 
     pages.push({
+      root,
       paintOrder,
       floatLayerOrder: [],
       flowContentOrder,
@@ -66,9 +67,38 @@ function collectFlowOrder(root: RenderBox): RenderBox[] {
   return result;
 }
 
-function collectPositionedLayers(_root: RenderBox): PositionedLayer[] {
-  // Positioned layers are not yet implemented; return empty array to keep the pipeline stable.
-  return [];
+function collectPositionedLayers(root: RenderBox): PositionedLayer[] {
+  const layers = new Map<number, RenderBox[]>();
+
+  // Helper to add a box to a z-indexed layer
+  const addToLayer = (box: RenderBox) => {
+    const z = box.zIndexComputed;
+    if (!layers.has(z)) {
+      layers.set(z, []);
+    }
+    layers.get(z)!.push(box);
+  };
+
+  // Traverse the tree to find all positioned elements
+  dfs(root, (box) => {
+    // Collect positioned elements that are not in the normal flow
+    if (box.positioning.type !== "normal") {
+      addToLayer(box);
+    }
+    // Always continue traversal
+    return true;
+  });
+
+  // Convert map to array of layers
+  const result: PositionedLayer[] = Array.from(layers.entries()).map(([z, boxes]) => ({
+    z,
+    boxes,
+  }));
+
+  // Sort layers by z-index
+  result.sort((a, b) => a.z - b.z);
+
+  return result;
 }
 
 function collectLinks(root: RenderBox): Link[] {

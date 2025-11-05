@@ -344,7 +344,7 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
   const visualOverflow = calculateVisualOverflow(node, borderBox, boxShadows);
   const borderRadius = resolveBorderRadius(node.style, borderBox);
 
-  const children = node.children.map((child) => convertNode(child, state));
+  let children = node.children.map((child) => convertNode(child, state));
   const imageRef = extractImageRef(node);
   const decorations = resolveDecorations(node.style);
   const textRuns = node.textContent ? createTextRuns(node, textColor, decorations) : [];
@@ -365,13 +365,29 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
 
   // Handle background (colors, gradients, images)
   const background = handleBackground(node, borderBox, paddingBox, contentBox);
-  
-  const zIndex = typeof node.style.zIndex === "number" ? node.style.zIndex : 0;
+
+  const isPositioned = node.style.position !== Position.Static;
+  const zIndex = isPositioned && typeof node.style.zIndex === "number" ? node.style.zIndex : 0;
   const establishesStackingContext =
-    typeof node.style.zIndex === "number" && node.style.position !== Position.Static;
+    (isPositioned && typeof node.style.zIndex === "number") ||
+    (node.style.opacity ?? 1) < 1;
+
+  if (establishesStackingContext) {
+    children.sort((a, b) => {
+      const zA = a.zIndexComputed ?? 0;
+      const zB = b.zIndexComputed ?? 0;
+      if (zA !== zB) {
+        return zA - zB;
+      }
+      // For stability, if z-index is the same, maintain original order.
+      // The original index is implicitly captured by their order in the array.
+      return 0;
+    });
+  }
 
   return {
     id,
+    htmlId: node.id,
     tagName: node.tagName,
     textContent: node.textContent,
     kind: mapNodeKind(node),
@@ -392,7 +408,7 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
       left: resolveLength(node.style.borderLeft, Math.max(node.box.contentWidth, 0), { auto: "zero" }),
     },
     borderRadius,
-    opacity: 1,
+    opacity: node.style.opacity ?? 1,
     overflow: mapOverflow(node.style.overflowX ?? OverflowMode.Visible),
     textRuns,
     decorations: decorations ?? {},
