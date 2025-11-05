@@ -208,5 +208,93 @@ describe("z-index rendering", () => {
       expect(ia).toBeGreaterThanOrEqual(0);
       expect(ib).toBeGreaterThan(ia);
     }
+
+    it("rejects interleaved painting that would cause lower-z borders to overlap higher-z fills", async () => {
+      await renderHtmlToPdf({
+        html, css,
+        viewportWidth: 800, viewportHeight: 600,
+        pageWidth: 800, pageHeight: 600,
+        margins: { top: 0, right: 0, bottom: 0, left: 0 },
+        debug: true,
+        // precisa log por comando; ajuste os nomes se seu engine usar outro
+        debugCats: ["PAINT", "PAINT_TRACE", "RENDER_TREE"]
+      });
+
+      type Cmd = { z: number; id: string; op: "fill" | "stroke"; raw: string; idx: number };
+
+      const calls = (log as unknown as Mock).mock.calls;
+
+      // Colete logs de pintura (TRACE/DEBUG) preservando o índice temporal
+      const msgs = calls
+        .filter(c => c[0] === "PAINT")
+        .map((c, i) => ({ raw: String(c[2]), idx: i }))
+        // aceita tanto "op=fill/ stroke" quanto logs agregados de elemento
+        .filter(x =>
+          /(op=)?(fill|stroke)/i.test(x.raw) ||
+          /fillBackground|fillBorder|draw(Image|Svg|TextRun|BackgroundImage)/i.test(x.raw) ||
+          /Painting element/i.test(x.raw)
+        );
+
+      // Normaliza: extrai z, id e op
+      const cmds: Cmd[] = msgs.map(m => {
+        const z = Number((/z(?:-index)?[:=]\s*(-?\d+)/i.exec(m.raw) ?? [,"0"])[1]);
+        const id =
+          (/(?:^|\s)(?:id|elem)[:=]\s*([#\w-]+)/i.exec(m.raw)?.[1]) ??
+          (/#([\w-]+)/.exec(m.raw)?.[1]) ?? // caso apareça "#green"
+          "?";
+        // prioridade: se houver 'stroke' explícito, é stroke; caso contrário fill
+        const op = /stroke/i.test(m.raw) ? "stroke" : "fill";
+        return { z, id, op, raw: m.raw, idx: m.idx };
+      });
+
+      // 1) Monotonicidade global por z
+      const zSeq = cmds.map(c => c.z);
+      const sorted = [...zSeq].sort((a,b)=>a-b);
+      expect(zSeq).toEqual(sorted);
+
+      // 2) Sem interleaving entre z's adjacentes: todo z=a antes de qualquer z=b (a<b)
+      const byZ = new Map<number, Cmd[]>();
+      for (const c of cmds) byZ.set(c.z, [...(byZ.get(c.z) ?? []), c]);
+      const zValues = [...byZ.keys()].sort((a,b)=>a-b);
+      for (let i = 0; i < zValues.length - 1; i++) {
+        const lower = byZ.get(zValues[i])!;
+        const higher = byZ.get(zValues[i+1])!;
+        const lastLowerIdx = Math.max(...lower.map(c => c.idx));
+        const firstHigherIdx = Math.min(...higher.map(c => c.idx));
+        expect(lastLowerIdx).toBeLessThan(firstHigherIdx); // falha se houver interleaving
+      }
+
+      // 3) Para cada elemento: fill antes de stroke e sem z diferente entre fill→stroke
+      const byId = new Map<string, Cmd[]>();
+      for (const c of cmds) byId.set(c.id, [...(byId.get(c.id) ?? []), c]);
+
+      for (const [id, seq] of byId) {
+        if (id === "?") continue; // se não temos id, não aplicamos a verificação 3b
+        const fillIdx = seq.findIndex(c => c.op === "fill");
+        const strokeIdx = seq.findIndex(c => c.op === "stroke");
+        if (strokeIdx >= 0) {
+          expect(fillIdx).toBeGreaterThanOrEqual(0);
+          expect(strokeIdx).toBeGreaterThan(fillIdx);
+
+          const zCurr = seq[0].z;
+          const first = seq[fillIdx].idx;
+          const last  = seq[strokeIdx].idx;
+          const between = cmds.filter(c => c.idx > first && c.idx < last);
+          const hasForeignZBetween = between.some(c => c.z !== zCurr);
+          expect(hasForeignZBetween).toBe(false); // nenhum outro z entre fill e stroke do MESMO elemento
+        }
+      }
+
+      // 4) (Opcional forte) Elemento pintado como bloco atômico (sem comandos de outro id no meio, mesmo z)
+      for (const [id, seq] of byId) {
+        if (id === "?" || seq.length <= 1) continue;
+        const firstIdx = Math.min(...seq.map(c => c.idx));
+        const lastIdx  = Math.max(...seq.map(c => c.idx));
+        const zCurr = seq[0].z;
+        const interleavedSameZOtherId = cmds.some(c => c.idx > firstIdx && c.idx < lastIdx && c.z === zCurr && c.id !== id);
+        expect(interleavedSameZOtherId).toBe(false);
+      }
+    });
+
   });
 });
