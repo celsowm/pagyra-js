@@ -66,10 +66,7 @@ export function parseZIndex(value: string, target: StyleAccumulator): void {
   const trimmed = value.trim();
   if (trimmed.toLowerCase() === "auto") {
     target.zIndex = "auto";
-  } else {
-    const numeric = Number.parseFloat(trimmed);
-    if (!Number.isNaN(numeric) && Number.isInteger(numeric) && !trimmed.includes(".")) {
-      target.zIndex = numeric;
-    }
+  } else if (/^-?\d+$/.test(trimmed)) {
+    target.zIndex = Number.parseInt(trimmed, 10);
   }
 }
