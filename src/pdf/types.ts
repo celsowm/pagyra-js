@@ -178,13 +178,13 @@ export interface Positioning {
 }
 
 export interface LayoutPageTree {
-  readonly root: RenderBox;
-  readonly paintOrder: RenderBox[];
-  readonly floatLayerOrder: RenderBox[];
-  readonly flowContentOrder: RenderBox[];
-  readonly decorations: DecorationCommand[];
-  readonly links: Link[];
-  readonly pageOffsetY: number;
+  paintOrder: RenderBox[];
+  floatLayerOrder: RenderBox[];
+  flowContentOrder: RenderBox[];
+  positionedLayersSortedByZ: PositionedLayer[];
+  decorations: DecorationCommand[];
+  links: Link[];
+  pageOffsetY: number;
 }
 
 export interface PositionedLayer {
@@ -200,7 +200,6 @@ export interface DecorationCommand {
 
 export interface RenderBox {
   tagName?: string;
-  htmlId?: string;
   textContent?: string;
   id: string;
   kind: NodeKind;

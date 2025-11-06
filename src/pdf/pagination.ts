@@ -13,59 +13,39 @@ export interface PaginationOptions {
 export function paginateTree(root: RenderBox, options: PaginationOptions): LayoutPageTree[] {
   const pageHeight = Number.isFinite(options.pageHeight) && options.pageHeight > 0 ? options.pageHeight : 1;
 
-  const documentHeight = resolveDocumentHeight([root]);
+  const paintOrderAll = collectPaintOrder(root);
+  const flowOrderAll = collectFlowOrder(root);
+  const positionedAll = collectPositionedLayers(root);
+  const linksAll = collectLinks(root);
+
+  const documentHeight = resolveDocumentHeight(paintOrderAll);
   const totalPages = Math.max(1, Math.ceil(documentHeight / pageHeight));
 
   const pages: LayoutPageTree[] = [];
 
-  for (let i = 0; i < totalPages; i++) {
-    const pageTop = i * pageHeight;
+  for (let index = 0; index < totalPages; index++) {
+    const pageTop = index * pageHeight;
     const pageBottom = pageTop + pageHeight;
 
-    const pageRoot = cloneAndFilterForPage(root, pageTop, pageBottom);
+    const paintOrder = paintOrderAll.filter((box) => intersectsVerticalSlice(box, pageTop, pageBottom));
+    const flowContentOrder = flowOrderAll.filter((box) => intersectsVerticalSlice(box, pageTop, pageBottom));
+    const positionedLayersSortedByZ = filterPositionedLayers(positionedAll, pageTop, pageBottom);
+    const links = filterLinks(linksAll, pageTop, pageBottom, pageTop);
 
-    if (!pageRoot) {
-      // Should not happen if totalPages is calculated correctly
-      continue;
-    }
-
-    const linksAll = collectLinks(pageRoot);
+    const decorations: DecorationCommand[] = []; // Placeholder until decoration pagination is implemented
 
     pages.push({
-      root: pageRoot,
-      paintOrder: [], // No longer used by painter
-      floatLayerOrder: [], // No longer used by painter
-      flowContentOrder: [], // No longer used by painter
-      decorations: [], // Placeholder
-      links: filterLinks(linksAll, pageTop, pageBottom, pageTop),
+      paintOrder,
+      floatLayerOrder: [],
+      flowContentOrder,
+      positionedLayersSortedByZ,
+      decorations,
+      links,
       pageOffsetY: pageTop,
     });
   }
 
   return pages;
-}
-
-function cloneAndFilterForPage(box: RenderBox, pageTop: number, pageBottom: number): RenderBox | null {
-  // A box is visible on the page if its visual bounds intersect the page's vertical range.
-  if (!intersectsVerticalSlice(box, pageTop, pageBottom)) {
-    return null;
-  }
-
-  // Recursively clone and filter children.
-  const visibleChildren: RenderBox[] = [];
-  for (const child of box.children) {
-    const visibleChild = cloneAndFilterForPage(child, pageTop, pageBottom);
-    if (visibleChild) {
-      visibleChildren.push(visibleChild);
-    }
-  }
-
-  // Create a clone of the current box, but with only the visible children.
-  // This preserves the stacking context structure.
-  return {
-    ...box,
-    children: visibleChildren,
-  };
 }
 
 function collectPaintOrder(root: RenderBox): RenderBox[] {
@@ -86,6 +66,10 @@ function collectFlowOrder(root: RenderBox): RenderBox[] {
   return result;
 }
 
+function collectPositionedLayers(_root: RenderBox): PositionedLayer[] {
+  // Positioned layers are not yet implemented; return empty array to keep the pipeline stable.
+  return [];
+}
 
 function collectLinks(root: RenderBox): Link[] {
   const links: Link[] = [];
@@ -96,6 +80,16 @@ function collectLinks(root: RenderBox): Link[] {
   return links;
 }
 
+function filterPositionedLayers(layers: PositionedLayer[], top: number, bottom: number): PositionedLayer[] {
+  const result: PositionedLayer[] = [];
+  for (const layer of layers) {
+    const boxes = layer.boxes.filter((box) => intersectsVerticalSlice(box, top, bottom));
+    if (boxes.length > 0) {
+      result.push({ z: layer.z, boxes });
+    }
+  }
+  return result;
+}
 
 function filterLinks(links: Link[], top: number, bottom: number, offset: number): Link[] {
   const result: Link[] = [];

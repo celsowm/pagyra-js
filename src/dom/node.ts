@@ -7,7 +7,6 @@ export interface NodeVisitor {
 }
 
 export interface LayoutNodeOptions {
-  id?: string;
   intrinsicInlineSize?: number;
   intrinsicBlockSize?: number;
   textContent?: string;
@@ -31,12 +30,10 @@ export class LayoutNode {
   intrinsicBlockSize?: number;
   textContent?: string;
   tagName?: string;
-  id?: string;
   lineBoxes?: LineBox[];
   customData?: Record<string, unknown>;
 
   constructor(public readonly style: ComputedStyle, children: Iterable<LayoutNode> = [], options?: LayoutNodeOptions) {
-    this.id = options?.id;
     this.intrinsicInlineSize = options?.intrinsicInlineSize;
     this.intrinsicBlockSize = options?.intrinsicBlockSize;
     this.textContent = options?.textContent;

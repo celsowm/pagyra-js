@@ -76,7 +76,6 @@ import {
   parseFontSize,
   parseLineHeight,
   parseZIndex,
-  parseOpacity,
 } from "./dimension-parser.js";
 
 // Font
@@ -187,7 +186,6 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("font-size", parseFontSize);
   registerPropertyParser("line-height", parseLineHeight);
   registerPropertyParser("z-index", parseZIndex);
-  registerPropertyParser("opacity", parseOpacity);
 
   // Font
   registerPropertyParser("font-family", parseFontFamily);

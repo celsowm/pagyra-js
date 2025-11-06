@@ -1,4 +1,3 @@
-import { log } from "../../debug/log.js";
 import { pickFooterVariant, pickHeaderVariant, paintHeaderFooter, type HeaderFooterLayout } from "../header-footer.js";
 import { PagePainter, type PainterResult } from "../page-painter.js";
 import type { FontRegistry } from "../font/font-registry.js";
@@ -48,82 +47,19 @@ export async function paintLayoutPage({
     await paintHeaderFooter(painter, headerVariant, footerVariant, tokens, pageNumber, totalPages, headerFooterTextOptions, true);
   }
 
-  // Paint the entire render tree recursively. The paintRecursive function
-  // handles the correct stacking context painting order.
-  await paintRecursive(painter, pageTree.root);
+  paintBoxShadows(painter, pageTree.paintOrder, false);
+  paintBackgrounds(painter, pageTree.paintOrder);
+  paintBoxShadows(painter, pageTree.paintOrder, true);
+  paintBorders(painter, pageTree.paintOrder);
+  await paintSvg(painter, pageTree.flowContentOrder);
+  paintImages(painter, pageTree.flowContentOrder);
+  await paintText(painter, pageTree.flowContentOrder);
 
   if (headerFooterLayout.layerMode === LayerMode.Over) {
     await paintHeaderFooter(painter, headerVariant, footerVariant, tokens, pageNumber, totalPages, headerFooterTextOptions, false);
   }
 
   return painter.result();
-}
-
-async function paintBoxContent(painter: PagePainter, box: RenderBox): Promise<void> {
-  await paintSvg(painter, [box]);
-  paintImages(painter, [box]);
-  await paintText(painter, [box]);
-}
-
-function paintBoxDecorations(painter: PagePainter, box: RenderBox): void {
-  paintBoxShadows(painter, [box], false);
-  paintBackgrounds(painter, [box]);
-  paintBoxShadows(painter, [box], true);
-  paintBorders(painter, [box]);
-}
-
-
-async function paintRecursive(painter: PagePainter, box: RenderBox): Promise<void> {
-  // This function implements the W3C painting algorithm for stacking contexts.
-  // Every box is treated as a potential stacking context root for its descendants.
-
-  // 1. Paint the background and borders of the element itself.
-  paintBoxDecorations(painter, box);
-
-  // Separate children into positioned and in-flow groups.
-  const positionedChildren = box.children.filter(c => c.positioning.type !== 'normal');
-  const inFlowChildren = box.children.filter(c => c.positioning.type === 'normal');
-
-  // Stably sort positioned elements by their computed z-index.
-  const indexedPositioned = positionedChildren.map((child, index) => ({ child, index }));
-  indexedPositioned.sort((a, b) => {
-    const zA = a.child.zIndexComputed ?? 0;
-    const zB = b.child.zIndexComputed ?? 0;
-    if (zA !== zB) {
-      return zA - zB;
-    }
-    return a.index - b.index; // Fallback to DOM order for stability
-  });
-  const sortedPositionedChildren = indexedPositioned.map(item => item.child);
-
-  // 2. Paint positioned descendants with negative z-indexes.
-  for (const child of sortedPositionedChildren) {
-    if (child.zIndexComputed < 0) {
-      await paintRecursive(painter, child);
-    }
-  }
-
-  // 3. Paint in-flow, non-positioned descendants.
-  for (const child of inFlowChildren) {
-    await paintRecursive(painter, child);
-  }
-
-  // 4. Paint the element's own content (text, images, etc.).
-  await paintBoxContent(painter, box);
-
-  // 5. Paint positioned descendants with z-index: 0 / auto.
-  for (const child of sortedPositionedChildren) {
-    if (child.zIndexComputed === 0) {
-      await paintRecursive(painter, child);
-    }
-  }
-
-  // 6. Paint positioned descendants with positive z-indexes.
-  for (const child of sortedPositionedChildren) {
-    if (child.zIndexComputed > 0) {
-      await paintRecursive(painter, child);
-    }
-  }
 }
 
 async function paintText(painter: PagePainter, boxes: RenderBox[]): Promise<void> {
@@ -140,7 +76,6 @@ function paintBackgrounds(painter: PagePainter, boxes: RenderBox[]): void {
     if (!background) {
       continue;
     }
-    log("PAINT_TRACE", "TRACE", `op=fill id=${box.htmlId ?? box.id} z=${box.zIndexComputed}`, { background });
 
     const paintArea = determineBackgroundPaintArea(box);
     if (!paintArea) {
@@ -182,7 +117,6 @@ function paintBorders(painter: PagePainter, boxes: RenderBox[]): void {
     if (!color) {
       continue;
     }
-    log("PAINT_TRACE", "TRACE", `op=stroke id=${box.htmlId ?? box.id} z=${box.zIndexComputed}`, { border: box.border, color });
     const { border } = box;
     if (!hasVisibleBorder(border)) {
       continue;

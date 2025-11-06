@@ -346,7 +346,7 @@ export async function convertDomNode(
     }
   }
 
-  return new LayoutNode(ownStyle, layoutChildren, { tagName, id: element.id });
+  return new LayoutNode(ownStyle, layoutChildren, { tagName });
 }
 
 function resolveSvgIntrinsicSize(svg: SvgRootNode, element: Element): { width: number; height: number } {

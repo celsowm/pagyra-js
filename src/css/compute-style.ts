@@ -238,7 +238,6 @@ export function computeStyleForElement(
   };
 
   if (styleInit.position !== undefined) styleOptions.position = styleInit.position;
-  if (styleInit.zIndex !== undefined) styleOptions.zIndex = styleInit.zIndex;
   if (styleInit.top !== undefined) styleOptions.top = styleInit.top;
   if (styleInit.right !== undefined) styleOptions.right = styleInit.right;
   if (styleInit.bottom !== undefined) styleOptions.bottom = styleInit.bottom;
@@ -328,3 +327,4 @@ export function computeStyleForElement(
 
   return new ComputedStyle(styleOptions);
 }
+

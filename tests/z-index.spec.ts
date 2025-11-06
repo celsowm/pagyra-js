@@ -8,17 +8,10 @@ import { log } from "../src/debug/log.js";
 /* -----------------------------------------------------------------------------
  * Mock de logger robusto (cobre import nomeado e default)
  * ---------------------------------------------------------------------------*/
-vi.mock("../src/debug/log.js", async (importOriginal) => {
-  const original = await importOriginal();
+vi.mock("../src/debug/log.js", () => {
   const log = vi.fn();
-  return {
-    ...(original as any),
-    log,
-    default: {
-      ...(original as any).default,
-      log,
-    },
-  };
+  const configureDebug = vi.fn();
+  return { log, configureDebug, default: { log, configureDebug } };
 });
 
 beforeEach(() => {
@@ -59,7 +52,7 @@ function collectPaintMsgs(calls: RawCall[]): { raw: string; idx: number }[] {
   const out: { raw: string; idx: number }[] = [];
   for (let i = 0; i < calls.length; i++) {
     const c = calls[i];
-    if (c[0] !== "PAINT" && c[0] !== "PAINT_TRACE") continue;
+    if (c[0] !== "PAINT") continue;
     const lvl = String(c[1] ?? "");
     if (lvl !== "DEBUG" && lvl !== "TRACE") continue;
     const s = String(c[2] ?? "");

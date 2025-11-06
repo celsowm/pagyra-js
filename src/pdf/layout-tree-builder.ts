@@ -344,7 +344,7 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
   const visualOverflow = calculateVisualOverflow(node, borderBox, boxShadows);
   const borderRadius = resolveBorderRadius(node.style, borderBox);
 
-  let children = node.children.map((child) => convertNode(child, state));
+  const children = node.children.map((child) => convertNode(child, state));
   const imageRef = extractImageRef(node);
   const decorations = resolveDecorations(node.style);
   const textRuns = node.textContent ? createTextRuns(node, textColor, decorations) : [];
@@ -365,43 +365,13 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
 
   // Handle background (colors, gradients, images)
   const background = handleBackground(node, borderBox, paddingBox, contentBox);
-
-  const isPositioned = node.style.position !== Position.Static;
-  const zIndexValue = node.style.zIndex;
   
-  // An element creates a stacking context under specific conditions.
-  // Note: 'transform', 'filter', etc., also create stacking contexts but are not yet implemented.
+  const zIndex = typeof node.style.zIndex === "number" ? node.style.zIndex : 0;
   const establishesStackingContext =
-    (isPositioned && zIndexValue !== "auto") ||
-    (node.style.opacity ?? 1) < 1 ||
-    node.style.position === Position.Fixed ||
-    node.style.position === Position.Sticky;
-
-  // For sorting, 'auto' is treated as 0.
-  const zIndexForSorting = isPositioned && typeof zIndexValue === "number" ? zIndexValue : 0;
-
-  // The children of a stacking context are sorted according to z-index.
-  if (establishesStackingContext) {
-    const indexedChildren = children.map((child, index) => ({ child, index }));
-
-    indexedChildren.sort((a, b) => {
-      const zA = a.child.zIndexComputed ?? 0;
-      const zB = b.child.zIndexComputed ?? 0;
-
-      if (zA !== zB) {
-        return zA - zB;
-      }
-      
-      // For stability, if z-index is the same, maintain original DOM order.
-      return a.index - b.index;
-    });
-    
-    children = indexedChildren.map(item => item.child);
-  }
+    typeof node.style.zIndex === "number" && node.style.position !== Position.Static;
 
   return {
     id,
-    htmlId: node.id,
     tagName: node.tagName,
     textContent: node.textContent,
     kind: mapNodeKind(node),
@@ -422,14 +392,14 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
       left: resolveLength(node.style.borderLeft, Math.max(node.box.contentWidth, 0), { auto: "zero" }),
     },
     borderRadius,
-    opacity: node.style.opacity ?? 1,
+    opacity: 1,
     overflow: mapOverflow(node.style.overflowX ?? OverflowMode.Visible),
     textRuns,
     decorations: decorations ?? {},
     textShadows: [],
     boxShadows: resolveBoxShadows(node, textColor ?? DEFAULT_TEXT_COLOR),
     establishesStackingContext,
-    zIndexComputed: zIndexForSorting,
+    zIndexComputed: zIndex,
     positioning: mapPosition(node.style),
     children,
     links: [],
