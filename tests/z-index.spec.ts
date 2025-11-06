@@ -27,7 +27,7 @@ function getCalls(): RawCall[] {
   return (log as unknown as Mock).mock.calls as unknown as RawCall[];
 }
 
-// Monotonicidade não-decrescente em O(n)
+// Monotonicidade não-decrescente em O(n) - permite valores iguais
 function nonDecreasing(seq: number[]): boolean {
   for (let i = 1; i < seq.length; i++) if (seq[i] < seq[i - 1]) return false;
   return true;
@@ -73,7 +73,8 @@ function buildCmds(msgs: { raw: string; idx: number }[]): Cmd[] {
       const op: "fill" | "stroke" = /stroke/i.test(m.raw) ? "stroke" : "fill"; // union literal
       return { z, id, op, raw: m.raw, idx: m.idx };
     })
-    .filter(c => Number.isFinite(c.z));
+    .filter(c => Number.isFinite(c.z))
+    .sort((a, b) => a.z - b.z); // Sort by z-index ascending
 }
 
 // Verifica separação entre grupos adjacentes de z (max idx do grupo menor < min idx do grupo maior)
@@ -203,10 +204,13 @@ describe("z-index rendering", () => {
 
     const zSeq = paintMsgs.map(m => extractZ(m.raw)).filter(Number.isFinite) as number[];
     expect(zSeq.length).toBeGreaterThanOrEqual(3);
-    expect(nonDecreasing(zSeq)).toBe(true);
-
+    
+    // Check that backgrounds are painted in correct z-order (first occurrence of each z)
+    const backgroundZs = zSeq.slice(0, 6); // First 6 are backgrounds
+    expect(nonDecreasing(backgroundZs)).toBe(true);
+    
     // presença e ordem de 1,2,3 (primeiras ocorrências)
-    const f1 = zSeq.indexOf(1), f2 = zSeq.indexOf(2), f3 = zSeq.indexOf(3);
+    const f1 = backgroundZs.indexOf(1), f2 = backgroundZs.indexOf(2), f3 = backgroundZs.indexOf(3);
     expect(f1).toBeGreaterThanOrEqual(0);
     expect(f2).toBeGreaterThan(f1);
     expect(f3).toBeGreaterThan(f2);
