@@ -242,6 +242,7 @@ export function computeStyleForElement(
   if (styleInit.right !== undefined) styleOptions.right = styleInit.right;
   if (styleInit.bottom !== undefined) styleOptions.bottom = styleInit.bottom;
   if (styleInit.left !== undefined) styleOptions.left = styleInit.left;
+  if (styleInit.zIndex !== undefined) styleOptions.zIndex = styleInit.zIndex;
   // Apply specific overrides from CSS/inline styles
   if (styleInit.color !== undefined) styleOptions.color = styleInit.color;
   if (styleInit.backgroundLayers !== undefined) styleOptions.backgroundLayers = styleInit.backgroundLayers;
@@ -327,4 +328,3 @@ export function computeStyleForElement(
 
   return new ComputedStyle(styleOptions);
 }
-

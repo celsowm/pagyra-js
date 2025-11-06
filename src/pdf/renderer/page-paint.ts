@@ -6,6 +6,7 @@ import type { LayoutPageTree, PageSize, Radius, RenderBox, RGBA, Rect, TextPaint
 import { paintBoxShadows } from "./paint-box-shadows.js";
 import { clampRadiusComponent, shrinkRadius } from "./radius.js";
 import { renderSvgBox } from "../svg/render-svg.js";
+import { log } from "../../debug/log.js";
 
 export interface PagePaintInput {
   readonly pageTree: LayoutPageTree;
@@ -81,6 +82,14 @@ function paintBackgrounds(painter: PagePainter, boxes: RenderBox[]): void {
     if (!paintArea) {
       continue;
     }
+
+    // Log paint information for debugging z-index order
+    log("PAINT", "DEBUG", `painting background z:${box.zIndexComputed ?? 0}`, {
+      tagName: box.tagName,
+      zIndex: box.zIndexComputed ?? 0,
+      id: box.id,
+      background: background.color ? "color" : background.gradient ? "gradient" : background.image ? "image" : "none"
+    });
 
     if (background.color) {
       painter.fillRoundedRect(paintArea.rect, paintArea.radius, background.color);

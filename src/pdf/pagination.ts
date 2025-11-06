@@ -54,6 +54,14 @@ function collectPaintOrder(root: RenderBox): RenderBox[] {
     result.push(box);
     return true;
   });
+  
+  // Sort by z-index: higher z-index paints later (on top)
+  result.sort((a, b) => {
+    const aZ = a.zIndexComputed ?? 0;
+    const bZ = b.zIndexComputed ?? 0;
+    return aZ - bZ;
+  });
+  
   return result;
 }
 

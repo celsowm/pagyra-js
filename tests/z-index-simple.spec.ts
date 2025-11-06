@@ -1,24 +1,29 @@
 // tests/z-index-simple.spec.ts
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHtmlToPdf } from "../src/html-to-pdf.js";
-import { log } from "../src/debug/log.js";
+import { log, configureDebug } from "../src/debug/log.js";
 
-// Mock do logger
-vi.mock("../src/debug/log.js", () => ({
-  log: vi.fn(),
-  configureDebug: vi.fn()
-}));
+// Store original console.log to capture debug output
+let capturedLogs: any[] = [];
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  capturedLogs = [];
+  // Capture console.log calls to get debug output
+  vi.spyOn(console, 'log').mockImplementation((...args) => {
+    capturedLogs.push(args);
+  });
 });
 
 describe("z-index painting order", () => {
   it("paints divs in correct z-index order (1 -> 2 -> 3)", async () => {
     const html = `
-      <div id="red" style="position:absolute; z-index:1; background:red; width:100px; height:100px;"></div>
-      <div id="blue" style="position:absolute; z-index:2; background:blue; width:100px; height:100px;"></div>
-      <div id="green" style="position:absolute; z-index:3; background:green; width:100px; height:100px;"></div>
+      <html>
+        <body>
+          <div id="red" style="position:absolute; z-index:1; background:red; width:100px; height:100px;"></div>
+          <div id="blue" style="position:absolute; z-index:2; background:blue; width:100px; height:100px;"></div>
+          <div id="green" style="position:absolute; z-index:3; background:green; width:100px; height:100px;"></div>
+        </body>
+      </html>
     `;
 
     await renderHtmlToPdf({
@@ -33,28 +38,34 @@ describe("z-index painting order", () => {
       debugCats: ["PAINT"]
     });
 
-    // Captura todas as mensagens de pintura
-    const calls = (log as any).mock.calls;
-    const paintMessages = calls
-      .filter((call: any[]) => call[0] === "PAINT")
-      .map((call: any[]) => String(call[2]));
+    // Debug: print captured logs to see what's being captured
+    console.log("Captured logs:", capturedLogs);
+    
+    // Captura todas as mensagens de pintura dos logs capturados
+    const paintMessages = capturedLogs
+      .filter((args: any[]) => args[0] === "[PAINT] DEBUG")
+      .map((args: any[]) => String(args[1]));
+
+    console.log("Paint messages:", paintMessages);
 
     // Filtra mensagens que contêm informações de z-index
     const zIndexOrder = paintMessages
       .map((msg: string) => {
-        if (msg.includes("z-index:1") || msg.includes("z:1") || msg.includes("#red")) return 1;
-        if (msg.includes("z-index:2") || msg.includes("z:2") || msg.includes("#blue")) return 2;
-        if (msg.includes("z-index:3") || msg.includes("z:3") || msg.includes("#green")) return 3;
+        if (msg.includes("z:1") || msg.includes("#red")) return 1;
+        if (msg.includes("z:2") || msg.includes("#blue")) return 2;
+        if (msg.includes("z:3") || msg.includes("#green")) return 3;
         return null;
       })
       .filter((z: number | null) => z !== null);
+
+    console.log("Z-index order:", zIndexOrder);
 
     // Verifica se temos pelo menos 3 elementos pintados
     expect(zIndexOrder.length).toBeGreaterThanOrEqual(3);
 
     // Verifica se a ordem é não-decrescente (1, 2, 3)
     for (let i = 1; i < zIndexOrder.length; i++) {
-      expect(zIndexOrder[i]).toBeGreaterThanOrEqual(zIndexOrder[i - 1]);
+      expect(zIndexOrder[i]!).toBeGreaterThanOrEqual(zIndexOrder[i - 1]!);
     }
 
     // Verifica especificamente a presença e ordem dos valores 1, 2, 3
