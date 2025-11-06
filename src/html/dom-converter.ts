@@ -1,7 +1,7 @@
 // src/html/dom-converter.ts
 
 import { type DomEl, type CssRuleEntry } from "./css/parse-css.js";
-import { LayoutNode } from "../dom/node.js";
+import { LayoutNode, type LayoutNodeOptions } from "../dom/node.js";
 import { ComputedStyle } from "../css/style.js";
 import { computeStyleForElement } from "../css/compute-style.js";
 import { convertImageElement, resolveImageSource, type ConversionContext } from "./image-converter.js";
@@ -346,7 +346,13 @@ export async function convertDomNode(
     }
   }
 
-  return new LayoutNode(ownStyle, layoutChildren, { tagName });
+  // Preserve the original HTML ID
+  const id = element.getAttribute("id");
+  const options: LayoutNodeOptions = { tagName };
+  if (id) {
+    options.customData = { ...options.customData, id };
+  }
+  return new LayoutNode(ownStyle, layoutChildren, options);
 }
 
 function resolveSvgIntrinsicSize(svg: SvgRootNode, element: Element): { width: number; height: number } {

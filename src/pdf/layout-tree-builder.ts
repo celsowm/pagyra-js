@@ -336,7 +336,9 @@ function handleBackground(
 // ====================
 
 function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
-  const id = `node-${state.counter++}`;
+  // Use the original HTML ID if available, otherwise generate a new one
+  const originalId = node.customData?.id as string | undefined;
+  const id = originalId || `node-${state.counter++}`;
   const { borderBox, paddingBox, contentBox } = calculateBoxDimensions(node);
   const textColor = parseColor(node.style.color);
   const fallbackShadowColor = textColor ?? DEFAULT_TEXT_COLOR;
