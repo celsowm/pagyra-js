@@ -21,6 +21,7 @@ export type CSSLength = AbsoluteLength | AutoLength;
 
 export type LengthLike = CSSLength | number | "auto";
 export type LengthInput = LengthLike | RelativeLength;
+export type NumericLength = number | RelativeLength;
 
 export const AUTO_LENGTH: AutoLength = { kind: "auto" };
 

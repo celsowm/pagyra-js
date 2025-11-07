@@ -1,5 +1,6 @@
 import type { ElementDefaults } from "./types.js";
 import { createBaseDefaultsObject } from "./base-defaults.js";
+import { cloneLineHeight } from "../line-height.js";
 
 /**
  * Factory + merge utilities for browser-like UA defaults.
@@ -22,7 +23,7 @@ export class BrowserDefaults {
       merged.fontStyle = elementDefaults.fontStyle;
     }
     if (elementDefaults.lineHeight !== undefined) {
-      merged.lineHeight = elementDefaults.lineHeight;
+      merged.lineHeight = cloneLineHeight(elementDefaults.lineHeight);
     }
     if (elementDefaults.fontFamily !== undefined) {
       merged.fontFamily = elementDefaults.fontFamily;

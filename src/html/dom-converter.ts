@@ -3,6 +3,7 @@
 import { type DomEl, type CssRuleEntry } from "./css/parse-css.js";
 import { LayoutNode, type LayoutNodeOptions } from "../dom/node.js";
 import { ComputedStyle } from "../css/style.js";
+import { cloneLineHeight } from "../css/line-height.js";
 import { computeStyleForElement } from "../css/compute-style.js";
 import { convertImageElement, resolveImageSource, type ConversionContext } from "./image-converter.js";
 import { Display, WhiteSpace } from "../css/enums.js";
@@ -176,7 +177,7 @@ export async function convertDomNode(
         display: Display.Inline,
         color: parentStyle.color,
         fontSize: parentStyle.fontSize,
-        lineHeight: parentStyle.lineHeight,
+        lineHeight: cloneLineHeight(parentStyle.lineHeight),
         fontFamily: parentStyle.fontFamily,
         fontWeight: parentStyle.fontWeight,
         fontStyle: parentStyle.fontStyle,
@@ -207,7 +208,7 @@ export async function convertDomNode(
       display: Display.Inline,
       color: parentStyle.color,
       fontSize: parentStyle.fontSize,
-      lineHeight: parentStyle.lineHeight,
+      lineHeight: cloneLineHeight(parentStyle.lineHeight),
       fontFamily: parentStyle.fontFamily,
       fontWeight: parentStyle.fontWeight,
       fontStyle: parentStyle.fontStyle,
@@ -264,7 +265,7 @@ export async function convertDomNode(
       display: Display.Inline,
       color: parentStyle.color,
       fontSize: parentStyle.fontSize,
-      lineHeight: parentStyle.lineHeight,
+      lineHeight: cloneLineHeight(parentStyle.lineHeight),
       fontFamily: parentStyle.fontFamily,
       fontWeight: parentStyle.fontWeight,
       fontStyle: parentStyle.fontStyle,
@@ -301,7 +302,7 @@ export async function convertDomNode(
           display: Display.Inline,
           color: ownStyle.color,
           fontSize: ownStyle.fontSize,
-          lineHeight: ownStyle.lineHeight,
+          lineHeight: cloneLineHeight(ownStyle.lineHeight),
           fontFamily: ownStyle.fontFamily,
           fontWeight: ownStyle.fontWeight,
           fontStyle: ownStyle.fontStyle,
@@ -333,7 +334,7 @@ export async function convertDomNode(
         display: Display.Inline,
         color: ownStyle.color,
         fontSize: ownStyle.fontSize,
-        lineHeight: ownStyle.lineHeight,
+        lineHeight: cloneLineHeight(ownStyle.lineHeight),
         fontFamily: ownStyle.fontFamily,
         fontWeight: ownStyle.fontWeight,
         fontStyle: ownStyle.fontStyle,

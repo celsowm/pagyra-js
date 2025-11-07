@@ -54,29 +54,3 @@ export function parseNumeric(value: string): number | RelativeLength | undefined
   }
   return n;
 }
-
-export function parseLineHeight(value: string): number | RelativeLength | undefined {
-  if (!value) {
-    return undefined;
-  }
-  const normalized = value.trim().toLowerCase();
-  if (normalized.endsWith("px")) {
-    return Number.parseFloat(normalized);
-  }
-  if (normalized.endsWith("pt")) {
-    return ptToPx(Number.parseFloat(normalized));
-  }
-  if (normalized.endsWith("em") || normalized.endsWith("rem")) {
-    const numericValue = Number.parseFloat(normalized);
-    if (Number.isNaN(numericValue)) {
-      return undefined;
-    }
-    const unit = normalized.endsWith("em") ? "em" : "rem";
-    return relativeLength(unit, numericValue);
-  }
-  const numeric = Number.parseFloat(normalized);
-  if (Number.isNaN(numeric)) {
-    return undefined;
-  }
-  return numeric;
-}

@@ -63,7 +63,7 @@ export function defaultDisplayForTag(tag: string): 'block'|'inline'|'inline-bloc
 export const UA_DEFAULTS = {
   fontFamily: 'Arial, sans-serif',
   fontSizePx: 16,
-  lineHeight: 1.2,
+  lineHeight: { kind: "normal" as const },
   color: '#000',
   // add what you already had
 };

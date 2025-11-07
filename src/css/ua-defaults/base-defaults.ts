@@ -14,6 +14,7 @@ import {
 } from "../enums.js";
 import type { LengthLike } from "../length.js";
 import { AUTO_LENGTH } from "../length.js";
+import { createNormalLineHeight, DEFAULT_NORMAL_LINE_HEIGHT } from "../line-height.js";
 
 /**
  * Typography defaults - handles all font and text related properties.
@@ -28,7 +29,7 @@ export class TypographyDefaults {
   }
 
   static getLineHeight(): number {
-    return 1.2;
+    return DEFAULT_NORMAL_LINE_HEIGHT;
   }
 
   static getColor(): string {
@@ -159,7 +160,7 @@ export function createBaseDefaultsObject(): any {
     fontSize: TypographyDefaults.getFontSize(),
     fontStyle: "normal",
     fontWeight: TypographyDefaults.getFontWeight(),
-    lineHeight: TypographyDefaults.getLineHeight(),
+    lineHeight: createNormalLineHeight(),
     color: TypographyDefaults.getColor(),
     borderColor: TypographyDefaults.getColor(),
     letterSpacing: TypographyDefaults.getLetterSpacing(),

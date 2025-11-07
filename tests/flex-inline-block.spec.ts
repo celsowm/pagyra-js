@@ -3,13 +3,14 @@ import { LayoutNode } from "../src/dom/node.js";
 import { ComputedStyle } from "../src/css/style.js";
 import { Display, JustifyContent, AlignItems } from "../src/css/enums.js";
 import { layoutTree } from "../src/layout/pipeline/layout-tree.js";
+import { createLengthLineHeight } from "../src/css/line-height.js";
 
 describe("flex layout inline-block sizing", () => {
   it("keeps inline-block flex items at the container width when stretched by flex", () => {
     const textStyle = new ComputedStyle({
       display: Display.Inline,
       fontSize: 16,
-      lineHeight: 19.2,
+      lineHeight: createLengthLineHeight(19.2),
     });
     const textNode = new LayoutNode(textStyle, [], {
       textContent: "Conteúdo dentro da caixa com borda azul e gradiente.",

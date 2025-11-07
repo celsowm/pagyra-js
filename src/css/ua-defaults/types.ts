@@ -1,4 +1,5 @@
 import type { Display } from "../enums.js";
+import type { LineHeightValue } from "../line-height.js";
 
 // Narrow UA defaults contract for element-level mappings.
 // Kept small on purpose: only what ElementSpecificDefaults / BrowserDefaults need.
@@ -22,7 +23,7 @@ export interface ElementDefaults {
   borderLeft?: number;
   fontSize: number;
   fontStyle?: string;
-  lineHeight: number;
+  lineHeight: LineHeightValue;
   fontFamily: string;
   fontWeight: number;
   color: string;

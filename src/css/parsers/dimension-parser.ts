@@ -2,6 +2,7 @@ import { parseLength, parseNumeric } from "./length-parser.js";
 import { percent } from "../length.js";
 import type { LengthLike, RelativeLength } from "../length.js";
 import type { StyleAccumulator } from "../style.js";
+import type { LineHeightInput } from "../line-height.js";
 
 const PERCENT_LENGTH_REGEX = /^(-?\d+(?:\.\d+)?)%$/;
 
@@ -60,8 +61,41 @@ export function parseFontSize(value: string, target: StyleAccumulator): void {
   target.fontSize = parseNumeric(value) ?? target.fontSize;
 }
 
+function parseLineHeightValue(value: string): LineHeightInput | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const normalized = trimmed.toLowerCase();
+  if (normalized === "normal") {
+    return { kind: "normal" };
+  }
+  if (/^[+-]?\d+(?:\.\d+)?%$/.test(normalized)) {
+    const numeric = Number.parseFloat(normalized.slice(0, -1));
+    if (Number.isNaN(numeric)) {
+      return undefined;
+    }
+    return { kind: "unitless", value: numeric / 100 };
+  }
+  if (/^[+-]?\d+(?:\.\d+)?$/.test(normalized)) {
+    const numeric = Number.parseFloat(normalized);
+    if (Number.isNaN(numeric)) {
+      return undefined;
+    }
+    return { kind: "unitless", value: numeric };
+  }
+  const parsed = parseLength(trimmed);
+  if (parsed !== undefined) {
+    return { kind: "length", value: parsed };
+  }
+  return undefined;
+}
+
 export function parseLineHeight(value: string, target: StyleAccumulator): void {
-  target.lineHeight = parseLength(value);
+  const parsed = parseLineHeightValue(value);
+  if (parsed) {
+    target.lineHeight = parsed;
+  }
 }
 
 export function parseZIndex(value: string, target: StyleAccumulator): void {

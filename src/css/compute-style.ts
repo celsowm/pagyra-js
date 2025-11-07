@@ -18,6 +18,7 @@ import { applyDeclarationsToStyle } from "./apply-declarations.js";
 import { normalizeFontWeight } from './font-weight.js';
 import { FloatMode, Display } from "./enums.js";
 import { log } from "../debug/log.js";
+import { cloneLineHeight, lineHeightEquals, resolveLineHeightInput } from "./line-height.js";
 
 function mapFloat(value: string | undefined): FloatMode | undefined {
   switch (value) {
@@ -197,7 +198,7 @@ export function computeStyleForElement(
   const inherited = {
     color: parentStyle.color ?? mergedDefaults.color,
     fontSize: parentStyle.fontSize,
-    lineHeight: parentStyle.lineHeight,
+    lineHeight: cloneLineHeight(parentStyle.lineHeight),
     fontFamily: parentStyle.fontFamily ?? mergedDefaults.fontFamily,
     fontStyle: parentStyle.fontStyle ?? mergedDefaults.fontStyle,
     fontVariant: parentStyle.fontVariant ?? mergedDefaults.fontVariant,
@@ -281,7 +282,7 @@ export function computeStyleForElement(
   const elementDefinesFontWeight = elementDefaults.fontWeight !== undefined;
   const elementDefinesFontStyle = elementDefaults.fontStyle !== undefined;
   const elementDefinesFontSize = mergedDefaults.fontSize !== baseDefaults.fontSize;
-  const elementDefinesLineHeight = mergedDefaults.lineHeight !== baseDefaults.lineHeight;
+  const elementDefinesLineHeight = !lineHeightEquals(mergedDefaults.lineHeight, baseDefaults.lineHeight);
 
   const styleOptions: Partial<StyleProperties> = {
     // Start with merged defaults
@@ -289,7 +290,9 @@ export function computeStyleForElement(
     // Override with inherited values
     color: inherited.color,
     fontSize: elementDefinesFontSize ? mergedDefaults.fontSize : inherited.fontSize,
-    lineHeight: elementDefinesLineHeight ? mergedDefaults.lineHeight : inherited.lineHeight,
+    lineHeight: cloneLineHeight(
+      elementDefinesLineHeight ? mergedDefaults.lineHeight : inherited.lineHeight,
+    ),
     fontFamily: inherited.fontFamily,
     fontStyle: elementDefinesFontStyle ? mergedDefaults.fontStyle : inherited.fontStyle,
     fontWeight: elementDefinesFontWeight ? mergedDefaults.fontWeight : normalizeFontWeight(inherited.fontWeight),
@@ -313,14 +316,11 @@ export function computeStyleForElement(
   styleOptions.fontSize = computedFontSize;
 
   if (styleInit.lineHeight !== undefined) {
-    if (typeof styleInit.lineHeight === "number") {
-      styleOptions.lineHeight = styleInit.lineHeight;
-    } else {
-      const resolvedLineHeight = resolveNumberLike(styleInit.lineHeight, computedFontSize, rootFontReference);
-      if (resolvedLineHeight !== undefined) {
-        styleOptions.lineHeight = resolvedLineHeight;
-      }
-    }
+    styleOptions.lineHeight = resolveLineHeightInput(
+      styleInit.lineHeight,
+      computedFontSize,
+      rootFontReference,
+    );
   }
 
   const assignLength = (value: LengthInput | undefined, setter: (resolved: LengthLike) => void): void => {

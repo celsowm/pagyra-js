@@ -14,16 +14,24 @@ import {
   WritingMode,
 } from "./enums.js";
 import { AUTO_LENGTH } from "./length.js";
-import type { CSSLength, LengthInput, LengthLike, RelativeLength } from "./length.js";
+import type { CSSLength, LengthInput, LengthLike, RelativeLength, NumericLength } from "./length.js";
 import { BrowserDefaults, ElementSpecificDefaults } from "./browser-defaults.js";
 import type { BackgroundLayer } from "./background-types.js";
+import {
+  cloneLineHeight,
+  lineHeightToPx,
+  resolveLineHeightInput,
+  type LineHeightInput,
+  type LineHeightValue,
+} from "./line-height.js";
+
+export type { NumericLength } from "./length.js";
+export type { LineHeightInput, LineHeightValue } from "./line-height.js";
 
 export type FlexDirection = "row" | "row-reverse" | "column" | "column-reverse";
 export type GridAutoFlow = "row" | "column" | "row dense" | "column dense";
 export type AlignSelfValue = AlignItems | "auto";
 export type OverflowWrap = "normal" | "break-word" | "anywhere";
-
-export type NumericLength = number | RelativeLength;
 
 export interface FixedTrackSize {
   kind: "fixed";
@@ -146,7 +154,7 @@ export interface StyleAccumulator {
   minHeight?: LengthInput;
   maxHeight?: LengthInput;
   fontSize?: number | RelativeLength;
-  lineHeight?: number | RelativeLength;
+  lineHeight?: LineHeightInput;
   fontFamily?: string;
   fontStyle?: string;
   fontVariant?: string;
@@ -235,7 +243,7 @@ export interface StyleProperties {
   insetBlockStart?: LengthLike;
   insetBlockEnd?: LengthLike;
   fontSize: number;
-  lineHeight: number;
+  lineHeight: LineHeightValue;
   letterSpacing: number;
   wordSpacing: number;
   flexGrow: number;
@@ -323,7 +331,7 @@ export class ComputedStyle implements StyleProperties {
   insetBlockStart?: LengthLike;
   insetBlockEnd?: LengthLike;
   fontSize: number;
-  lineHeight: number;
+  lineHeight: LineHeightValue;
   letterSpacing: number;
   wordSpacing: number;
   flexGrow: number;
@@ -415,7 +423,7 @@ export class ComputedStyle implements StyleProperties {
     this.insetBlockStart = data.insetBlockStart;
     this.insetBlockEnd = data.insetBlockEnd;
     this.fontSize = data.fontSize;
-    this.lineHeight = data.lineHeight;
+    this.lineHeight = cloneLineHeight(data.lineHeight);
     this.letterSpacing = data.letterSpacing;
     this.wordSpacing = data.wordSpacing;
     this.flexGrow = data.flexGrow;
@@ -457,15 +465,6 @@ export class ComputedStyle implements StyleProperties {
   }
 }
 
-export function resolvedLineHeight(style: any): number {
-  if (!style || !style.fontSize) {
-    return 16;
-  }
-  if (!style.lineHeight || style.lineHeight <= 0) {
-    return style.fontSize * 1.2;
-  }
-  if (style.lineHeight > 0 && style.lineHeight <= 10) {
-    return style.lineHeight * style.fontSize;
-  }
-  return style.lineHeight;
+export function resolvedLineHeight(style: { lineHeight?: LineHeightValue; fontSize?: number } | null | undefined): number {
+  return lineHeightToPx(style?.lineHeight, style?.fontSize);
 }
