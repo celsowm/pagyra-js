@@ -47,6 +47,16 @@ import {
   parseBorderCollapse,
 } from "./border-parser-extended.js";
 
+import {
+  parseBorderBlockStart,
+  parseBorderBlockEnd,
+} from "./border-block-parser.js";
+
+import {
+  parseBorderInlineStart,
+  parseBorderInlineEnd,
+} from "./border-inline-parser.js";
+
 // Margin
 import {
   parseMargin,
@@ -181,6 +191,10 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("border-bottom-style", parseBorderBottomStyle);
   registerPropertyParser("border-left-style", parseBorderLeftStyle);
   registerPropertyParser("border-collapse", parseBorderCollapse);
+  registerPropertyParser("border-block-start", parseBorderBlockStart);
+  registerPropertyParser("border-block-end", parseBorderBlockEnd);
+  registerPropertyParser("border-inline-start", parseBorderInlineStart);
+  registerPropertyParser("border-inline-end", parseBorderInlineEnd);
 
   // Margin
   registerPropertyParser("margin", parseMargin);

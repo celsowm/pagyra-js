@@ -28,8 +28,8 @@
 | `border`                                      | Border properties                                                           | Implemented |
 | `border-width`, `border-style`, `border-color` | Border characteristics                                                    | Implemented |
 | `border-top`, `border-right`, `border-bottom`, `border-left` | Individual borders                                              | Implemented |
-| `border-block-start`, `border-block-end`      | Logical block borders                                                       | Not Implemented |
-| `border-inline-start`, `border-inline-end`    | Logical inline borders                                                      | Not Implemented |
+| `border-block-start`, `border-block-end`      | Logical block borders                                                       | Implemented |
+| `border-inline-start`, `border-inline-end`    | Logical inline borders                                                      | Implemented |
 | `box-sizing`                                  | Box model type (`content-box`/`border-box`)                                | Not Implemented |
 | `box-shadow`                                  | Adds shadow to box                                                          | Implemented |
 | **Flexbox**                                   |                                                                             |        |
