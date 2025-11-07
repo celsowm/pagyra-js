@@ -112,6 +112,9 @@ export class BrowserDefaults {
     if (elementDefaults.textDecorationLine !== undefined) {
       (merged as any).textDecorationLine = elementDefaults.textDecorationLine;
     }
+    if (elementDefaults.overflowWrap !== undefined) {
+      (merged as any).overflowWrap = elementDefaults.overflowWrap;
+    }
     if (elementDefaults.borderCollapse !== undefined) {
       merged.borderCollapse = elementDefaults.borderCollapse;
     }

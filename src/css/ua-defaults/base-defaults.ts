@@ -127,6 +127,10 @@ export class TextLayoutDefaults {
     return WhiteSpace.Normal;
   }
 
+  static getOverflowWrap(): "normal" | "break-word" | "anywhere" {
+    return "normal";
+  }
+
   static getTextWrap(): TextWrap {
     return TextWrap.Wrap;
   }
@@ -202,6 +206,7 @@ export function createBaseDefaultsObject(): any {
 
     // Text layout
     whiteSpace: TextLayoutDefaults.getWhiteSpace(),
+    overflowWrap: TextLayoutDefaults.getOverflowWrap(),
     textWrap: TextLayoutDefaults.getTextWrap(),
     writingMode: TextLayoutDefaults.getWritingMode(),
     textAlign: TextLayoutDefaults.getTextAlign(),

@@ -21,6 +21,7 @@ import type { BackgroundLayer } from "./background-types.js";
 export type FlexDirection = "row" | "row-reverse" | "column" | "column-reverse";
 export type GridAutoFlow = "row" | "column" | "row dense" | "column dense";
 export type AlignSelfValue = AlignItems | "auto";
+export type OverflowWrap = "normal" | "break-word" | "anywhere";
 
 export interface FixedTrackSize {
   kind: "fixed";
@@ -117,6 +118,7 @@ export interface StyleAccumulator {
   alignSelf?: AlignSelfValue;
   flexDirection?: FlexDirection;
   flexWrap?: boolean;
+  overflowWrap?: OverflowWrap;
   trackListColumns?: TrackDefinition[];
   trackListRows?: TrackDefinition[];
   autoFlow?: GridAutoFlow;
@@ -142,6 +144,7 @@ export interface StyleProperties {
   overflowY: OverflowMode;
   whiteSpace: WhiteSpace;
   textWrap: TextWrap;
+  overflowWrap: OverflowWrap;
   writingMode: WritingMode;
   width: LengthLike;
   height: LengthLike;
@@ -229,6 +232,7 @@ export class ComputedStyle implements StyleProperties {
   overflowY: OverflowMode;
   whiteSpace: WhiteSpace;
   textWrap: TextWrap;
+  overflowWrap: OverflowWrap;
   writingMode: WritingMode;
   width: LengthLike;
   height: LengthLike;
@@ -318,6 +322,7 @@ export class ComputedStyle implements StyleProperties {
     this.overflowX = data.overflowX;
     this.overflowY = data.overflowY;
     this.whiteSpace = data.whiteSpace;
+    this.overflowWrap = data.overflowWrap;
     this.textWrap = data.textWrap;
     this.writingMode = data.writingMode;
     this.width = data.width;

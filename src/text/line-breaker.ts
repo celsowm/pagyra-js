@@ -48,6 +48,79 @@ function measureItems(segments: { type: 'word' | 'space', text: string }[], styl
   }));
 }
 
+function splitWordItem(
+  item: TextItem,
+  style: ComputedStyle,
+  availableWidth: number
+): TextItem[] {
+  if (availableWidth <= 0) {
+    return [item];
+  }
+  const pieces: TextItem[] = [];
+  let buffer = "";
+  let bufferWidth = 0;
+
+  const flush = () => {
+    if (!buffer) {
+      return;
+    }
+    pieces.push({ type: "word", text: buffer, width: bufferWidth });
+    buffer = "";
+    bufferWidth = 0;
+  };
+
+  for (const char of Array.from(item.text)) {
+    const candidate = buffer + char;
+    const candidateWidth = estimateLineWidth(candidate, style);
+
+    if (buffer && candidateWidth > availableWidth) {
+      flush();
+      buffer = char;
+      bufferWidth = estimateLineWidth(char, style);
+      continue;
+    }
+
+    if (!buffer && candidateWidth > availableWidth) {
+      pieces.push({ type: "word", text: char, width: candidateWidth });
+      buffer = "";
+      bufferWidth = 0;
+      continue;
+    }
+
+    buffer = candidate;
+    bufferWidth = candidateWidth;
+  }
+
+  flush();
+  return pieces.length ? pieces : [item];
+}
+
+function enforceOverflowWrap(
+  items: TextItem[],
+  style: ComputedStyle,
+  availableWidth: number,
+  mode: ComputedStyle["overflowWrap"] | undefined
+): TextItem[] {
+  if (!mode || mode === "normal") {
+    return items;
+  }
+
+  const adjusted: TextItem[] = [];
+  for (const item of items) {
+    if (item.type !== "word") {
+      adjusted.push(item);
+      continue;
+    }
+    if (item.width <= availableWidth) {
+      adjusted.push(item);
+      continue;
+    }
+    adjusted.push(...splitWordItem(item, style, availableWidth));
+  }
+
+  return adjusted.length ? adjusted : items;
+}
+
 function countJustifiableSpaces(items: TextItem[]): number {
   let count = 0;
   for (let index = 0; index < items.length; index++) {
@@ -120,7 +193,8 @@ export function breakTextIntoLines(text: string, style: ComputedStyle, available
   }
 
   const rawItems = segmentText(text);
-  const items = measureItems(rawItems, style);
+  let items = measureItems(rawItems, style);
+  items = enforceOverflowWrap(items, style, availableWidth, style.overflowWrap);
   const n = items.length;
   if (n === 0) return [];
   const trimEdges = shouldTrimLineEdges(style);

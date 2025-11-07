@@ -34,4 +34,5 @@ export interface ElementDefaults {
   borderSpacing?: number;
   objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down";
   textDecorationLine?: string;
+  overflowWrap?: "normal" | "break-word" | "anywhere";
 }

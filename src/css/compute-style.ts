@@ -143,6 +143,7 @@ export function computeStyleForElement(
     fontVariant: parentStyle.fontVariant ?? mergedDefaults.fontVariant,
     fontWeight: parentStyle.fontWeight ?? mergedDefaults.fontWeight,
     textDecorationLine: parentStyle.textDecorationLine ?? mergedDefaults.textDecorationLine,
+    overflowWrap: parentStyle.overflowWrap ?? mergedDefaults.overflowWrap,
   };
 
   const styleInit: StyleAccumulator = {};
@@ -232,6 +233,7 @@ export function computeStyleForElement(
     fontFamily: inherited.fontFamily,
     fontStyle: elementDefinesFontStyle ? mergedDefaults.fontStyle : inherited.fontStyle,
     fontWeight: elementDefinesFontWeight ? mergedDefaults.fontWeight : normalizeFontWeight(inherited.fontWeight),
+    overflowWrap: inherited.overflowWrap,
     // Apply computed values
     display,
     float: floatValue ?? FloatMode.None,
@@ -255,6 +257,7 @@ export function computeStyleForElement(
   if (styleInit.fontStyle !== undefined) styleOptions.fontStyle = styleInit.fontStyle;
   if (styleInit.fontVariant !== undefined) styleOptions.fontVariant = styleInit.fontVariant;
   if (styleInit.fontWeight !== undefined) styleOptions.fontWeight = normalizeFontWeight(styleInit.fontWeight);
+  if (styleInit.overflowWrap !== undefined) styleOptions.overflowWrap = styleInit.overflowWrap;
   if (styleInit.marginTop !== undefined) styleOptions.marginTop = styleInit.marginTop;
   if (styleInit.marginRight !== undefined) styleOptions.marginRight = styleInit.marginRight;
   if (styleInit.marginBottom !== undefined) styleOptions.marginBottom = styleInit.marginBottom;

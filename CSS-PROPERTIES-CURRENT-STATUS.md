@@ -78,7 +78,7 @@
 | `letter-spacing`                              | Space between characters                                                    | Supported |
 | `word-spacing`                                | Space between words                                                         | Supported |
 | `white-space`                                 | Controls whitespace handling (`nowrap`/`pre-wrap`/etc.)                    | Supported |
-| `overflow-wrap`, `word-wrap`                  | Controls breaking of long words                                             | Not Implemented |
+| `overflow-wrap`, `word-wrap`                  | Controls breaking of long words                                             | Supported |
 | `text-overflow`                               | Overflowed text behavior (`ellipsis`/`clip`)                               | Not Implemented |
 | `direction`                                   | Text direction (`ltr`/`rtl`)                                                | Not Implemented |
 | `unicode-bidi`                                | Unicode bidirectional algorithm handling                                    | Not Implemented |

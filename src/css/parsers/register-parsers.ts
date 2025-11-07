@@ -121,6 +121,7 @@ import {
   parseTextDecorationLine,
   parseFloat,
 } from "./text-parser-extended.js";
+import { parseOverflowWrap, parseWordWrap } from "./overflow-wrap-parser.js";
 
 // Background
 import {
@@ -247,6 +248,8 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("text-decoration", parseTextDecoration);
   registerPropertyParser("text-decoration-line", parseTextDecorationLine);
   registerPropertyParser("float", parseFloat);
+  registerPropertyParser("overflow-wrap", parseOverflowWrap);
+  registerPropertyParser("word-wrap", parseWordWrap);
 
   // Background
   registerPropertyParser("background-size", applyBackgroundSizeDecl);
