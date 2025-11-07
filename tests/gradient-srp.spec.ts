@@ -7,6 +7,18 @@ describe("GradientService", () => {
   const PAGE_HEIGHT_PT = 841.89;
   const PX_TO_PT = (px: number) => px * 0.75;
   let service: GradientService;
+  const extractCoords = (dictionary: string): [number, number, number, number] => {
+    const match = dictionary.match(/\/Coords\s*\[\s*([0-9.+-]+)\s+([0-9.+-]+)\s+([0-9.+-]+)\s+([0-9.+-]+)\s*\]/);
+    if (!match) {
+      throw new Error("coords not found in shading dictionary");
+    }
+    return [match[1], match[2], match[3], match[4]].map((value) => Number.parseFloat(value)) as [
+      number,
+      number,
+      number,
+      number,
+    ];
+  };
 
   beforeEach(() => {
     const transformer = new CoordinateTransformer(PAGE_HEIGHT_PT, PX_TO_PT, 0);
@@ -39,18 +51,41 @@ describe("GradientService", () => {
     }
     const rect = { width: 200, height: 100 };
     const shading = service.createLinearGradient(gradient, rect);
-    const match = shading.dictionary.match(/\/Coords\s*\[\s*([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)\s*\]/);
-    expect(match).not.toBeNull();
-    if (!match) {
-      return;
-    }
-    const [, x0, y0, x1, y1] = match;
+    const [x0, y0, x1, y1] = extractCoords(shading.dictionary);
     const widthPt = PX_TO_PT(rect.width);
     const heightPt = PX_TO_PT(rect.height);
-    expect(parseFloat(x0)).toBeCloseTo(0, 4);
-    expect(parseFloat(y0)).toBeCloseTo(heightPt / 2, 4);
-    expect(parseFloat(x1)).toBeCloseTo(widthPt, 4);
-    expect(parseFloat(y1)).toBeCloseTo(heightPt / 2, 4);
+    expect(x0).toBeCloseTo(0, 4);
+    expect(y0).toBeCloseTo(heightPt / 2, 4);
+    expect(x1).toBeCloseTo(widthPt, 4);
+    expect(y1).toBeCloseTo(heightPt / 2, 4);
+  });
+
+  it("aligns numeric degree angles with CSS axes", () => {
+    const rect = { width: 200, height: 120 };
+    const widthPt = PX_TO_PT(rect.width);
+    const heightPt = PX_TO_PT(rect.height);
+
+    const horizontalDeg = parseLinearGradient("linear-gradient(90deg, red, blue)");
+    expect(horizontalDeg).not.toBeNull();
+    if (horizontalDeg) {
+      const shading = service.createLinearGradient(horizontalDeg, rect);
+      const [x0, y0, x1, y1] = extractCoords(shading.dictionary);
+      expect(x0).toBeCloseTo(0, 4);
+      expect(y0).toBeCloseTo(heightPt / 2, 4);
+      expect(x1).toBeCloseTo(widthPt, 4);
+      expect(y1).toBeCloseTo(heightPt / 2, 4);
+    }
+
+    const upwardDeg = parseLinearGradient("linear-gradient(0deg, red, blue)");
+    expect(upwardDeg).not.toBeNull();
+    if (upwardDeg) {
+      const shading = service.createLinearGradient(upwardDeg, rect);
+      const [x0, y0, x1, y1] = extractCoords(shading.dictionary);
+      expect(x0).toBeCloseTo(widthPt / 2, 4);
+      expect(y0).toBeCloseTo(heightPt, 4);
+      expect(x1).toBeCloseTo(widthPt / 2, 4);
+      expect(y1).toBeCloseTo(0, 4);
+    }
   });
 
   it("tracks generated shadings", () => {

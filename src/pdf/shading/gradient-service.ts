@@ -256,9 +256,10 @@ export class GradientService {
     }
     const normalized = ((angleDeg % 360) + 360) % 360;
     const radians = (normalized * Math.PI) / 180;
-    // CSS angles measure 0deg as pointing to the right and grow clockwise.
-    const dirX = Math.cos(radians);
-    const dirY = Math.sin(radians);
+    // CSS linear-gradient angles measure 0deg pointing upward and increase clockwise.
+    // Convert to our Cartesian basis (+X right, +Y down) before mapping to PDF space.
+    const dirX = Math.sin(radians);
+    const dirY = -Math.cos(radians);
 
     const halfWidth = widthPt / 2;
     const halfHeight = heightPt / 2;
@@ -273,9 +274,18 @@ export class GradientService {
 
   private computeMaxExtent(dirX: number, dirY: number, halfWidth: number, halfHeight: number): number {
     const epsilon = 1e-6;
-    const tx = Math.abs(dirX) > epsilon ? halfWidth / Math.abs(dirX) : Number.POSITIVE_INFINITY;
-    const ty = Math.abs(dirY) > epsilon ? halfHeight / Math.abs(dirY) : Number.POSITIVE_INFINITY;
-    return Math.max(tx, ty);
+    const absX = Math.abs(dirX);
+    const absY = Math.abs(dirY);
+    if (absX <= epsilon && absY <= epsilon) {
+      return 0;
+    }
+    if (absX <= epsilon) {
+      return halfHeight / absY;
+    }
+    if (absY <= epsilon) {
+      return halfWidth / absX;
+    }
+    return Math.max(halfWidth / absX, halfHeight / absY);
   }
 
   private normalizeStops(stops: GradientStop[]): NormalizedStop[] {
