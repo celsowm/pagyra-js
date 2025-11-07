@@ -151,6 +151,10 @@ export class TextLayoutDefaults {
   static getTextIndent(): number {
     return 0;
   }
+
+  static getTextTransform(): "none" {
+    return "none";
+  }
 }
 
 /**
@@ -217,6 +221,7 @@ export function createBaseDefaultsObject(): any {
     textAlign: TextLayoutDefaults.getTextAlign(),
     verticalAlign: TextLayoutDefaults.getVerticalAlign(),
     textIndent: TextLayoutDefaults.getTextIndent(),
+    textTransform: TextLayoutDefaults.getTextTransform(),
 
     // Flexbox (defaults)
     flexGrow: 0,

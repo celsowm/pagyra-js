@@ -119,6 +119,9 @@ export class BrowserDefaults {
     if (elementDefaults.overflowWrap !== undefined) {
       (merged as any).overflowWrap = elementDefaults.overflowWrap;
     }
+    if (elementDefaults.textTransform !== undefined) {
+      (merged as any).textTransform = elementDefaults.textTransform;
+    }
     if (elementDefaults.borderCollapse !== undefined) {
       merged.borderCollapse = elementDefaults.borderCollapse;
     }

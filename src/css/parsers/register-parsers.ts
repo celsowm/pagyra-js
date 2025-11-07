@@ -121,6 +121,7 @@ import {
   parseTextDecorationLine,
   parseFloat,
   parseTextIndent,
+  parseTextTransform,
 } from "./text-parser-extended.js";
 import { parseOverflowWrap, parseWordWrap } from "./overflow-wrap-parser.js";
 
@@ -250,6 +251,7 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("text-decoration", parseTextDecoration);
   registerPropertyParser("text-decoration-line", parseTextDecorationLine);
   registerPropertyParser("text-indent", parseTextIndent);
+  registerPropertyParser("text-transform", parseTextTransform);
   registerPropertyParser("float", parseFloat);
   registerPropertyParser("overflow-wrap", parseOverflowWrap);
   registerPropertyParser("word-wrap", parseWordWrap);

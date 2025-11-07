@@ -206,6 +206,7 @@ export function computeStyleForElement(
     textDecorationLine: parentStyle.textDecorationLine ?? mergedDefaults.textDecorationLine,
     overflowWrap: parentStyle.overflowWrap ?? mergedDefaults.overflowWrap,
     textIndent: parentStyle.textIndent ?? mergedDefaults.textIndent ?? 0,
+    textTransform: parentStyle.textTransform ?? mergedDefaults.textTransform ?? "none",
   };
 
   const styleInit: StyleAccumulator = {};
@@ -299,6 +300,7 @@ export function computeStyleForElement(
     fontWeight: elementDefinesFontWeight ? mergedDefaults.fontWeight : normalizeFontWeight(inherited.fontWeight),
     overflowWrap: inherited.overflowWrap,
     textIndent: inherited.textIndent ?? mergedDefaults.textIndent ?? 0,
+    textTransform: inherited.textTransform ?? "none",
     // Apply computed values
     display,
     float: floatValue ?? FloatMode.None,
@@ -435,6 +437,7 @@ export function computeStyleForElement(
   if (styleInit.flexWrap !== undefined) styleOptions.flexWrap = styleInit.flexWrap;
   if (styleInit.textAlign !== undefined) styleOptions.textAlign = styleInit.textAlign;
   if (styleInit.textIndent !== undefined) assignLength(styleInit.textIndent, (v) => (styleOptions.textIndent = v));
+  if (styleInit.textTransform !== undefined) styleOptions.textTransform = styleInit.textTransform;
   if (styleInit.objectFit !== undefined) {
     styleOptions.objectFit = styleInit.objectFit as StyleProperties["objectFit"];
   }

@@ -3,6 +3,7 @@ import { resolvedLineHeight } from "../../css/style.js";
 import type { ComputedStyle } from "../../css/style.js";
 import { normalizeFontWeight } from "../../css/font-weight.js";
 import { base14Widths } from "../../pdf/font/base14-widths.js";
+import { applyTextTransform } from "../../text/text-transform.js";
 
 // Font family pattern for monospace detection
 const MONO_FAMILY_PATTERN = /(mono|code|courier|console)/i;
@@ -63,7 +64,8 @@ export function assignIntrinsicTextMetrics(root: LayoutNode): void {
 }
 
 function measureText(text: string, style: ComputedStyle): { inlineSize: number; blockSize: number } {
-  const lines = text.split(/\r?\n/);
+  const effectiveText = applyTextTransform(text, style.textTransform);
+  const lines = effectiveText.split(/\r?\n/);
   let maxLineWidth = 0;
   for (const line of lines) {
     maxLineWidth = Math.max(maxLineWidth, estimateLineWidth(line, style));

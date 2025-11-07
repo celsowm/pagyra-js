@@ -2,7 +2,8 @@
 
 import { WhiteSpace } from "../css/enums.js";
 import { ComputedStyle } from "../css/style.js";
-import { estimateLineWidth } from "../layout/utils/text-metrics.js"; // Precisaremos exportar esta função
+import { estimateLineWidth } from "../layout/utils/text-metrics.js";
+import { applyTextTransform } from "./text-transform.js"; // Precisaremos exportar esta função
 
 // Representa uma unidade inquebrável (palavra) ou um espaço flexível (cola).
 export interface TextItem {
@@ -188,11 +189,12 @@ function buildLineBox(items: TextItem[], availableWidth: number, trimEdges: bool
  * @returns Um array de objetos LineBox representando as linhas ótimas.
  */
 export function breakTextIntoLines(text: string, style: ComputedStyle, availableWidth: number): LineBox[] {
-  if (text.length === 0) {
+  const effectiveText = applyTextTransform(text, style.textTransform);
+  if (effectiveText.length === 0) {
     return [];
   }
 
-  const rawItems = segmentText(text);
+  const rawItems = segmentText(effectiveText);
   let items = measureItems(rawItems, style);
   items = enforceOverflowWrap(items, style, availableWidth, style.overflowWrap);
   const n = items.length;
@@ -300,3 +302,4 @@ export function breakTextIntoLines(text: string, style: ComputedStyle, available
 
   return lines;
 }
+

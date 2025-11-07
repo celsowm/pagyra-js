@@ -32,6 +32,7 @@ export type FlexDirection = "row" | "row-reverse" | "column" | "column-reverse";
 export type GridAutoFlow = "row" | "column" | "row dense" | "column dense";
 export type AlignSelfValue = AlignItems | "auto";
 export type OverflowWrap = "normal" | "break-word" | "anywhere";
+export type TextTransform = "none" | "uppercase" | "lowercase" | "capitalize";
 
 export interface FixedTrackSize {
   kind: "fixed";
@@ -163,6 +164,7 @@ export interface StyleAccumulator {
   maxWidth?: LengthInput;
   textAlign?: string;
   textIndent?: LengthInput;
+  textTransform?: TextTransform;
   objectFit?: string;
 
   textDecorationLine?: string;
@@ -190,6 +192,7 @@ export interface StyleProperties {
   verticalAlign?: string;
   textDecorationLine?: string;
   textIndent: LengthLike;
+  textTransform: TextTransform;
   display: Display;
   position: Position;
   zIndex: number | "auto";
@@ -279,6 +282,7 @@ export class ComputedStyle implements StyleProperties {
   verticalAlign?: string;
   textDecorationLine?: string;
   textIndent: LengthLike;
+  textTransform: TextTransform;
   display: Display;
   position: Position;
   zIndex: number | "auto";
@@ -452,6 +456,7 @@ export class ComputedStyle implements StyleProperties {
     this.widows = data.widows;
     this.orphans = data.orphans;
     this.textIndent = data.textIndent;
+    this.textTransform = data.textTransform;
     this.textAlign = init?.textAlign ?? undefined;
     this.verticalAlign = init?.verticalAlign ?? undefined;
     this.textDecorationLine = init?.textDecorationLine ?? defaultStyle.textDecorationLine;

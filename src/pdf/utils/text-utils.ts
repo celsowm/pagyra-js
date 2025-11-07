@@ -3,6 +3,7 @@ import type { ComputedStyle } from "../../css/style.js";
 import { estimateLineWidth } from "../../layout/utils/text-metrics.js";
 import type { LayoutNode } from "../../dom/node.js";
 import type { Run, Decorations, RGBA, Rect } from "../types.js";
+import { applyTextTransform } from "../../text/text-transform.js";
 
 export function resolveTextAlign(node: LayoutNode): string | undefined {
   let current: LayoutNode | null = node;
@@ -96,7 +97,8 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
   // Fallback para o comportamento original se não houver quebra de linha calculada
   if (node.textContent) {
     const raw = node.textContent;
-    const normalized = raw.normalize("NFC");
+    const transformed = applyTextTransform(raw, node.style.textTransform);
+    const normalized = transformed.normalize("NFC");
     // Se não houver lineBoxes, a baseline é a calculada para a caixa inteira.
     const baseline = node.box.baseline > 0 ? node.box.baseline : node.box.y + node.box.contentHeight;
     const advanceWidth = Math.max(estimateLineWidth(normalized, node.style), 0);
