@@ -181,5 +181,10 @@
     "id": "margin-block-showcase",
     "label": "Margin Block Showcase",
     "htmlUrl": "examples/margin-block-showcase.html"
+  },
+  {
+    "id": "margin-inline-showcase",
+    "label": "Margin Inline Showcase",
+    "htmlUrl": "examples/margin-inline-showcase.html"
   }
 ]

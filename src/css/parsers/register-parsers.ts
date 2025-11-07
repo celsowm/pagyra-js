@@ -61,6 +61,11 @@ import {
   parseMarginBlockEnd,
 } from "./margin-block-parser.js";
 
+import {
+  parseMarginInlineStart,
+  parseMarginInlineEnd,
+} from "./margin-inline-parser.js";
+
 // Padding
 import {
   parsePadding,
@@ -175,6 +180,8 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("margin-left", parseMarginLeft);
   registerPropertyParser("margin-block-start", parseMarginBlockStart);
   registerPropertyParser("margin-block-end", parseMarginBlockEnd);
+  registerPropertyParser("margin-inline-start", parseMarginInlineStart);
+  registerPropertyParser("margin-inline-end", parseMarginInlineEnd);
 
   // Padding
   registerPropertyParser("padding", parsePadding);
