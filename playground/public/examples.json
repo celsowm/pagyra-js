@@ -176,5 +176,10 @@
     "id": "z-index-demo",
     "label": "Z-Index Stacking Demo",
     "htmlUrl": "examples/z-index-demo.html"
+  },
+  {
+    "id": "margin-block-showcase",
+    "label": "Margin Block Showcase",
+    "htmlUrl": "examples/margin-block-showcase.html"
   }
 ]
