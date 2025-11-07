@@ -1,12 +1,12 @@
 import { Position } from "../enums.js";
 import { percent } from "../length.js";
-import type { LengthLike } from "../length.js";
+import type { LengthInput, LengthLike } from "../length.js";
 import type { StyleAccumulator } from "../style.js";
 import { parseLength } from "./length-parser.js";
 
 const PERCENT_LENGTH_REGEX = /^(-?\d+(?:\.\d+)?)%$/;
 
-function parseLengthLike(value: string): LengthLike | undefined {
+function parseLengthLike(value: string): LengthInput | undefined {
   const trimmed = value.trim();
   if (!trimmed) {
     return undefined;
@@ -73,4 +73,3 @@ export function parseLeft(value: string, target: StyleAccumulator): void {
     target.left = parsed;
   }
 }
-

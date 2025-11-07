@@ -1,10 +1,10 @@
 // src/css/parsers/box-shadow-parser.ts
 
-import { type BoxShadow } from "../style.js";
+import { type BoxShadowInput, type NumericLength } from "../style.js";
 import { clampNonNegative, splitCssCommaList, splitCssList } from "../utils.js";
 import { parseLength } from "./length-parser.js";
 
-export function parseBoxShadowList(value: string): BoxShadow[] | undefined {
+export function parseBoxShadowList(value: string): BoxShadowInput[] | undefined {
   const trimmed = value.trim();
   if (!trimmed) {
     return undefined;
@@ -17,7 +17,7 @@ export function parseBoxShadowList(value: string): BoxShadow[] | undefined {
     return undefined;
   }
   const layers = splitCssCommaList(trimmed);
-  const result: BoxShadow[] = [];
+  const result: BoxShadowInput[] = [];
   for (const layer of layers) {
     const parsed = parseSingleBoxShadow(layer);
     if (parsed) {
@@ -27,13 +27,13 @@ export function parseBoxShadowList(value: string): BoxShadow[] | undefined {
   return result;
 }
 
-function parseSingleBoxShadow(input: string): BoxShadow | null {
+function parseSingleBoxShadow(input: string): BoxShadowInput | null {
   const tokens = splitCssList(input);
   if (tokens.length === 0) {
     return null;
   }
   let inset = false;
-  const lengths: number[] = [];
+  const lengths: NumericLength[] = [];
   let color: string | undefined;
 
   for (const token of tokens) {
@@ -62,10 +62,23 @@ function parseSingleBoxShadow(input: string): BoxShadow | null {
     return null;
   }
 
-  const offsetX = lengths[0];
-  const offsetY = lengths[1];
-  const blurRadius = clampNonNegative(lengths[2] ?? 0);
-  const spreadRadius = lengths[3] ?? 0;
+  const asLength = (value: NumericLength | undefined, clamp = false): NumericLength => {
+    if (value === undefined) {
+      return 0;
+    }
+    if (typeof value === "number" && clamp) {
+      return clampNonNegative(value);
+    }
+    if (typeof value === "number") {
+      return value;
+    }
+    return value;
+  };
+
+  const offsetX = asLength(lengths[0]);
+  const offsetY = asLength(lengths[1]);
+  const blurRadius = asLength(lengths[2], true);
+  const spreadRadius = asLength(lengths[3]);
 
   return {
     inset,

@@ -16,6 +16,7 @@ export interface ConversionContext {
   resourceBaseDir: string;
   assetRootDir: string;
   units: UnitParsers;
+  rootFontSize: number;
 }
 
 export function resolveImageSource(src: string, context: ConversionContext): string {
@@ -56,7 +57,7 @@ export async function convertImageElement(
   parentStyle: ComputedStyle,
   context: ConversionContext,
 ): Promise<LayoutNode> {
-  const style = computeStyleForElement(element, cssRules, parentStyle, context.units);
+  const style = computeStyleForElement(element, cssRules, parentStyle, context.units, context.rootFontSize);
   // SVG <image> elements commonly use 'href' or 'xlink:href'; HTML <img> uses 'src'.
   const rawSrc = element.getAttribute("href") ?? element.getAttribute("xlink:href") ?? element.getAttribute("src") ?? "";
   const srcAttr = rawSrc?.trim() ?? "";

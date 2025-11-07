@@ -1,4 +1,5 @@
 export type LengthUnit = "px" | "percent";
+export type RelativeLengthUnit = "em" | "rem";
 
 export interface AbsoluteLength {
   readonly kind: "absolute";
@@ -10,9 +11,16 @@ export interface AutoLength {
   readonly kind: "auto";
 }
 
+export interface RelativeLength {
+  readonly kind: "relative";
+  readonly unit: RelativeLengthUnit;
+  readonly value: number;
+}
+
 export type CSSLength = AbsoluteLength | AutoLength;
 
 export type LengthLike = CSSLength | number | "auto";
+export type LengthInput = LengthLike | RelativeLength;
 
 export const AUTO_LENGTH: AutoLength = { kind: "auto" };
 
@@ -22,6 +30,49 @@ export function px(value: number): AbsoluteLength {
 
 export function percent(ratio: number): AbsoluteLength {
   return { kind: "absolute", unit: "percent", value: ratio };
+}
+
+export function relativeLength(unit: RelativeLengthUnit, value: number): RelativeLength {
+  return { kind: "relative", unit, value };
+}
+
+export function isRelativeLength(value: unknown): value is RelativeLength {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  return (value as RelativeLength).kind === "relative";
+}
+
+export function resolveRelativeLength(value: RelativeLength, fontSize: number, rootFontSize: number): number {
+  return value.unit === "em" ? value.value * fontSize : value.value * rootFontSize;
+}
+
+export function resolveNumberLike(
+  value: number | RelativeLength | undefined,
+  fontSize: number,
+  rootFontSize: number,
+): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value === "number") {
+    return value;
+  }
+  return resolveRelativeLength(value, fontSize, rootFontSize);
+}
+
+export function resolveLengthInput(
+  value: LengthInput | undefined,
+  fontSize: number,
+  rootFontSize: number,
+): LengthLike | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (isRelativeLength(value)) {
+    return resolveRelativeLength(value, fontSize, rootFontSize);
+  }
+  return value;
 }
 
 export function isAutoLength(value: LengthLike): value is AutoLength | "auto" {

@@ -235,7 +235,7 @@ export async function convertDomNode(
   }
 
   if (tagName === "svg") {
-    const ownStyle = computeStyleForElement(element, cssRules, parentStyle, context.units);
+    const ownStyle = computeStyleForElement(element, cssRules, parentStyle, context.units, context.rootFontSize);
     console.log("convertDomNode - computed style backgroundLayers:", ownStyle.backgroundLayers);
     const svgRoot = parseSvg(element, { warn: (message) => console.warn(`[svg-parser] ${message}`) });
     if (!svgRoot) {
@@ -273,7 +273,7 @@ export async function convertDomNode(
   }
 
   // ✅ Coalescing de #text
-  const ownStyle = computeStyleForElement(element, cssRules, parentStyle, context.units);
+  const ownStyle = computeStyleForElement(element, cssRules, parentStyle, context.units, context.rootFontSize);
   await hydrateBackgroundImages(ownStyle, context);
   console.log("convertDomNode - computed style backgroundLayers:", ownStyle.backgroundLayers);
   
@@ -305,6 +305,8 @@ export async function convertDomNode(
           fontFamily: ownStyle.fontFamily,
           fontWeight: ownStyle.fontWeight,
           fontStyle: ownStyle.fontStyle,
+          overflowWrap: ownStyle.overflowWrap,
+          whiteSpace: ownStyle.whiteSpace,
           textDecorationLine: ownStyle.textDecorationLine,
         }), [], {
           textContent: normalized,
@@ -335,6 +337,8 @@ export async function convertDomNode(
         fontFamily: ownStyle.fontFamily,
         fontWeight: ownStyle.fontWeight,
         fontStyle: ownStyle.fontStyle,
+        overflowWrap: ownStyle.overflowWrap,
+        whiteSpace: ownStyle.whiteSpace,
         textDecorationLine: ownStyle.textDecorationLine,
       }), [], {
         textContent: normalized,

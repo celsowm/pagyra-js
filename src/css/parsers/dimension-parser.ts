@@ -1,11 +1,13 @@
 import { parseLength, parseNumeric } from "./length-parser.js";
 import { percent } from "../length.js";
-import type { LengthLike } from "../length.js";
+import type { LengthLike, RelativeLength } from "../length.js";
 import type { StyleAccumulator } from "../style.js";
 
 const PERCENT_LENGTH_REGEX = /^(-?\d+(?:\.\d+)?)%$/;
 
-function parseLengthOrPercent(value: string): LengthLike | undefined {
+type LengthOrRelative = LengthLike | RelativeLength;
+
+function parseLengthOrPercent(value: string): LengthOrRelative | undefined {
   const parsed = parseLength(value);
   if (parsed !== undefined) {
     return parsed;

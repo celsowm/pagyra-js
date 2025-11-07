@@ -2,8 +2,9 @@
 
 import { ptToPx } from "../../units/units.js";
 import { getViewportHeight, getViewportWidth } from "../viewport.js";
+import { relativeLength, type RelativeLength } from "../length.js";
 
-export function parseLength(value: string): number | undefined {
+export function parseLength(value: string): number | RelativeLength | undefined {
   if (!value) {
     return undefined;
   }
@@ -11,7 +12,7 @@ export function parseLength(value: string): number | undefined {
   if (!normalized || normalized === "auto") {
     return undefined;
   }
-  const match = normalized.match(/^(-?\d+(?:\.\d+)?)(px|pt|vh|vw)?$/);
+  const match = normalized.match(/^(-?\d+(?:\.\d+)?)(px|pt|vh|vw|em|rem)?$/);
   if (!match) {
     return undefined;
   }
@@ -29,29 +30,51 @@ export function parseLength(value: string): number | undefined {
       return (numeric / 100) * getViewportHeight();
     case "vw":
       return (numeric / 100) * getViewportWidth();
+    case "em":
+    case "rem":
+      return relativeLength(unit, numeric);
     default:
       return undefined;
   }
 }
 
-export function parseNumeric(value: string): number | undefined {
-  const match = value.trim().match(/^(-?\d+(?:\.\d+)?)(px|pt)?$/i);
+export function parseNumeric(value: string): number | RelativeLength | undefined {
+  const match = value.trim().match(/^(-?\d+(?:\.\d+)?)(px|pt|em|rem)?$/i);
   if (!match) {
     return undefined;
   }
   let n = Number.parseFloat(match[1]);
-  if ((match[2] ?? '').toLowerCase() === 'pt') n = ptToPx(n);
+  const unit = (match[2] ?? "px").toLowerCase();
+  if (unit === "pt") {
+    n = ptToPx(n);
+    return n;
+  }
+  if (unit === "em" || unit === "rem") {
+    return relativeLength(unit, n);
+  }
   return n;
 }
 
-export function parseLineHeight(value: string): number | undefined {
+export function parseLineHeight(value: string): number | RelativeLength | undefined {
   if (!value) {
     return undefined;
   }
-  if (value.endsWith("px")) {
-    return Number.parseFloat(value);
+  const normalized = value.trim().toLowerCase();
+  if (normalized.endsWith("px")) {
+    return Number.parseFloat(normalized);
   }
-  const numeric = Number.parseFloat(value);
+  if (normalized.endsWith("pt")) {
+    return ptToPx(Number.parseFloat(normalized));
+  }
+  if (normalized.endsWith("em") || normalized.endsWith("rem")) {
+    const numericValue = Number.parseFloat(normalized);
+    if (Number.isNaN(numericValue)) {
+      return undefined;
+    }
+    const unit = normalized.endsWith("em") ? "em" : "rem";
+    return relativeLength(unit, numericValue);
+  }
+  const numeric = Number.parseFloat(normalized);
   if (Number.isNaN(numeric)) {
     return undefined;
   }

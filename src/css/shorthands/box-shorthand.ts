@@ -2,11 +2,17 @@
 
 import { parseLength } from "../parsers/length-parser.js";
 import { splitCssList } from "../utils.js";
+import type { RelativeLength } from "../length.js";
 
 export function applyBoxShorthand(
   value: string,
-  apply: (top: number | undefined, right: number | undefined, bottom: number | undefined, left: number | undefined) => void,
-  parser: (input: string) => number | undefined = parseLength,
+  apply: (
+    top: number | RelativeLength | undefined,
+    right: number | RelativeLength | undefined,
+    bottom: number | RelativeLength | undefined,
+    left: number | RelativeLength | undefined,
+  ) => void,
+  parser: (input: string) => number | RelativeLength | undefined = parseLength,
 ): void {
   const parts = splitCssList(value);
   if (parts.length === 0) {

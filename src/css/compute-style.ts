@@ -2,7 +2,17 @@
 
 import { type DomEl, type CssRuleEntry } from "../html/css/parse-css.js";
 import { type UnitParsers } from "../units/units.js";
-import { ComputedStyle, type StyleProperties, type StyleAccumulator } from "./style.js";
+import {
+  ComputedStyle,
+  type StyleProperties,
+  type StyleAccumulator,
+  type TrackDefinitionInput,
+  type TrackSizeInput,
+  type TrackDefinition,
+  type TrackSize,
+} from "./style.js";
+import { resolveLengthInput, resolveNumberLike } from "./length.js";
+import type { LengthInput, LengthLike, RelativeLength } from "./length.js";
 import { ElementSpecificDefaults, BrowserDefaults } from "./browser-defaults.js";
 import { applyDeclarationsToStyle } from "./apply-declarations.js";
 import { normalizeFontWeight } from './font-weight.js';
@@ -116,11 +126,61 @@ function defaultDisplayForTag(tag: string): Display {
   return display;
 }
 
+function resolveTrackSizeInputToAbsolute(track: TrackSizeInput, fontSize: number, rootFontSize: number): TrackSize {
+  if (track.kind === "fixed") {
+    return {
+      kind: "fixed",
+      size: resolveNumberLike(track.size, fontSize, rootFontSize) ?? 0,
+    };
+  }
+  if (track.kind === "flex") {
+    return {
+      kind: "flex",
+      flex: track.flex,
+      min: resolveNumberLike(track.min, fontSize, rootFontSize),
+      max: resolveNumberLike(track.max, fontSize, rootFontSize),
+    };
+  }
+  return {
+    kind: "auto",
+    min: resolveNumberLike(track.min, fontSize, rootFontSize),
+    max: resolveNumberLike(track.max, fontSize, rootFontSize),
+  };
+}
+
+function resolveTrackDefinitionsInput(
+  definitions: TrackDefinitionInput[] | undefined,
+  fontSize: number,
+  rootFontSize: number,
+): TrackDefinition[] | undefined {
+  if (!definitions) {
+    return undefined;
+  }
+  return definitions.map((definition) => {
+    if (definition.kind === "repeat") {
+      return {
+        kind: "repeat",
+        count: definition.count,
+        track: resolveTrackSizeInputToAbsolute(definition.track, fontSize, rootFontSize),
+      };
+    }
+    if (definition.kind === "repeat-auto") {
+      return {
+        kind: "repeat-auto",
+        mode: definition.mode,
+        track: resolveTrackSizeInputToAbsolute(definition.track, fontSize, rootFontSize),
+      };
+    }
+    return resolveTrackSizeInputToAbsolute(definition, fontSize, rootFontSize);
+  });
+}
+
 export function computeStyleForElement(
   element: DomEl,
   cssRules: CssRuleEntry[],
   parentStyle: ComputedStyle,
-  units: UnitParsers
+  units: UnitParsers,
+  rootFontSize?: number,
 ): ComputedStyle {
   const tagName = element.tagName.toLowerCase();
 
@@ -240,64 +300,130 @@ export function computeStyleForElement(
     borderModel: styleInit.borderModel ?? mergedDefaults.borderModel,
   };
 
+  const rootFontReference = rootFontSize ?? parentStyle.fontSize ?? mergedDefaults.fontSize;
+
+  const baseFontSize = styleOptions.fontSize ?? inherited.fontSize ?? mergedDefaults.fontSize;
+  let computedFontSize: number = baseFontSize;
+  if (styleInit.fontSize !== undefined) {
+    const resolvedFontSize = resolveNumberLike(styleInit.fontSize, inherited.fontSize, rootFontReference);
+    if (resolvedFontSize !== undefined) {
+      computedFontSize = resolvedFontSize;
+    }
+  }
+  styleOptions.fontSize = computedFontSize;
+
+  if (styleInit.lineHeight !== undefined) {
+    if (typeof styleInit.lineHeight === "number") {
+      styleOptions.lineHeight = styleInit.lineHeight;
+    } else {
+      const resolvedLineHeight = resolveNumberLike(styleInit.lineHeight, computedFontSize, rootFontReference);
+      if (resolvedLineHeight !== undefined) {
+        styleOptions.lineHeight = resolvedLineHeight;
+      }
+    }
+  }
+
+  const assignLength = (value: LengthInput | undefined, setter: (resolved: LengthLike) => void): void => {
+    const resolved = resolveLengthInput(value, computedFontSize, rootFontReference);
+    if (resolved !== undefined) {
+      setter(resolved);
+    }
+  };
+  const assignNumberLength = (value: number | RelativeLength | undefined, setter: (resolved: number) => void): void => {
+    const resolved = resolveNumberLike(value, computedFontSize, rootFontReference);
+    if (resolved !== undefined) {
+      setter(resolved);
+    }
+  };
+
   if (styleInit.position !== undefined) styleOptions.position = styleInit.position;
-  if (styleInit.top !== undefined) styleOptions.top = styleInit.top;
-  if (styleInit.right !== undefined) styleOptions.right = styleInit.right;
-  if (styleInit.bottom !== undefined) styleOptions.bottom = styleInit.bottom;
-  if (styleInit.left !== undefined) styleOptions.left = styleInit.left;
+  if (styleInit.top !== undefined) assignLength(styleInit.top, (v) => (styleOptions.top = v));
+  if (styleInit.right !== undefined) assignLength(styleInit.right, (v) => (styleOptions.right = v));
+  if (styleInit.bottom !== undefined) assignLength(styleInit.bottom, (v) => (styleOptions.bottom = v));
+  if (styleInit.left !== undefined) assignLength(styleInit.left, (v) => (styleOptions.left = v));
   if (styleInit.zIndex !== undefined) styleOptions.zIndex = styleInit.zIndex;
-  // Apply specific overrides from CSS/inline styles
   if (styleInit.color !== undefined) styleOptions.color = styleInit.color;
   if (styleInit.backgroundLayers !== undefined) styleOptions.backgroundLayers = styleInit.backgroundLayers;
   if (styleInit.borderColor !== undefined) styleOptions.borderColor = styleInit.borderColor;
-  if (styleInit.boxShadows !== undefined) styleOptions.boxShadows = [...styleInit.boxShadows];
-  if (styleInit.fontSize !== undefined) styleOptions.fontSize = styleInit.fontSize;
-  if (styleInit.lineHeight !== undefined) styleOptions.lineHeight = styleInit.lineHeight;
+  if (styleInit.boxShadows !== undefined) {
+    const resolveShadowLength = (value: number | RelativeLength | undefined, clamp = false): number => {
+      const resolved = resolveNumberLike(value, computedFontSize, rootFontReference);
+      if (resolved === undefined) {
+        return 0;
+      }
+      if (clamp && resolved < 0) {
+        return 0;
+      }
+      return resolved;
+    };
+    styleOptions.boxShadows = styleInit.boxShadows.map((shadow) => ({
+      inset: shadow.inset,
+      offsetX: resolveShadowLength(shadow.offsetX),
+      offsetY: resolveShadowLength(shadow.offsetY),
+      blurRadius: resolveShadowLength(shadow.blurRadius, true),
+      spreadRadius: resolveShadowLength(shadow.spreadRadius),
+      color: shadow.color,
+    }));
+  }
   if (styleInit.fontFamily !== undefined) styleOptions.fontFamily = styleInit.fontFamily;
   if (styleInit.fontStyle !== undefined) styleOptions.fontStyle = styleInit.fontStyle;
   if (styleInit.fontVariant !== undefined) styleOptions.fontVariant = styleInit.fontVariant;
   if (styleInit.fontWeight !== undefined) styleOptions.fontWeight = normalizeFontWeight(styleInit.fontWeight);
   if (styleInit.overflowWrap !== undefined) styleOptions.overflowWrap = styleInit.overflowWrap;
-  if (styleInit.marginTop !== undefined) styleOptions.marginTop = styleInit.marginTop;
-  if (styleInit.marginRight !== undefined) styleOptions.marginRight = styleInit.marginRight;
-  if (styleInit.marginBottom !== undefined) styleOptions.marginBottom = styleInit.marginBottom;
-  if (styleInit.marginLeft !== undefined) styleOptions.marginLeft = styleInit.marginLeft;
-  if (styleInit.paddingTop !== undefined) styleOptions.paddingTop = styleInit.paddingTop;
-  if (styleInit.paddingRight !== undefined) styleOptions.paddingRight = styleInit.paddingRight;
-  if (styleInit.paddingBottom !== undefined) styleOptions.paddingBottom = styleInit.paddingBottom;
-  if (styleInit.paddingLeft !== undefined) styleOptions.paddingLeft = styleInit.paddingLeft;
-  if (styleInit.borderTop !== undefined) styleOptions.borderTop = styleInit.borderTop;
-  if (styleInit.borderRight !== undefined) styleOptions.borderRight = styleInit.borderRight;
-  if (styleInit.borderBottom !== undefined) styleOptions.borderBottom = styleInit.borderBottom;
-  if (styleInit.borderLeft !== undefined) styleOptions.borderLeft = styleInit.borderLeft;
-  if (styleInit.borderTopLeftRadiusX !== undefined) styleOptions.borderTopLeftRadiusX = styleInit.borderTopLeftRadiusX;
-  if (styleInit.borderTopLeftRadiusY !== undefined) styleOptions.borderTopLeftRadiusY = styleInit.borderTopLeftRadiusY;
-  if (styleInit.borderTopRightRadiusX !== undefined) styleOptions.borderTopRightRadiusX = styleInit.borderTopRightRadiusX;
-  if (styleInit.borderTopRightRadiusY !== undefined) styleOptions.borderTopRightRadiusY = styleInit.borderTopRightRadiusY;
-  if (styleInit.borderBottomRightRadiusX !== undefined) styleOptions.borderBottomRightRadiusX = styleInit.borderBottomRightRadiusX;
-  if (styleInit.borderBottomRightRadiusY !== undefined) styleOptions.borderBottomRightRadiusY = styleInit.borderBottomRightRadiusY;
-  if (styleInit.borderBottomLeftRadiusX !== undefined) styleOptions.borderBottomLeftRadiusX = styleInit.borderBottomLeftRadiusX;
-  if (styleInit.borderBottomLeftRadiusY !== undefined) styleOptions.borderBottomLeftRadiusY = styleInit.borderBottomLeftRadiusY;
-  if (styleInit.width !== undefined) styleOptions.width = styleInit.width;
-  if (styleInit.minWidth !== undefined) styleOptions.minWidth = styleInit.minWidth;
-  if (styleInit.maxWidth !== undefined) styleOptions.maxWidth = styleInit.maxWidth;
-  if (styleInit.height !== undefined) styleOptions.height = styleInit.height;
-  if (styleInit.minHeight !== undefined) styleOptions.minHeight = styleInit.minHeight;
-  if (styleInit.maxHeight !== undefined) styleOptions.maxHeight = styleInit.maxHeight;
+  if (styleInit.marginTop !== undefined) assignLength(styleInit.marginTop, (v) => (styleOptions.marginTop = v));
+  if (styleInit.marginRight !== undefined) assignLength(styleInit.marginRight, (v) => (styleOptions.marginRight = v));
+  if (styleInit.marginBottom !== undefined) assignLength(styleInit.marginBottom, (v) => (styleOptions.marginBottom = v));
+  if (styleInit.marginLeft !== undefined) assignLength(styleInit.marginLeft, (v) => (styleOptions.marginLeft = v));
+  if (styleInit.paddingTop !== undefined) assignLength(styleInit.paddingTop, (v) => (styleOptions.paddingTop = v));
+  if (styleInit.paddingRight !== undefined) assignLength(styleInit.paddingRight, (v) => (styleOptions.paddingRight = v));
+  if (styleInit.paddingBottom !== undefined) assignLength(styleInit.paddingBottom, (v) => (styleOptions.paddingBottom = v));
+  if (styleInit.paddingLeft !== undefined) assignLength(styleInit.paddingLeft, (v) => (styleOptions.paddingLeft = v));
+  if (styleInit.borderTop !== undefined) assignLength(styleInit.borderTop, (v) => (styleOptions.borderTop = v));
+  if (styleInit.borderRight !== undefined) assignLength(styleInit.borderRight, (v) => (styleOptions.borderRight = v));
+  if (styleInit.borderBottom !== undefined) assignLength(styleInit.borderBottom, (v) => (styleOptions.borderBottom = v));
+  if (styleInit.borderLeft !== undefined) assignLength(styleInit.borderLeft, (v) => (styleOptions.borderLeft = v));
+  if (styleInit.borderTopLeftRadiusX !== undefined)
+    assignNumberLength(styleInit.borderTopLeftRadiusX, (v) => (styleOptions.borderTopLeftRadiusX = v));
+  if (styleInit.borderTopLeftRadiusY !== undefined)
+    assignNumberLength(styleInit.borderTopLeftRadiusY, (v) => (styleOptions.borderTopLeftRadiusY = v));
+  if (styleInit.borderTopRightRadiusX !== undefined)
+    assignNumberLength(styleInit.borderTopRightRadiusX, (v) => (styleOptions.borderTopRightRadiusX = v));
+  if (styleInit.borderTopRightRadiusY !== undefined)
+    assignNumberLength(styleInit.borderTopRightRadiusY, (v) => (styleOptions.borderTopRightRadiusY = v));
+  if (styleInit.borderBottomRightRadiusX !== undefined)
+    assignNumberLength(styleInit.borderBottomRightRadiusX, (v) => (styleOptions.borderBottomRightRadiusX = v));
+  if (styleInit.borderBottomRightRadiusY !== undefined)
+    assignNumberLength(styleInit.borderBottomRightRadiusY, (v) => (styleOptions.borderBottomRightRadiusY = v));
+  if (styleInit.borderBottomLeftRadiusX !== undefined)
+    assignNumberLength(styleInit.borderBottomLeftRadiusX, (v) => (styleOptions.borderBottomLeftRadiusX = v));
+  if (styleInit.borderBottomLeftRadiusY !== undefined)
+    assignNumberLength(styleInit.borderBottomLeftRadiusY, (v) => (styleOptions.borderBottomLeftRadiusY = v));
+  if (styleInit.width !== undefined) assignLength(styleInit.width, (v) => (styleOptions.width = v));
+  if (styleInit.minWidth !== undefined) assignLength(styleInit.minWidth, (v) => (styleOptions.minWidth = v));
+  if (styleInit.maxWidth !== undefined) assignLength(styleInit.maxWidth, (v) => (styleOptions.maxWidth = v));
+  if (styleInit.height !== undefined) assignLength(styleInit.height, (v) => (styleOptions.height = v));
+  if (styleInit.minHeight !== undefined) assignLength(styleInit.minHeight, (v) => (styleOptions.minHeight = v));
+  if (styleInit.maxHeight !== undefined) assignLength(styleInit.maxHeight, (v) => (styleOptions.maxHeight = v));
   if (styleInit.trackListColumns !== undefined) {
-    styleOptions.trackListColumns = [...styleInit.trackListColumns];
+    const resolved = resolveTrackDefinitionsInput(styleInit.trackListColumns, computedFontSize, rootFontReference);
+    if (resolved) {
+      styleOptions.trackListColumns = resolved;
+    }
   }
   if (styleInit.trackListRows !== undefined) {
-    styleOptions.trackListRows = [...styleInit.trackListRows];
+    const resolved = resolveTrackDefinitionsInput(styleInit.trackListRows, computedFontSize, rootFontReference);
+    if (resolved) {
+      styleOptions.trackListRows = resolved;
+    }
   }
   if (styleInit.autoFlow !== undefined) {
     styleOptions.autoFlow = styleInit.autoFlow;
   }
   if (styleInit.rowGap !== undefined) {
-    styleOptions.rowGap = styleInit.rowGap;
+    assignNumberLength(styleInit.rowGap, (v) => (styleOptions.rowGap = v));
   }
   if (styleInit.columnGap !== undefined) {
-    styleOptions.columnGap = styleInit.columnGap;
+    assignNumberLength(styleInit.columnGap, (v) => (styleOptions.columnGap = v));
   }
   if (styleInit.justifyContent !== undefined) styleOptions.justifyContent = styleInit.justifyContent;
   if (styleInit.alignItems !== undefined) styleOptions.alignItems = styleInit.alignItems;

@@ -2,10 +2,11 @@
 
 import { DEFAULT_BORDER_WIDTH, parseBorderShorthand } from "../parsers/border-parser.js";
 import { splitCssList } from "../utils.js";
+import type { NumericLength } from "../style.js";
 
 export function applyBorderShorthand(
   value: string,
-  applyWidth: (width: number) => void,
+  applyWidth: (width: NumericLength) => void,
   applyColor: (color: string | undefined) => void,
 ): void {
   const parsed = parseBorderShorthand(value);

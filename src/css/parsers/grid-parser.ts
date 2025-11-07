@@ -1,4 +1,11 @@
-import type { TrackDefinition, TrackSize, RepeatTrackDefinition, AutoRepeatTrackDefinition, FlexTrackSize } from "../style.js";
+import type {
+  TrackDefinitionInput,
+  TrackSizeInput,
+  RepeatTrackDefinitionInput,
+  AutoRepeatTrackDefinitionInput,
+  FlexTrackSizeInput,
+  NumericLength,
+} from "../style.js";
 import { parseLength } from "./length-parser.js";
 
 function tokenizeTrackList(value: string): string[] {
@@ -76,7 +83,7 @@ function parseFlex(value: string): number | undefined {
   return Number.isNaN(parsed) ? undefined : parsed;
 }
 
-function parseTrackSize(token: string): TrackSize | undefined {
+function parseTrackSize(token: string): TrackSizeInput | undefined {
   const normalized = token.trim().toLowerCase();
 
   if (normalized.startsWith("minmax(") && normalized.endsWith(")")) {
@@ -91,14 +98,20 @@ function parseTrackSize(token: string): TrackSize | undefined {
     }
     const flex = parseFlex(maxArg);
     if (flex !== undefined) {
-      const track: FlexTrackSize = { kind: "flex", flex, min };
+      const track: FlexTrackSizeInput = { kind: "flex", flex, min };
       return track;
     }
     const maxLength = parseLength(maxArg);
     if (maxLength !== undefined) {
+      if (typeof min === "number" && typeof maxLength === "number") {
+        return {
+          kind: "fixed",
+          size: Math.max(min, maxLength),
+        };
+      }
       return {
         kind: "fixed",
-        size: Math.max(min, maxLength),
+        size: maxLength,
       };
     }
     if (maxArg.trim() === "auto") {
@@ -124,7 +137,7 @@ function parseTrackSize(token: string): TrackSize | undefined {
   return undefined;
 }
 
-export function parseGridTemplate(value: string): TrackDefinition[] | undefined {
+export function parseGridTemplate(value: string): TrackDefinitionInput[] | undefined {
   if (!value) {
     return undefined;
   }
@@ -133,7 +146,7 @@ export function parseGridTemplate(value: string): TrackDefinition[] | undefined 
     return undefined;
   }
 
-  const tracks: TrackDefinition[] = [];
+  const tracks: TrackDefinitionInput[] = [];
   for (const token of tokens) {
     const normalized = token.trim().toLowerCase();
     if (normalized.startsWith("repeat(") && normalized.endsWith(")")) {
@@ -150,7 +163,7 @@ export function parseGridTemplate(value: string): TrackDefinition[] | undefined 
 
       const normalizedCount = countArg.trim().toLowerCase();
       if (normalizedCount === "auto-fit" || normalizedCount === "auto-fill") {
-        const repeat: AutoRepeatTrackDefinition = {
+        const repeat: AutoRepeatTrackDefinitionInput = {
           kind: "repeat-auto",
           mode: normalizedCount as "auto-fit" | "auto-fill",
           track,
@@ -163,7 +176,7 @@ export function parseGridTemplate(value: string): TrackDefinition[] | undefined 
       if (!Number.isFinite(numericCount) || numericCount <= 0) {
         return undefined;
       }
-      const repeat: RepeatTrackDefinition = {
+      const repeat: RepeatTrackDefinitionInput = {
         kind: "repeat",
         count: numericCount,
         track,
@@ -181,7 +194,7 @@ export function parseGridTemplate(value: string): TrackDefinition[] | undefined 
   return tracks;
 }
 
-export function parseGap(value: string): { row: number; column: number } | undefined {
+export function parseGap(value: string): { row: NumericLength; column: NumericLength } | undefined {
   if (!value) {
     return undefined;
   }

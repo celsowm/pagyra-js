@@ -99,11 +99,24 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
     processChildrenOf = document.documentElement;
   }
 
-  const rootStyle = processChildrenOf ? computeStyleForElement(processChildrenOf, cssRules, new ComputedStyle(), units) : new ComputedStyle();
+  const baseParentStyle = new ComputedStyle();
+  const htmlElement = document.documentElement;
+  const documentElementStyle = htmlElement
+    ? computeStyleForElement(htmlElement, cssRules, baseParentStyle, units, baseParentStyle.fontSize)
+    : baseParentStyle;
+  const rootFontSize = documentElementStyle.fontSize;
+
+  let rootStyle: ComputedStyle;
+  if (!processChildrenOf || processChildrenOf === htmlElement) {
+    rootStyle = documentElementStyle;
+  } else {
+    rootStyle = computeStyleForElement(processChildrenOf, cssRules, documentElementStyle, units, rootFontSize);
+  }
   const rootLayout = new LayoutNode(rootStyle, [], { tagName: processChildrenOf?.tagName?.toLowerCase() });
 
   const resourceBaseDir = path.resolve(options.resourceBaseDir ?? options.assetRootDir ?? process.cwd());
   const assetRootDir = path.resolve(options.assetRootDir ?? resourceBaseDir);
+  const conversionContext = { resourceBaseDir, assetRootDir, units, rootFontSize };
   
   if (processChildrenOf) {
     console.log("prepareHtmlRender - processing children of:", processChildrenOf.tagName, "count:", processChildrenOf.childNodes.length);
@@ -116,7 +129,7 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
           continue;
         }
       }
-      const layoutChild = await convertDomNode(child, cssRules, rootStyle, { resourceBaseDir, assetRootDir, units });
+      const layoutChild = await convertDomNode(child, cssRules, rootStyle, conversionContext);
       if (layoutChild) rootLayout.appendChild(layoutChild);
     }
   }

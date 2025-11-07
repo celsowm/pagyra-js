@@ -14,7 +14,7 @@ import {
   WritingMode,
 } from "./enums.js";
 import { AUTO_LENGTH } from "./length.js";
-import type { CSSLength, LengthLike } from "./length.js";
+import type { CSSLength, LengthInput, LengthLike, RelativeLength } from "./length.js";
 import { BrowserDefaults, ElementSpecificDefaults } from "./browser-defaults.js";
 import type { BackgroundLayer } from "./background-types.js";
 
@@ -22,6 +22,8 @@ export type FlexDirection = "row" | "row-reverse" | "column" | "column-reverse";
 export type GridAutoFlow = "row" | "column" | "row dense" | "column dense";
 export type AlignSelfValue = AlignItems | "auto";
 export type OverflowWrap = "normal" | "break-word" | "anywhere";
+
+export type NumericLength = number | RelativeLength;
 
 export interface FixedTrackSize {
   kind: "fixed";
@@ -57,12 +59,55 @@ export interface AutoRepeatTrackDefinition {
 
 export type TrackDefinition = TrackSize | RepeatTrackDefinition | AutoRepeatTrackDefinition;
 
+export interface FixedTrackSizeInput {
+  kind: "fixed";
+  size: NumericLength;
+}
+
+export interface FlexTrackSizeInput {
+  kind: "flex";
+  flex: number;
+  min?: NumericLength;
+  max?: NumericLength;
+}
+
+export interface AutoTrackSizeInput {
+  kind: "auto";
+  min?: NumericLength;
+  max?: NumericLength;
+}
+
+export type TrackSizeInput = FixedTrackSizeInput | FlexTrackSizeInput | AutoTrackSizeInput;
+
+export interface RepeatTrackDefinitionInput {
+  kind: "repeat";
+  count: number;
+  track: TrackSizeInput;
+}
+
+export interface AutoRepeatTrackDefinitionInput {
+  kind: "repeat-auto";
+  mode: "auto-fit" | "auto-fill";
+  track: TrackSizeInput;
+}
+
+export type TrackDefinitionInput = TrackSizeInput | RepeatTrackDefinitionInput | AutoRepeatTrackDefinitionInput;
+
 export interface BoxShadow {
   inset: boolean;
   offsetX: number;
   offsetY: number;
   blurRadius: number;
   spreadRadius: number;
+  color?: string;
+}
+
+export interface BoxShadowInput {
+  inset: boolean;
+  offsetX: NumericLength;
+  offsetY: NumericLength;
+  blurRadius: NumericLength;
+  spreadRadius: NumericLength;
   color?: string;
 }
 
@@ -74,40 +119,40 @@ export interface StyleAccumulator {
   color?: string;
   backgroundLayers?: BackgroundLayer[];
   borderColor?: string;
-  boxShadows?: BoxShadow[];
-  borderTop?: number;
-  borderRight?: number;
-  borderBottom?: number;
-  borderLeft?: number;
-  borderTopLeftRadiusX?: number;
-  borderTopLeftRadiusY?: number;
-  borderTopRightRadiusX?: number;
-  borderTopRightRadiusY?: number;
-  borderBottomRightRadiusX?: number;
-  borderBottomRightRadiusY?: number;
-  borderBottomLeftRadiusX?: number;
-  borderBottomLeftRadiusY?: number;
-  marginTop?: number;
-  marginRight?: number;
-  marginBottom?: number;
-  marginLeft?: number;
-  paddingTop?: number;
-  paddingRight?: number;
-  paddingBottom?: number;
-  paddingLeft?: number;
-  width?: LengthLike;
-  minWidth?: LengthLike;
-  height?: LengthLike;
-  minHeight?: LengthLike;
-  maxHeight?: LengthLike;
-  fontSize?: number;
-  lineHeight?: number;
+  boxShadows?: BoxShadowInput[];
+  borderTop?: LengthInput;
+  borderRight?: LengthInput;
+  borderBottom?: LengthInput;
+  borderLeft?: LengthInput;
+  borderTopLeftRadiusX?: NumericLength;
+  borderTopLeftRadiusY?: NumericLength;
+  borderTopRightRadiusX?: NumericLength;
+  borderTopRightRadiusY?: NumericLength;
+  borderBottomRightRadiusX?: NumericLength;
+  borderBottomRightRadiusY?: NumericLength;
+  borderBottomLeftRadiusX?: NumericLength;
+  borderBottomLeftRadiusY?: NumericLength;
+  marginTop?: LengthInput;
+  marginRight?: LengthInput;
+  marginBottom?: LengthInput;
+  marginLeft?: LengthInput;
+  paddingTop?: LengthInput;
+  paddingRight?: LengthInput;
+  paddingBottom?: LengthInput;
+  paddingLeft?: LengthInput;
+  width?: LengthInput;
+  minWidth?: LengthInput;
+  height?: LengthInput;
+  minHeight?: LengthInput;
+  maxHeight?: LengthInput;
+  fontSize?: number | RelativeLength;
+  lineHeight?: number | RelativeLength;
   fontFamily?: string;
   fontStyle?: string;
   fontVariant?: string;
   fontWeight?: number;
   borderModel?: BorderModel;
-  maxWidth?: LengthLike;
+  maxWidth?: LengthInput;
   textAlign?: string;
   objectFit?: string;
 
@@ -119,16 +164,16 @@ export interface StyleAccumulator {
   flexDirection?: FlexDirection;
   flexWrap?: boolean;
   overflowWrap?: OverflowWrap;
-  trackListColumns?: TrackDefinition[];
-  trackListRows?: TrackDefinition[];
+  trackListColumns?: TrackDefinitionInput[];
+  trackListRows?: TrackDefinitionInput[];
   autoFlow?: GridAutoFlow;
-  rowGap?: number;
-  columnGap?: number;
+  rowGap?: NumericLength;
+  columnGap?: NumericLength;
   zIndex?: number | "auto";
-  top?: LengthLike;
-  right?: LengthLike;
-  bottom?: LengthLike;
-  left?: LengthLike;
+  top?: LengthInput;
+  right?: LengthInput;
+  bottom?: LengthInput;
+  left?: LengthInput;
 }
 
 export interface StyleProperties {

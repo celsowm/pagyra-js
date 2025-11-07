@@ -2,6 +2,8 @@
 
 import { clampPositive, splitCssList } from "../utils.js";
 import { parseLength } from "./length-parser.js";
+import type { RelativeLength } from "../length.js";
+import type { NumericLength } from "../style.js";
 
 export const BORDER_STYLE_KEYWORDS = new Set([
   "none",
@@ -25,7 +27,7 @@ export const BORDER_WIDTH_KEYWORD_MAP: Record<string, number> = {
 export const DEFAULT_BORDER_WIDTH = BORDER_WIDTH_KEYWORD_MAP.medium;
 
 export interface ParsedBorder {
-  width?: number;
+  width?: NumericLength;
   style?: string;
   color?: string;
 }
@@ -36,7 +38,7 @@ export function parseBorderShorthand(value: string): ParsedBorder | null {
     return null;
   }
 
-  let width: number | undefined;
+  let width: NumericLength | undefined;
   let style: string | undefined;
   let color: string | undefined;
 
@@ -73,7 +75,7 @@ export function parseBorderShorthand(value: string): ParsedBorder | null {
   return { width, style, color };
 }
 
-export function parseBorderWidth(value: string): number | undefined {
+export function parseBorderWidth(value: string): NumericLength | undefined {
   const trimmed = value.trim().toLowerCase();
   if (!trimmed) {
     return undefined;
@@ -85,8 +87,8 @@ export function parseBorderWidth(value: string): number | undefined {
 }
 
 export interface ParsedCornerRadiusPair {
-  x: number;
-  y: number;
+  x: NumericLength;
+  y: NumericLength;
 }
 
 export interface ParsedBorderRadius {
@@ -128,20 +130,31 @@ export function parseBorderCornerRadius(value: string): ParsedCornerRadiusPair |
   if (horizontalList.length === 0) {
     return undefined;
   }
-  const horizontal = clampPositive(parseLength(horizontalList[0]));
-  let vertical: number;
+  const horizontal = parseRadiusValue(horizontalList[0]);
+  let vertical: NumericLength;
   if (verticalRaw) {
     const verticalList = splitCssList(verticalRaw);
-    vertical = clampPositive(parseLength(verticalList[0]));
+    vertical = parseRadiusValue(verticalList[0]);
   } else if (horizontalList.length > 1) {
-    vertical = clampPositive(parseLength(horizontalList[1]));
+    vertical = parseRadiusValue(horizontalList[1]);
   } else {
     vertical = horizontal;
   }
   return { x: horizontal, y: vertical };
 }
 
-function expandBorderRadiusList(input: string | undefined): [number, number, number, number] | null {
+function parseRadiusValue(value: string): NumericLength {
+  const parsed = parseLength(value);
+  if (parsed === undefined) {
+    return 0;
+  }
+  if (typeof parsed === "number") {
+    return clampPositive(parsed);
+  }
+  return parsed;
+}
+
+function expandBorderRadiusList(input: string | undefined): [NumericLength, NumericLength, NumericLength, NumericLength] | null {
   if (!input) {
     return null;
   }
@@ -149,7 +162,7 @@ function expandBorderRadiusList(input: string | undefined): [number, number, num
   if (parts.length === 0) {
     return null;
   }
-  const resolved = parts.map((part) => clampPositive(parseLength(part)));
+  const resolved = parts.map((part) => parseRadiusValue(part));
   switch (resolved.length) {
     case 1:
       return [resolved[0], resolved[0], resolved[0], resolved[0]];

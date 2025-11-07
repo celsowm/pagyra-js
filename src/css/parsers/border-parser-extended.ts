@@ -14,7 +14,7 @@ import {
   isNoneBorderStyle,
 } from "../shorthands/border-shorthand.js";
 import { applyBoxShorthand } from "../shorthands/box-shorthand.js";
-import type { StyleAccumulator } from "../style.js";
+import type { NumericLength, StyleAccumulator } from "../style.js";
 import type { UnitParsers } from "../../units/units.js";
 
 export function parseBorderColor(value: string, target: StyleAccumulator): void {
@@ -120,12 +120,21 @@ export function parseBorderBottomLeftRadius(value: string, target: StyleAccumula
 }
 
 export function parseBorderWidth(value: string, target: StyleAccumulator): void {
-  applyBoxShorthand(value, (top: number | undefined, right: number | undefined, bottom: number | undefined, left: number | undefined) => {
-    target.borderTop = top;
-    target.borderRight = right;
-    target.borderBottom = bottom;
-    target.borderLeft = left;
-  }, parseBorderWidthValue);
+  applyBoxShorthand(
+    value,
+    (
+      top: NumericLength | undefined,
+      right: NumericLength | undefined,
+      bottom: NumericLength | undefined,
+      left: NumericLength | undefined,
+    ) => {
+      target.borderTop = top;
+      target.borderRight = right;
+      target.borderBottom = bottom;
+      target.borderLeft = left;
+    },
+    parseBorderWidthValue,
+  );
 }
 
 export function parseBorderTopWidth(value: string, target: StyleAccumulator): void {
