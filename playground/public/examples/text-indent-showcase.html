@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Text Indent Showcase</title>
+    <style>
+      :root {
+        font-family: "Times New Roman", Georgia, serif;
+        color: #252525;
+        background: #f4f5f7;
+      }
+
+      body {
+        margin: 24px;
+      }
+
+      h1 {
+        font-size: 24px;
+        margin-bottom: 12px;
+      }
+
+      p.lead {
+        margin-bottom: 20px;
+        max-width: 540px;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+      }
+
+      .card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 16px 18px;
+        box-shadow: 0 6px 18px rgba(15, 37, 64, 0.08);
+      }
+
+      .card h2 {
+        font-size: 16px;
+        margin: 0 0 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #5b6070;
+      }
+
+      .sample {
+        margin: 0;
+        font-size: 15px;
+        line-height: 1.6;
+        background: linear-gradient(90deg, rgba(40, 127, 249, 0.12) 0, transparent 0) repeat-y;
+        background-size: 1px 100%;
+        background-position: 0 0;
+        padding-left: 14px;
+      }
+
+      .sample em {
+        font-style: normal;
+        color: #7a859e;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        font-size: 12px;
+        display: inline-block;
+        margin-bottom: 4px;
+      }
+
+      /* Demo cases */
+      .classic {
+        text-indent: 2em;
+      }
+
+      .press-release {
+        text-indent: 18%;
+      }
+
+      .hanging {
+        text-indent: -1.5em;
+        padding-left: 1.5em;
+      }
+
+      .override span {
+        display: block;
+        text-indent: 32px;
+      }
+
+      .override span strong {
+        text-indent: 0;
+        display: inline-block;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Text Indent Showcase</h1>
+    <p class="lead">
+      Quick reference for first-line indentation values. Each block shares the same width so you can compare pixels,
+      percentages, negative hanging indents, and local overrides.
+    </p>
+
+    <section class="cards">
+      <article class="card">
+        <h2>Classic Paragraph</h2>
+        <p class="sample classic">
+          <em>text-indent: 2em;</em>
+          Traveling scribes once relied on geometric first-line offsets to separate thought and tone. Today we bring
+          that same cadence to PDF layout.
+        </p>
+      </article>
+
+      <article class="card">
+        <h2>Percent Based</h2>
+        <p class="sample press-release">
+          <em>text-indent: 18%;</em>
+          When brands publish statements, the opening sentence often slides forward by a proportional amount so the
+          typography scales with the column width.
+        </p>
+      </article>
+
+      <article class="card">
+        <h2>Hanging Quote</h2>
+        <p class="sample hanging">
+          <em>text-indent: -1.5em;</em>
+          “Some indents pull left to keep quotation marks outside the column while preserving a flush text edge.”
+        </p>
+      </article>
+
+      <article class="card">
+        <h2>Local Override</h2>
+        <p class="sample override">
+          <em>text-indent cascade</em>
+          <span>Default copy inherits the 32px indent from the parent container to match corporate guidelines.</span>
+          <span><strong>Labels reset indent</strong> when we need a flush baseline for inline tags.</span>
+        </p>
+      </article>
+    </section>
+  </body>
+</html>

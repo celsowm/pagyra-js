@@ -36,6 +36,11 @@
     "htmlUrl": "examples/justify-text.html"
   },
   {
+    "id": "text-indent-showcase",
+    "label": "Text Indent Showcase",
+    "htmlUrl": "examples/text-indent-showcase.html"
+  },
+  {
     "id": "multi-page-lorem",
     "label": "Multi-Page Lorem Ipsum Document",
     "htmlUrl": "examples/multi-page-lorem.html"

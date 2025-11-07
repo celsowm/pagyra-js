@@ -104,6 +104,9 @@ export class BrowserDefaults {
     if (elementDefaults.textAlign !== undefined) {
       merged.textAlign = elementDefaults.textAlign;
     }
+    if (elementDefaults.textIndent !== undefined) {
+      (merged as any).textIndent = elementDefaults.textIndent;
+    }
     if (elementDefaults.verticalAlign !== undefined) {
       merged.verticalAlign = elementDefaults.verticalAlign;
     }

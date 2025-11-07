@@ -73,7 +73,7 @@
 | `text-align`                                  | Text alignment (`left`/`right`/`center`/`justify`)                         | Implemented |
 | `text-decoration`                             | Text decoration (underline/strike/etc.)                                    | Implemented |
 | `text-transform`                              | Text case transformation (`uppercase`/`lowercase`/`capitalize`)            | Not Implemented |
-| `text-indent`                                 | First line indent                                                           | Not Implemented |
+| `text-indent`                                 | First line indent                                                           | Implemented |
 | `text-shadow`                                 | Text shadow effect                                                          | Not Implemented |
 | `letter-spacing`                              | Space between characters                                                    | Supported |
 | `word-spacing`                                | Space between words                                                         | Supported |

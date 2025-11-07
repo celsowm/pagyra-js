@@ -85,6 +85,18 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
   layoutDebug(
     `[layoutIFC] container=${container.tagName ?? "(anonymous)"} effectiveTextAlign=${textAlign}`,
   );
+  const shouldApplyTextIndent = container.style.display !== Display.Inline;
+  const resolvedTextIndent = shouldApplyTextIndent
+    ? resolveLength(container.style.textIndent, contentWidth, { auto: "zero" })
+    : 0;
+  let firstLineTextIndentPending = shouldApplyTextIndent && resolvedTextIndent !== 0;
+  const applyFirstLineTextIndent = () => {
+    if (!firstLineTextIndentPending) {
+      return;
+    }
+    cursorX += resolvedTextIndent;
+    firstLineTextIndentPending = false;
+  };
 
   const commitLine = () => {
     if (lineItems.length === 0) {
@@ -130,46 +142,50 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
     );
 
     while (true) {
-    if (availableWidth <= 0) {
-      const nextLineTop = floatContext.nextUnblockedY(lineTop, lineTop + lineHeight);
-      if (nextLineTop === null) {
-        // No floats to skip; force the content onto this line and allow it to overflow.
-        metrics.lineOffset = cursorX;
-        lineItems.push(metrics);
+      if (availableWidth <= 0) {
+        const nextLineTop = floatContext.nextUnblockedY(lineTop, lineTop + lineHeight);
+        if (nextLineTop === null) {
+          // No floats to skip; force the content onto this line and allow it to overflow.
+          metrics.lineOffset = cursorX;
+          lineItems.push(metrics);
         cursorX += metrics.outerWidth;
         lineHeight = Math.max(lineHeight, metrics.outerHeight, resolvedLineHeight(container.style));
         break;
       }
-      lineTop = nextLineTop;
-      inlineOffset = floatContext.inlineOffsets(lineTop, lineTop + lineHeight, contentWidth);
-      availableWidth = Math.max(0, inlineOffset.end - inlineOffset.start);
-      cursorX = 0;
-      continue;
-    }
+        lineTop = nextLineTop;
+        inlineOffset = floatContext.inlineOffsets(lineTop, lineTop + lineHeight, contentWidth);
+        availableWidth = Math.max(0, inlineOffset.end - inlineOffset.start);
+        cursorX = 0;
+        continue;
+      }
 
-      if (cursorX > 0 && cursorX + metrics.outerWidth > availableWidth) {
+      if (lineItems.length === 0) {
+        applyFirstLineTextIndent();
+      }
+
+      if (lineItems.length > 0 && cursorX + metrics.outerWidth > availableWidth) {
         commitLine();
         inlineOffset = floatContext.inlineOffsets(lineTop, lineTop + lineHeight, contentWidth);
         availableWidth = Math.max(0, inlineOffset.end - inlineOffset.start);
         continue;
       }
 
-    if (cursorX === 0 && metrics.outerWidth > availableWidth) {
-      const nextLineTop = floatContext.nextUnblockedY(lineTop, lineTop + lineHeight);
-      if (nextLineTop === null) {
-        // No alternate vertical position: lay out the item anyway and let it overflow.
-        metrics.lineOffset = cursorX;
-        lineItems.push(metrics);
-        cursorX += metrics.outerWidth;
-        lineHeight = Math.max(lineHeight, metrics.outerHeight, resolvedLineHeight(container.style));
-        break;
+      if (lineItems.length === 0 && metrics.outerWidth > availableWidth) {
+        const nextLineTop = floatContext.nextUnblockedY(lineTop, lineTop + lineHeight);
+        if (nextLineTop === null) {
+          // No alternate vertical position: lay out the item anyway and let it overflow.
+          metrics.lineOffset = cursorX;
+          lineItems.push(metrics);
+          cursorX += metrics.outerWidth;
+          lineHeight = Math.max(lineHeight, metrics.outerHeight, resolvedLineHeight(container.style));
+          break;
+        }
+        lineTop = nextLineTop;
+        inlineOffset = floatContext.inlineOffsets(lineTop, lineTop + lineHeight, contentWidth);
+        availableWidth = Math.max(0, inlineOffset.end - inlineOffset.start);
+        cursorX = 0;
+        continue;
       }
-      lineTop = nextLineTop;
-      inlineOffset = floatContext.inlineOffsets(lineTop, lineTop + lineHeight, contentWidth);
-      availableWidth = Math.max(0, inlineOffset.end - inlineOffset.start);
-      cursorX = 0;
-      continue;
-    }
 
       metrics.lineOffset = cursorX;
       lineItems.push(metrics);

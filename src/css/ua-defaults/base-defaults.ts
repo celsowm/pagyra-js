@@ -147,6 +147,10 @@ export class TextLayoutDefaults {
   static getVerticalAlign(): string {
     return "baseline";
   }
+
+  static getTextIndent(): number {
+    return 0;
+  }
 }
 
 /**
@@ -212,6 +216,7 @@ export function createBaseDefaultsObject(): any {
     writingMode: TextLayoutDefaults.getWritingMode(),
     textAlign: TextLayoutDefaults.getTextAlign(),
     verticalAlign: TextLayoutDefaults.getVerticalAlign(),
+    textIndent: TextLayoutDefaults.getTextIndent(),
 
     // Flexbox (defaults)
     flexGrow: 0,

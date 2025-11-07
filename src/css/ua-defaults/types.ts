@@ -30,6 +30,7 @@ export interface ElementDefaults {
   borderColor?: string;
   listStyleType?: string;
   textAlign?: string;
+  textIndent?: number;
   verticalAlign?: string;
   borderCollapse?: string;
   borderSpacing?: number;

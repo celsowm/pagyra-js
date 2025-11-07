@@ -1,8 +1,8 @@
 // src/css/parsers/text-parser-extended.ts
 
 import { parseTextDecorationLine as parseTextDecorationLineValue } from "./text-parser.js";
+import { parseLengthOrPercent } from "./length-parser.js";
 import type { StyleAccumulator } from "../style.js";
-import type { UnitParsers } from "../../units/units.js";
 
 export function parseTextAlign(value: string, target: StyleAccumulator): void {
   target.textAlign = value.toLowerCase();
@@ -24,4 +24,11 @@ export function parseTextDecorationLine(value: string, target: StyleAccumulator)
 
 export function parseFloat(value: string, target: StyleAccumulator): void {
   target.float = value;
+}
+
+export function parseTextIndent(value: string, target: StyleAccumulator): void {
+  const parsed = parseLengthOrPercent(value);
+  if (parsed !== undefined) {
+    target.textIndent = parsed;
+  }
 }

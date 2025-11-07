@@ -162,6 +162,7 @@ export interface StyleAccumulator {
   borderModel?: BorderModel;
   maxWidth?: LengthInput;
   textAlign?: string;
+  textIndent?: LengthInput;
   objectFit?: string;
 
   textDecorationLine?: string;
@@ -188,6 +189,7 @@ export interface StyleProperties {
   textAlign?: string;
   verticalAlign?: string;
   textDecorationLine?: string;
+  textIndent: LengthLike;
   display: Display;
   position: Position;
   zIndex: number | "auto";
@@ -276,6 +278,7 @@ export class ComputedStyle implements StyleProperties {
   textAlign?: string;
   verticalAlign?: string;
   textDecorationLine?: string;
+  textIndent: LengthLike;
   display: Display;
   position: Position;
   zIndex: number | "auto";
@@ -448,6 +451,7 @@ export class ComputedStyle implements StyleProperties {
     this.breakInside = data.breakInside;
     this.widows = data.widows;
     this.orphans = data.orphans;
+    this.textIndent = data.textIndent;
     this.textAlign = init?.textAlign ?? undefined;
     this.verticalAlign = init?.verticalAlign ?? undefined;
     this.textDecorationLine = init?.textDecorationLine ?? defaultStyle.textDecorationLine;
