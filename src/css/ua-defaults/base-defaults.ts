@@ -1,0 +1,239 @@
+import {
+  AlignContent,
+  AlignItems,
+  BorderModel,
+  ClearMode,
+  Display,
+  JustifyContent,
+  OverflowMode,
+  Position,
+  TableLayoutMode,
+  TextWrap,
+  WhiteSpace,
+  WritingMode,
+} from "../enums.js";
+import type { LengthLike } from "../length.js";
+import { AUTO_LENGTH } from "../length.js";
+
+/**
+ * Typography defaults - handles all font and text related properties.
+ */
+export class TypographyDefaults {
+  static getFontFamily(): string {
+    return "Times, 'Times New Roman', serif";
+  }
+
+  static getFontSize(): number {
+    return 16;
+  }
+
+  static getLineHeight(): number {
+    return 1.2;
+  }
+
+  static getColor(): string {
+    return "#000000";
+  }
+
+  static getLetterSpacing(): number {
+    return 0;
+  }
+
+  static getWordSpacing(): number {
+    return 0;
+  }
+
+  static getFontWeight(): number {
+    return 400;
+  }
+}
+
+/**
+ * Box model defaults - handles spacing, sizing, and positioning.
+ */
+export class BoxModelDefaults {
+  static getMargin(): number {
+    return 0;
+  }
+
+  static getPadding(): number {
+    return 0;
+  }
+
+  static getBorder(): number {
+    return 0;
+  }
+
+  static getWidth(): LengthLike {
+    return "auto";
+  }
+
+  static getHeight(): LengthLike {
+    return "auto";
+  }
+
+  static getMinWidth(): LengthLike | undefined {
+    return undefined;
+  }
+
+  static getMaxWidth(): LengthLike | undefined {
+    return undefined;
+  }
+
+  static getMinHeight(): LengthLike | undefined {
+    return undefined;
+  }
+
+  static getMaxHeight(): LengthLike | undefined {
+    return undefined;
+  }
+}
+
+/**
+ * Layout defaults - handles display and positioning properties.
+ */
+export class LayoutDefaults {
+  static getDisplay(): Display {
+    return Display.Block;
+  }
+
+  static getPosition(): Position {
+    return Position.Static;
+  }
+
+  static getFloat(): "none" {
+    // FloatMode is only needed at usage sites; keep this minimal here if possible.
+    return "none";
+  }
+
+  static getClear(): ClearMode {
+    return ClearMode.None;
+  }
+
+  static getOverflowX(): OverflowMode {
+    return OverflowMode.Visible;
+  }
+
+  static getOverflowY(): OverflowMode {
+    return OverflowMode.Visible;
+  }
+}
+
+/**
+ * Text layout defaults - handles text flow and wrapping.
+ */
+export class TextLayoutDefaults {
+  static getWhiteSpace(): WhiteSpace {
+    return WhiteSpace.Normal;
+  }
+
+  static getTextWrap(): TextWrap {
+    return TextWrap.Wrap;
+  }
+
+  static getWritingMode(): WritingMode {
+    return WritingMode.HorizontalTb;
+  }
+
+  static getTextAlign(): string {
+    return "start";
+  }
+
+  static getVerticalAlign(): string {
+    return "baseline";
+  }
+}
+
+/**
+ * Base object used by BrowserDefaults as a starting point for all elements.
+ * This keeps construction logic separate from element-specific maps.
+ */
+export function createBaseDefaultsObject(): any {
+  return {
+    // Typography
+    fontFamily: TypographyDefaults.getFontFamily(),
+    fontSize: TypographyDefaults.getFontSize(),
+    fontStyle: "normal",
+    fontWeight: TypographyDefaults.getFontWeight(),
+    lineHeight: TypographyDefaults.getLineHeight(),
+    color: TypographyDefaults.getColor(),
+    borderColor: TypographyDefaults.getColor(),
+    letterSpacing: TypographyDefaults.getLetterSpacing(),
+    wordSpacing: TypographyDefaults.getWordSpacing(),
+    textDecorationLine: "none",
+    listStyleType: "disc",
+
+    // Box model
+    marginTop: BoxModelDefaults.getMargin(),
+    marginRight: BoxModelDefaults.getMargin(),
+    marginBottom: BoxModelDefaults.getMargin(),
+    marginLeft: BoxModelDefaults.getMargin(),
+    paddingTop: BoxModelDefaults.getPadding(),
+    paddingRight: BoxModelDefaults.getPadding(),
+    paddingBottom: BoxModelDefaults.getPadding(),
+    paddingLeft: BoxModelDefaults.getPadding(),
+    borderTop: BoxModelDefaults.getBorder(),
+    borderRight: BoxModelDefaults.getBorder(),
+    borderBottom: BoxModelDefaults.getBorder(),
+    borderLeft: BoxModelDefaults.getBorder(),
+    borderTopLeftRadiusX: 0,
+    borderTopLeftRadiusY: 0,
+    borderTopRightRadiusX: 0,
+    borderTopRightRadiusY: 0,
+    borderBottomRightRadiusX: 0,
+    borderBottomRightRadiusY: 0,
+    borderBottomLeftRadiusX: 0,
+    borderBottomLeftRadiusY: 0,
+    boxShadows: [],
+    width: BoxModelDefaults.getWidth(),
+    height: BoxModelDefaults.getHeight(),
+    minWidth: BoxModelDefaults.getMinWidth(),
+    maxWidth: BoxModelDefaults.getMaxWidth(),
+    minHeight: BoxModelDefaults.getMinHeight(),
+    maxHeight: BoxModelDefaults.getMaxHeight(),
+
+    // Layout
+    display: LayoutDefaults.getDisplay(),
+    position: LayoutDefaults.getPosition(),
+    float: "none",
+    clear: LayoutDefaults.getClear(),
+    overflowX: LayoutDefaults.getOverflowX(),
+    overflowY: LayoutDefaults.getOverflowY(),
+
+    // Text layout
+    whiteSpace: TextLayoutDefaults.getWhiteSpace(),
+    textWrap: TextLayoutDefaults.getTextWrap(),
+    writingMode: TextLayoutDefaults.getWritingMode(),
+    textAlign: TextLayoutDefaults.getTextAlign(),
+    verticalAlign: TextLayoutDefaults.getVerticalAlign(),
+
+    // Flexbox (defaults)
+    flexGrow: 0,
+    flexShrink: 1,
+    flexBasis: AUTO_LENGTH,
+    alignItems: AlignItems.Stretch,
+    alignSelf: "auto",
+    justifyContent: JustifyContent.FlexStart,
+    alignContent: AlignContent.Stretch,
+    flexDirection: "row",
+    flexWrap: false,
+
+    // Grid (defaults)
+    trackListColumns: [],
+    trackListRows: [],
+    autoFlow: "row",
+    rowGap: 0,
+    columnGap: 0,
+
+    // Table (defaults)
+    tableLayout: TableLayoutMode.Auto,
+    borderModel: BorderModel.Separate,
+
+    // Fragmentation (defaults)
+    breakBefore: "auto",
+    breakAfter: "auto",
+    breakInside: "auto",
+    widows: 2,
+    orphans: 2,
+  };
+}
