@@ -45,63 +45,84 @@ export async function paintLayoutPage({
   paintPageBackground(painter, pageBackground, pageWidthPx, pageHeightPx, pageTree.pageOffsetY);
 
   if (headerFooterLayout.layerMode === LayerMode.Under) {
-    await paintHeaderFooter(painter, headerVariant, footerVariant, tokens, pageNumber, totalPages, headerFooterTextOptions, true);
+    await paintHeaderFooter(
+      painter,
+      headerVariant,
+      footerVariant,
+      tokens,
+      pageNumber,
+      totalPages,
+      headerFooterTextOptions,
+      true,
+    );
   }
 
-  paintBoxShadows(painter, pageTree.paintOrder, false);
-  paintBackgrounds(painter, pageTree.paintOrder);
-  paintBoxShadows(painter, pageTree.paintOrder, true);
-  paintBorders(painter, pageTree.paintOrder);
-  await paintSvg(painter, pageTree.flowContentOrder);
-  paintImages(painter, pageTree.flowContentOrder);
-  await paintText(painter, pageTree.flowContentOrder);
+  // Paint each box as an atomic unit in the resolved paint order.
+  for (const box of pageTree.paintOrder) {
+    await paintBoxAtomic(painter, box);
+  }
 
   if (headerFooterLayout.layerMode === LayerMode.Over) {
-    await paintHeaderFooter(painter, headerVariant, footerVariant, tokens, pageNumber, totalPages, headerFooterTextOptions, false);
+    await paintHeaderFooter(
+      painter,
+      headerVariant,
+      footerVariant,
+      tokens,
+      pageNumber,
+      totalPages,
+      headerFooterTextOptions,
+      false,
+    );
   }
 
   return painter.result();
 }
 
-async function paintText(painter: PagePainter, boxes: RenderBox[]): Promise<void> {
-  for (const box of boxes) {
-    for (const run of box.textRuns) {
-      await painter.drawTextRun(run);
-    }
+
+async function paintText(painter: PagePainter, box: RenderBox): Promise<void> {
+  if (!box.textRuns || box.textRuns.length === 0) {
+    return;
+  }
+  for (const run of box.textRuns) {
+    await painter.drawTextRun(run);
   }
 }
 
-function paintBackgrounds(painter: PagePainter, boxes: RenderBox[]): void {
-  for (const box of boxes) {
-    const background = box.background;
-    if (!background) {
-      continue;
-    }
+function paintBackground(painter: PagePainter, box: RenderBox): void {
+  const background = box.background;
+  if (!background) {
+    return;
+  }
 
-    const paintArea = determineBackgroundPaintArea(box);
-    if (!paintArea) {
-      continue;
-    }
+  const paintArea = determineBackgroundPaintArea(box);
+  if (!paintArea) {
+    return;
+  }
 
-    // Log paint information for debugging z-index order
-    log("PAINT", "DEBUG", `painting background z:${box.zIndexComputed ?? 0}`, {
-      tagName: box.tagName,
-      zIndex: box.zIndexComputed ?? 0,
-      id: box.id,
-      background: background.color ? "color" : background.gradient ? "gradient" : background.image ? "image" : "none"
-    });
+  // Log paint information for debugging z-index order
+  log("PAINT", "DEBUG", `painting background z:${box.zIndexComputed ?? 0}`, {
+    tagName: box.tagName,
+    zIndex: box.zIndexComputed ?? 0,
+    id: box.id,
+    background: background.color
+      ? "color"
+      : background.gradient
+      ? "gradient"
+      : background.image
+      ? "image"
+      : "none",
+  });
 
-    if (background.color) {
-      painter.fillRoundedRect(paintArea.rect, paintArea.radius, background.color);
-    }
+  if (background.color) {
+    painter.fillRoundedRect(paintArea.rect, paintArea.radius, background.color);
+  }
 
-    if (background.gradient) {
-      painter.fillRoundedRect(paintArea.rect, paintArea.radius, background.gradient as any);
-    }
+  if (background.gradient) {
+    painter.fillRoundedRect(paintArea.rect, paintArea.radius, background.gradient as any);
+  }
 
-    if (background.image) {
-      paintBackgroundImageLayer(painter, background.image, paintArea.rect, paintArea.radius);
-    }
+  if (background.image) {
+    paintBackgroundImageLayer(painter, background.image, paintArea.rect, paintArea.radius);
   }
 }
 
@@ -120,29 +141,27 @@ function paintBackgroundImageLayer(
   painter.drawBackgroundImage(layer.image, layer.rect, clipRect, clipRadius);
 }
 
-function paintBorders(painter: PagePainter, boxes: RenderBox[]): void {
-  for (const box of boxes) {
-    const color = box.borderColor;
-    if (!color) {
-      continue;
-    }
-    const { border } = box;
-    if (!hasVisibleBorder(border)) {
-      continue;
-    }
-    const outerRect = box.borderBox;
-    const innerRect = {
-      x: outerRect.x + border.left,
-      y: outerRect.y + border.top,
-      width: Math.max(outerRect.width - border.left - border.right, 0),
-      height: Math.max(outerRect.height - border.top - border.bottom, 0),
-    };
-    const innerRadius = shrinkRadius(box.borderRadius, border.top, border.right, border.bottom, border.left);
-    if (innerRect.width <= 0 || innerRect.height <= 0) {
-      painter.fillRoundedRect(outerRect, box.borderRadius, color);
-    } else {
-      painter.fillRoundedRectDifference(outerRect, box.borderRadius, innerRect, innerRadius, color);
-    }
+function paintBorder(painter: PagePainter, box: RenderBox): void {
+  const color = box.borderColor;
+  if (!color) {
+    return;
+  }
+  const { border } = box;
+  if (!hasVisibleBorder(border)) {
+    return;
+  }
+  const outerRect = box.borderBox;
+  const innerRect = {
+    x: outerRect.x + border.left,
+    y: outerRect.y + border.top,
+    width: Math.max(outerRect.width - border.left - border.right, 0),
+    height: Math.max(outerRect.height - border.top - border.bottom, 0),
+  };
+  const innerRadius = shrinkRadius(box.borderRadius, border.top, border.right, border.bottom, border.left);
+  if (innerRect.width <= 0 || innerRect.height <= 0) {
+    painter.fillRoundedRect(outerRect, box.borderRadius, color);
+  } else {
+    painter.fillRoundedRectDifference(outerRect, box.borderRadius, innerRect, innerRadius, color);
   }
 }
 
@@ -168,22 +187,9 @@ function hasVisibleBorder(border: RenderBox["border"]): boolean {
   return border.top > 0 || border.right > 0 || border.bottom > 0 || border.left > 0;
 }
 
-function paintImages(painter: PagePainter, boxes: RenderBox[]): void {
-  for (const box of boxes) {
-    if (box.image) {
-      painter.drawImage(box.image, box.contentBox);
-    }
-  }
-}
-
-async function paintSvg(painter: PagePainter, boxes: RenderBox[]): Promise<void> {
-  for (const box of boxes) {
-    if (box.kind === NodeKind.Svg || (box.tagName === "svg" && box.customData?.svg)) {
-      await renderSvgBox(painter, box);
-    }
-    if (box.children.length > 0) {
-      await paintSvg(painter, box.children);
-    }
+async function paintSvg(painter: PagePainter, box: RenderBox): Promise<void> {
+  if (box.kind === NodeKind.Svg || (box.tagName === "svg" && box.customData?.svg)) {
+    await renderSvgBox(painter, box);
   }
 }
 
@@ -196,4 +202,35 @@ function paintPageBackground(painter: PagePainter, color: RGBA | undefined, widt
   }
   const rect: Rect = { x: 0, y: offsetY, width: widthPx, height: heightPx };
   painter.fillRect(rect, color);
+}
+
+/**
+ * Paint a single box as an atomic unit:
+ * - box shadows
+ * - background
+ * - border
+ * - image/svg/text content
+ *
+ * This uses the already-resolved pageTree.paintOrder for stacking,
+ * so there is no global cross-element phase ordering here.
+ */
+async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Promise<void> {
+  // Shadows under background
+  paintBoxShadows(painter, [box], false);
+
+  // Background and border
+  paintBackground(painter, box);
+  paintBorder(painter, box);
+
+  // Shadows above background/border if any
+  paintBoxShadows(painter, [box], true);
+
+  // Content: svg, images, text
+  if (box.kind === NodeKind.Svg || (box.tagName === "svg" && box.customData?.svg)) {
+    await paintSvg(painter, box);
+  } else if (box.image) {
+    painter.drawImage(box.image, box.contentBox);
+  }
+
+  await paintText(painter, box);
 }

@@ -5,6 +5,7 @@ import type {
   DecorationCommand,
   Link,
 } from "./types.js";
+import { resolvePaintOrder } from "./stacking/resolve-paint-order.js";
 
 export interface PaginationOptions {
   pageHeight: number;
@@ -13,7 +14,7 @@ export interface PaginationOptions {
 export function paginateTree(root: RenderBox, options: PaginationOptions): LayoutPageTree[] {
   const pageHeight = Number.isFinite(options.pageHeight) && options.pageHeight > 0 ? options.pageHeight : 1;
 
-  const paintOrderAll = collectPaintOrder(root);
+  const paintOrderAll = resolvePaintOrder(root);
   const flowOrderAll = collectFlowOrder(root);
   const positionedAll = collectPositionedLayers(root);
   const linksAll = collectLinks(root);
@@ -48,22 +49,6 @@ export function paginateTree(root: RenderBox, options: PaginationOptions): Layou
   return pages;
 }
 
-function collectPaintOrder(root: RenderBox): RenderBox[] {
-  const result: RenderBox[] = [];
-  dfs(root, (box) => {
-    result.push(box);
-    return true;
-  });
-  
-  // Sort by z-index: higher z-index paints later (on top)
-  result.sort((a, b) => {
-    const aZ = a.zIndexComputed ?? 0;
-    const bZ = b.zIndexComputed ?? 0;
-    return aZ - bZ;
-  });
-  
-  return result;
-}
 
 function collectFlowOrder(root: RenderBox): RenderBox[] {
   const result: RenderBox[] = [];
