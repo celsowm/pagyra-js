@@ -2,7 +2,9 @@
 
 import { ptToPx } from "../../units/units.js";
 import { getViewportHeight, getViewportWidth } from "../viewport.js";
-import { relativeLength, type RelativeLength } from "../length.js";
+import { percent, relativeLength, type RelativeLength } from "../length.js";
+
+const PERCENT_LENGTH_REGEX = /^(-?\d+(?:\.\d+)?)%$/;
 
 export function parseLength(value: string): number | RelativeLength | undefined {
   if (!value) {
@@ -53,4 +55,20 @@ export function parseNumeric(value: string): number | RelativeLength | undefined
     return relativeLength(unit, n);
   }
   return n;
+}
+
+export function parseLengthOrPercent(value: string): number | RelativeLength | ReturnType<typeof percent> | undefined {
+  const parsed = parseLength(value);
+  if (parsed !== undefined) {
+    return parsed;
+  }
+  const match = PERCENT_LENGTH_REGEX.exec(value.trim());
+  if (!match) {
+    return undefined;
+  }
+  const numeric = Number.parseFloat(match[1]);
+  if (Number.isNaN(numeric)) {
+    return undefined;
+  }
+  return percent(numeric / 100);
 }
