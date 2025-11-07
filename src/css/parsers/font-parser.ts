@@ -26,3 +26,15 @@ export function parseFontWeight(value: string, target: StyleAccumulator, units: 
     target.fontWeight = parsed;
   }
 }
+
+export function parseFontVariant(value: string, target: StyleAccumulator): void {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "inherit") {
+    // Let inheritance fall back to parent; no override needed.
+    return;
+  }
+
+  if (normalized === "normal" || normalized === "small-caps") {
+    target.fontVariant = normalized;
+  }
+}

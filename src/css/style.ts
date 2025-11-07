@@ -103,6 +103,7 @@ export interface StyleAccumulator {
   lineHeight?: number;
   fontFamily?: string;
   fontStyle?: string;
+  fontVariant?: string;
   fontWeight?: number;
   borderModel?: BorderModel;
   maxWidth?: LengthLike;
@@ -175,6 +176,7 @@ export interface StyleProperties {
   fontFamily?: string;
   fontWeight?: number;
   fontStyle?: string;
+  fontVariant?: string;
   objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down";
   left?: LengthLike;
   right?: LengthLike;
@@ -261,6 +263,7 @@ export class ComputedStyle implements StyleProperties {
   fontFamily?: string;
   fontWeight?: number;
   fontStyle?: string;
+  fontVariant?: string;
   objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down";
   left?: LengthLike;
   right?: LengthLike;
@@ -350,6 +353,7 @@ export class ComputedStyle implements StyleProperties {
     this.fontFamily = data.fontFamily;
     this.fontWeight = data.fontWeight;
     this.fontStyle = data.fontStyle;
+    this.fontVariant = data.fontVariant;
     this.objectFit = data.objectFit;
     this.zIndex = data.zIndex;
     this.left = data.left;

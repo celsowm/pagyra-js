@@ -70,9 +70,13 @@ export class TextRenderer {
   }
 
   async drawTextRun(run: Run): Promise<void> {
-    const font = await this.ensureFont({ fontFamily: run.fontFamily, fontWeight: run.fontWeight, fontStyle: run.fontStyle, text: run.text });
+    const font = await this.ensureFont({ fontFamily: run.fontFamily, fontWeight: run.fontWeight, fontStyle: run.fontStyle, fontVariant: run.fontVariant, text: run.text });
     const color = run.fill ?? { r: 0, g: 0, b: 0, a: 1 };
-    const before = run.text;
+    let before = run.text;
+
+    if (run.fontVariant === 'small-caps') {
+      before = before.toUpperCase();
+    }
 
     // Use Identity-H encoding if using embedded font, otherwise WinAnsi
     const useIdentityH = !font.isBase14;
@@ -195,10 +199,11 @@ export class TextRenderer {
     }
   }
 
-  private async ensureFont(options: { fontFamily?: string; fontWeight?: number; fontStyle?: string; text?: string }): Promise<FontResource> {
+  private async ensureFont(options: { fontFamily?: string; fontWeight?: number; fontStyle?: string; fontVariant?: string; text?: string }): Promise<FontResource> {
     const family = options.fontFamily;
     const fontWeight = options.fontWeight;
     const fontStyle = options.fontStyle;
+    const fontVariant = options.fontVariant;
     const text = options.text || '';
 
     // Check if we need Unicode support (combining marks, symbols beyond WinAnsi)

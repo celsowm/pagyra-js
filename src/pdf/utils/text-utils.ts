@@ -25,6 +25,7 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
   const fontSize = node.style.fontSize;
   const fontWeight = node.style.fontWeight;
   const fontStyle = node.style.fontStyle;
+  const fontVariant = node.style.fontVariant;
 
   // Debug fontStyle for em and strong elements
   if (node.tagName === 'em' || node.tagName === 'strong' || (node.textContent && (node.textContent.includes('itálico') || node.textContent.includes('negrito')))) {
@@ -81,6 +82,7 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
         fontSize,
         fontWeight,
         fontStyle,
+        fontVariant,
         fill: defaultColor,
         lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: startX, f: baseline },
         wordSpacing,
@@ -106,6 +108,7 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
       fontSize,
       fontWeight,
       fontStyle,
+      fontVariant,
       fill: defaultColor,
       lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: startX, f: baseline },
       decorations: decoration ? { ...decoration } : undefined,

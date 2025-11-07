@@ -109,7 +109,7 @@ import {
 } from "./dimension-parser.js";
 
 // Font
-import { parseFontFamily, parseFontStyle, parseFontWeight } from "./font-parser.js";
+import { parseFontFamily, parseFontStyle, parseFontVariant, parseFontWeight } from "./font-parser.js";
 
 // Positioning
 import { parsePosition, parseTop, parseRight, parseBottom, parseLeft } from "./position-parser.js";
@@ -232,6 +232,7 @@ export function registerAllPropertyParsers(): void {
   // Font
   registerPropertyParser("font-family", parseFontFamily);
   registerPropertyParser("font-style", parseFontStyle);
+  registerPropertyParser("font-variant", parseFontVariant);
   registerPropertyParser("font-weight", parseFontWeight);
 
   // Positioning

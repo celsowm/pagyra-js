@@ -140,6 +140,7 @@ export function computeStyleForElement(
     lineHeight: parentStyle.lineHeight,
     fontFamily: parentStyle.fontFamily ?? mergedDefaults.fontFamily,
     fontStyle: parentStyle.fontStyle ?? mergedDefaults.fontStyle,
+    fontVariant: parentStyle.fontVariant ?? mergedDefaults.fontVariant,
     fontWeight: parentStyle.fontWeight ?? mergedDefaults.fontWeight,
     textDecorationLine: parentStyle.textDecorationLine ?? mergedDefaults.textDecorationLine,
   };
@@ -252,6 +253,7 @@ export function computeStyleForElement(
   if (styleInit.lineHeight !== undefined) styleOptions.lineHeight = styleInit.lineHeight;
   if (styleInit.fontFamily !== undefined) styleOptions.fontFamily = styleInit.fontFamily;
   if (styleInit.fontStyle !== undefined) styleOptions.fontStyle = styleInit.fontStyle;
+  if (styleInit.fontVariant !== undefined) styleOptions.fontVariant = styleInit.fontVariant;
   if (styleInit.fontWeight !== undefined) styleOptions.fontWeight = normalizeFontWeight(styleInit.fontWeight);
   if (styleInit.marginTop !== undefined) styleOptions.marginTop = styleInit.marginTop;
   if (styleInit.marginRight !== undefined) styleOptions.marginRight = styleInit.marginRight;

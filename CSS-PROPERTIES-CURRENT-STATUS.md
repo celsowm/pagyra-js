@@ -68,7 +68,7 @@
 | `font-size`                                   | Font size                                                                   | Implemented |
 | `font-weight`                                 | Font weight (boldness)                                                      | Implemented |
 | `font-style`                                  | Font style (`italic`/`oblique`/`normal`)                                    | Implemented |
-| `font-variant`                                | Font variants (e.g., small-caps)                                            | Not Implemented |
+| `font-variant`                                | Font variants (e.g., small-caps)                                            | Implemented |
 | `line-height`                                 | Line height spacing                                                         | Implemented |
 | `text-align`                                  | Text alignment (`left`/`right`/`center`/`justify`)                         | Implemented |
 | `text-decoration`                             | Text decoration (underline/strike/etc.)                                    | Implemented |
