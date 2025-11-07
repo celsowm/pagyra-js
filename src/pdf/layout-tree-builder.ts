@@ -26,7 +26,12 @@ import { createListMarkerRun } from "./utils/list-utils.js";
 import { resolveBoxShadows, calculateVisualOverflow } from "./utils/shadow-utils.js";
 import { extractImageRef } from "./utils/image-utils.js";
 import { calculateBoxDimensions } from "./utils/box-dimensions-utils.js";
-import type { ImageBackgroundLayer, BackgroundSize, BackgroundPosition } from "../css/background-types.js";
+import type {
+  ImageBackgroundLayer,
+  GradientBackgroundLayer,
+  BackgroundSize,
+  BackgroundPosition,
+} from "../css/background-types.js";
 import type { ImageInfo } from "../image/types.js";
 
 // Note: We don't import NAMED_COLORS since it's no longer needed with the new color-utils module
@@ -127,7 +132,7 @@ function mapOverflow(mode: OverflowMode): Overflow {
 // ====================
 
 function selectBackgroundOriginRect(
-  layer: ImageBackgroundLayer,
+  layer: { origin?: ImageBackgroundLayer["origin"] },
   borderBox: Rect,
   paddingBox: Rect,
   contentBox: Rect,
@@ -211,6 +216,18 @@ function resolveBackgroundImageSize(size: BackgroundSize | undefined, area: Rect
   return {
     width,
     height,
+  };
+}
+
+function resolveGradientSize(size: BackgroundSize | undefined, area: Rect): { width: number; height: number } {
+  if (!size || size === "auto" || size === "cover" || size === "contain") {
+    return { width: area.width, height: area.height };
+  }
+  const widthComponent = parseBackgroundSizeComponent(size.width, area.width, area.width);
+  const heightComponent = parseBackgroundSizeComponent(size.height, area.height, area.height);
+  return {
+    width: widthComponent ?? area.width,
+    height: heightComponent ?? area.height,
   };
 }
 
@@ -301,6 +318,31 @@ function createBackgroundImage(
   };
 }
 
+function createGradientBackground(
+  layer: GradientBackgroundLayer,
+  borderBox: Rect,
+  paddingBox: Rect,
+  contentBox: Rect,
+): Background["gradient"] | undefined {
+  const originRect = selectBackgroundOriginRect(layer, borderBox, paddingBox, contentBox);
+  const size = resolveGradientSize(layer.size, originRect);
+  if (size.width <= 0 || size.height <= 0) {
+    return undefined;
+  }
+  const position = resolveBackgroundPosition(layer.position, originRect, size.width, size.height);
+  return {
+    gradient: layer.gradient,
+    rect: {
+      x: position.x,
+      y: position.y,
+      width: size.width,
+      height: size.height,
+    },
+    repeat: layer.repeat ?? "no-repeat",
+    originRect,
+  };
+}
+
 function handleBackground(
   node: LayoutNode,
   borderBox: Rect,
@@ -314,7 +356,10 @@ function handleBackground(
   for (let i = layers.length - 1; i >= 0; i--) {
     const layer = layers[i];
     if (layer.kind === "gradient" && background.gradient === undefined) {
-      background.gradient = layer.gradient;
+      const gradient = createGradientBackground(layer, borderBox, paddingBox, contentBox);
+      if (gradient) {
+        background.gradient = gradient;
+      }
     } else if (layer.kind === "image" && background.image === undefined) {
       const image = createBackgroundImage(layer, borderBox, paddingBox, contentBox);
       if (image) {

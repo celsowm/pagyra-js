@@ -84,4 +84,26 @@ describe("Background images", () => {
       }
     });
   }
+  it("applies size and position longhands to gradient backgrounds", async () => {
+    const css = `
+      .probe {
+        width: 160px;
+        height: 60px;
+        background: linear-gradient(90deg, rgba(40, 127, 249, 0.12) 0, transparent 0) repeat-y;
+        background-size: 1px 100%;
+        background-position: 0 0;
+      }
+    `;
+    const root = await renderElement('<div class="probe">text</div>', css);
+    const div = findNode(root, "div");
+    const gradientLayer = div.style.backgroundLayers?.find((layer) => layer.kind === "gradient");
+    expect(gradientLayer).toBeDefined();
+    if (!gradientLayer) {
+      return;
+    }
+    expect(gradientLayer.repeat).toBe("repeat-y");
+    expect(gradientLayer.size).toEqual({ width: "1px", height: "100%" });
+    expect(gradientLayer.position).toEqual({ x: "0", y: "0" });
+  });
+
 });

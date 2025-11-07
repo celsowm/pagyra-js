@@ -1,4 +1,4 @@
-import type { BackgroundRepeat } from "../css/background-types.js";
+import type { BackgroundRepeat, Gradient } from "../css/background-types.js";
 
 export enum NodeKind {
   Container = "container",
@@ -53,10 +53,17 @@ export interface BackgroundImage {
   originRect: Rect;
 }
 
+export interface GradientBackground {
+  gradient: Gradient;
+  rect: Rect;
+  repeat: BackgroundRepeat;
+  originRect: Rect;
+}
+
 export interface Background {
   color?: RGBA;
   image?: BackgroundImage;
-  gradient?: unknown;
+  gradient?: GradientBackground;
 }
 
 export interface RGBA {

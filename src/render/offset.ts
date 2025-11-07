@@ -11,11 +11,17 @@ export function offsetRect(rect: Rect | null | undefined, dx: number, dy: number
 }
 
 function offsetBackground(background: Background | undefined, dx: number, dy: number): void {
-  if (!background || !background.image) {
+  if (!background) {
     return;
   }
-  offsetRect(background.image.rect, dx, dy);
-  offsetRect(background.image.originRect, dx, dy);
+  if (background.image) {
+    offsetRect(background.image.rect, dx, dy);
+    offsetRect(background.image.originRect, dx, dy);
+  }
+  if (background.gradient) {
+    offsetRect(background.gradient.rect, dx, dy);
+    offsetRect(background.gradient.originRect, dx, dy);
+  }
 }
 
 export function offsetRenderTree(root: RenderBox, dx: number, dy: number, debug: boolean): void {
@@ -80,11 +86,17 @@ export function applyPageVerticalMargins(root: RenderBox, pageHeight: number, ma
   };
 
   const adjustBackground = (background: Background | undefined): void => {
-    if (!background || !background.image) {
+    if (!background) {
       return;
     }
-    adjustRect(background.image.rect);
-    adjustRect(background.image.originRect);
+    if (background.image) {
+      adjustRect(background.image.rect);
+      adjustRect(background.image.originRect);
+    }
+    if (background.gradient) {
+      adjustRect(background.gradient.rect);
+      adjustRect(background.gradient.originRect);
+    }
   };
 
   const stack: RenderBox[] = [root];

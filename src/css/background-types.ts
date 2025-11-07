@@ -22,6 +22,11 @@ export interface ImageBackgroundLayer {
 export interface GradientBackgroundLayer {
   kind: "gradient";
   gradient: Gradient;
+  repeat?: BackgroundRepeat;
+  position?: BackgroundPosition;
+  size?: BackgroundSize;
+  origin?: BackgroundOrigin;
+  clip?: BackgroundClip;
 }
 
 export type BackgroundLayer = ColorBackgroundLayer | ImageBackgroundLayer | GradientBackgroundLayer;
@@ -39,6 +44,8 @@ export interface LinearGradient {
   type: "linear";
   angleOrTo?: string; // "to right", "45deg"
   stops: { color: string; pos?: number }[];
+  renderOffset?: { x: number; y: number };
+  renderScale?: { x: number; y: number };
 }
 
 export interface RadialGradient {

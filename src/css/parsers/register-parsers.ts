@@ -127,6 +127,7 @@ import { parseOverflowWrap, parseWordWrap } from "./overflow-wrap-parser.js";
 // Background
 import {
   applyBackgroundSizeDecl,
+  applyBackgroundPositionDecl,
   parseBackgroundImage,
   parseBackground,
   parseObjectFit,
@@ -255,6 +256,7 @@ export function registerAllPropertyParsers(): void {
 
   // Background
   registerPropertyParser("background-size", applyBackgroundSizeDecl);
+  registerPropertyParser("background-position", applyBackgroundPositionDecl);
   registerPropertyParser("background-image", parseBackgroundImage);
   registerPropertyParser("background", parseBackground);
   registerPropertyParser("object-fit", parseObjectFit);

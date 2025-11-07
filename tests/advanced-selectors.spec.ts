@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { prepareHtmlRender } from "../src/html-to-pdf.js";
+import type { LayoutNode } from "../src/dom/node.js";
 
 // Mock DOM elements for testing selector matching directly
 class MockElement {
@@ -392,6 +393,28 @@ describe("Advanced CSS Selectors - Matcher", () => {
     const normalElement = new MockElement("div");
     const result2 = matcher!(normalElement as any);
     expect(result2).toBe(true);
+  });
+
+  it("applies :root pseudo-class declarations to the document element", async () => {
+    const html = `<html><body><p id="subject">Hello</p></body></html>`;
+    const css = `:root { color: #123456; }`;
+    const { layoutRoot } = await prepareHtmlRender({
+      html,
+      css,
+      viewportWidth: 400,
+      viewportHeight: 400,
+      pageWidth: 400,
+      pageHeight: 400,
+      margins: { top: 0, right: 0, bottom: 0, left: 0 },
+    });
+    let target: LayoutNode | undefined;
+    layoutRoot.walk((node) => {
+      if (node.customData?.id === "subject") {
+        target = node;
+      }
+    });
+    expect(target).toBeDefined();
+    expect(target?.style.color).toBe("#123456");
   });
 
   it("should handle complex selectors with multiple combinators", () => {

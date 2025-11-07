@@ -118,7 +118,25 @@ function paintBackground(painter: PagePainter, box: RenderBox): void {
   }
 
   if (background.gradient) {
-    painter.fillRoundedRect(paintArea.rect, paintArea.radius, background.gradient as any);
+    const clipRect = paintArea.rect;
+    const patternRect = background.gradient.rect ?? clipRect;
+    const offsetX = patternRect.x - clipRect.x;
+    const offsetY = patternRect.y - clipRect.y;
+    const scaleX = clipRect.width !== 0 ? patternRect.width / clipRect.width : 1;
+    const scaleY = clipRect.height !== 0 ? patternRect.height / clipRect.height : 1;
+    const needsOffset = Math.abs(offsetX) > 0.01 || Math.abs(offsetY) > 0.01;
+    const needsScale = Math.abs(scaleX - 1) > 0.01 || Math.abs(scaleY - 1) > 0.01;
+    let gradientPaint: any = background.gradient.gradient;
+    if (needsOffset || needsScale) {
+      gradientPaint = { ...background.gradient.gradient };
+      if (needsOffset) {
+        gradientPaint.renderOffset = { x: offsetX, y: offsetY };
+      }
+      if (needsScale) {
+        gradientPaint.renderScale = { x: scaleX, y: scaleY };
+      }
+    }
+    painter.fillRoundedRect(clipRect, paintArea.radius, gradientPaint as any);
   }
 
   if (background.image) {
@@ -181,6 +199,22 @@ function determineBackgroundPaintArea(box: RenderBox): { rect: Rect; radius: Rad
   }
 
   return { rect, radius };
+}
+
+const ZERO_RADIUS: Radius = {
+  topLeft: { x: 0, y: 0 },
+  topRight: { x: 0, y: 0 },
+  bottomRight: { x: 0, y: 0 },
+  bottomLeft: { x: 0, y: 0 },
+};
+
+function rectEquals(a: Rect, b: Rect): boolean {
+  return (
+    a.x === b.x &&
+    a.y === b.y &&
+    a.width === b.width &&
+    a.height === b.height
+  );
 }
 
 function hasVisibleBorder(border: RenderBox["border"]): boolean {

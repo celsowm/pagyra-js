@@ -1,5 +1,7 @@
 import type { LinearGradient, GradientStop } from "../../css/parsers/gradient-parser.js";
 import { CoordinateTransformer } from "../utils/coordinate-transformer.js";
+import { parseColor as parseCssColor } from "../utils/color-utils.js";
+import type { RGBA } from "../types.js";
 
 export interface GradientShading {
   readonly shadingName: string;
@@ -23,14 +25,25 @@ export class GradientService {
   ): GradientShading {
     const shadingName = this.generateShadingName();
     const stops = this.normalizeStops(gradient.stops);
+    const offsetX = gradient.renderOffset?.x ?? 0;
+    const offsetY = gradient.renderOffset?.y ?? 0;
+    const scaleX = gradient.renderScale?.x ?? 1;
+    const scaleY = gradient.renderScale?.y ?? 1;
+    const coordRect = {
+      x: (rect.x ?? 0) + offsetX,
+      y: (rect.y ?? 0) + offsetY,
+      width: rect.width * scaleX,
+      height: rect.height * scaleY,
+    };
+
     // If gradient provides explicit coords (from SVG), honor them
     let coords: [number, number, number, number];
     if (gradient.coords && gradient.coords.units === "userSpace") {
       // coords are absolute page pixels; convert to rectangle-local points
-      const x0 = gradient.coords.x1 - (rect.x ?? 0);
-      const y0 = gradient.coords.y1 - (rect.y ?? 0);
-      const x1 = gradient.coords.x2 - (rect.x ?? 0);
-      const y1 = gradient.coords.y2 - (rect.y ?? 0);
+      const x0 = gradient.coords.x1 - coordRect.x;
+      const y0 = gradient.coords.y1 - coordRect.y;
+      const x1 = gradient.coords.x2 - coordRect.x;
+      const y1 = gradient.coords.y2 - coordRect.y;
       coords = [
         this.coordinateTransformer.convertPxToPt(x0),
         this.coordinateTransformer.convertPxToPt(y0),
@@ -39,15 +52,15 @@ export class GradientService {
       ];
     } else if (gradient.coords && gradient.coords.units === "ratio") {
       // coords are in objectBoundingBox (0..1) relative to rect
-      const widthPt = Math.max(this.coordinateTransformer.convertPxToPt(rect.width), 0);
-      const heightPt = Math.max(this.coordinateTransformer.convertPxToPt(rect.height), 0);
+      const widthPt = Math.max(this.coordinateTransformer.convertPxToPt(coordRect.width), 0);
+      const heightPt = Math.max(this.coordinateTransformer.convertPxToPt(coordRect.height), 0);
       const x0 = gradient.coords.x1 * widthPt;
       const y0 = gradient.coords.y1 * heightPt;
       const x1 = gradient.coords.x2 * widthPt;
       const y1 = gradient.coords.y2 * heightPt;
       coords = [x0, y0, x1, y1];
     } else {
-      coords = this.calculateGradientCoordinates(gradient, rect);
+      coords = this.calculateGradientCoordinates(gradient, coordRect);
     }
     const interpolationFn = this.buildInterpolationFunction(stops);
 
@@ -399,48 +412,32 @@ export class GradientService {
   }
 
   private parseColor(colorStr: string): { r: number; g: number; b: number } {
-    const lower = colorStr.trim().toLowerCase();
-    const named: Record<string, { r: number; g: number; b: number }> = {
-      red: { r: 1, g: 0, b: 0 },
-      green: { r: 0, g: 0.50196, b: 0 },
-      blue: { r: 0, g: 0, b: 1 },
-      yellow: { r: 1, g: 1, b: 0 },
-      black: { r: 0, g: 0, b: 0 },
-      white: { r: 1, g: 1, b: 1 },
-      gray: { r: 0.50196, g: 0.50196, b: 0.50196 },
-      grey: { r: 0.50196, g: 0.50196, b: 0.50196 },
-      lime: { r: 0, g: 1, b: 0 },
-      fuchsia: { r: 1, g: 0, b: 1 },
-      aqua: { r: 0, g: 1, b: 1 },
-    };
-    const namedMatch = named[lower];
-    if (namedMatch) {
-      return namedMatch;
-    }
-
-    if (lower.startsWith("#")) {
-      const hex = lower.slice(1);
-      if (hex.length === 3) {
-        const r = Number.parseInt(hex[0] + hex[0], 16) / 255;
-        const g = Number.parseInt(hex[1] + hex[1], 16) / 255;
-        const b = Number.parseInt(hex[2] + hex[2], 16) / 255;
-        return { r, g, b };
-      }
-      if (hex.length === 6) {
-        const r = Number.parseInt(hex.slice(0, 2), 16) / 255;
-        const g = Number.parseInt(hex.slice(2, 4), 16) / 255;
-        const b = Number.parseInt(hex.slice(4, 6), 16) / 255;
-        return { r, g, b };
-      }
-    }
-
-    return { r: 0, g: 0, b: 0 };
+    const rgba = parseCssColor(colorStr);
+    return rgbaToUnitRgb(rgba);
   }
 }
 
 interface NormalizedStop {
   color: { r: number; g: number; b: number };
   position: number;
+}
+
+function rgbaToUnitRgb(color: RGBA | undefined): { r: number; g: number; b: number } {
+  if (!color) {
+    return { r: 1, g: 1, b: 1 };
+  }
+  const alpha = color.a ?? 1;
+  const r = normalizeChannel(color.r);
+  const g = normalizeChannel(color.g);
+  const b = normalizeChannel(color.b);
+  if (alpha >= 1) {
+    return { r, g, b };
+  }
+  return {
+    r: r * alpha + (1 - alpha),
+    g: g * alpha + (1 - alpha),
+    b: b * alpha + (1 - alpha),
+  };
 }
 
 function clampUnit(value: number | undefined): number {
@@ -469,6 +466,19 @@ function serializeType2Function(
     "/N 1",
     ">>",
   ].join("\n");
+}
+
+function normalizeChannel(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  if (value > 1) {
+    return Math.min(Math.max(value / 255, 0), 1);
+  }
+  if (value < 0) {
+    return 0;
+  }
+  return value;
 }
 
 function formatNumber(value: number): string {

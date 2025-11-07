@@ -101,6 +101,13 @@ export function createSelectorMatcher(selector: string): ((el: Element) => boole
       const result = !matchesSimple(el, p.inner);
       return result;
     }
+    if (p.kind === 'root') {
+      const doc = (el as any).ownerDocument;
+      if (!doc || !doc.documentElement) {
+        return false;
+      }
+      return doc.documentElement === el;
+    }
     return false;
   }
 

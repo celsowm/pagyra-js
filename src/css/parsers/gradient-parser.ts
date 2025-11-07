@@ -11,6 +11,8 @@ export interface LinearGradient {
   stops: GradientStop[];
   // Optional coordinate hints (used when converting SVG gradients)
   coords?: { x1: number; y1: number; x2: number; y2: number; units: "ratio" | "userSpace" };
+  renderOffset?: { x: number; y: number };
+  renderScale?: { x: number; y: number };
 }
 
 export interface RadialGradient {

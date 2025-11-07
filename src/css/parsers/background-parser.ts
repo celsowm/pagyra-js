@@ -1,4 +1,10 @@
-import type { BackgroundLayer, BackgroundSize } from "../background-types.js";
+import type {
+  BackgroundLayer,
+  BackgroundPosition,
+  BackgroundRepeat,
+  BackgroundSize,
+  GradientBackgroundLayer,
+} from "../background-types.js";
 import { parseLinearGradient, type LinearGradient } from "./gradient-parser.js";
 
 function normalizeBackgroundSizeKeyword(value: string): "cover" | "contain" | "auto" | undefined {
@@ -30,6 +36,34 @@ function normalizeBackgroundSizeKeyword(value: string): "cover" | "contain" | "a
 function normalizeBackgroundSizeComponent(value: string): string {
   const keyword = normalizeBackgroundSizeKeyword(value);
   return keyword ?? value.trim();
+}
+
+interface FunctionSlice {
+  text: string;
+  start: number;
+  end: number;
+}
+
+function extractFunctionCall(value: string, fnName: string): FunctionSlice | null {
+  const lower = value.toLowerCase();
+  const needle = `${fnName.toLowerCase()}(`;
+  const start = lower.indexOf(needle);
+  if (start === -1) {
+    return null;
+  }
+  let depth = 0;
+  for (let i = start; i < value.length; i++) {
+    const ch = value[i];
+    if (ch === "(") {
+      depth++;
+    } else if (ch === ")") {
+      depth--;
+      if (depth === 0) {
+        return { text: value.slice(start, i + 1), start, end: i + 1 };
+      }
+    }
+  }
+  return null;
 }
 
 /**
@@ -123,13 +157,25 @@ function parseSingleBackgroundLayer(value: string): BackgroundLayer | null {
   if (!trimmed) return null;
 
   // Handle gradients
-  if (trimmed.toLowerCase().includes('linear-gradient(') ||
-      trimmed.toLowerCase().includes('radial-gradient(') ||
-      trimmed.toLowerCase().includes('conic-gradient(')) {
+  const gradientSlice = extractFunctionCall(trimmed, "linear-gradient");
+  if (gradientSlice) {
     console.log("parseSingleBackgroundLayer - detected gradient:", trimmed);
-    const result = parseGradientLayer(trimmed);
-    console.log("parseSingleBackgroundLayer - gradient result:", result);
-    return result;
+    const gradientLayer = parseGradientLayer(gradientSlice.text);
+    if (gradientLayer) {
+      const before = trimmed.slice(0, gradientSlice.start).trim();
+      const after = trimmed.slice(gradientSlice.end).trim();
+      const remainder = [before, after].filter(Boolean).join(" ");
+      if (remainder && gradientLayer.kind === "gradient") {
+        const tokens = remainder.split(/\s+/).filter(Boolean);
+        for (const token of tokens) {
+          if (isRepeatKeyword(token)) {
+            gradientLayer.repeat = token as BackgroundRepeat;
+          }
+        }
+      }
+      console.log("parseSingleBackgroundLayer - gradient result:", gradientLayer);
+      return gradientLayer;
+    }
   }
 
   // Handle colors
@@ -146,19 +192,19 @@ function parseSingleBackgroundLayer(value: string): BackgroundLayer | null {
 /**
  * Parses gradient background layer
  */
-function parseGradientLayer(value: string): BackgroundLayer | null {
-  // For now, we'll handle linear gradients
-  if (value.toLowerCase().startsWith('linear-gradient(')) {
-    const gradient = parseLinearGradient(value);
-    if (gradient) {
-      return {
-        kind: "gradient",
-        gradient: gradient
-      };
-    }
+function parseGradientLayer(value: string): GradientBackgroundLayer | null {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized.startsWith("linear-gradient(")) {
+    return null;
   }
-
-  return null;
+  const gradient = parseLinearGradient(value);
+  if (!gradient) {
+    return null;
+  }
+  return {
+    kind: "gradient",
+    gradient,
+  };
 }
 
 /**
@@ -319,7 +365,35 @@ export function applyBackgroundSize(style: any, value: string): void {
     }
   }
 
-  if (layer.kind === "image") {
+  if (layer.kind === "image" || layer.kind === "gradient") {
     layer.size = size;
+  }
+}
+
+function parseBackgroundPositionValue(value: string): BackgroundPosition {
+  const tokens = value.trim().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) {
+    return { x: "left", y: "top" };
+  }
+  if (tokens.length === 1) {
+    const token = tokens[0];
+    if (isPositionKeyword(token)) {
+      if (token === "top" || token === "bottom") {
+        return parseBackgroundPosition("center", token);
+      }
+      return parseBackgroundPosition(token, undefined);
+    }
+    return parseBackgroundPosition(token, undefined);
+  }
+  const [first, second] = tokens;
+  return parseBackgroundPosition(first, second);
+}
+
+export function applyBackgroundPosition(style: any, value: string): void {
+  ensureLayers(style);
+  const layer = getOrCreateTopRenderableLayer(style);
+  const position = parseBackgroundPositionValue(value);
+  if (layer.kind === "image" || layer.kind === "gradient") {
+    layer.position = position;
   }
 }
