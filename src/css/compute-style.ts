@@ -127,6 +127,11 @@ function defaultDisplayForTag(tag: string): Display {
   return display;
 }
 
+const RELATIVE_FONT_SIZE_TAG_SCALE: Record<string, number> = {
+  small: 0.8,
+  big: 1.2,
+};
+
 function resolveTrackSizeInputToAbsolute(track: TrackSizeInput, fontSize: number, rootFontSize: number): TrackSize {
   if (track.kind === "fixed") {
     return {
@@ -315,6 +320,11 @@ export function computeStyleForElement(
     const resolvedFontSize = resolveNumberLike(styleInit.fontSize, inherited.fontSize, rootFontReference);
     if (resolvedFontSize !== undefined) {
       computedFontSize = resolvedFontSize;
+    }
+  } else {
+    const relativeScale = RELATIVE_FONT_SIZE_TAG_SCALE[tagName];
+    if (relativeScale !== undefined) {
+      computedFontSize = baseFontSize * relativeScale;
     }
   }
   styleOptions.fontSize = computedFontSize;
