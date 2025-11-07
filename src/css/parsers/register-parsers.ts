@@ -75,6 +75,16 @@ import {
   parsePaddingLeft,
 } from "./padding-parser.js";
 
+import {
+  parsePaddingBlockStart,
+  parsePaddingBlockEnd,
+} from "./padding-block-parser.js";
+
+import {
+  parsePaddingInlineStart,
+  parsePaddingInlineEnd,
+} from "./padding-inline-parser.js";
+
 // Dimensions
 import {
   parseWidth,
@@ -189,6 +199,10 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("padding-right", parsePaddingRight);
   registerPropertyParser("padding-bottom", parsePaddingBottom);
   registerPropertyParser("padding-left", parsePaddingLeft);
+  registerPropertyParser("padding-block-start", parsePaddingBlockStart);
+  registerPropertyParser("padding-block-end", parsePaddingBlockEnd);
+  registerPropertyParser("padding-inline-start", parsePaddingInlineStart);
+  registerPropertyParser("padding-inline-end", parsePaddingInlineEnd);
 
   // Dimensions
   registerPropertyParser("width", parseWidth);

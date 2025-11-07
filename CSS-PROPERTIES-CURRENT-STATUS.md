@@ -23,8 +23,8 @@
 | `margin-inline-start`, `margin-inline-end`    | Logical inline margins                                                      | Not Implemented |
 | `padding`                                     | Inner padding                                                               | Implemented |
 | `padding-top`, `padding-right`, `padding-bottom`, `padding-left` | Individual paddings                                              | Implemented |
-| `padding-block-start`, `padding-block-end`    | Logical block paddings                                                      | Not Implemented |
-| `padding-inline-start`, `padding-inline-end`  | Logical inline paddings                                                     | Not Implemented |
+| `padding-block-start`, `padding-block-end`    | Logical block paddings                                                      | Implemented |
+| `padding-inline-start`, `padding-inline-end`  | Logical inline paddings                                                     | Implemented |
 | `border`                                      | Border properties                                                           | Implemented |
 | `border-width`, `border-style`, `border-color` | Border characteristics                                                    | Implemented |
 | `border-top`, `border-right`, `border-bottom`, `border-left` | Individual borders                                              | Implemented |
