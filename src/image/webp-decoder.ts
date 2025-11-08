@@ -1,5 +1,5 @@
 import type { ImageInfo } from "./types.js";
-import { BaseDecoder, type DecodeOptions } from "./base-decoder.js";
+import { BaseDecoder, BitReader, DataReader, type DecodeOptions } from "./base-decoder.js";
 
 interface RiffChunk {
   fourCC: string;
@@ -12,35 +12,40 @@ export class WebpDecoder extends BaseDecoder {
     buffer: ArrayBuffer,
     options: DecodeOptions = {},
   ): Promise<ImageInfo> {
-    const view = new DataView(buffer);
+    const reader = new DataReader(buffer);
 
     // Check RIFF and WEBP signatures
-    if (view.getUint32(0, false) !== 0x52494646 || view.getUint32(8, false) !== 0x57454250) {
+    if (reader.getString(4) !== 'RIFF' || reader.getString(4) !== 'WEBP') {
       throw new Error("Invalid WebP file format");
     }
+    reader.seek(8); // Skip RIFF size
 
-    let offset = 12;
     const chunks: RiffChunk[] = [];
-
-    while (offset < buffer.byteLength) {
-      const fourCC = String.fromCharCode(
-        view.getUint8(offset),
-        view.getUint8(offset + 1),
-        view.getUint8(offset + 2),
-        view.getUint8(offset + 3)
-      );
-      const size = view.getUint32(offset + 4, true);
-      const data = new DataView(buffer, offset + 8, size);
+    while (reader.hasMore()) {
+      const fourCC = reader.getString(4);
+      const size = reader.getUint32(true);
+      const data = reader.getView(size);
       chunks.push({ fourCC, size, data });
-      offset += 8 + size + (size % 2);
+      if (size % 2) reader.seek(reader.tell() + 1); // Skip padding
+    }
+
+    const vp8xChunk = chunks.find(c => c.fourCC === 'VP8X');
+    if (vp8xChunk) {
+      // VP8X provides feature flags, but for now we just acknowledge it
+      // and proceed to find the actual image data chunk (VP8 or VP8L).
     }
 
     const vp8lChunk = chunks.find(c => c.fourCC === 'VP8L');
-    if (!vp8lChunk) {
-      throw new Error("Only VP8L (lossless) WebP supported");
+    if (vp8lChunk) {
+      return this.decodeVp8l(vp8lChunk, options);
     }
 
-    return this.decodeVp8l(vp8lChunk, options);
+    const vp8Chunk = chunks.find(c => c.fourCC === 'VP8 ');
+    if (vp8Chunk) {
+      throw new Error("VP8 (lossy) WebP is not supported");
+    }
+
+    throw new Error("Unsupported WebP format: No VP8L chunk found");
   }
 
   private decodeVp8l(chunk: RiffChunk, options: DecodeOptions): ImageInfo {
@@ -317,30 +322,4 @@ export class WebpDecoder extends BaseDecoder {
 interface HuffmanTree {
   codes: Array<{ symbol: number; length: number; code?: number }>;
   maxLength: number;
-}
-
-class BitReader {
-  private view: DataView;
-  private bytePos: number = 0;
-  private bitPos: number = 0;
-
-  constructor(view: DataView) {
-    this.view = view;
-  }
-
-  public readBits(n: number): number {
-    let value = 0;
-    for (let i = 0; i < n; i++) {
-      if (this.bytePos >= this.view.byteLength) return value;
-      const byte = this.view.getUint8(this.bytePos);
-      const bit = (byte >> this.bitPos) & 1; // LSB-first!
-      value |= bit << i;
-      this.bitPos++;
-      if (this.bitPos === 8) {
-        this.bitPos = 0;
-        this.bytePos++;
-      }
-    }
-    return value;
-  }
 }
