@@ -139,30 +139,23 @@ export class BlockLayoutStrategy implements LayoutStrategy {
       if (collapseTopWithChildren && child === firstCollapsibleChild) {
         gap -= topCollapseAmount;
       }
-      cursorY += gap;
-
+      
       const originX = contentX + childMarginLeft;
       child.box.x = originX;
-      child.box.y = cursorY;
+      child.box.y = cursorY + gap;
 
-      // Lay out the child. The child's strategy is responsible for setting its own
-      // box model properties, including contentHeight and borderBoxHeight.
       context.layoutChild(child);
 
-      // **FIX:** The line below was removed. It was incorrectly overwriting the
-      // borderBoxHeight calculated by complex child strategies (like TableLayoutStrategy).
-      // REMOVED: child.box.borderBoxHeight = child.box.contentHeight + verticalNonContent(child, contentWidth);
-
-      // Now, use the authoritative borderBoxHeight set by the child's layout strategy
-      // to advance the cursor.
       child.box.marginBoxHeight = child.box.borderBoxHeight + childMarginTopRaw + childMarginBottomRaw;
+      
       previousBottomMargin = collapsedMarginBottom;
-      let nextCursor = child.box.y + child.box.borderBoxHeight + childMarginBottomRaw;
+      
+      cursorY = child.box.y + child.box.borderBoxHeight;
+      
       if (collapseBottomWithChildren && child === lastCollapsibleChild) {
-        nextCursor -= bottomCollapseAmount;
+        cursorY += collapsedMarginBottom - bottomCollapseAmount;
         previousBottomMargin = 0;
       }
-      cursorY = nextCursor;
     }
 
     const measurement = measureInFlowContentWidth(node, contentWidth, contentX);
