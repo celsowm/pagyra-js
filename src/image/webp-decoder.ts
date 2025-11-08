@@ -1,11 +1,235 @@
 import type { ImageInfo } from "./types.js";
-import { BaseDecoder, BitReader, DataReader, type DecodeOptions } from "./base-decoder.js";
+
+// ============================================================================
+// Types & Interfaces
+// ============================================================================
+
+export interface DecodeOptions {
+  maxWidth?: number;
+  maxHeight?: number;
+  scale?: number;
+}
 
 interface RiffChunk {
   fourCC: string;
   size: number;
   data: DataView;
 }
+
+interface HuffmanCode {
+  symbol: number;
+  length: number;
+  code: number;
+}
+
+interface HuffmanTree {
+  codes: HuffmanCode[];
+  maxLength: number;
+  lookupTable?: Map<string, number>; // For faster symbol lookup
+}
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+const VP8L_SIGNATURE = 0x2f;
+const VP8_SIGNATURE = [0x9d, 0x01, 0x2a] as const;
+const CODE_LENGTH_ORDER = [17, 18, 0, 1, 2, 3, 4, 5, 16, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] as const;
+const HUFFMAN_GROUPS = 5;
+const TEXT_DECODER = new TextDecoder("ascii");
+
+// ============================================================================
+// DataReader Class
+// ============================================================================
+
+/**
+ * Sequential binary data reader with automatic offset tracking
+ */
+export class DataReader {
+  private view: DataView;
+  private offset: number = 0;
+
+  constructor(buffer: ArrayBuffer) {
+    this.view = new DataView(buffer);
+  }
+
+  public seek(offset: number): void {
+    if (offset < 0 || offset > this.view.byteLength) {
+      throw new RangeError(`Seek offset ${offset} out of bounds [0, ${this.view.byteLength}]`);
+    }
+    this.offset = offset;
+  }
+
+  public tell(): number {
+    return this.offset;
+  }
+
+  public hasMore(): boolean {
+    return this.offset < this.view.byteLength;
+  }
+
+  public getUint8(): number {
+    this.checkBounds(1);
+    const value = this.view.getUint8(this.offset);
+    this.offset += 1;
+    return value;
+  }
+
+  public getUint16(littleEndian: boolean = false): number {
+    this.checkBounds(2);
+    const value = this.view.getUint16(this.offset, littleEndian);
+    this.offset += 2;
+    return value;
+  }
+
+  public getUint32(littleEndian: boolean = false): number {
+    this.checkBounds(4);
+    const value = this.view.getUint32(this.offset, littleEndian);
+    this.offset += 4;
+    return value;
+  }
+
+  public getString(length: number): string {
+    this.checkBounds(length);
+    const bytes = new Uint8Array(this.view.buffer, this.view.byteOffset + this.offset, length);
+    this.offset += length;
+    return TEXT_DECODER.decode(bytes);
+  }
+
+  public getView(length: number): DataView {
+    this.checkBounds(length);
+    const view = new DataView(this.view.buffer, this.view.byteOffset + this.offset, length);
+    this.offset += length;
+    return view;
+  }
+
+  private checkBounds(length: number): void {
+    if (this.offset + length > this.view.byteLength) {
+      throw new RangeError(`Read beyond buffer bounds: ${this.offset + length} > ${this.view.byteLength}`);
+    }
+  }
+}
+
+// ============================================================================
+// BitReader Class
+// ============================================================================
+
+/**
+ * Reads individual bits from a DataView (LSB first)
+ */
+export class BitReader {
+  private view: DataView;
+  private bytePos: number = 0;
+  private bitPos: number = 0;
+
+  constructor(view: DataView) {
+    this.view = view;
+  }
+
+  public readBits(n: number): number {
+    if (n > 32) {
+      throw new Error("Cannot read more than 32 bits at once");
+    }
+
+    let value = 0;
+    for (let i = 0; i < n; i++) {
+      if (this.bytePos >= this.view.byteLength) {
+        throw new Error("BitReader: Attempted to read beyond buffer");
+      }
+
+      const byte = this.view.getUint8(this.bytePos);
+      const bit = (byte >> this.bitPos) & 1;
+      value |= bit << i;
+
+      this.bitPos++;
+      if (this.bitPos === 8) {
+        this.bitPos = 0;
+        this.bytePos++;
+      }
+    }
+    return value;
+  }
+
+  public hasMore(): boolean {
+    return this.bytePos < this.view.byteLength;
+  }
+}
+
+// ============================================================================
+// BaseDecoder Class
+// ============================================================================
+
+export abstract class BaseDecoder {
+  /**
+   * Calculate target dimensions based on scaling options
+   */
+  protected static calculateDimensions(
+    width: number,
+    height: number,
+    options: DecodeOptions
+  ): { targetWidth: number; targetHeight: number } {
+    let targetWidth = width;
+    let targetHeight = height;
+
+    if (options.scale && options.scale > 0) {
+      targetWidth = Math.max(1, Math.round(width * options.scale));
+      targetHeight = Math.max(1, Math.round(height * options.scale));
+    } else if (options.maxWidth || options.maxHeight) {
+      const scale = Math.min(
+        options.maxWidth ? options.maxWidth / width : Infinity,
+        options.maxHeight ? options.maxHeight / height : Infinity
+      );
+
+      if (scale > 0 && scale < 1) {
+        targetWidth = Math.max(1, Math.round(width * scale));
+        targetHeight = Math.max(1, Math.round(height * scale));
+      }
+    }
+
+    return { targetWidth, targetHeight };
+  }
+
+  /**
+   * Optimized nearest-neighbor resize
+   */
+  protected static resizeNN(
+    src: Uint8Array,
+    sw: number,
+    sh: number,
+    tw: number,
+    th: number,
+    channels: number,
+  ): Uint8Array {
+    if (sw === tw && sh === th) return src;
+
+    const dst = new Uint8Array(tw * th * channels);
+    const xRatio = sw / tw;
+    const yRatio = sh / th;
+
+    for (let y = 0; y < th; y++) {
+      const sy = Math.min(sh - 1, Math.floor(y * yRatio));
+      const srcRowOffset = sy * sw * channels;
+      const dstRowOffset = y * tw * channels;
+
+      for (let x = 0; x < tw; x++) {
+        const sx = Math.min(sw - 1, Math.floor(x * xRatio));
+        const si = srcRowOffset + sx * channels;
+        const di = dstRowOffset + x * channels;
+
+        for (let c = 0; c < channels; c++) {
+          dst[di + c] = src[si + c];
+        }
+      }
+    }
+    return dst;
+  }
+
+  public abstract decode(buffer: ArrayBuffer, options?: DecodeOptions): Promise<ImageInfo>;
+}
+
+// ============================================================================
+// WebpDecoder Class
+// ============================================================================
 
 export class WebpDecoder extends BaseDecoder {
   public async decode(
@@ -14,25 +238,25 @@ export class WebpDecoder extends BaseDecoder {
   ): Promise<ImageInfo> {
     const reader = new DataReader(buffer);
 
-    // Check RIFF and WEBP signatures
-    if (reader.getString(4) !== 'RIFF' || reader.getString(4) !== 'WEBP') {
-      throw new Error("Invalid WebP file format");
-    }
-    reader.seek(8); // Skip RIFF size
-
-    const chunks: RiffChunk[] = [];
-    while (reader.hasMore()) {
-      const fourCC = reader.getString(4);
-      const size = reader.getUint32(true);
-      const data = reader.getView(size);
-      chunks.push({ fourCC, size, data });
-      if (size % 2) reader.seek(reader.tell() + 1); // Skip padding
+    // Validate RIFF header
+    const riff = reader.getString(4);
+    if (riff !== 'RIFF') {
+      throw new Error("Invalid WebP: Missing RIFF header");
     }
 
+    reader.getUint32(true); // File size (unused)
+
+    const webp = reader.getString(4);
+    if (webp !== 'WEBP') {
+      throw new Error("Invalid WebP: Missing WEBP signature");
+    }
+
+    const chunks = this.parseChunks(reader);
+
+    // Determine format and decode
     const vp8xChunk = chunks.find(c => c.fourCC === 'VP8X');
     if (vp8xChunk) {
-      // VP8X provides feature flags, but for now we just acknowledge it
-      // and proceed to find the actual image data chunk (VP8 or VP8L).
+      return this.decodeVp8x(vp8xChunk, chunks, options);
     }
 
     const vp8lChunk = chunks.find(c => c.fourCC === 'VP8L');
@@ -42,17 +266,41 @@ export class WebpDecoder extends BaseDecoder {
 
     const vp8Chunk = chunks.find(c => c.fourCC === 'VP8 ');
     if (vp8Chunk) {
-      throw new Error("VP8 (lossy) WebP is not supported");
+      throw new Error("VP8 (lossy) WebP format is not yet supported");
     }
 
-    throw new Error("Unsupported WebP format: No VP8L chunk found");
+    throw new Error("Unsupported WebP format: No recognized image chunk found");
   }
 
+  /**
+   * Parse RIFF chunks from the file
+   */
+  private parseChunks(reader: DataReader): RiffChunk[] {
+    const chunks: RiffChunk[] = [];
+
+    while (reader.hasMore()) {
+      const fourCC = reader.getString(4);
+      const size = reader.getUint32(true);
+      const data = reader.getView(size);
+      chunks.push({ fourCC, size, data });
+
+      // Skip padding byte if chunk size is odd
+      if (size % 2 === 1 && reader.hasMore()) {
+        reader.seek(reader.tell() + 1);
+      }
+    }
+
+    return chunks;
+  }
+
+  /**
+   * Decode VP8L (lossless) format
+   */
   private decodeVp8l(chunk: RiffChunk, options: DecodeOptions): ImageInfo {
     const br = new BitReader(chunk.data);
 
-    // VP8L signature
-    if (br.readBits(8) !== 0x2f) {
+    // Validate VP8L signature
+    if (br.readBits(8) !== VP8L_SIGNATURE) {
       throw new Error("Invalid VP8L signature");
     }
 
@@ -61,82 +309,22 @@ export class WebpDecoder extends BaseDecoder {
     const hasAlpha = br.readBits(1);
     const versionNumber = br.readBits(3);
 
-    // Check for transforms - only support images without transforms
-    const transforms = [];
-    while (br.readBits(1)) {
-      const transformType = br.readBits(2);
-      transforms.push(transformType);
-      // Skip transform data (simplified - won't work for all images)
-      if (transformType === 1) { // COLOR_TRANSFORM
-        const sizeBits = br.readBits(3) + 2;
-        const blockWidth = this.subSampleSize(width, sizeBits);
-        const blockHeight = this.subSampleSize(height, sizeBits);
-        this.readTransformImage(br, blockWidth, blockHeight);
-      } else if (transformType === 0) { // PREDICTOR_TRANSFORM
-        const sizeBits = br.readBits(3) + 2;
-        const blockWidth = this.subSampleSize(width, sizeBits);
-        const blockHeight = this.subSampleSize(height, sizeBits);
-        this.readTransformImage(br, blockWidth, blockHeight);
-      } else if (transformType === 3) { // COLOR_INDEXING_TRANSFORM
-        const numColors = br.readBits(8) + 1;
-        if (numColors <= 16) {
-          this.readTransformImage(br, numColors, 1);
-        }
-      }
+    if (versionNumber !== 0) {
+      throw new Error(`Unsupported VP8L version: ${versionNumber}`);
     }
+
+    // Process transforms
+    this.processTransforms(br, width, height);
 
     // Read Huffman codes
     const huffmanCodes = this.readHuffmanCodes(br);
 
-    // Decode pixels
-    const pixels = new Uint8Array(width * height * 4);
-    let pixelIndex = 0;
+    // Decode pixel data
+    const pixels = this.decodePixelData(br, width, height, huffmanCodes);
 
-    for (let i = 0; i < width * height; i++) {
-      const green = this.readSymbol(br, huffmanCodes[0]);
-      
-      if (green < 256) {
-        // Literal pixel
-        const red = this.readSymbol(br, huffmanCodes[1]);
-        const blue = this.readSymbol(br, huffmanCodes[2]);
-        const alpha = this.readSymbol(br, huffmanCodes[3]);
-        
-        pixels[pixelIndex++] = red;
-        pixels[pixelIndex++] = green;
-        pixels[pixelIndex++] = blue;
-        pixels[pixelIndex++] = alpha;
-      } else {
-        // Backward reference (LZ77)
-        const lengthSymbol = green - 256;
-        const length = this.getLengthFromSymbol(lengthSymbol, br);
-        const distSymbol = this.readSymbol(br, huffmanCodes[4]);
-        const distance = this.getDistanceFromSymbol(distSymbol, br);
-        
-        // Copy pixels
-        for (let j = 0; j < length; j++) {
-          const srcIdx = pixelIndex - distance * 4;
-          pixels[pixelIndex++] = pixels[srcIdx];
-          pixels[pixelIndex++] = pixels[srcIdx + 1];
-          pixels[pixelIndex++] = pixels[srcIdx + 2];
-          pixels[pixelIndex++] = pixels[srcIdx + 3];
-        }
-      }
-    }
-
-    const { targetWidth, targetHeight } = WebpDecoder.calculateDimensions(
-      width,
-      height,
-      options
-    );
-
-    const finalData = WebpDecoder.resizeNN(
-      pixels,
-      width,
-      height,
-      targetWidth,
-      targetHeight,
-      4
-    );
+    // Apply resize if needed
+    const { targetWidth, targetHeight } = WebpDecoder.calculateDimensions(width, height, options);
+    const finalData = WebpDecoder.resizeNN(pixels, width, height, targetWidth, targetHeight, 4);
 
     return {
       width: targetWidth,
@@ -148,15 +336,91 @@ export class WebpDecoder extends BaseDecoder {
     };
   }
 
+  /**
+   * Process VP8L transforms
+   */
+  private processTransforms(br: BitReader, width: number, height: number): void {
+    while (br.readBits(1)) {
+      const transformType = br.readBits(2);
+
+      if (transformType === 1 || transformType === 0) {
+        // COLOR_TRANSFORM or PREDICTOR_TRANSFORM
+        const sizeBits = br.readBits(3) + 2;
+        const blockWidth = this.subSampleSize(width, sizeBits);
+        const blockHeight = this.subSampleSize(height, sizeBits);
+        this.readTransformImage(br, blockWidth, blockHeight);
+      } else if (transformType === 3) {
+        // COLOR_INDEXING_TRANSFORM
+        const numColors = br.readBits(8) + 1;
+        if (numColors <= 16) {
+          this.readTransformImage(br, numColors, 1);
+        }
+      }
+      // transformType === 2 (SUBTRACT_GREEN) has no data
+    }
+  }
+
+  /**
+   * Decode pixel data using Huffman codes
+   */
+  private decodePixelData(
+    br: BitReader,
+    width: number,
+    height: number,
+    huffmanCodes: HuffmanTree[]
+  ): Uint8Array {
+    const pixels = new Uint8Array(width * height * 4);
+    let pixelIndex = 0;
+    const totalPixels = width * height;
+
+    for (let i = 0; i < totalPixels; i++) {
+      const green = this.readSymbol(br, huffmanCodes[0]);
+
+      if (green < 256) {
+        // Literal pixel
+        const red = this.readSymbol(br, huffmanCodes[1]);
+        const blue = this.readSymbol(br, huffmanCodes[2]);
+        const alpha = this.readSymbol(br, huffmanCodes[3]);
+
+        pixels[pixelIndex++] = red;
+        pixels[pixelIndex++] = green;
+        pixels[pixelIndex++] = blue;
+        pixels[pixelIndex++] = alpha;
+      } else {
+        // Backward reference (LZ77)
+        const lengthSymbol = green - 256;
+        const length = this.getLengthFromSymbol(lengthSymbol, br);
+        const distSymbol = this.readSymbol(br, huffmanCodes[4]);
+        const distance = this.getDistanceFromSymbol(distSymbol, br);
+
+        // Copy pixels from earlier in the stream
+        for (let j = 0; j < length && i + j < totalPixels; j++) {
+          const srcIdx = pixelIndex - distance * 4;
+          if (srcIdx >= 0) {
+            pixels[pixelIndex++] = pixels[srcIdx];
+            pixels[pixelIndex++] = pixels[srcIdx + 1];
+            pixels[pixelIndex++] = pixels[srcIdx + 2];
+            pixels[pixelIndex++] = pixels[srcIdx + 3];
+          }
+        }
+        i += length - 1;
+      }
+    }
+
+    return pixels;
+  }
+
   private subSampleSize(size: number, samplingBits: number): number {
     return (size + (1 << samplingBits) - 1) >> samplingBits;
   }
 
   private readTransformImage(br: BitReader, width: number, height: number): void {
     const huffmanCodes = this.readHuffmanCodes(br);
-    // Skip transform image pixels
-    for (let i = 0; i < width * height; i++) {
+    const totalPixels = width * height;
+
+    for (let i = 0; i < totalPixels; i++) {
       const green = this.readSymbol(br, huffmanCodes[0]);
+
       if (green < 256) {
         this.readSymbol(br, huffmanCodes[1]); // red
         this.readSymbol(br, huffmanCodes[2]); // blue
@@ -171,136 +435,168 @@ export class WebpDecoder extends BaseDecoder {
     }
   }
 
+  /**
+   * Read all Huffman code groups
+   */
   private readHuffmanCodes(br: BitReader): HuffmanTree[] {
-    const numCodeGroups = 1; // Simplified - always use 1 group
     const huffmanCodes: HuffmanTree[] = [];
 
-    for (let g = 0; g < numCodeGroups; g++) {
-      for (let i = 0; i < 5; i++) {
-        huffmanCodes[i] = this.readHuffmanCode(br, i === 4 ? 40 : 256 + 24);
-      }
+    for (let i = 0; i < HUFFMAN_GROUPS; i++) {
+      const alphabetSize = i === 4 ? 40 : 280; // 256 + 24 = 280
+      huffmanCodes[i] = this.readHuffmanCode(br, alphabetSize);
     }
 
     return huffmanCodes;
   }
 
+  /**
+   * Read a single Huffman code tree
+   */
   private readHuffmanCode(br: BitReader, alphabetSize: number): HuffmanTree {
     const simple = br.readBits(1);
-    
+
     if (simple) {
-      const numSymbols = br.readBits(1) + 1;
-      const symbols: number[] = [];
-      
-      if (br.readBits(1)) { // is_first_8bits
-        symbols.push(br.readBits(8));
-        if (numSymbols === 2) {
-          symbols.push(br.readBits(8));
-        }
-      } else {
-        symbols.push(br.readBits(1));
-        if (numSymbols === 2) {
-          symbols.push(br.readBits(1));
-        }
-      }
-      
-      return this.buildSimpleHuffman(symbols);
+      return this.readSimpleHuffmanCode(br);
     }
 
     // Read code length codes
     const codeLengthCodeLengths = new Array(19).fill(0);
     const numCodeLengthCodes = 4 + br.readBits(4);
-    const kCodeLengthCodeOrder = [17, 18, 0, 1, 2, 3, 4, 5, 16, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-    
+
     for (let i = 0; i < numCodeLengthCodes; i++) {
-      codeLengthCodeLengths[kCodeLengthCodeOrder[i]] = br.readBits(3);
+      codeLengthCodeLengths[CODE_LENGTH_ORDER[i]] = br.readBits(3);
     }
 
     const codeLengthTree = this.buildHuffmanTree(codeLengthCodeLengths);
+    const codeLengths = this.readCodeLengths(br, codeLengthTree, alphabetSize);
+
+    return this.buildHuffmanTree(codeLengths);
+  }
+
+  /**
+   * Read simple Huffman code (1 or 2 symbols)
+   */
+  private readSimpleHuffmanCode(br: BitReader): HuffmanTree {
+    const numSymbols = br.readBits(1) + 1;
+    const symbols: number[] = [];
+
+    const is8Bits = br.readBits(1);
+    const bitCount = is8Bits ? 8 : 1;
+
+    symbols.push(br.readBits(bitCount));
+    if (numSymbols === 2) {
+      symbols.push(br.readBits(bitCount));
+    }
+
+    return this.buildSimpleHuffman(symbols);
+  }
+
+  /**
+   * Read code lengths using code length tree
+   */
+  private readCodeLengths(br: BitReader, codeLengthTree: HuffmanTree, alphabetSize: number): number[] {
     const codeLengths = new Array(alphabetSize).fill(0);
     let i = 0;
 
     while (i < alphabetSize) {
       const code = this.readSymbol(br, codeLengthTree);
-      
+
       if (code < 16) {
         codeLengths[i++] = code;
       } else {
         let repeatCount = 0;
         let repeatValue = 0;
-        
+
         if (code === 16) {
           repeatCount = 3 + br.readBits(2);
           repeatValue = codeLengths[i - 1];
         } else if (code === 17) {
           repeatCount = 3 + br.readBits(3);
-        } else {
+        } else if (code === 18) {
           repeatCount = 11 + br.readBits(7);
         }
-        
-        while (repeatCount-- > 0 && i < alphabetSize) {
+
+        for (let j = 0; j < repeatCount && i < alphabetSize; j++) {
           codeLengths[i++] = repeatValue;
         }
       }
     }
 
-    return this.buildHuffmanTree(codeLengths);
+    return codeLengths;
   }
 
   private buildSimpleHuffman(symbols: number[]): HuffmanTree {
     if (symbols.length === 1) {
-      return { codes: [{ symbol: symbols[0], length: 0 }], maxLength: 0 };
+      return { codes: [{ symbol: symbols[0], length: 0, code: 0 }], maxLength: 0 };
     }
+
     return {
       codes: [
-        { symbol: symbols[0], length: 1 },
-        { symbol: symbols[1], length: 1 }
+        { symbol: symbols[0], length: 1, code: 0 },
+        { symbol: symbols[1], length: 1, code: 1 }
       ],
       maxLength: 1
     };
   }
 
+  /**
+   * Build Huffman tree with lookup table for O(1) symbol lookup
+   */
   private buildHuffmanTree(codeLengths: number[]): HuffmanTree {
-    const maxLength = Math.max(...codeLengths);
-    const codes: Array<{ symbol: number; length: number; code: number }> = [];
-    
-    let code = 0;
+    const maxLength = Math.max(...codeLengths, 0);
+    const codes: HuffmanCode[] = [];
+
     const bl_count = new Array(maxLength + 1).fill(0);
     const next_code = new Array(maxLength + 1).fill(0);
-    
+
+    // Count codes per length
     for (const len of codeLengths) {
       bl_count[len]++;
     }
-    
+
+    // Calculate starting codes for each length
+    let code = 0;
     for (let bits = 1; bits <= maxLength; bits++) {
       code = (code + bl_count[bits - 1]) << 1;
       next_code[bits] = code;
     }
-    
+
+    // Assign codes to symbols
+    const lookupTable = new Map<string, number>();
     for (let n = 0; n < codeLengths.length; n++) {
       const len = codeLengths[n];
       if (len !== 0) {
-        codes.push({ symbol: n, length: len, code: next_code[len] });
+        const codeValue = next_code[len];
+        codes.push({ symbol: n, length: len, code: codeValue });
+        // Create lookup key: "length:code"
+        lookupTable.set(`${len}:${codeValue}`, n);
         next_code[len]++;
       }
     }
-    
-    return { codes, maxLength };
+
+    return { codes, maxLength, lookupTable };
   }
 
+  /**
+   * Read a symbol using Huffman tree (optimized with lookup table)
+   */
   private readSymbol(br: BitReader, tree: HuffmanTree): number {
     if (tree.maxLength === 0) {
       return tree.codes[0].symbol;
     }
-    
-    let code = 0;
-    for (let i = 0; i < tree.maxLength; i++) {
-      code = (code << 1) | br.readBits(1);
-      const found = tree.codes.find(c => c.length === i + 1 && c.code === code);
-      if (found) {
-        return found.symbol;
+
+    // Use lookup table for O(1) access
+    if (tree.lookupTable) {
+      let code = 0;
+      for (let i = 1; i <= tree.maxLength; i++) {
+        code = (code << 1) | br.readBits(1);
+        const symbol = tree.lookupTable.get(`${i}:${code}`);
+        if (symbol !== undefined) {
+          return symbol;
+        }
       }
     }
-    
+
     return 0;
   }
 
@@ -317,9 +613,33 @@ export class WebpDecoder extends BaseDecoder {
     const offset = (2 + (symbol & 1)) << extraBits;
     return offset + br.readBits(extraBits) + 1;
   }
-}
 
-interface HuffmanTree {
-  codes: Array<{ symbol: number; length: number; code?: number }>;
-  maxLength: number;
+  /**
+   * Decode VP8X (extended) format
+   */
+  private decodeVp8x(chunk: RiffChunk, chunks: RiffChunk[], options: DecodeOptions): ImageInfo {
+    const data = new Uint8Array(chunk.data.buffer, chunk.data.byteOffset, chunk.data.byteLength);
+
+    // VP8X flags (currently unused but available for future features)
+    const flags = data[0];
+    const hasAnimation = (flags & 0x02) !== 0;
+    const hasAlpha = (flags & 0x10) !== 0;
+
+    if (hasAnimation) {
+      throw new Error("Animated WebP is not supported");
+    }
+
+    // Find the actual image data chunk
+    const vp8lChunk = chunks.find(c => c.fourCC === 'VP8L');
+    if (vp8lChunk) {
+      return this.decodeVp8l(vp8lChunk, options);
+    }
+
+    const vp8Chunk = chunks.find(c => c.fourCC === 'VP8 ');
+    if (vp8Chunk) {
+      throw new Error("VP8 (lossy) WebP format is not yet supported");
+    }
+
+    throw new Error("No image data found in VP8X container");
+  }
 }
