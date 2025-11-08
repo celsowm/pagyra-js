@@ -15,6 +15,7 @@ import {
 import type { LengthLike } from "../length.js";
 import { AUTO_LENGTH } from "../length.js";
 import { createNormalLineHeight, DEFAULT_NORMAL_LINE_HEIGHT } from "../line-height.js";
+import { remToPx, emToPx } from "../unit-conversion.js";
 
 /**
  * Typography defaults - handles all font and text related properties.
@@ -25,6 +26,10 @@ export class TypographyDefaults {
   }
 
   static getFontSize(): number {
+    return 1; // 1rem
+  }
+
+  static getBaseFontSize(): number {
     return 16;
   }
 
@@ -54,7 +59,7 @@ export class TypographyDefaults {
  */
 export class BoxModelDefaults {
   static getMargin(): number {
-    return 0;
+    return 0; // 0em
   }
 
   static getPadding(): number {
@@ -162,10 +167,11 @@ export class TextLayoutDefaults {
  * This keeps construction logic separate from element-specific maps.
  */
 export function createBaseDefaultsObject(): any {
+  const baseFontSize = TypographyDefaults.getBaseFontSize();
   return {
     // Typography
     fontFamily: TypographyDefaults.getFontFamily(),
-    fontSize: TypographyDefaults.getFontSize(),
+    fontSize: remToPx(TypographyDefaults.getFontSize(), baseFontSize),
     fontStyle: "normal",
     fontWeight: TypographyDefaults.getFontWeight(),
     lineHeight: createNormalLineHeight(),
@@ -177,10 +183,10 @@ export function createBaseDefaultsObject(): any {
     listStyleType: "disc",
 
     // Box model
-    marginTop: BoxModelDefaults.getMargin(),
-    marginRight: BoxModelDefaults.getMargin(),
-    marginBottom: BoxModelDefaults.getMargin(),
-    marginLeft: BoxModelDefaults.getMargin(),
+    marginTop: emToPx(BoxModelDefaults.getMargin(), remToPx(TypographyDefaults.getFontSize(), baseFontSize)),
+    marginRight: emToPx(BoxModelDefaults.getMargin(), remToPx(TypographyDefaults.getFontSize(), baseFontSize)),
+    marginBottom: emToPx(BoxModelDefaults.getMargin(), remToPx(TypographyDefaults.getFontSize(), baseFontSize)),
+    marginLeft: emToPx(BoxModelDefaults.getMargin(), remToPx(TypographyDefaults.getFontSize(), baseFontSize)),
     paddingTop: BoxModelDefaults.getPadding(),
     paddingRight: BoxModelDefaults.getPadding(),
     paddingBottom: BoxModelDefaults.getPadding(),
