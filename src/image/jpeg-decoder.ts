@@ -1,4 +1,5 @@
 import type { ImageInfo } from "./types.js";
+import { BaseDecoder, type DecodeOptions } from "./base-decoder.js";
 
 /**
  * Minimal JPEG parser that extracts metadata and returns the original bytes.
@@ -6,18 +7,18 @@ import type { ImageInfo } from "./types.js";
  * intrinsic dimensions found in the SOF0 marker so the layout engine can size
  * the image correctly while keeping the compressed payload for embedding.
  */
-export class JpegDecoder {
+export class JpegDecoder extends BaseDecoder {
   private static readonly SOI_MARKER = 0xffd8;
   private static readonly EOI_MARKER = 0xffd9;
   private static readonly SOF0_MARKER = 0xffc0;
 
-  public static async decode(
+  public async decode(
     buffer: ArrayBuffer,
-    options: { maxWidth?: number; maxHeight?: number; scale?: number } = {},
+    options: DecodeOptions = {},
   ): Promise<ImageInfo> {
     const view = new DataView(buffer);
 
-    if (view.getUint16(0, false) !== this.SOI_MARKER) {
+    if (view.getUint16(0, false) !== JpegDecoder.SOI_MARKER) {
       throw new Error("Invalid JPEG: missing SOI marker");
     }
 
@@ -31,13 +32,13 @@ export class JpegDecoder {
       const marker = view.getUint16(offset, false);
       offset += 2;
 
-      if (marker === this.EOI_MARKER) {
+      if (marker === JpegDecoder.EOI_MARKER) {
         break;
       }
 
       const length = view.getUint16(offset, false);
 
-      if (marker === this.SOF0_MARKER) {
+      if (marker === JpegDecoder.SOF0_MARKER) {
         precision = view.getUint8(offset + 2);
         height = view.getUint16(offset + 3, false);
         width = view.getUint16(offset + 5, false);
@@ -52,22 +53,11 @@ export class JpegDecoder {
       throw new Error("Invalid JPEG: missing SOF0 marker");
     }
 
-    let targetWidth = width;
-    let targetHeight = height;
-
-    if (options.scale && options.scale > 0) {
-      targetWidth = Math.max(1, Math.round(width * options.scale));
-      targetHeight = Math.max(1, Math.round(height * options.scale));
-    } else if (options.maxWidth || options.maxHeight) {
-      const scale = Math.min(
-        options.maxWidth ? options.maxWidth / width : 1,
-        options.maxHeight ? options.maxHeight / height : 1,
-      );
-      if (scale > 0 && scale < 1) {
-        targetWidth = Math.max(1, Math.round(width * scale));
-        targetHeight = Math.max(1, Math.round(height * scale));
-      }
-    }
+    const { targetWidth, targetHeight } = JpegDecoder.calculateDimensions(
+      width,
+      height,
+      options
+    );
 
     const dataCopy = buffer.slice(0);
 

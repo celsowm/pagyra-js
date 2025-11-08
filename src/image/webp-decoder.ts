@@ -1,4 +1,5 @@
 import type { ImageInfo } from "./types.js";
+import { BaseDecoder, type DecodeOptions } from "./base-decoder.js";
 
 interface RiffChunk {
   fourCC: string;
@@ -6,8 +7,11 @@ interface RiffChunk {
   data: DataView;
 }
 
-export class WebpDecoder {
-  public static async decode(buffer: ArrayBuffer): Promise<ImageInfo> {
+export class WebpDecoder extends BaseDecoder {
+  public async decode(
+    buffer: ArrayBuffer,
+    options: DecodeOptions = {},
+  ): Promise<ImageInfo> {
     const view = new DataView(buffer);
 
     // Check RIFF and WEBP signatures
@@ -36,10 +40,10 @@ export class WebpDecoder {
       throw new Error("Only VP8L (lossless) WebP supported");
     }
 
-    return this.decodeVp8l(vp8lChunk);
+    return this.decodeVp8l(vp8lChunk, options);
   }
 
-  private static decodeVp8l(chunk: RiffChunk): ImageInfo {
+  private decodeVp8l(chunk: RiffChunk, options: DecodeOptions): ImageInfo {
     const br = new BitReader(chunk.data);
 
     // VP8L signature
@@ -114,21 +118,36 @@ export class WebpDecoder {
       }
     }
 
-    return {
+    const { targetWidth, targetHeight } = WebpDecoder.calculateDimensions(
       width,
       height,
+      options
+    );
+
+    const finalData = WebpDecoder.resizeNN(
+      pixels,
+      width,
+      height,
+      targetWidth,
+      targetHeight,
+      4
+    );
+
+    return {
+      width: targetWidth,
+      height: targetHeight,
       format: "webp",
       channels: 4,
       bitsPerChannel: 8,
-      data: pixels.buffer,
+      data: finalData.buffer as ArrayBuffer,
     };
   }
 
-  private static subSampleSize(size: number, samplingBits: number): number {
+  private subSampleSize(size: number, samplingBits: number): number {
     return (size + (1 << samplingBits) - 1) >> samplingBits;
   }
 
-  private static readTransformImage(br: BitReader, width: number, height: number): void {
+  private readTransformImage(br: BitReader, width: number, height: number): void {
     const huffmanCodes = this.readHuffmanCodes(br);
     // Skip transform image pixels
     for (let i = 0; i < width * height; i++) {
@@ -147,7 +166,7 @@ export class WebpDecoder {
     }
   }
 
-  private static readHuffmanCodes(br: BitReader): HuffmanTree[] {
+  private readHuffmanCodes(br: BitReader): HuffmanTree[] {
     const numCodeGroups = 1; // Simplified - always use 1 group
     const huffmanCodes: HuffmanTree[] = [];
 
@@ -160,7 +179,7 @@ export class WebpDecoder {
     return huffmanCodes;
   }
 
-  private static readHuffmanCode(br: BitReader, alphabetSize: number): HuffmanTree {
+  private readHuffmanCode(br: BitReader, alphabetSize: number): HuffmanTree {
     const simple = br.readBits(1);
     
     if (simple) {
@@ -222,7 +241,7 @@ export class WebpDecoder {
     return this.buildHuffmanTree(codeLengths);
   }
 
-  private static buildSimpleHuffman(symbols: number[]): HuffmanTree {
+  private buildSimpleHuffman(symbols: number[]): HuffmanTree {
     if (symbols.length === 1) {
       return { codes: [{ symbol: symbols[0], length: 0 }], maxLength: 0 };
     }
@@ -235,7 +254,7 @@ export class WebpDecoder {
     };
   }
 
-  private static buildHuffmanTree(codeLengths: number[]): HuffmanTree {
+  private buildHuffmanTree(codeLengths: number[]): HuffmanTree {
     const maxLength = Math.max(...codeLengths);
     const codes: Array<{ symbol: number; length: number; code: number }> = [];
     
@@ -263,7 +282,7 @@ export class WebpDecoder {
     return { codes, maxLength };
   }
 
-  private static readSymbol(br: BitReader, tree: HuffmanTree): number {
+  private readSymbol(br: BitReader, tree: HuffmanTree): number {
     if (tree.maxLength === 0) {
       return tree.codes[0].symbol;
     }
@@ -280,14 +299,14 @@ export class WebpDecoder {
     return 0;
   }
 
-  private static getLengthFromSymbol(symbol: number, br: BitReader): number {
+  private getLengthFromSymbol(symbol: number, br: BitReader): number {
     if (symbol < 4) return symbol + 1;
     const extraBits = (symbol - 2) >> 1;
     const offset = (2 + (symbol & 1)) << extraBits;
     return offset + br.readBits(extraBits) + 1;
   }
 
-  private static getDistanceFromSymbol(symbol: number, br: BitReader): number {
+  private getDistanceFromSymbol(symbol: number, br: BitReader): number {
     if (symbol < 4) return symbol + 1;
     const extraBits = (symbol - 2) >> 1;
     const offset = (2 + (symbol & 1)) << extraBits;

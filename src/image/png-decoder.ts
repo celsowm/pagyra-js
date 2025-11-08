@@ -1,4 +1,5 @@
 import type { ImageInfo } from "./types.js";
+import { BaseDecoder, type DecodeOptions } from "./base-decoder.js";
 
 // --- Type Definitions ---
 
@@ -48,39 +49,6 @@ async function inflateZlib(data: Uint8Array): Promise<Uint8Array> {
   }
 }
 
-// Optimized nearest-neighbor resize
-function resizeNN(
-  src: Uint8Array,
-  sw: number,
-  sh: number,
-  tw: number,
-  th: number
-): Uint8Array {
-  if (sw === tw && sh === th) return src;
-
-  const dst = new Uint8Array(tw * th * 4);
-  const xRatio = sw / tw;
-  const yRatio = sh / th;
-
-  for (let y = 0; y < th; y++) {
-    const sy = Math.min(sh - 1, Math.floor(y * yRatio));
-    const srcRowOffset = sy * sw * 4;
-    const dstRowOffset = y * tw * 4;
-
-    for (let x = 0; x < tw; x++) {
-      const sx = Math.min(sw - 1, Math.floor(x * xRatio));
-      const si = srcRowOffset + sx * 4;
-      const di = dstRowOffset + x * 4;
-
-      dst[di]     = src[si];
-      dst[di + 1] = src[si + 1];
-      dst[di + 2] = src[si + 2];
-      dst[di + 3] = src[si + 3];
-    }
-  }
-  return dst;
-}
-
 // Extract sample from packed bits
 function extractSample(bytes: Uint8Array, index: number, bitDepth: 1 | 2 | 4): number {
   const samplesPerByte = 8 / bitDepth;
@@ -109,44 +77,45 @@ function paethPredictor(a: number, b: number, c: number): number {
 /**
  * PNG decoder with improved error handling and performance
  */
-export class PngDecoder {
+export class PngDecoder extends BaseDecoder {
   private static readonly PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 
-  public static async decode(
+  public async decode(
     buffer: ArrayBuffer,
-    options: { maxWidth?: number; maxHeight?: number; scale?: number } = {},
+    options: DecodeOptions = {},
   ): Promise<ImageInfo> {
     const view = new DataView(buffer);
 
     // Validate PNG signature
-    this.validateSignature(view);
+    PngDecoder.validateSignature(view);
 
     // Parse chunks
-    const { metadata, idatChunks } = this.parseChunks(buffer, view);
+    const { metadata, idatChunks } = PngDecoder.parseChunks(buffer, view);
 
     // Validate metadata
-    this.validateMetadata(metadata);
+    PngDecoder.validateMetadata(metadata);
 
     // Decompress image data
-    const decompressed = await this.decompressImageData(idatChunks);
+    const decompressed = await PngDecoder.decompressImageData(idatChunks);
 
     // Decode scanlines
-    const pixelData = this.decodeScanlines(decompressed, metadata);
+    const pixelData = PngDecoder.decodeScanlines(decompressed, metadata);
 
     // Calculate target dimensions
-    const { targetWidth, targetHeight } = this.calculateDimensions(
+    const { targetWidth, targetHeight } = PngDecoder.calculateDimensions(
       metadata.width,
       metadata.height,
       options
     );
 
     // Resize if needed
-    const finalData = resizeNN(
+    const finalData = PngDecoder.resizeNN(
       pixelData,
       metadata.width,
       metadata.height,
       targetWidth,
-      targetHeight
+      targetHeight,
+      4
     );
 
     return {
@@ -162,8 +131,8 @@ export class PngDecoder {
   // --- Private Methods ---
 
   private static validateSignature(view: DataView): void {
-    for (let i = 0; i < this.PNG_SIGNATURE.length; i++) {
-      if (view.getUint8(i) !== this.PNG_SIGNATURE[i]) {
+    for (let i = 0; i < PngDecoder.PNG_SIGNATURE.length; i++) {
+      if (view.getUint8(i) !== PngDecoder.PNG_SIGNATURE[i]) {
         throw new Error("Invalid PNG signature");
       }
     }
@@ -201,15 +170,15 @@ export class PngDecoder {
 
       switch (type) {
         case 'IHDR':
-          this.parseIHDR(view, dataOffset, metadata);
+          PngDecoder.parseIHDR(view, dataOffset, metadata);
           break;
         case 'PLTE':
           if (sawIDAT) throw new Error("PLTE chunk must appear before IDAT");
-          this.parsePLTE(buffer, dataOffset, length, metadata);
+          PngDecoder.parsePLTE(buffer, dataOffset, length, metadata);
           break;
         case 'tRNS':
           if (sawIDAT) throw new Error("tRNS chunk must appear before IDAT");
-          this.parseTRNS(buffer, dataOffset, length, metadata);
+          PngDecoder.parseTRNS(buffer, dataOffset, length, metadata);
           break;
         case 'IDAT':
           sawIDAT = true;
@@ -324,7 +293,7 @@ export class PngDecoder {
   ): Uint8Array {
     const { width, height, bitDepth, colorType } = metadata;
 
-    const channels = this.getChannelCount(colorType);
+    const channels = PngDecoder.getChannelCount(colorType);
     const bitsPerPixel = bitDepth * channels;
     const bytesPerRow = Math.ceil((bitsPerPixel * width) / 8);
     const bytesPerPixel = Math.max(1, Math.ceil(bitsPerPixel / 8));
@@ -342,7 +311,7 @@ export class PngDecoder {
       offset += bytesPerRow;
 
       // Reconstruct filtered row
-      const currentRow = this.reconstructRow(
+      const currentRow = PngDecoder.reconstructRow(
         scanline,
         prevRow,
         filterType,
@@ -350,7 +319,7 @@ export class PngDecoder {
       );
 
       // Convert to RGBA
-      this.convertRowToRGBA(
+      PngDecoder.convertRowToRGBA(
         currentRow,
         pixelData,
         y,
@@ -426,19 +395,19 @@ export class PngDecoder {
 
     switch (colorType) {
       case 0: // Grayscale
-        this.convertGrayscale(row, pixelData, y, width, bitDepth, transparency);
+        PngDecoder.convertGrayscale(row, pixelData, y, width, bitDepth, transparency);
         break;
       case 2: // RGB
-        this.convertRGB(row, pixelData, y, width, bitDepth, transparency);
+        PngDecoder.convertRGB(row, pixelData, y, width, bitDepth, transparency);
         break;
       case 3: // Indexed
-        this.convertIndexed(row, pixelData, y, width, bitDepth, palette!, transparency);
+        PngDecoder.convertIndexed(row, pixelData, y, width, bitDepth, palette!, transparency);
         break;
       case 4: // Grayscale + Alpha
-        this.convertGrayscaleAlpha(row, pixelData, y, width, bitDepth);
+        PngDecoder.convertGrayscaleAlpha(row, pixelData, y, width, bitDepth);
         break;
       case 6: // RGBA
-        this.convertRGBA(row, pixelData, y, width, bitDepth);
+        PngDecoder.convertRGBA(row, pixelData, y, width, bitDepth);
         break;
     }
   }
@@ -574,29 +543,4 @@ export class PngDecoder {
     }
   }
 
-  private static calculateDimensions(
-    width: number,
-    height: number,
-    options: { maxWidth?: number; maxHeight?: number; scale?: number }
-  ): { targetWidth: number; targetHeight: number } {
-    let targetWidth = width;
-    let targetHeight = height;
-
-    if (options.scale && options.scale > 0) {
-      targetWidth = Math.max(1, Math.round(width * options.scale));
-      targetHeight = Math.max(1, Math.round(height * options.scale));
-    } else if (options.maxWidth || options.maxHeight) {
-      const scale = Math.min(
-        options.maxWidth ? options.maxWidth / width : Infinity,
-        options.maxHeight ? options.maxHeight / height : Infinity
-      );
-
-      if (scale > 0 && scale < 1) {
-        targetWidth = Math.max(1, Math.round(width * scale));
-        targetHeight = Math.max(1, Math.round(height * scale));
-      }
-    }
-
-    return { targetWidth, targetHeight };
-  }
 }

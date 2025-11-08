@@ -14,6 +14,9 @@ import { fileURLToPath } from 'url';
 export class ImageService {
   private static instance: ImageService;
   private imageCache = new Map<string, ImageInfo>();
+  private readonly jpegDecoder = new JpegDecoder();
+  private readonly pngDecoder = new PngDecoder();
+  private readonly webpDecoder = new WebpDecoder();
 
   /**
    * Singleton pattern implementation
@@ -58,9 +61,9 @@ export class ImageService {
     
     switch (format) {
       case 'jpeg':
-        return JpegDecoder.decode(buffer, options);
+        return this.jpegDecoder.decode(buffer, options);
       case 'png':
-        return PngDecoder.decode(buffer, options);
+        return this.pngDecoder.decode(buffer, options);
       case 'gif':
         // Placeholder for GIF decoder
         return this.decodeGif(buffer, options);
@@ -142,7 +145,7 @@ export class ImageService {
    * WebP decoder
    */
   private async decodeWebp(buffer: ArrayBuffer, options?: ImageDecodeOptions): Promise<ImageInfo> {
-    return WebpDecoder.decode(buffer, options);
+    return this.webpDecoder.decode(buffer, options);
   }
 
   /**
