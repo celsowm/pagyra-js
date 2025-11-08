@@ -110,10 +110,6 @@ export class DataReader {
   }
 }
 
-// ============================================================================
-// BitReader Class
-// ============================================================================
-
 /**
  * Reads individual bits from a DataView (LSB first)
  */
@@ -155,14 +151,8 @@ export class BitReader {
   }
 }
 
-// ============================================================================
-// BaseDecoder Class
-// ============================================================================
-
 export abstract class BaseDecoder {
-  /**
-   * Calculate target dimensions based on scaling options
-   */
+
   protected static calculateDimensions(
     width: number,
     height: number,
@@ -189,9 +179,6 @@ export abstract class BaseDecoder {
     return { targetWidth, targetHeight };
   }
 
-  /**
-   * Optimized nearest-neighbor resize
-   */
   protected static resizeNN(
     src: Uint8Array,
     sw: number,
@@ -226,10 +213,6 @@ export abstract class BaseDecoder {
 
   public abstract decode(buffer: ArrayBuffer, options?: DecodeOptions): Promise<ImageInfo>;
 }
-
-// ============================================================================
-// WebpDecoder Class
-// ============================================================================
 
 export class WebpDecoder extends BaseDecoder {
   public async decode(
@@ -272,9 +255,6 @@ export class WebpDecoder extends BaseDecoder {
     throw new Error("Unsupported WebP format: No recognized image chunk found");
   }
 
-  /**
-   * Parse RIFF chunks from the file
-   */
   private parseChunks(reader: DataReader): RiffChunk[] {
     const chunks: RiffChunk[] = [];
 
@@ -293,9 +273,7 @@ export class WebpDecoder extends BaseDecoder {
     return chunks;
   }
 
-  /**
-   * Decode VP8L (lossless) format
-   */
+
   private decodeVp8l(chunk: RiffChunk, options: DecodeOptions): ImageInfo {
     const br = new BitReader(chunk.data);
 
@@ -360,9 +338,6 @@ export class WebpDecoder extends BaseDecoder {
     }
   }
 
-  /**
-   * Decode pixel data using Huffman codes
-   */
   private decodePixelData(
     br: BitReader,
     width: number,
@@ -449,9 +424,6 @@ export class WebpDecoder extends BaseDecoder {
     return huffmanCodes;
   }
 
-  /**
-   * Read a single Huffman code tree
-   */
   private readHuffmanCode(br: BitReader, alphabetSize: number): HuffmanTree {
     const simple = br.readBits(1);
 
@@ -473,9 +445,6 @@ export class WebpDecoder extends BaseDecoder {
     return this.buildHuffmanTree(codeLengths);
   }
 
-  /**
-   * Read simple Huffman code (1 or 2 symbols)
-   */
   private readSimpleHuffmanCode(br: BitReader): HuffmanTree {
     const numSymbols = br.readBits(1) + 1;
     const symbols: number[] = [];
@@ -491,9 +460,6 @@ export class WebpDecoder extends BaseDecoder {
     return this.buildSimpleHuffman(symbols);
   }
 
-  /**
-   * Read code lengths using code length tree
-   */
   private readCodeLengths(br: BitReader, codeLengthTree: HuffmanTree, alphabetSize: number): number[] {
     const codeLengths = new Array(alphabetSize).fill(0);
     let i = 0;
@@ -539,9 +505,6 @@ export class WebpDecoder extends BaseDecoder {
     };
   }
 
-  /**
-   * Build Huffman tree with lookup table for O(1) symbol lookup
-   */
   private buildHuffmanTree(codeLengths: number[]): HuffmanTree {
     const maxLength = Math.max(...codeLengths, 0);
     const codes: HuffmanCode[] = [];
@@ -577,9 +540,6 @@ export class WebpDecoder extends BaseDecoder {
     return { codes, maxLength, lookupTable };
   }
 
-  /**
-   * Read a symbol using Huffman tree (optimized with lookup table)
-   */
   private readSymbol(br: BitReader, tree: HuffmanTree): number {
     if (tree.maxLength === 0) {
       return tree.codes[0].symbol;
@@ -597,7 +557,8 @@ export class WebpDecoder extends BaseDecoder {
       }
     }
 
-    return 0;
+    // If no symbol is found, it indicates a corrupt or unsupported stream
+    throw new Error("Invalid Huffman code found in WebP stream");
   }
 
   private getLengthFromSymbol(symbol: number, br: BitReader): number {
@@ -614,9 +575,6 @@ export class WebpDecoder extends BaseDecoder {
     return offset + br.readBits(extraBits) + 1;
   }
 
-  /**
-   * Decode VP8X (extended) format
-   */
   private decodeVp8x(chunk: RiffChunk, chunks: RiffChunk[], options: DecodeOptions): ImageInfo {
     const data = new Uint8Array(chunk.data.buffer, chunk.data.byteOffset, chunk.data.byteLength);
 
