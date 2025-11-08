@@ -322,9 +322,13 @@ export function computeStyleForElement(
       computedFontSize = resolvedFontSize;
     }
   } else {
+    const resolvedFontSize = resolveNumberLike(mergedDefaults.fontSize, inherited.fontSize, rootFontReference);
+    if (resolvedFontSize !== undefined) {
+      computedFontSize = resolvedFontSize;
+    }
     const relativeScale = RELATIVE_FONT_SIZE_TAG_SCALE[tagName];
     if (relativeScale !== undefined) {
-      computedFontSize = baseFontSize * relativeScale;
+      computedFontSize = (inherited.fontSize ?? 16) * relativeScale;
     }
   }
   styleOptions.fontSize = computedFontSize;
@@ -385,9 +389,13 @@ export function computeStyleForElement(
   if (styleInit.fontWeight !== undefined) styleOptions.fontWeight = normalizeFontWeight(styleInit.fontWeight);
   if (styleInit.overflowWrap !== undefined) styleOptions.overflowWrap = styleInit.overflowWrap;
   if (styleInit.marginTop !== undefined) assignLength(styleInit.marginTop, (v) => (styleOptions.marginTop = v));
+  else styleOptions.marginTop = resolveNumberLike(mergedDefaults.marginTop, computedFontSize, rootFontReference);
   if (styleInit.marginRight !== undefined) assignLength(styleInit.marginRight, (v) => (styleOptions.marginRight = v));
+  else styleOptions.marginRight = resolveNumberLike(mergedDefaults.marginRight, computedFontSize, rootFontReference);
   if (styleInit.marginBottom !== undefined) assignLength(styleInit.marginBottom, (v) => (styleOptions.marginBottom = v));
+  else styleOptions.marginBottom = resolveNumberLike(mergedDefaults.marginBottom, computedFontSize, rootFontReference);
   if (styleInit.marginLeft !== undefined) assignLength(styleInit.marginLeft, (v) => (styleOptions.marginLeft = v));
+  else styleOptions.marginLeft = resolveNumberLike(mergedDefaults.marginLeft, computedFontSize, rootFontReference);
   if (styleInit.paddingTop !== undefined) assignLength(styleInit.paddingTop, (v) => (styleOptions.paddingTop = v));
   if (styleInit.paddingRight !== undefined) assignLength(styleInit.paddingRight, (v) => (styleOptions.paddingRight = v));
   if (styleInit.paddingBottom !== undefined) assignLength(styleInit.paddingBottom, (v) => (styleOptions.paddingBottom = v));

@@ -13,3 +13,4 @@ export {
 } from "./ua-defaults/base-defaults.js";
 export { ElementSpecificDefaults } from "./ua-defaults/element-defaults.js";
 export { BrowserDefaults } from "./ua-defaults/browser-defaults.js";
+export * from "./unit-conversion.js";

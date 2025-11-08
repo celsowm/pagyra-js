@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { prepareHtmlRender } from "../src/html-to-pdf.js";
-import { TypographyDefaults } from "../src/css/browser-defaults.js";
+import { TypographyDefaults, emToPx } from "../src/css/browser-defaults.js";
 import type { LayoutNode } from "../src/dom/node.js";
 
 function findNodesByTag(root: LayoutNode, tag: string): LayoutNode[] {
@@ -53,8 +53,9 @@ describe("margin collapse", () => {
       return;
     }
 
-    const baseFont = TypographyDefaults.getFontSize();
-    const expectedCollapsedMargin = baseFont * 1.5 * 0.83;
+    const baseFont = TypographyDefaults.getBaseFontSize();
+    const expectedH2FontSize = baseFont * 1.5;
+    const expectedCollapsedMargin = emToPx(0.83, expectedH2FontSize);
 
     const beforeBottom = beforeNode.box.y + beforeNode.box.borderBoxHeight;
     const gapToSection = sectionNode.box.y - beforeBottom;

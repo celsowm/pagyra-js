@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { prepareHtmlRender } from "../src/html-to-pdf.js";
-import { TypographyDefaults } from "../src/css/browser-defaults.js";
+import { TypographyDefaults, emToPx } from "../src/css/browser-defaults.js";
 import type { LayoutNode } from "../src/dom/node.js";
 
-const baseFontSize = TypographyDefaults.getFontSize();
+const baseFontSize = TypographyDefaults.getBaseFontSize();
 
 function findNodeByTag(root: LayoutNode, tag: string): LayoutNode | undefined {
   let match: LayoutNode | undefined;
@@ -48,7 +48,7 @@ describe("heading UA defaults", () => {
     it(`applies UA defaults to <${tag}>`, async () => {
       const style = await renderHeadingStyle(tag);
       const expectedFontSize = baseFontSize * fontMultiplier;
-      const expectedMargin = expectedFontSize * marginEm;
+      const expectedMargin = emToPx(marginEm, expectedFontSize);
 
       expect(style.fontWeight).toBe(700);
       expect(style.fontSize).toBeCloseTo(expectedFontSize, 5);
