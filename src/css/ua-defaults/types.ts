@@ -1,27 +1,28 @@
 import type { Display } from "../enums.js";
 import type { LineHeightValue } from "../line-height.js";
+import type { NumericLength } from "../length.js";
 
 // Narrow UA defaults contract for element-level mappings.
 // Kept small on purpose: only what ElementSpecificDefaults / BrowserDefaults need.
 export interface ElementDefaults {
   tagName: string;
   display: Display;
-  margin?: number;
-  marginTop?: number;
-  marginRight?: number;
-  marginBottom?: number;
-  marginLeft?: number;
-  padding?: number;
-  paddingTop?: number;
-  paddingRight?: number;
-  paddingBottom?: number;
-  paddingLeft?: number;
-  border?: number;
-  borderTop?: number;
-  borderRight?: number;
-  borderBottom?: number;
-  borderLeft?: number;
-  fontSize: number;
+  margin?: NumericLength;
+  marginTop?: NumericLength;
+  marginRight?: NumericLength;
+  marginBottom?: NumericLength;
+  marginLeft?: NumericLength;
+  padding?: NumericLength;
+  paddingTop?: NumericLength;
+  paddingRight?: NumericLength;
+  paddingBottom?: NumericLength;
+  paddingLeft?: NumericLength;
+  border?: NumericLength;
+  borderTop?: NumericLength;
+  borderRight?: NumericLength;
+  borderBottom?: NumericLength;
+  borderLeft?: NumericLength;
+  fontSize: NumericLength;
   fontStyle?: string;
   lineHeight: LineHeightValue;
   fontFamily: string;
