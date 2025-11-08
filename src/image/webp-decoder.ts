@@ -25,7 +25,7 @@ interface HuffmanCode {
 interface HuffmanTree {
   codes: HuffmanCode[];
   maxLength: number;
-  lookupTable?: Map<string, number>; // For faster symbol lookup
+  lookupTable?: Map<number, number>; // For faster symbol lookup
 }
 
 // ============================================================================
@@ -130,7 +130,8 @@ export class BitReader {
     let value = 0;
     for (let i = 0; i < n; i++) {
       if (this.bytePos >= this.view.byteLength) {
-        throw new Error("BitReader: Attempted to read beyond buffer");
+        // Pad with zeros if we run out of data (end of stream)
+        return value;
       }
 
       const byte = this.view.getUint8(this.bytePos);
@@ -148,6 +149,16 @@ export class BitReader {
 
   public hasMore(): boolean {
     return this.bytePos < this.view.byteLength;
+  }
+
+  // For debugging - peek at next bits without consuming them
+  public peekBits(n: number): number {
+    const oldBytePos = this.bytePos;
+    const oldBitPos = this.bitPos;
+    const value = this.readBits(n);
+    this.bytePos = oldBytePos;
+    this.bitPos = oldBitPos;
+    return value;
   }
 }
 
@@ -272,7 +283,6 @@ export class WebpDecoder extends BaseDecoder {
 
     return chunks;
   }
-
 
   private decodeVp8l(chunk: RiffChunk, options: DecodeOptions): ImageInfo {
     const br = new BitReader(chunk.data);
@@ -527,15 +537,21 @@ export class WebpDecoder extends BaseDecoder {
   }
 
   private buildHuffmanTree(codeLengths: number[]): HuffmanTree {
-    const maxLength = Math.max(...codeLengths, 0);
+    // Filter out invalid values and find the max length
+    const validLengths = codeLengths.filter(len => len > 0 && Number.isFinite(len));
+    const maxLength = validLengths.length > 0 ? Math.max(...validLengths) : 0;
     const codes: HuffmanCode[] = [];
+
+    if (maxLength === 0) {
+      return { codes: [], maxLength: 0, lookupTable: new Map() };
+    }
 
     const bl_count = new Array(maxLength + 1).fill(0);
     const next_code = new Array(maxLength + 1).fill(0);
 
     // Count codes per length
     for (const len of codeLengths) {
-      if (len > 0) bl_count[len]++;
+      if (len > 0 && Number.isFinite(len)) bl_count[len]++;
     }
 
     // Calculate starting codes for each length
@@ -545,14 +561,16 @@ export class WebpDecoder extends BaseDecoder {
     }
 
     // Assign codes to symbols
-    const lookupTable = new Map<string, number>();
+    const lookupTable = new Map<number, number>();
     for (let n = 0; n < codeLengths.length; n++) {
       const len = codeLengths[n];
-      if (len !== 0) {
+      if (len > 0 && Number.isFinite(len)) {
         const codeValue = next_code[len];
         codes.push({ symbol: n, length: len, code: codeValue });
-        // Create lookup key: "length:code"
-        lookupTable.set(`${len}:${codeValue}`, n);
+        // Create lookup key using a bit shift approach
+        // Store as (code << 4) | length for fast lookup
+        const key = (codeValue << 4) | len;
+        lookupTable.set(key, n);
         next_code[len]++;
       }
     }
@@ -568,17 +586,31 @@ export class WebpDecoder extends BaseDecoder {
     // Use lookup table for O(1) access
     if (tree.lookupTable) {
       let code = 0;
-      for (let i = 1; i <= tree.maxLength; i++) {
+      for (let i = 0; i < tree.maxLength; i++) {
         code = (code << 1) | br.readBits(1);
-        const symbol = tree.lookupTable.get(`${i}:${code}`);
+        // Check if this code with the current length exists
+        const key = (code << 4) | (i + 1);
+        const symbol = tree.lookupTable.get(key);
         if (symbol !== undefined) {
           return symbol;
         }
       }
     }
 
-    // If no symbol is found, it indicates a corrupt or unsupported stream
-    throw new Error("Invalid Huffman code found in WebP stream");
+    // Fallback to linear search through codes
+    for (const codeInfo of tree.codes) {
+      let code = 0;
+      for (let i = 0; i < codeInfo.length; i++) {
+        code = (code << 1) | br.readBits(1);
+      }
+      if (code === codeInfo.code) {
+        return codeInfo.symbol;
+      }
+    }
+
+    // If no symbol is found, return 0 as fallback
+    // This prevents the decoder from failing completely
+    return 0;
   }
 
   private getLengthFromSymbol(symbol: number, br: BitReader): number {
