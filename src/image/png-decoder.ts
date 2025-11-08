@@ -1,17 +1,9 @@
 import type { ImageInfo } from "./types.js";
 import { BaseDecoder, type DecodeOptions } from "./base-decoder.js";
 
-// --- Type Definitions ---
-
 type FilterType = 0 | 1 | 2 | 3 | 4;
 type ColorType = 0 | 2 | 3 | 4 | 6;
 type BitDepth = 1 | 2 | 4 | 8 | 16;
-
-interface PngChunk {
-  type: string;
-  data: Uint8Array;
-  offset: number;
-}
 
 interface PngMetadata {
   width: number;
@@ -22,8 +14,6 @@ interface PngMetadata {
   palette: Uint8Array | null;
   transparency: Uint8Array | null;
 }
-
-// --- Helper Functions ---
 
 async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
   if (typeof DecompressionStream !== "undefined") {
