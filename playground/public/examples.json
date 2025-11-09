@@ -191,5 +191,10 @@
     "id": "margin-inline-showcase",
     "label": "Margin Inline Showcase",
     "htmlUrl": "examples/margin-inline-showcase.html"
+  },
+  {
+    "id": "text-shadow-example",
+    "label": "Text Shadow Example",
+    "htmlUrl": "examples/text-shadow-example.html"
   }
 ]
