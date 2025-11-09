@@ -3,7 +3,6 @@
 import { parseLinearGradient } from "./gradient-parser.js";
 import { parseBackgroundShorthand, applyBackgroundSize, applyBackgroundPosition } from "./background-parser.js";
 import type { StyleAccumulator } from "../style.js";
-import type { UnitParsers } from "../../units/units.js";
 
 export function applyBackgroundSizeDecl(value: string, target: StyleAccumulator): void {
   applyBackgroundSize(target, value);

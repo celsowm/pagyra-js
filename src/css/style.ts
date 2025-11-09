@@ -13,14 +13,12 @@ import {
   WhiteSpace,
   WritingMode,
 } from "./enums.js";
-import { AUTO_LENGTH } from "./length.js";
-import type { CSSLength, LengthInput, LengthLike, RelativeLength, NumericLength } from "./length.js";
-import { BrowserDefaults, ElementSpecificDefaults } from "./browser-defaults.js";
+import type { LengthInput, LengthLike, RelativeLength, NumericLength } from "./length.js";
+import { BrowserDefaults } from "./browser-defaults.js";
 import type { BackgroundLayer } from "./background-types.js";
 import {
   cloneLineHeight,
   lineHeightToPx,
-  resolveLineHeightInput,
   type LineHeightInput,
   type LineHeightValue,
 } from "./line-height.js";

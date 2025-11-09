@@ -1,7 +1,6 @@
 import { LayoutNode } from "../../dom/node.js";
 import { Display } from "../../css/enums.js";
 import { resolveLength, isAutoLength } from "../../css/length.js";
-import type { ComputedStyle } from "../../css/style.js";
 import type { ImageInfo } from "../../image/types.js";
 import { containingBlock, horizontalNonContent, horizontalMargin } from "../utils/node-math.js";
 import type { LayoutContext, LayoutStrategy } from "../pipeline/strategy.js";

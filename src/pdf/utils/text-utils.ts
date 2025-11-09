@@ -2,7 +2,7 @@ import { resolvedLineHeight } from "../../css/style.js";
 import type { ComputedStyle } from "../../css/style.js";
 import { estimateLineWidth } from "../../layout/utils/text-metrics.js";
 import type { LayoutNode } from "../../dom/node.js";
-import type { Run, Decorations, RGBA, Rect } from "../types.js";
+import type { Run, Decorations, RGBA } from "../types.js";
 import { applyTextTransform } from "../../text/text-transform.js";
 
 export function resolveTextAlign(node: LayoutNode): string | undefined {

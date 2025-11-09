@@ -317,31 +317,6 @@ function estimateTextWidth(text: string, fontSize: number): number {
   return text.length * fontSize * averageFactor;
 }
 
-function resolveLinearGradient(paint: unknown, context?: SvgRenderContext): LinearGradient | null {
-  // If it's already a LinearGradient object, return it
-  if (isLinearGradientPaint(paint)) return paint as LinearGradient;
-  if (typeof paint === "string") {
-    const trimmed = paint.trim();
-    // url(#id) reference
-    const urlMatch = trimmed.match(/^url\(\s*#([^\)\s]+)\s*\)$/i);
-    if (urlMatch && context) {
-      const defs = (context as any).defs as Map<string, any> | undefined;
-      if (defs) {
-        const node = defs.get(urlMatch[1]);
-        if (node && (node.type === "lineargradient" || node.type === "radialgradient")) {
-          if (node.type === "lineargradient") {
-            return svgLinearNodeToLinearGradient(node as unknown as SvgLinearGradientNode, context);
-          }
-          // if radial, convert and return as LinearGradient? no — radial handled by separate resolver
-        }
-      }
-    }
-    // fallback to CSS linear-gradient(...) strings
-    return parseLinearGradient(paint);
-  }
-  return null;
-}
-
 function resolveGradientPaint(paint: unknown, context?: SvgRenderContext): LinearGradient | RadialGradient | null {
   // If already gradient object, return it
   if (isLinearGradientPaint(paint) || isRadialGradientPaint(paint)) return paint as LinearGradient | RadialGradient;

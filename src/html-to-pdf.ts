@@ -16,7 +16,6 @@ import { applyPageVerticalMargins, offsetRenderTree } from "./render/offset.js";
 import { setViewportSize } from "./css/apply-declarations.js";
 import { type PageMarginsPx } from "./units/page-utils.js";
 import { computeStyleForElement } from "./css/compute-style.js";
-import type { RenderBox } from "./pdf/types.js";
 import type { HeaderFooterHTML } from "./pdf/types.js";
 
 export interface RenderHtmlOptions {

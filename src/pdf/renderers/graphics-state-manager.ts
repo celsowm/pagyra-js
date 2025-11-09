@@ -1,4 +1,4 @@
-import type { PdfObjectRef } from "../primitives/pdf-document.js";
+
 
 export class GraphicsStateManager {
   private readonly fillAlphaStates = new Map<string, string>();

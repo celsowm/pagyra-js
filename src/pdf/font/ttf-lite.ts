@@ -7,11 +7,6 @@ import type {
 import { TtfFontMetrics } from "../../types/fonts.js";
 
 // TTF table offsets in the file
-const HEAD_TABLE_OFFSET = 4;
-const HHEA_TABLE_OFFSET = 5;
-const HMTX_TABLE_OFFSET = 6;
-const CMAP_TABLE_OFFSET = 16;
-const OS_2_TABLE_OFFSET = 11;
 
 // Common TTF table tags
 const HEAD = 0x68656164; // 'head'
@@ -38,7 +33,6 @@ class TtfTableParser {
 
   private parseTableDirectory(): void {
     const numTables = this.dataView.getUint16(4, false); // big-endian
-    const searchRange = this.dataView.getUint16(6, false);
     const tableDirOffset = 12;
 
     for (let i = 0; i < numTables; i++) {
@@ -163,7 +157,6 @@ export function parseTtfFont(filePath: string): TtfFontMetrics {
     if (!headTable) throw new Error('Missing head table');
 
     const unitsPerEm = parser.getUint16(headTable, 18);
-    const indexToLocFormat = parser.getInt16(headTable, 50);
 
     // Parse hhea table for horizontal metrics
     const hheaTable = parser.getTable(HHEA);

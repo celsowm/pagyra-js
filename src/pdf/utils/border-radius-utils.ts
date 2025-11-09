@@ -1,5 +1,5 @@
 import type { ComputedStyle } from "../../css/style.js";
-import type { Rect, Radius, CornerRadius } from "../types.js";
+import type { Rect, Radius } from "../types.js";
 
 export function resolveBorderRadius(style: ComputedStyle, borderBox: Rect): Radius {
   const raw: Radius = {

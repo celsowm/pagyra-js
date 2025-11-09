@@ -236,13 +236,6 @@ end`;
     );
   }
 
-
-  private async loadFontDataAsync(path: string): Promise<Uint8Array> {
-    // Load the full TTF file asynchronously (later we can implement subsetting)
-    const { readFile } = require("fs/promises");
-    return await readFile(path);
-  }
-
   private loadFontData(path: string): Uint8Array {
     // Legacy synchronous method for compatibility (to be removed)
     const { readFileSync } = require("fs");

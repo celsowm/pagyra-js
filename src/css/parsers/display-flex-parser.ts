@@ -9,7 +9,6 @@ import {
   parseFlexDirectionValue,
 } from "./flex-parser.js";
 import type { StyleAccumulator } from "../style.js";
-import type { UnitParsers } from "../../units/units.js";
 
 export function parseDisplay(value: string, target: StyleAccumulator): void {
   target.display = mapDisplay(value);

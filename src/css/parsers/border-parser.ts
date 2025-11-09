@@ -2,7 +2,6 @@
 
 import { clampPositive, splitCssList } from "../utils.js";
 import { parseLength } from "./length-parser.js";
-import type { RelativeLength } from "../length.js";
 import type { NumericLength } from "../style.js";
 
 export const BORDER_STYLE_KEYWORDS = new Set([

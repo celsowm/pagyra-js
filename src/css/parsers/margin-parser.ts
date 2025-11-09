@@ -3,7 +3,6 @@
 import { applyBoxShorthand } from "../shorthands/box-shorthand.js";
 import { parseLength } from "./length-parser.js";
 import type { StyleAccumulator } from "../style.js";
-import type { UnitParsers } from "../../units/units.js";
 
 export function parseMargin(value: string, target: StyleAccumulator): void {
   applyBoxShorthand(value, (top, right, bottom, left) => {

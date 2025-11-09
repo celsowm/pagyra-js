@@ -48,7 +48,7 @@ export class FontRegistry {
   private embedder: FontEmbedder | null = null;
   private fontConfig: FontConfig | null = null;
 
-  constructor(private readonly doc: PdfDocument, private readonly stylesheets: StyleSheets) {
+  constructor(private readonly doc: PdfDocument, stylesheets: StyleSheets) {
     for (const face of stylesheets.fontFaces ?? []) {
       const family = normalizeToken(face.family);
       if (!family) {

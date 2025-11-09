@@ -1,7 +1,6 @@
 // src/css/parsers/color-parser.ts
 
 import type { StyleAccumulator } from "../style.js";
-import type { UnitParsers } from "../../units/units.js";
 
 export function parseColor(value: string, target: StyleAccumulator): void {
   target.color = value;

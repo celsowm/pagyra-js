@@ -1,4 +1,4 @@
-import { makeUnitParsers } from '../../units/units.js';
+
 export interface ShorthandDeps { parseLength: (v:string)=>number|null; }
 
 export function expandBorderShorthand(val: string, deps: ShorthandDeps) {

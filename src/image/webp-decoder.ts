@@ -33,7 +33,6 @@ interface HuffmanTree {
 // ============================================================================
 
 const VP8L_SIGNATURE = 0x2f;
-const VP8_SIGNATURE = [0x9d, 0x01, 0x2a] as const;
 const CODE_LENGTH_ORDER = [17, 18, 0, 1, 2, 3, 4, 5, 16, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] as const;
 const HUFFMAN_GROUPS = 5;
 const TEXT_DECODER = new TextDecoder("ascii");
@@ -296,7 +295,6 @@ export class WebpDecoder extends BaseDecoder {
     // Read dimensions
     const width = br.readBits(14) + 1;
     const height = br.readBits(14) + 1;
-    const hasAlpha = br.readBits(1);
     const version = br.readBits(3);
 
     if (version !== 0) {
@@ -314,7 +312,6 @@ export class WebpDecoder extends BaseDecoder {
         const blockHeight = this.subSampleSize(height, sizeBits);
         this.skipTransformImage(br, blockWidth, blockHeight);
       } else if (transformType === 3) { // Color Indexing
-        const paletteSize = br.readBits(8) + 1;
         // Skip palette reading for simplicity
       }
 
@@ -339,14 +336,7 @@ export class WebpDecoder extends BaseDecoder {
     };
   }
 
-  /**
-   * Process VP8L transforms
-   */
-  private processTransforms(br: BitReader, width: number, height: number): void {
-    // Skip all transforms for now - too complex to implement correctly
-    // Just consume the transform bit without processing
-    br.readBits(1); // Read the first transform bit, assume no transforms
-  }
+
 
   private decodePixelData(
     br: BitReader,
@@ -399,26 +389,7 @@ export class WebpDecoder extends BaseDecoder {
     return (size + (1 << samplingBits) - 1) >> samplingBits;
   }
 
-  private readTransformImage(br: BitReader, width: number, height: number): void {
-    const huffmanCodes = this.readHuffmanCodes(br);
-    const totalPixels = width * height;
 
-    for (let i = 0; i < totalPixels; i++) {
-      const green = this.readSymbol(br, huffmanCodes[0]);
-
-      if (green < 256) {
-        this.readSymbol(br, huffmanCodes[1]); // red
-        this.readSymbol(br, huffmanCodes[2]); // blue
-        this.readSymbol(br, huffmanCodes[3]); // alpha
-      } else {
-        const lengthSymbol = green - 256;
-        const length = this.getLengthFromSymbol(lengthSymbol, br);
-        const distSymbol = this.readSymbol(br, huffmanCodes[4]);
-        this.getDistanceFromSymbol(distSymbol, br);
-        i += length - 1;
-      }
-    }
-  }
 
   private skipTransformImage(br: BitReader, width: number, height: number): void {
     // Skip the Huffman codes and pixel data for transforms
@@ -633,7 +604,6 @@ export class WebpDecoder extends BaseDecoder {
     // VP8X flags (currently unused but available for future features)
     const flags = data[0];
     const hasAnimation = (flags & 0x02) !== 0;
-    const hasAlpha = (flags & 0x10) !== 0;
 
     if (hasAnimation) {
       throw new Error("Animated WebP is not supported");

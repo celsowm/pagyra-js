@@ -1,8 +1,7 @@
-import type { Rect, Run, RenderBox, RGBA, ImageRef, Radius, TextPaintOptions } from "./types.js";
+import type { Rect, Run, RGBA, ImageRef, Radius, TextPaintOptions } from "./types.js";
 import type { LinearGradient, RadialGradient } from "../css/parsers/gradient-parser.js";
 import type { FontRegistry } from "./font/font-registry.js";
 import type { PdfObjectRef } from "./primitives/pdf-document.js";
-import { log } from "../debug/log.js";
 import { CoordinateTransformer } from "./utils/coordinate-transformer.js";
 import { TextRenderer } from "./renderers/text-renderer.js";
 import { ImageRenderer } from "./renderers/image-renderer.js";
@@ -39,10 +38,10 @@ export class PagePainter {
   private readonly graphicsStateManager: GraphicsStateManager;
 
   constructor(
-    private readonly pageHeightPt: number,
-    private readonly pxToPt: (value: number) => number,
-    private readonly fontRegistry: FontRegistry,
-    private readonly pageOffsetPx: number = 0,
+    pageHeightPt: number,
+    pxToPt: (value: number) => number,
+    fontRegistry: FontRegistry,
+    pageOffsetPx: number = 0,
   ) {
     this.coordinateTransformer = new CoordinateTransformer(pageHeightPt, pxToPt, pageOffsetPx);
     this.textRenderer = new TextRenderer(this.coordinateTransformer, fontRegistry);

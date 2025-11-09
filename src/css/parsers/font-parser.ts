@@ -20,7 +20,7 @@ export function parseFontStyle(value: string, target: StyleAccumulator): void {
   }
 }
 
-export function parseFontWeight(value: string, target: StyleAccumulator, units: UnitParsers, inheritedFontWeight?: number): void {
+export function parseFontWeight(value: string, target: StyleAccumulator, _units: UnitParsers, inheritedFontWeight?: number): void {
   const parsed = parseFontWeightValue(value, inheritedFontWeight);
   if (parsed !== undefined) {
     target.fontWeight = parsed;

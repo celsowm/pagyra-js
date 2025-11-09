@@ -11,7 +11,6 @@ import {
   type StyleSheets,
   type Positioning,
   type RGBA,
-  type Run,
   type ImageRef,
   type Background,
   type BackgroundImage,
@@ -33,8 +32,6 @@ import type {
   BackgroundPosition,
 } from "../css/background-types.js";
 import type { ImageInfo } from "../image/types.js";
-
-// Note: We don't import NAMED_COLORS since it's no longer needed with the new color-utils module
 
 export interface RenderTreeOptions {
   dpiAssumption?: number;
@@ -75,10 +72,6 @@ export function buildRenderTree(root: LayoutNode, options: RenderTreeOptions = {
 }
 
 const DEFAULT_TEXT_COLOR: RGBA = { r: 0, g: 0, b: 0, a: 1 };
-
-// ====================
-// UTILITY FUNCTIONS
-// ====================
 
 function mapNodeKind(node: LayoutNode): NodeKind {
   if (node.tagName === "img") {
@@ -126,10 +119,6 @@ function mapOverflow(mode: OverflowMode): Overflow {
       return Overflow.Visible;
   }
 }
-
-// ====================
-// BACKGROUND HANDLING
-// ====================
 
 function selectBackgroundOriginRect(
   layer: { origin?: ImageBackgroundLayer["origin"] },

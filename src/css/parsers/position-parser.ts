@@ -1,6 +1,6 @@
 import { Position } from "../enums.js";
 import { percent } from "../length.js";
-import type { LengthInput, LengthLike } from "../length.js";
+import type { LengthInput } from "../length.js";
 import type { StyleAccumulator } from "../style.js";
 import { parseLength } from "./length-parser.js";
 

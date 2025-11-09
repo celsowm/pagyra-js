@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PagePainter } from '../src/pdf/page-painter.js';
 import type { FontRegistry } from '../src/pdf/font/font-registry.js';
 import type { RGBA, Run, ImageRef, Rect, Radius } from '../src/pdf/types.js';
-import type { PdfObjectRef } from '../src/pdf/primitives/pdf-document.js';
+
 
 // Mock FontRegistry
 const createMockFontRegistry = (): FontRegistry => {

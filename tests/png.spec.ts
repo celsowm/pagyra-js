@@ -1,11 +1,9 @@
 import { describe, expect, it, beforeAll } from "vitest";
-import { readFileSync } from "fs";
-import { join } from "path";
+
 import { renderHtmlToPdf } from "../src/html-to-pdf.js";
 import { ImageService } from "../src/image/image-service.js";
 
 describe("PNG image handling tests", () => {
-  const pngImagePath = join(process.cwd(), "tests/assets/images/test.png");
   let pngImageBuffer: Buffer;
 
   beforeAll(() => {

@@ -1,7 +1,7 @@
 // tests/z-index-simple.spec.ts
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHtmlToPdf } from "../src/html-to-pdf.js";
-import { log, configureDebug } from "../src/debug/log.js";
+
 
 // Store original console.log to capture debug output
 let capturedLogs: any[] = [];

@@ -5,7 +5,7 @@ import type {
   BackgroundSize,
   GradientBackgroundLayer,
 } from "../background-types.js";
-import { parseLinearGradient, type LinearGradient } from "./gradient-parser.js";
+import { parseLinearGradient } from "./gradient-parser.js";
 
 function normalizeBackgroundSizeKeyword(value: string): "cover" | "contain" | "auto" | undefined {
   const trimmed = value.trim().toLowerCase();

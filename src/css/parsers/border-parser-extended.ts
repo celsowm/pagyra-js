@@ -15,7 +15,6 @@ import {
 } from "../shorthands/border-shorthand.js";
 import { applyBoxShorthand } from "../shorthands/box-shorthand.js";
 import type { NumericLength, StyleAccumulator } from "../style.js";
-import type { UnitParsers } from "../../units/units.js";
 
 export function parseBorderColor(value: string, target: StyleAccumulator): void {
   applyBorderColorShorthand(value, (color) => {

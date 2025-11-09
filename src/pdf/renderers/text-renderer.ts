@@ -203,7 +203,6 @@ export class TextRenderer {
     const family = options.fontFamily;
     const fontWeight = options.fontWeight;
     const fontStyle = options.fontStyle;
-    const fontVariant = options.fontVariant;
     const text = options.text || '';
 
     // Check if we need Unicode support (combining marks, symbols beyond WinAnsi)

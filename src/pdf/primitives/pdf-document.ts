@@ -347,10 +347,7 @@ export class PdfDocument {
     return Buffer.concat(chunks);
   }
 
-  // Backwards compatibility for earlier code paths expecting eager font creation.
-  private createFontObject(baseFont: string): PdfObjectRef {
-    return this.registerStandardFont(baseFont);
-  }
+
 }
 
 function serializeType1Font(baseFont: string): string {

@@ -3,7 +3,6 @@
 import { parseGap as parseGapValue, parseGridTemplate } from "./grid-parser.js";
 import { parseLength } from "./length-parser.js";
 import type { GridAutoFlow, StyleAccumulator } from "../style.js";
-import type { UnitParsers } from "../../units/units.js";
 
 export function parseGridTemplateColumns(value: string, target: StyleAccumulator): void {
   const parsed = parseGridTemplate(value);

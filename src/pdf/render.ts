@@ -4,7 +4,6 @@ import type { LayoutTree, PageSize, PdfMetadata, RenderBox, RGBA, TextPaintOptio
 import {
   initHeaderFooterContext,
   layoutHeaderFooterTrees,
-  adjustPageBoxForHf,
   computeHfTokens,
 } from "./header-footer.js";
 import { paginateTree } from "./pagination.js";
@@ -45,8 +44,6 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
   const baseContentBox = computeBaseContentBox(layout.root, pageSize, pxToPt);
   const hfContext = initHeaderFooterContext(layout.hf, pageSize, baseContentBox);
   const hfLayout = layoutHeaderFooterTrees(hfContext, pxToPt);
-  const pageBox = adjustPageBoxForHf(baseContentBox, hfLayout);
-  void pageBox;
 
   const pageHeightPx = ptToPx(pageSize.heightPt) || 1;
   const pageWidthPx = ptToPx(pageSize.widthPt) || 1;

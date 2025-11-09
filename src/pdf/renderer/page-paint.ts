@@ -4,7 +4,7 @@ import type { FontRegistry } from "../font/font-registry.js";
 import { LayerMode, NodeKind } from "../types.js";
 import type { LayoutPageTree, PageSize, Radius, RenderBox, RGBA, Rect, TextPaintOptions } from "../types.js";
 import { paintBoxShadows } from "./paint-box-shadows.js";
-import { clampRadiusComponent, shrinkRadius } from "./radius.js";
+import { shrinkRadius } from "./radius.js";
 import { renderSvgBox } from "../svg/render-svg.js";
 import { log } from "../../debug/log.js";
 
@@ -199,22 +199,6 @@ function determineBackgroundPaintArea(box: RenderBox): { rect: Rect; radius: Rad
   }
 
   return { rect, radius };
-}
-
-const ZERO_RADIUS: Radius = {
-  topLeft: { x: 0, y: 0 },
-  topRight: { x: 0, y: 0 },
-  bottomRight: { x: 0, y: 0 },
-  bottomLeft: { x: 0, y: 0 },
-};
-
-function rectEquals(a: Rect, b: Rect): boolean {
-  return (
-    a.x === b.x &&
-    a.y === b.y &&
-    a.width === b.width &&
-    a.height === b.height
-  );
 }
 
 function hasVisibleBorder(border: RenderBox["border"]): boolean {

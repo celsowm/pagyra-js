@@ -2,8 +2,6 @@ import { estimateLineWidth } from "../../layout/utils/text-metrics.js";
 import type { LayoutNode } from "../../dom/node.js";
 import type { RenderBox, Run, RGBA, Rect } from "../types.js";
 
-import { needsUnicode } from "../../text/text.js";
-
 export function createListMarkerRun(
   node: LayoutNode,
   contentBox: Rect,

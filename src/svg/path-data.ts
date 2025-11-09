@@ -469,8 +469,6 @@ function arcToCubicCurves(
     const sinEnd = Math.sin(end);
     const cosEnd = Math.cos(end);
 
-    const x1 = cx + rx * cosAngle * cosStart - ry * sinAngle * sinStart;
-    const y1 = cy + rx * sinAngle * cosStart + ry * cosAngle * sinStart;
     const x2 = cx + rx * cosAngle * cosEnd - ry * sinAngle * sinEnd;
     const y2 = cy + rx * sinAngle * cosEnd + ry * cosAngle * sinEnd;
 
