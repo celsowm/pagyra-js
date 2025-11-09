@@ -196,5 +196,10 @@
     "id": "text-shadow-example",
     "label": "Text Shadow Example",
     "htmlUrl": "examples/text-shadow-example.html"
+  },
+  {
+    "id": "opacity-example",
+    "label": "Opacity Example",
+    "htmlUrl": "examples/opacity-example.html"
   }
 ]

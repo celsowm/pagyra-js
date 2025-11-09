@@ -428,7 +428,7 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
       left: resolveLength(node.style.borderLeft, Math.max(node.box.contentWidth, 0), { auto: "zero" }),
     },
     borderRadius,
-    opacity: 1,
+    opacity: node.style.opacity,
     overflow: mapOverflow(node.style.overflowX ?? OverflowMode.Visible),
     textRuns,
     decorations: decorations ?? {},

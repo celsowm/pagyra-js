@@ -144,6 +144,9 @@ import {
   parseColumnGap,
 } from "./grid-parser-extended.js";
 
+// Opacity
+import { parseOpacity } from "./opacity-parser.js";
+
 // Flag to ensure parsers are registered only once
 let parsersRegistered = false;
 
@@ -263,11 +266,14 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("background", parseBackground);
   registerPropertyParser("object-fit", parseObjectFit);
 
-  // Grid
+   // Grid
   registerPropertyParser("grid-template-columns", parseGridTemplateColumns);
   registerPropertyParser("grid-template-rows", parseGridTemplateRows);
   registerPropertyParser("grid-auto-flow", parseGridAutoFlow);
   registerPropertyParser("gap", parseGap);
   registerPropertyParser("row-gap", parseRowGap);
   registerPropertyParser("column-gap", parseColumnGap);
+  
+  // Opacity
+  registerPropertyParser("opacity", parseOpacity);
 }

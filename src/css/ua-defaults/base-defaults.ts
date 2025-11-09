@@ -257,5 +257,8 @@ export function createBaseDefaultsObject(): any {
     breakInside: "auto",
     widows: 2,
     orphans: 2,
+    
+    // Opacity
+    opacity: 1,
   };
 }

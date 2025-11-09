@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Opacity Test</title>
+    <style>
+        .container {
+            width: 300px;
+            height: 200px;
+            margin: 20px;
+            background-color: #007bff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        
+        .opacity-100 {
+            opacity: 1;
+        }
+        
+        .opacity-75 {
+            opacity: 0.75;
+        }
+        
+        .opacity-50 {
+            opacity: 0.5;
+        }
+        
+        .opacity-25 {
+            opacity: 0.25;
+        }
+        
+        .opacity-0 {
+            opacity: 0;
+        }
+        
+        .opacity-percent {
+            opacity: 50%; /* Test percentage values */
+        }
+    </style>
+</head>
+<body>
+    <h1>Opacity Test</h1>
+    
+    <div class="container opacity-100">
+        <p>Opacity: 1 (100%)</p>
+    </div>
+    
+    <div class="container opacity-75">
+        <p>Opacity: 0.75 (75%)</p>
+    </div>
+    
+    <div class="container opacity-50">
+        <p>Opacity: 0.5 (50%)</p>
+    </div>
+    
+    <div class="container opacity-25">
+        <p>Opacity: 0.25 (25%)</p>
+    </div>
+    
+    <div class="container opacity-0">
+        <p>Opacity: 0 (0%)</p>
+    </div>
+    
+    <div class="container opacity-percent">
+        <p>Opacity: 50% (0.5)</p>
+    </div>
+</body>
+</html>
