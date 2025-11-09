@@ -2,13 +2,13 @@
 |-----------------------------------------------|-----------------------------------------------------------------------------|--------|
 | **Layout & Positioning**                      |                                                                             |        |
 | `display`                                     | Defines the type of display box                                             | Implemented |
-| `position`                                    | Specifies the positioning method                                            | Supported |
-| `top`, `right`, `bottom`, `left`              | Defines element position                                                    | Supported |
+| `position`                                    | Specifies the positioning method                                            | Implemented |
+| `top`, `right`, `bottom`, `left`              | Defines element position                                                    | Implemented |
 | `float`                                       | Specifies if an element should float                                        | Implemented |
-| `clear`                                       | Controls behavior of floating elements                                      | Supported |
-| `z-index`                                     | Defines stacking order                                                      | Not Implemented |
-| `overflow`                                    | Controls overflowing content                                                | Supported |
-| `overflow-x`, `overflow-y`                    | Controls horizontal/vertical overflow                                       | Supported |
+| `clear`                                       | Controls behavior of floating elements                                      | Implemented |
+| `z-index`                                     | Defines stacking order                                                      | Implemented |
+| `overflow`                                    | Controls overflowing content                                                | Implemented |
+| `overflow-x`, `overflow-y`                    | Controls horizontal/vertical overflow                                       | Implemented |
 | `visibility`                                  | Specifies element visibility (`visible`/`hidden`/`collapse`)              | Not Implemented |
 | `clip`                                        | Clips absolutely positioned elements (deprecated)                         | Not Implemented |
 | `clip-path`                                   | Defines clipping region                                                     | Not Implemented |
@@ -19,8 +19,8 @@
 | `aspect-ratio`                                | Preferred width-to-height ratio                                             | Not Implemented |
 | `margin`                                      | Outer margin                                                                | Implemented |
 | `margin-top`, `margin-right`, `margin-bottom`, `margin-left` | Individual margins                                               | Implemented |
-| `margin-block-start`, `margin-block-end`      | Logical block margins                                                       | Not Implemented |
-| `margin-inline-start`, `margin-inline-end`    | Logical inline margins                                                      | Not Implemented |
+| `margin-block-start`, `margin-block-end`      | Logical block margins                                                       | Implemented |
+| `margin-inline-start`, `margin-inline-end`    | Logical inline margins                                                      | Implemented |
 | `padding`                                     | Inner padding                                                               | Implemented |
 | `padding-top`, `padding-right`, `padding-bottom`, `padding-left` | Individual paddings                                              | Implemented |
 | `padding-block-start`, `padding-block-end`    | Logical block paddings                                                      | Implemented |
@@ -30,6 +30,8 @@
 | `border-top`, `border-right`, `border-bottom`, `border-left` | Individual borders                                              | Implemented |
 | `border-block-start`, `border-block-end`      | Logical block borders                                                       | Implemented |
 | `border-inline-start`, `border-inline-end`    | Logical inline borders                                                      | Implemented |
+| `border-collapse`                             | Collapse/separate table borders (`collapse`/`separate`)                   | Implemented |
+| `border-radius`                               | Border radius properties                                                    | Implemented |
 | `box-sizing`                                  | Box model type (`content-box`/`border-box`)                                | Not Implemented |
 | `box-shadow`                                  | Adds shadow to box                                                          | Implemented |
 | **Flexbox**                                   |                                                                             |        |
@@ -56,9 +58,9 @@
 | `row-gap`                                     | Space between rows                                                          | Implemented |
 | `gap`                                         | Shorthand for row and column gaps                                           | Implemented |
 | `grid-auto-columns`                           | Size of implicitly created columns                                          | Not Implemented |
-| `grid-auto-rows`                             | Size of implicitly created rows                                             | Not Implemented |
+| `grid-auto-rows`                              | Size of implicitly created rows                                             | Not Implemented |
 | `grid-auto-flow`                              | Automatic placement algorithm                                               | Implemented |
-| `grid-column-start`, `grid-column-end`       | Column position boundaries                                                  | Not Implemented |
+| `grid-column-start`, `grid-column-end`        | Column position boundaries                                                  | Not Implemented |
 | `grid-row-start`, `grid-row-end`              | Row position boundaries                                                     | Not Implemented |
 | `grid-column`, `grid-row`                     | Shorthand for grid position                                                 | Not Implemented |
 | `grid-area`                                   | Defines named grid area or position                                         | Not Implemented |
@@ -72,13 +74,14 @@
 | `line-height`                                 | Line height spacing                                                         | Implemented |
 | `text-align`                                  | Text alignment (`left`/`right`/`center`/`justify`)                         | Implemented |
 | `text-decoration`                             | Text decoration (underline/strike/etc.)                                    | Implemented |
+| `text-decoration-line`                        | Text decoration line specifically                                           | Implemented |
 | `text-transform`                              | Text case transformation (`uppercase`/`lowercase`/`capitalize`)            | Implemented |
 | `text-indent`                                 | First line indent                                                           | Implemented |
 | `text-shadow`                                 | Text shadow effect                                                          | Not Implemented |
 | `letter-spacing`                              | Space between characters                                                    | Supported |
 | `word-spacing`                                | Space between words                                                         | Supported |
 | `white-space`                                 | Controls whitespace handling (`nowrap`/`pre-wrap`/etc.)                    | Supported |
-| `overflow-wrap`, `word-wrap`                  | Controls breaking of long words                                             | Supported |
+| `overflow-wrap`, `word-wrap`                  | Controls breaking of long words                                             | Implemented |
 | `text-overflow`                               | Overflowed text behavior (`ellipsis`/`clip`)                               | Not Implemented |
 | `direction`                                   | Text direction (`ltr`/`rtl`)                                                | Not Implemented |
 | `unicode-bidi`                                | Unicode bidirectional algorithm handling                                    | Not Implemented |
@@ -88,7 +91,7 @@
 | `background-color`                            | Background color                                                            | Implemented |
 | `background-image`                            | Background image                                                            | Implemented |
 | `background-repeat`                           | Image repetition behavior                                                   | Not Implemented |
-| `background-position`                         | Image position                                                              | Not Implemented |
+| `background-position`                         | Image position                                                              | Implemented |
 | `background-size`                             | Image sizing (`cover`/`contain`/etc.)                                       | Implemented |
 | `background-attachment`                       | Scroll behavior of background (`scroll`/`fixed`/`local`)                   | Not Implemented |
 | `background-clip`                             | Background painting area (`border-box`/`padding-box`/`content-box`)       | Not Implemented |
