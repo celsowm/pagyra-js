@@ -1,0 +1,130 @@
+%PDF-1.4
+1 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica-Bold
+/Encoding /WinAnsiEncoding
+>>
+endobj
+2 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+/Encoding /WinAnsiEncoding
+>>
+endobj
+3 0 obj
+<<
+/Type /ExtGState
+/ca 0.75
+/CA 0.75
+>>
+endobj
+4 0 obj
+<<
+/Type /ExtGState
+/ca 0.25
+/CA 0.25
+>>
+endobj
+5 0 obj
+<< /Length 529 >>
+stream
+0 0.4824 1 rg
+15 316.8 150 75 re
+f
+q
+/GS0 gs
+0 0.4824 1 rg
+15 212.4 150 75 re
+f
+Q
+q
+/GS1 gs
+0 0.4824 1 rg
+15 108 150 75 re
+f
+Q
+0 0 0 rg
+BT
+/F1 24 Tf
+1 0 0 1 0 426 Tm
+(Opacity Debug) Tj
+ET
+0 0 0 rg
+BT
+/F2 12 Tf
+1 0 0 1 0 421.2 Tm
+( ) Tj
+ET
+1 1 1 rg
+BT
+/F2 12 Tf
+1 0 0 1 15 354.3 Tm
+(Opacity: 1) Tj
+ET
+0 0 0 rg
+BT
+/F2 12 Tf
+1 0 0 1 0 316.8 Tm
+( ) Tj
+ET
+1 1 1 rg
+BT
+/F2 12 Tf
+1 0 0 1 15 249.9 Tm
+(Opacity: 0.75) Tj
+ET
+0 0 0 rg
+BT
+/F2 12 Tf
+1 0 0 1 0 212.4 Tm
+( ) Tj
+ET
+1 1 1 rg
+BT
+/F2 12 Tf
+1 0 0 1 15 145.5 Tm
+(Opacity: 0.25) Tj
+ET
+endstream
+endobj
+6 0 obj
+<<
+/Type /Page
+/MediaBox [0 0 600 450]
+/Resources << /Font << /F1 1 0 R /F2 2 0 R >> /ExtGState << /GS0 3 0 R /GS1 4 0 R >> >>
+/Contents 5 0 R
+>>
+endobj
+7 0 obj
+<<
+/Type /Pages
+/Count 1
+/Kids [6 0 R]
+>>
+endobj
+8 0 obj
+<<
+/Type /Catalog
+/Pages 7 0 R
+>>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000009 00000 n 
+0000000111 00000 n 
+0000000208 00000 n 
+0000000264 00000 n 
+0000000320 00000 n 
+0000000900 00000 n 
+0000001061 00000 n 
+0000001118 00000 n 
+trailer
+<< /Size 9 /Root 8 0 R >>
+startxref
+1167
+%%EOF

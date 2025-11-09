@@ -44,10 +44,10 @@ export class PagePainter {
     pageOffsetPx: number = 0,
   ) {
     this.coordinateTransformer = new CoordinateTransformer(pageHeightPt, pxToPt, pageOffsetPx);
+    this.graphicsStateManager = new GraphicsStateManager();
     this.textRenderer = new TextRenderer(this.coordinateTransformer, fontRegistry);
     this.imageRenderer = new ImageRenderer(this.coordinateTransformer);
-    this.shapeRenderer = new ShapeRenderer(this.coordinateTransformer);
-    this.graphicsStateManager = new GraphicsStateManager();
+    this.shapeRenderer = new ShapeRenderer(this.coordinateTransformer, this.graphicsStateManager);
   }
 
   get pageHeightPx(): number {
@@ -164,6 +164,17 @@ export class PagePainter {
 
   convertPxToPt(value: number): number {
     return this.coordinateTransformer.convertPxToPt(value);
+  }
+
+  beginOpacityScope(opacity: number): void {
+    if (opacity >= 1) return;
+    const state = this.graphicsStateManager.ensureFillAlphaState(opacity);
+    this.shapeRenderer.pushRawCommands(["q", `/${state} gs`]);
+  }
+
+  endOpacityScope(opacity: number): void {
+    if (opacity >= 1) return;
+    this.shapeRenderer.pushRawCommands(["Q"]);
   }
 
   private buildImageMatrix(rect: Rect): string | null {
@@ -367,9 +378,6 @@ export class PagePainter {
     const shapeResult = this.shapeRenderer.getResult();
     const graphicsStates = new Map<string, number>();
     for (const [name, alpha] of this.graphicsStateManager.getGraphicsStates()) {
-      graphicsStates.set(name, alpha);
-    }
-    for (const [name, alpha] of shapeResult.graphicsStates) {
       graphicsStates.set(name, alpha);
     }
 

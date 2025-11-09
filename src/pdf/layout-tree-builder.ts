@@ -406,6 +406,7 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
   const establishesStackingContext =
     typeof node.style.zIndex === "number" && node.style.position !== Position.Static;
 
+  console.log(`DEBUG: convertNode - tagName: ${node.tagName}, id: ${id}, node.style.opacity: ${node.style.opacity}`);
   return {
     id,
     tagName: node.tagName,
@@ -428,7 +429,7 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
       left: resolveLength(node.style.borderLeft, Math.max(node.box.contentWidth, 0), { auto: "zero" }),
     },
     borderRadius,
-    opacity: node.style.opacity,
+    opacity: node.style.opacity ?? 1,
     overflow: mapOverflow(node.style.overflowX ?? OverflowMode.Visible),
     textRuns,
     decorations: decorations ?? {},

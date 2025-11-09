@@ -459,6 +459,9 @@ export function computeStyleForElement(
   if (styleInit.objectFit !== undefined) {
     styleOptions.objectFit = styleInit.objectFit as StyleProperties["objectFit"];
   }
+  if (styleInit.opacity !== undefined) {
+    styleOptions.opacity = styleInit.opacity;
+  }
   const defaultDecoration = mergedDefaults.textDecorationLine ?? "none";
   let decoration = inherited.textDecorationLine ?? defaultDecoration;
   if (elementDefaults.textDecorationLine !== undefined) {

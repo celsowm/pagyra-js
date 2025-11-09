@@ -1,6 +1,7 @@
 import type { StyleAccumulator } from "../style.js";
 
 export function parseOpacity(value: string, target: StyleAccumulator): void {
+  console.log(`DEBUG: parseOpacity called with value: "${value}"`);
   // Normalize the value by trimming whitespace and converting to lowercase
   const normalizedValue = value.trim().toLowerCase();
   

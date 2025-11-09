@@ -2,6 +2,7 @@ import type { RGBA, Rect, Radius } from "../types.js";
 import { CoordinateTransformer } from "../utils/coordinate-transformer.js";
 import { GradientService } from "../shading/gradient-service.js";
 import { parseLinearGradient, type LinearGradient, type RadialGradient } from "../../css/parsers/gradient-parser.js";
+import type { GraphicsStateManager } from "./graphics-state-manager.js";
 
 export interface ShapePoint {
   x: number;
@@ -17,17 +18,15 @@ export type PathCommand =
 export interface ShapeRendererResult {
   readonly commands: string[];
   readonly shadings: Map<string, string>;
-  readonly graphicsStates: Map<string, number>;
 }
 
 export class ShapeRenderer {
   private readonly commands: string[] = [];
-  private readonly fillAlphaStates = new Map<string, string>();
-  private readonly graphicsStates = new Map<string, number>();
   private readonly gradientService: GradientService;
 
   constructor(
     private readonly coordinateTransformer: CoordinateTransformer,
+    private readonly graphicsStateManager: GraphicsStateManager,
   ) {
     this.gradientService = new GradientService(coordinateTransformer);
   }
@@ -399,7 +398,7 @@ export class ShapeRenderer {
   }
 
   private pushFillCommands(color: RGBA, commands: string[], wrapWithQ: boolean): void {
-    const alpha = this.normalizeAlpha(color.a);
+    const alpha = color.a ?? 1;
     const hasAlpha = alpha < 1;
     const baseColor: RGBA = { r: color.r, g: color.g, b: color.b, a: alpha };
     const needsIsolation = wrapWithQ || hasAlpha;
@@ -408,43 +407,13 @@ export class ShapeRenderer {
       this.commands.push("q");
     }
     if (hasAlpha) {
-      const state = this.ensureFillAlphaState(alpha);
+      const state = this.graphicsStateManager.ensureFillAlphaState(alpha);
       this.commands.push(`/${state} gs`);
     }
     this.commands.push(...commands);
     if (needsIsolation) {
       this.commands.push("Q");
     }
-  }
-
-  private ensureFillAlphaState(alpha: number): string {
-    const normalized = this.normalizeAlpha(alpha);
-    const key = normalized.toFixed(4);
-    const existing = this.fillAlphaStates.get(key);
-    if (existing) {
-      return existing;
-    }
-    const name = `GS${this.fillAlphaStates.size}`;
-    const numeric = Number.parseFloat(key);
-    this.fillAlphaStates.set(key, name);
-    this.graphicsStates.set(name, numeric);
-    return name;
- }
-
-  private normalizeAlpha(alpha: number | undefined): number {
-    if (!Number.isFinite(alpha ?? NaN)) {
-      return 1;
-    }
-    if (alpha === undefined) {
-      return 1;
-    }
-    if (alpha <= 0) {
-      return 0;
-    }
-    if (alpha >= 1) {
-      return 1;
-    }
-    return alpha;
   }
 
   private normalizeRadiiForRect(width: number, height: number, radii: Radius): Radius {
@@ -700,7 +669,6 @@ export class ShapeRenderer {
     return {
       commands: [...this.commands],
       shadings: this.gradientService.getShadings(),
-      graphicsStates: new Map(this.graphicsStates),
     };
   }
 }

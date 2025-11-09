@@ -233,6 +233,13 @@ function paintPageBackground(painter: PagePainter, color: RGBA | undefined, widt
  * so there is no global cross-element phase ordering here.
  */
 async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Promise<void> {
+  console.log(`DEBUG: paintBoxAtomic - tagName: ${box.tagName}, id: ${box.id}, opacity: ${box.opacity}`);
+  log("PAINT", "DEBUG", `paintBoxAtomic: ${box.tagName} id:${box.id} opacity:${box.opacity}`, { id: box.id, opacity: box.opacity });
+  const hasOpacity = box.opacity < 1;
+  if (hasOpacity) {
+    painter.beginOpacityScope(box.opacity);
+  }
+
   // Shadows under background
   paintBoxShadows(painter, [box], false);
 
@@ -251,4 +258,8 @@ async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Promise<voi
   }
 
   await paintText(painter, box);
+
+  if (hasOpacity) {
+    painter.endOpacityScope(box.opacity);
+  }
 }
