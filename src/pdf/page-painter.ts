@@ -7,6 +7,7 @@ import { TextRenderer } from "./renderers/text-renderer.js";
 import { ImageRenderer } from "./renderers/image-renderer.js";
 import { ShapeRenderer, type ShapePoint, type PathCommand } from "./renderers/shape-renderer.js";
 import { GraphicsStateManager } from "./renderers/graphics-state-manager.js";
+import { globalGlyphAtlas } from "./font/glyph-atlas.js";
 
 export interface PainterResult {
   readonly content: string;
@@ -45,8 +46,8 @@ export class PagePainter {
   ) {
     this.coordinateTransformer = new CoordinateTransformer(pageHeightPt, pxToPt, pageOffsetPx);
     this.graphicsStateManager = new GraphicsStateManager();
-    this.textRenderer = new TextRenderer(this.coordinateTransformer, fontRegistry);
     this.imageRenderer = new ImageRenderer(this.coordinateTransformer);
+    this.textRenderer = new TextRenderer(this.coordinateTransformer, fontRegistry, this.imageRenderer);
     this.shapeRenderer = new ShapeRenderer(this.coordinateTransformer, this.graphicsStateManager);
   }
 
@@ -374,6 +375,15 @@ export class PagePainter {
 
   result(): PainterResult {
     const textResult = this.textRenderer.getResult();
+    // Ensure any atlas pages created by the glyph packer are registered as image resources
+    try {
+      const pages = globalGlyphAtlas.getPages();
+      if (pages && pages.length > 0) {
+        this.imageRenderer.registerAtlasPages(pages);
+      }
+    } catch (e) {
+      // ignore atlas registration errors - fall back to per-glyph images
+    }
     const imageResult = this.imageRenderer.getResult();
     const shapeResult = this.shapeRenderer.getResult();
     const graphicsStates = new Map<string, number>();

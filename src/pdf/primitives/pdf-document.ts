@@ -10,6 +10,7 @@ interface PdfFontResource {
 
 interface PdfImageResource {
   ref: PdfObjectRef;
+  src?: string;
   width: number;
   height: number;
   colorSpace: string;
@@ -102,6 +103,16 @@ export class PdfDocument {
     bitsPerComponent: number;
     data: Uint8Array;
   }): PdfObjectRef {
+    // Deduplicate by src when provided (useful for atlas pages registered as atlas:N).
+    if (image.src) {
+      for (const existing of this.images) {
+        if (existing.src === image.src && existing.width === image.width && existing.height === image.height) {
+          // Reuse existing reference
+          return existing.ref;
+        }
+      }
+    }
+
     if (image.format === 'png' && image.channels === 4) {
       const rgbData = new Uint8Array(image.width * image.height * 3);
       const alphaData = new Uint8Array(image.width * image.height);
@@ -115,6 +126,7 @@ export class PdfDocument {
       const sMaskRef: PdfObjectRef = { objectNumber: -1 };
       this.images.push({
         ref: sMaskRef,
+        src: image.src,
         width: image.width,
         height: image.height,
         colorSpace: 'DeviceGray',
@@ -126,6 +138,7 @@ export class PdfDocument {
       const ref: PdfObjectRef = { objectNumber: -1 };
       this.images.push({
         ref,
+        src: image.src,
         width: image.width,
         height: image.height,
         colorSpace: 'DeviceRGB',
@@ -142,6 +155,7 @@ export class PdfDocument {
     const ref: PdfObjectRef = { objectNumber: -1 };
     this.images.push({
       ref,
+      src: image.src,
       width: image.width,
       height: image.height,
       colorSpace,

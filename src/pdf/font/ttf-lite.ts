@@ -5,6 +5,7 @@ import { TtfTableParser } from "./ttf-table-parser.js";
 import { parseGlobalMetrics } from "./ttf-global-metrics.js";
 import { parseGlyphMetrics } from "./ttf-glyph-metrics.js";
 import { CmapParser } from "./ttf-cmap.js";
+import { createGlyfOutlineProvider } from "./ttf-glyf.js";
 import { TtfTableParser as _TTP } from "./ttf-table-parser.js"; // ensure TS sees .js import style
 
 export function parseTtfBuffer(buffer: ArrayBuffer): TtfFontMetrics {
@@ -33,7 +34,8 @@ export function parseTtfBuffer(buffer: ArrayBuffer): TtfFontMetrics {
 
   const cmap = new CmapParser(parser, cmapTable);
 
-  return new TtfFontMetrics(metrics, glyphMetrics, cmap, headBBox, (gid: number) => null);
+  const glyfProvider = createGlyfOutlineProvider(parser);
+  return new TtfFontMetrics(metrics, glyphMetrics, cmap, headBBox, glyfProvider);
 }
 
 export function parseTtfFont(filePath: string): TtfFontMetrics {

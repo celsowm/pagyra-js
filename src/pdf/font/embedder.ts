@@ -375,6 +375,14 @@ export class FontEmbedder {
     const { readFileSync } = require("fs");
     return readFileSync(path);
   }
+
+  /**
+   * Return parsed TTF metrics for a loaded face by name, or null if not available.
+   * Exposed to allow rendering code to access outlines/metrics for embedding masks.
+   */
+  public getMetrics(faceName: string): TtfFontMetrics | null {
+    return this.faceMetrics.get(faceName) ?? null;
+  }
 }
 
 function pickFaceByWeight(faces: FontFaceDef[], requestedWeight: number): FontFaceDef | null {

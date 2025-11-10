@@ -6,6 +6,9 @@ import { needsUnicode } from "../../text/text.js";
 import { log } from "../../debug/log.js";
 import { parseColor } from "../utils/color-utils.js";
 import { CoordinateTransformer } from "../utils/coordinate-transformer.js";
+import { getGlyphMask } from "../font/glyph-cache.js";
+import type { TtfFontMetrics } from "../../types/fonts.js";
+import type { ImageRenderer } from "./image-renderer.js";
 
 export interface TextRendererResult {
   readonly commands: string[];
@@ -19,6 +22,7 @@ export class TextRenderer {
   constructor(
     private readonly coordinateTransformer: CoordinateTransformer,
     private readonly fontRegistry: FontRegistry,
+    private readonly imageRenderer?: ImageRenderer,
   ) {}
 
   async drawText(text: string, xPx: number, yPx: number, options: TextPaintOptions = { fontSizePt: 10 }): Promise<void> {
@@ -117,37 +121,110 @@ export class TextRenderer {
         // sh is a ShadowLayer (color is RGBA)
         if (!sh || !sh.color) continue;
         const shadowColor = sh.color;
-        const shadowSequence: string[] = [
-          fillColorCommand(shadowColor),
-          "BT",
-        ];
-
+        // Prefer embedding rasterized glyph masks for shadows when possible.
         const wordSpacing = run.wordSpacing ?? 0;
         let appliedWordSpacing = false;
         if (wordSpacing !== 0) {
           const wordSpacingPt = this.coordinateTransformer.convertPxToPt(wordSpacing);
           if (wordSpacingPt !== 0) {
-            shadowSequence.push(`${formatNumber(wordSpacingPt)} Tw`);
             appliedWordSpacing = true;
           }
         }
 
-        const shadowX = this.coordinateTransformer.convertPxToPt(Tm.e + sh.offsetX);
-        // compute shadow y similar to main text y but add offset
-        const shadowLocalBaseline = Tm.f - this.coordinateTransformer.pageOffsetPx + sh.offsetY;
-        const shadowYPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(shadowLocalBaseline);
+        // Try glyph-mask path if we have an image renderer and glyph positions
+        const embedder = this.fontRegistry.getEmbedder ? this.fontRegistry.getEmbedder() : undefined;
+        const faceMetrics = embedder ? embedder.getMetrics((font as any).baseFont) : null;
+        if (this.imageRenderer && run.glyphs && faceMetrics) {
+          // Ensure atlas pages are registered with the image renderer before drawing
+          try {
+            const pages = (await import("../font/glyph-atlas.js")).globalGlyphAtlas.getPages();
+            if (pages && pages.length > 0) {
+              this.imageRenderer.registerAtlasPages(pages);
+            }
+          } catch (e) {
+            // ignore
+          }
 
-        shadowSequence.push(
-          `/${font.resourceName} ${formatNumber(fontSizePt)} Tf`,
-          `${formatNumber(Tm.a)} ${formatNumber(Tm.b)} ${formatNumber(Tm.c)} ${formatNumber(Tm.d)} ${formatNumber(shadowX)} ${formatNumber(shadowYPt)} Tm`,
-          `(${escaped}) Tj`,
-        );
+          // Rasterize each glyph mask and prefer drawing from atlas when available.
+          for (let gi = 0; gi < run.glyphs.glyphIds.length; gi++) {
+            const gid = run.glyphs.glyphIds[gi];
+            const pos = run.glyphs.positions[gi] ?? { x: 0, y: 0 };
+            const fontSizePx = run.fontSize;
+            // getGlyphMask now accepts blurPx; request mask already blurred if sh.blur set
+            const mask = getGlyphMask(faceMetrics as unknown as TtfFontMetrics, gid, fontSizePx, 4, sh.blur ?? 0);
+            if (!mask) continue;
 
-        if (appliedWordSpacing) {
-          shadowSequence.push("0 Tw");
+            // Try atlas placement lookup (includes blur in key)
+            const { getGlyphAtlasPlacement } = await import("../font/glyph-cache.js");
+            const placement = getGlyphAtlasPlacement(faceMetrics as unknown as TtfFontMetrics, gid, fontSizePx, 4, sh.blur ?? 0);
+
+            const xPx = Tm.e + (pos.x ?? 0) + (sh.offsetX ?? 0);
+            const yPxTop = Tm.f + (pos.y ?? 0) + (sh.offsetY ?? 0) - mask.height;
+
+            if (placement && this.imageRenderer) {
+              // Draw region from atlas page
+              const destRect: Rect = { x: xPx, y: yPxTop, width: placement.width, height: placement.height };
+              this.imageRenderer.drawAtlasRegion(placement.pageIndex, placement.x, placement.y, placement.width, placement.height, destRect);
+            } else {
+              // Fallback: construct RGBA image and draw directly as before
+              const r8 = Math.round(normalizeChannel(shadowColor.r) * 255);
+              const g8 = Math.round(normalizeChannel(shadowColor.g) * 255);
+              const b8 = Math.round(normalizeChannel(shadowColor.b) * 255);
+
+              const rgba = new Uint8Array(mask.width * mask.height * 4);
+              for (let i = 0, j = 0; i < mask.data.length; i++, j += 4) {
+                rgba[j] = r8;
+                rgba[j + 1] = g8;
+                rgba[j + 2] = b8;
+                rgba[j + 3] = mask.data[i];
+              }
+
+              const img: any = {
+                src: `internal:shadow:${(font as any).resourceName}:${gid}`,
+                width: mask.width,
+                height: mask.height,
+                format: "png",
+                channels: 4,
+                bitsPerComponent: 8,
+                data: rgba.buffer,
+              };
+
+              const res = this.imageRenderer.registerResource(img);
+
+              // Compute placement in page coordinates
+              const widthPt = this.coordinateTransformer.convertPxToPt(mask.width);
+              const heightPt = this.coordinateTransformer.convertPxToPt(mask.height);
+              const xPt = this.coordinateTransformer.convertPxToPt(xPx);
+              const localY = yPxTop - this.coordinateTransformer.pageOffsetPx;
+              const yPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localY + mask.height);
+
+              // Emit image draw commands directly
+              this.commands.push(
+                "q",
+                `${formatNumber(widthPt)} 0 0 ${formatNumber(heightPt)} ${formatNumber(xPt)} ${formatNumber(yPt)} cm`,
+                `/${res.alias} Do`,
+                "Q"
+              );
+            }
+          }
+
+        } else {
+          // Fallback to legacy text-shadow path: draw text as text with offsets
+          const shadowX = this.coordinateTransformer.convertPxToPt(Tm.e + sh.offsetX);
+          const shadowLocalBaseline = Tm.f - this.coordinateTransformer.pageOffsetPx + sh.offsetY;
+          const shadowYPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(shadowLocalBaseline);
+
+          const shadowSequence: string[] = [fillColorCommand(shadowColor), "BT"];
+          if (appliedWordSpacing) shadowSequence.push(`${formatNumber(this.coordinateTransformer.convertPxToPt(wordSpacing))} Tw`);
+          shadowSequence.push(
+            `/${font.resourceName} ${formatNumber(fontSizePt)} Tf`,
+            `${formatNumber(Tm.a)} ${formatNumber(Tm.b)} ${formatNumber(Tm.c)} ${formatNumber(Tm.d)} ${formatNumber(shadowX)} ${formatNumber(shadowYPt)} Tm`,
+            `(${escaped}) Tj`
+          );
+          if (appliedWordSpacing) shadowSequence.push("0 Tw");
+          shadowSequence.push("ET");
+          this.commands.push(...shadowSequence);
         }
-        shadowSequence.push("ET");
-        this.commands.push(...shadowSequence);
       }
     }
 

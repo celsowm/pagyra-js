@@ -20,6 +20,57 @@ export class ImageRenderer {
     return this.ensureImageResource(image);
   }
 
+  // Register atlas pages so they can be referenced by pageIndex later.
+  registerAtlasPages(pages: Array<{ width: number; height: number; data: Uint8Array }>): void {
+    for (let i = 0; i < pages.length; i++) {
+      const page = pages[i];
+      const key = `atlas:${i}`;
+      if (this.imageResources.has(key)) continue;
+      const alias = `Im${this.imageResources.size}`;
+      const imageRef: ImageRef = {
+        src: `atlas:${i}`,
+        width: page.width,
+        height: page.height,
+        format: "png",
+        channels: 4,
+        bitsPerComponent: 8,
+        data: page.data.buffer as ArrayBuffer,
+      };
+      this.imageResources.set(key, { alias, image: imageRef });
+    }
+  }
+
+  // Draw a region (sub-rectangle) from a registered atlas page into the destination rect (px coords).
+  drawAtlasRegion(pageIndex: number, sx: number, sy: number, sw: number, sh: number, rect: Rect): void {
+    if (rect.width <= 0 || rect.height <= 0) return;
+    const key = `atlas:${pageIndex}`;
+    const res = this.imageResources.get(key);
+    if (!res) return;
+    // Compute destination in points
+    const widthPt = this.coordinateTransformer.convertPxToPt(rect.width);
+    const heightPt = this.coordinateTransformer.convertPxToPt(rect.height);
+    if (widthPt === 0 || heightPt === 0) return;
+    const xPt = this.coordinateTransformer.convertPxToPt(rect.x);
+    const localY = rect.y - this.coordinateTransformer.pageOffsetPx;
+    const yPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localY + rect.height);
+
+    // Compute matrix that maps image pixel coordinates so that the sub-rect [sx,sy,sw,sh]
+    // maps to the destination rectangle. Matrix: [a 0 0 d tx ty] where
+    // a = widthPt / sw (pt per image-pixel), d = heightPt / sh, tx = xPt - a * sx, ty = yPt - d * sy
+    const a = widthPt / sw;
+    const d = heightPt / sh;
+    const tx = xPt - a * sx;
+    const ty = yPt - d * sy;
+
+    const cmds = [
+      "q",
+      `${formatNumber(a)} 0 0 ${formatNumber(d)} ${formatNumber(tx)} ${formatNumber(ty)} cm`,
+      `/${res.alias} Do`,
+      "Q",
+    ];
+    this.commands.push(...cmds);
+  }
+
   drawImage(image: ImageRef, rect: Rect): void {
     if (rect.width <= 0 || rect.height <= 0) {
       return;
