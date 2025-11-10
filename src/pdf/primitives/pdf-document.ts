@@ -252,10 +252,14 @@ export class PdfDocument {
         entries.push(`/Filter /${image.filter}`);
       }
       if (image.sMask) {
+        // If sMask is provided, insert SMask reference and ensure the sMask image object exists.
         entries.push(`/SMask ${image.sMask.objectNumber} 0 R`);
       }
       const stream = serializeStream(image.data, entries);
       image.ref = pushObject(stream, image.ref);
+
+      // If this image had an sMask reference stored separately, ensure its object is the alpha image previously pushed.
+      // The registerImage path already pushes the sMask grayscale image first (when provided), so the reference should be valid.
     }
 
     for (const obj of this.registeredObjects) {

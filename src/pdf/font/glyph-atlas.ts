@@ -29,7 +29,9 @@ export interface AtlasPage {
 type Key = string;
 
 const DEFAULT_PAGE_SIZE = 2048; // square atlas page default
-const PADDING = 1; // padding around glyphs to avoid bleeding
+// Increase base padding to reduce risk of blur bleeding between packed glyphs.
+// We still add extraPadding from the caller (e.g. glyph-cache) for blur radius.
+const PADDING = 2; // padding around glyphs to avoid bleeding
 
 class Shelf {
   y: number;

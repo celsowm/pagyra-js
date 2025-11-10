@@ -1,0 +1,84 @@
+%PDF-1.4
+1 0 obj
+<<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica-Bold
+/Encoding /WinAnsiEncoding
+>>
+endobj
+2 0 obj
+<< /Length 397 >>
+stream
+1 1 1 rg
+0 0 600 450 re
+f
+1 1 1 rg
+0 0 600 450 re
+f
+1 0 0 rg
+BT
+/F1 24 Tf
+1 0 0 1 228.144 213.9 Tm
+(Olá, sombra!) Tj
+ET
+0 0 0 rg
+BT
+/F1 24 Tf
+1 0 0 1 226.644 212.4 Tm
+(Olá, sombra!) Tj
+ET
+1 0 0 rg
+BT
+/F1 24 Tf
+1 0 0 1 228.144 213.9 Tm
+(Olá, sombra!) Tj
+ET
+0 0 0 rg
+BT
+/F1 24 Tf
+1 0 0 1 226.644 212.4 Tm
+(Olá, sombra!) Tj
+ET
+0.2 0.2 0.2 rg
+BT
+/F1 24 Tf
+1 0 0 1 226.644 215.4 Tm
+(Olá, sombra!) Tj
+ET
+endstream
+endobj
+3 0 obj
+<<
+/Type /Page
+/MediaBox [0 0 600 450]
+/Resources << /Font << /F1 1 0 R >> >>
+/Contents 2 0 R
+>>
+endobj
+4 0 obj
+<<
+/Type /Pages
+/Count 1
+/Kids [3 0 R]
+>>
+endobj
+5 0 obj
+<<
+/Type /Catalog
+/Pages 4 0 R
+>>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000111 00000 n 
+0000000559 00000 n 
+0000000671 00000 n 
+0000000728 00000 n 
+trailer
+<< /Size 6 /Root 5 0 R >>
+startxref
+777
+%%EOF

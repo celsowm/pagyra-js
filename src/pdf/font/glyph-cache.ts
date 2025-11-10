@@ -41,7 +41,8 @@ function trimCacheIfNeeded() {
 
 function makeKey(metrics: TtfFontMetrics, gid: number, fontSizePx: number, supersample = 4, blurPx = 0): CacheKey {
   const uid = `${metrics.metrics.unitsPerEm}-${(metrics.headBBox ? metrics.headBBox.join(",") : "nbb")}`;
-  const blurKey = Math.round(Math.max(0, blurPx || 0));
+  // Use one-decimal precision for blur in the key to avoid unnecessary cache churn for fractional radii
+  const blurKey = Math.round(Math.max(0, blurPx || 0) * 10) / 10;
   return `${uid}|gid:${gid}|size:${Math.round(fontSizePx)}|ss:${supersample}|blur:${blurKey}`;
 }
 
@@ -77,8 +78,9 @@ export function getGlyphMask(metrics: TtfFontMetrics, gid: number, fontSizePx: n
       alphaBuf = blurAlpha(mask.data, mask.width, mask.height, blurPx);
     }
 
-    // Compute extra padding to reserve space in atlas for blur bleed (heuristic)
-    const extraPadding = blurPx && blurPx > 0 ? Math.ceil(blurPx * 1.5) : 0;
+    // Compute extra padding to reserve space in atlas for blur bleed (more conservative heuristic)
+    // Use a larger multiplier and a small safety margin to avoid clipped blurred glyphs.
+    const extraPadding = blurPx && blurPx > 0 ? Math.ceil(blurPx * 2) + 2 : 0;
 
     // Attempt to pack into global atlas (best-effort) using alphaBuf and extra padding
     try {
