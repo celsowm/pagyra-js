@@ -28,9 +28,12 @@ export class Box {
   }
 }
 
+import type { FontEmbedder } from "../pdf/font/embedder";
+
 export interface Viewport {
   readonly width: number;
   readonly height: number;
+  readonly fontEmbedder?: FontEmbedder | null;
 }
 
 export interface ContainingBlock {

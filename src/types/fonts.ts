@@ -9,6 +9,7 @@ export interface FontFaceDef {
   readonly weight: number;
   readonly style: 'normal' | 'italic';
   readonly src: string; // path to TTF file
+  readonly data?: ArrayBuffer;
 }
 
 export interface TtfMetrics {
