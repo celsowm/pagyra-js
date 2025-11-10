@@ -1,6 +1,7 @@
 import { LayoutNode } from "../../dom/node.js";
 import { resolvedLineHeight } from "../../css/style.js";
 import type { ComputedStyle } from "../../css/style.js";
+import type { TtfFontMetrics } from "../../types/fonts.js";
 import { normalizeFontWeight } from "../../css/font-weight.js";
 import { base14Widths } from "../../pdf/font/base14-widths.js";
 import { applyTextTransform } from "../../text/text-transform.js";
@@ -46,7 +47,9 @@ const BASE14_BOLD_VARIANT = new Map<string, string>([
   ["Courier", "Courier-Bold"],
 ]);
 
-export function assignIntrinsicTextMetrics(root: LayoutNode): void {
+import type { FontEmbedder } from "../../pdf/font/embedder";
+
+export function assignIntrinsicTextMetrics(root: LayoutNode, fontEmbedder: FontEmbedder | null): void {
   root.walk((node) => {
     if (!node.textContent) {
       return;
@@ -57,18 +60,30 @@ export function assignIntrinsicTextMetrics(root: LayoutNode): void {
       node.intrinsicBlockSize = resolvedLineHeight(node.style);
       return;
     }
-    const { inlineSize, blockSize } = measureText(trimmed, node.style);
+    const { inlineSize, blockSize } = measureText(trimmed, node.style, fontEmbedder);
     node.intrinsicInlineSize = inlineSize;
     node.intrinsicBlockSize = blockSize;
   });
 }
 
-function measureText(text: string, style: ComputedStyle): { inlineSize: number; blockSize: number } {
+function measureText(
+  text: string,
+  style: ComputedStyle,
+  fontEmbedder: FontEmbedder | null
+): { inlineSize: number; blockSize: number } {
   const effectiveText = applyTextTransform(text, style.textTransform);
   const lines = effectiveText.split(/\r?\n/);
   let maxLineWidth = 0;
+
+  const fontMetrics = fontEmbedder?.getMetrics(style.fontFamily ?? "");
+
   for (const line of lines) {
-    maxLineWidth = Math.max(maxLineWidth, estimateLineWidth(line, style));
+    const glyphWidth = measureTextWithGlyphs(line, style, fontMetrics ?? null);
+    if (glyphWidth !== null) {
+      maxLineWidth = Math.max(maxLineWidth, glyphWidth);
+    } else {
+      maxLineWidth = Math.max(maxLineWidth, estimateLineWidth(line, style));
+    }
   }
   const lineHeight = resolvedLineHeight(style);
   const blockSize = Math.max(lineHeight, lines.length * lineHeight);
@@ -267,6 +282,32 @@ function countSpaces(line: string): number {
     }
   }
   return count;
+}
+
+export function measureTextWithGlyphs(
+  text: string,
+  style: ComputedStyle,
+  fontMetrics: TtfFontMetrics | null
+): number | null {
+  if (!fontMetrics) {
+    return null;
+  }
+
+  let totalWidth = 0;
+  for (const char of text) {
+    const codePoint = char.codePointAt(0);
+    if (codePoint === undefined) {
+      continue;
+    }
+    const glyphId = fontMetrics.cmap.getGlyphId(codePoint);
+    const glyphMetrics = fontMetrics.glyphMetrics.get(glyphId);
+    if (glyphMetrics) {
+      totalWidth += glyphMetrics.advanceWidth;
+    }
+  }
+
+  const scale = style.fontSize / fontMetrics.metrics.unitsPerEm;
+  return totalWidth * scale;
 }
 
 function fontWeightWidthMultiplier(weight: number): number {

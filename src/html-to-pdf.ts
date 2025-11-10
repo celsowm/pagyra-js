@@ -17,6 +17,8 @@ import { setViewportSize } from "./css/apply-declarations.js";
 import { type PageMarginsPx } from "./units/page-utils.js";
 import { computeStyleForElement } from "./css/compute-style.js";
 import type { HeaderFooterHTML } from "./pdf/types.js";
+import { FontEmbedder } from "./pdf/font/embedder.js";
+import { PdfDocument } from "./pdf/primitives/pdf-document.js";
 
 export interface RenderHtmlOptions {
   html: string;
@@ -133,7 +135,26 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
     }
   }
 
-  layoutTree(rootLayout, { width: viewportWidth, height: viewportHeight });
+  const pdfDoc = new PdfDocument();
+  // In a browser environment, the font data should be pre-loaded and passed in the fontConfig.
+  if (options.fontConfig) {
+    for (const face of options.fontConfig.fontFaceDefs) {
+      if (!face.data) {
+        const { readFileSync } = require("fs");
+        const fontDataBuffer = readFileSync(face.src);
+        (face as any).data = fontDataBuffer.buffer.slice(
+          fontDataBuffer.byteOffset,
+          fontDataBuffer.byteOffset + fontDataBuffer.byteLength
+        );
+      }
+    }
+  }
+  const fontEmbedder = options.fontConfig ? new FontEmbedder(options.fontConfig, pdfDoc) : null;
+  if (fontEmbedder) {
+    await fontEmbedder.initialize();
+  }
+
+  layoutTree(rootLayout, { width: viewportWidth, height: viewportHeight }, fontEmbedder);
   log("LAYOUT", "DEBUG", "Layout complete");
 
   const renderTree = buildRenderTree(rootLayout, { headerFooter });

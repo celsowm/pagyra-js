@@ -120,22 +120,18 @@ export function computeWidths(metrics: TtfFontMetrics): { DW: number; W: CIDFont
 export class FontEmbedder {
   private embeddedFonts = new Map<string, EmbeddedFont>();
   private faceMetrics = new Map<string, TtfFontMetrics>();
-  private fontData = new Map<string, Uint8Array>();
 
   constructor(private readonly config: FontConfig, private readonly doc: PdfDocument) {}
 
   async initialize(): Promise<void> {
     for (const face of this.config.fontFaceDefs) {
+      if (!face.data) {
+        log("FONT", "ERROR", `Missing data for font ${face.name}`);
+        continue;
+      }
       try {
-        const { readFileSync } = require("fs");
-        const fontDataBuffer = readFileSync(face.src);
-        const fontData = fontDataBuffer.buffer.slice(
-          fontDataBuffer.byteOffset,
-          fontDataBuffer.byteOffset + fontDataBuffer.byteLength
-        );
-        const metrics = parseTtfBuffer(fontData);
+        const metrics = parseTtfBuffer(face.data);
         this.faceMetrics.set(face.name, metrics);
-        this.fontData.set(face.name, new Uint8Array(fontData));
       } catch (error) {
         log("FONT", "ERROR", `Failed to load font ${face.name}`, { error: error instanceof Error ? error.message : String(error) });
       }
@@ -184,7 +180,7 @@ export class FontEmbedder {
     log("FONT", "DEBUG", "embedding font", { face, glyphCount: metrics.glyphMetrics.size });
 
     // Create font subset (simplified - just the full TTF for now)
-    const fullFontData = this.fontData.get(face.name)!;
+    const fullFontData = new Uint8Array(face.data!);
     const fontFileRef = this.doc.registerStream(fullFontData, {
       Filter: "/FlateDecode"
     });

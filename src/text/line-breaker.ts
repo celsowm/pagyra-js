@@ -2,7 +2,8 @@
 
 import { WhiteSpace } from "../css/enums.js";
 import { ComputedStyle } from "../css/style.js";
-import { estimateLineWidth } from "../layout/utils/text-metrics.js";
+import { estimateLineWidth, measureTextWithGlyphs } from "../layout/utils/text-metrics.js";
+import type { FontEmbedder } from "../pdf/font/embedder.js";
 import { applyTextTransform } from "./text-transform.js"; // Precisaremos exportar esta função
 
 // Representa uma unidade inquebrável (palavra) ou um espaço flexível (cola).
@@ -42,11 +43,20 @@ function segmentText(text: string): { type: 'word' | 'space', text: string }[] {
 /**
  * Mede a largura de cada palavra e espaço.
  */
-function measureItems(segments: { type: 'word' | 'space', text: string }[], style: ComputedStyle): TextItem[] {
-  return segments.map(s => ({
-    ...s,
-    width: estimateLineWidth(s.text, style),
-  }));
+function measureItems(
+  segments: { type: 'word' | 'space', text: string }[],
+  style: ComputedStyle,
+  fontEmbedder: FontEmbedder | null
+): TextItem[] {
+  const fontMetrics = fontEmbedder?.getMetrics(style.fontFamily ?? "");
+
+  return segments.map(s => {
+    const glyphWidth = measureTextWithGlyphs(s.text, style, fontMetrics ?? null);
+    return {
+      ...s,
+      width: glyphWidth ?? estimateLineWidth(s.text, style),
+    };
+  });
 }
 
 function splitWordItem(
@@ -188,14 +198,19 @@ function buildLineBox(items: TextItem[], availableWidth: number, trimEdges: bool
  * @param availableWidth A largura disponível para o texto.
  * @returns Um array de objetos LineBox representando as linhas ótimas.
  */
-export function breakTextIntoLines(text: string, style: ComputedStyle, availableWidth: number): LineBox[] {
+export function breakTextIntoLines(
+  text: string,
+  style: ComputedStyle,
+  availableWidth: number,
+  fontEmbedder: FontEmbedder | null
+): LineBox[] {
   const effectiveText = applyTextTransform(text, style.textTransform);
   if (effectiveText.length === 0) {
     return [];
   }
 
   const rawItems = segmentText(effectiveText);
-  let items = measureItems(rawItems, style);
+  let items = measureItems(rawItems, style, fontEmbedder);
   items = enforceOverflowWrap(items, style, availableWidth, style.overflowWrap);
   const n = items.length;
   if (n === 0) return [];

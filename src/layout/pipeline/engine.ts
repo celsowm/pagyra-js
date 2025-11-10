@@ -1,6 +1,7 @@
 import { LayoutNode } from "../../dom/node.js";
 import type { Viewport } from "../../geometry/box.js";
 import { LayoutEnvironment } from "../context/layout-environment.js";
+import type { FontEmbedder } from "../../pdf/font/embedder.js";
 import type { LayoutStrategy, LayoutContext } from "./strategy.js";
 import { Position } from "../../css/enums.js";
 import { containingBlock } from "../utils/node-math.js";
@@ -18,8 +19,8 @@ export class LayoutEngine {
     this.strategies = options.strategies;
   }
 
-  layoutTree(root: LayoutNode, viewport: Viewport): LayoutNode {
-    const environment = new LayoutEnvironment({ viewport });
+  layoutTree(root: LayoutNode, viewport: Viewport, fontEmbedder: FontEmbedder | null): LayoutNode {
+    const environment = new LayoutEnvironment({ viewport, fontEmbedder });
     const context: LayoutContext = {
       env: environment,
       layoutChild: (node: LayoutNode) => {
@@ -27,7 +28,7 @@ export class LayoutEngine {
       },
     };
 
-    assignIntrinsicTextMetrics(root);
+    assignIntrinsicTextMetrics(root, fontEmbedder);
 
     root.box.x = 0;
     root.box.y = 0;

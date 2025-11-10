@@ -219,7 +219,12 @@ function measureInlineNode(node: LayoutNode, containerWidth: number, context: La
 
   if (node.textContent && node.style.display === Display.Inline) {
     const availableWidth = containerWidth;
-    const lines = breakTextIntoLines(node.textContent, node.style, availableWidth);
+    const lines = breakTextIntoLines(
+      node.textContent,
+      node.style,
+      availableWidth,
+      context.env.fontEmbedder
+    );
     const preserveLeading = !!node.customData?.preserveLeadingSpace;
     const preserveTrailing = !!node.customData?.preserveTrailingSpace;
 
