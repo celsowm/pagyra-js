@@ -11,6 +11,9 @@ import { flattenOutline, rasterizeContours } from "../font/rasterizer.js";
 import { blurAlpha } from "../font/blur.js";
 import type { TtfFontMetrics, GlyphOutlineCmd } from "../../types/fonts.js";
 import type { ImageRenderer } from "./image-renderer.js";
+import type { GraphicsStateManager } from "./graphics-state-manager.js";
+
+let currentGraphicsStateManager: GraphicsStateManager | undefined = undefined;
 
 export interface TextRendererResult {
   readonly commands: string[];
@@ -27,7 +30,12 @@ export class TextRenderer {
     private readonly coordinateTransformer: CoordinateTransformer,
     private readonly fontRegistry: FontRegistry,
     private readonly imageRenderer?: ImageRenderer,
-  ) {}
+    graphicsStateManager?: GraphicsStateManager,
+  ) {
+    // Make the graphics state manager available to module-level helpers (used by fillColorCommand).
+    // This keeps change surface small: callers pass the manager; text renderer sets the module var.
+    currentGraphicsStateManager = graphicsStateManager;
+  }
 
   async drawText(text: string, xPx: number, yPx: number, options: TextPaintOptions = { fontSizePt: 10 }): Promise<void> {
     if (!text) {
@@ -152,53 +160,96 @@ export class TextRenderer {
             // ignore
           }
 
-          // Build combined contours for the whole run by flattening each glyph outline
+          // Prefer per-glyph mask assembly (uses glyph-cache.getGlyphMask) to avoid
+          // flattening outlines + recombining contours which can be slower and prone
+          // to seams. This will leverage glyph caching and atlas packing where available.
           const fontSizePx = run.fontSize;
-          const unitsPerEm = (faceMetrics.metrics && faceMetrics.metrics.unitsPerEm) || 1000;
-          const scale = fontSizePx / unitsPerEm;
-          const allContours: { x: number; y: number }[][] = [];
+          const supersample = 4;
+          const glyphMasks: Array<{ mask: any; pos: { x: number; y: number } }> = [];
 
           if (run.glyphs) {
             for (let gi = 0; gi < run.glyphs.glyphIds.length; gi++) {
               const gid = run.glyphs.glyphIds[gi];
               const pos = run.glyphs.positions[gi] ?? { x: 0, y: 0 };
-              const cmds: GlyphOutlineCmd[] | null = (faceMetrics as any).getGlyphOutline ? (faceMetrics as any).getGlyphOutline(gid) : null;
-              if (!cmds || cmds.length === 0) continue;
-              const ret = flattenOutline(cmds, scale, 0.5);
-              for (const contour of ret.contours) {
-                // Offset contour by glyph position (pos.x,pos.y). Positions are in pixels.
-                const shifted = contour.map(p => ({ x: p.x + (pos.x ?? 0), y: p.y + (pos.y ?? 0) }));
-                allContours.push(shifted);
+              try {
+                const gm = getGlyphMask(faceMetrics as any, gid, fontSizePx, supersample, 0);
+                if (!gm) continue;
+                glyphMasks.push({ mask: gm, pos });
+              } catch {
+                // ignore individual glyph failures
               }
             }
           }
 
-          if (allContours.length > 0) {
-            // Rasterize combined contours (supersample for quality)
-            const supersample = 4;
-            const mask = rasterizeContours(allContours, supersample);
-            if (mask) {
-              // For each shadow layer draw a blurred mask with its color and offset
+          if (glyphMasks.length > 0) {
+            // Compute bounding box for combined mask. Glyph mask coordinate convention:
+            // mask.height is vertical size; glyph's baseline aligns with pos.y, so glyph top is pos.y - mask.height.
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            for (const item of glyphMasks) {
+              const { mask, pos } = item;
+              const gx0 = pos.x;
+              const gy0 = pos.y - mask.height;
+              const gx1 = pos.x + mask.width;
+              const gy1 = pos.y;
+              if (gx0 < minX) minX = gx0;
+              if (gy0 < minY) minY = gy0;
+              if (gx1 > maxX) maxX = gx1;
+              if (gy1 > maxY) maxY = gy1;
+            }
+
+            // rounding and safety
+            minX = Math.floor(minX);
+            minY = Math.floor(minY);
+            maxX = Math.ceil(maxX);
+            maxY = Math.ceil(maxY);
+
+            const combinedW = Math.max(0, maxX - minX);
+            const combinedH = Math.max(0, maxY - minY);
+            if (combinedW > 0 && combinedH > 0) {
+              // Compose combined alpha buffer
+              const combinedAlpha = new Uint8Array(combinedW * combinedH);
+              for (const item of glyphMasks) {
+                const { mask, pos } = item;
+                const ox = Math.round(pos.x - minX);
+                const oy = Math.round(pos.y - mask.height - minY);
+                for (let yy = 0; yy < mask.height; yy++) {
+                  const dstRow = oy + yy;
+                  if (dstRow < 0 || dstRow >= combinedH) continue;
+                  const srcRow = yy;
+                  const dstBase = dstRow * combinedW;
+                  const srcBase = srcRow * mask.width;
+                  for (let xx = 0; xx < mask.width; xx++) {
+                    const dstIdx = dstBase + ox + xx;
+                    if (dstIdx < 0 || dstIdx >= combinedAlpha.length) continue;
+                    // simple additive alpha - clamp at 255 (masks are pre-blurred per-glyph if requested)
+                    const a = mask.data[srcBase + xx] || 0;
+                    const summed = combinedAlpha[dstIdx] + a;
+                    combinedAlpha[dstIdx] = summed > 255 ? 255 : summed;
+                  }
+                }
+              }
+
+              // For each shadow layer draw the composed mask (apply per-shadow blur if requested)
               for (const sh of run.textShadows) {
                 if (!sh || !sh.color) continue;
                 const blurPx = Math.max(0, sh.blur ?? 0);
-                const alphaBuf = blurPx > 0 ? blurAlpha(mask.data, mask.width, mask.height, blurPx) : mask.data;
+                // Ensure we pass a Uint8ClampedArray to blurAlpha (it expects Uint8ClampedArray).
+                const clampedCombined = combinedAlpha instanceof Uint8ClampedArray ? combinedAlpha : new Uint8ClampedArray(combinedAlpha);
+                const rawAlphaBuf = blurPx > 0 ? blurAlpha(clampedCombined, combinedW, combinedH, blurPx) : clampedCombined;
+                const alphaBuf = rawAlphaBuf instanceof Uint8ClampedArray ? rawAlphaBuf : new Uint8ClampedArray(rawAlphaBuf);
 
-                // Create RGBA image where RGB = shadow color, A = alphaBuf
                 const r8 = Math.round(normalizeChannel(sh.color.r) * 255);
                 const g8 = Math.round(normalizeChannel(sh.color.g) * 255);
                 const b8 = Math.round(normalizeChannel(sh.color.b) * 255);
 
-                // Build cache key for this run+shadow so identical shadows reuse the same raster
                 const cacheKey = `${run.text}|${(font as any).baseFont}|size:${fontSizePx}|blur:${Math.round(blurPx)}|color:${r8},${g8},${b8}|ss:${supersample}`;
 
                 let resAlias: string | undefined;
-                // Check cache
                 const cached = this.runShadowCache.get(cacheKey);
                 if (cached) {
                   resAlias = cached.alias;
                 } else {
-                  const rgba = new Uint8Array(mask.width * mask.height * 4);
+                  const rgba = new Uint8Array(combinedW * combinedH * 4);
                   for (let i = 0, j = 0; i < alphaBuf.length; i++, j += 4) {
                     rgba[j] = r8;
                     rgba[j + 1] = g8;
@@ -208,8 +259,8 @@ export class TextRenderer {
 
                   const img: any = {
                     src: `internal:shadow:run:${(font as any).resourceName}:${Math.round(Math.random() * 1e9)}`,
-                    width: mask.width,
-                    height: mask.height,
+                    width: combinedW,
+                    height: combinedH,
                     format: "png",
                     channels: 4,
                     bitsPerComponent: 8,
@@ -218,21 +269,21 @@ export class TextRenderer {
 
                   const res = this.imageRenderer.registerResource(img);
                   resAlias = res.alias;
-                  // Cache alias + image meta for reuse
                   this.runShadowCache.set(cacheKey, { alias: resAlias, image: img });
                 }
 
-                // Compute position: place combined mask so that glyph run baseline aligns (use Tm.e / Tm.f)
                 const offsetX = sh.offsetX ?? 0;
                 const offsetY = sh.offsetY ?? 0;
-                const xPx = Tm.e + offsetX;
-                const yPxTop = Tm.f + offsetY - mask.height;
 
-                const widthPt = this.coordinateTransformer.convertPxToPt(mask.width);
-                const heightPt = this.coordinateTransformer.convertPxToPt(mask.height);
+                // Place combined mask such that baseline aligns with Tm.f (same convention as before)
+                const xPx = Tm.e + offsetX + minX;
+                const yPxTop = Tm.f + offsetY - combinedH;
+
+                const widthPt = this.coordinateTransformer.convertPxToPt(combinedW);
+                const heightPt = this.coordinateTransformer.convertPxToPt(combinedH);
                 const xPt = this.coordinateTransformer.convertPxToPt(xPx);
                 const localY = yPxTop - this.coordinateTransformer.pageOffsetPx;
-                const yPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localY + mask.height);
+                const yPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localY + combinedH);
 
                 this.commands.push(
                   "q",
@@ -248,36 +299,62 @@ export class TextRenderer {
           // This creates a basic text mask and applies blur to it
           if (needsRaster && this.imageRenderer) {
             try {
-              // Create a simple text-based shadow using the image renderer
+              // When we can't rasterize glyph outlines, approximate blur by compositing
+              // multiple slightly-offset, semi-transparent copies of the vector text.
+              // This is a pragmatic fallback: not as good as a true Gaussian-blurred mask,
+              // but it produces much softer shadows than a single opaque offset.
               for (const sh of run.textShadows) {
                 if (!sh || !sh.color) continue;
-                
                 const offsetX = sh.offsetX ?? 0;
                 const offsetY = sh.offsetY ?? 0;
                 const blurPx = Math.max(0, sh.blur ?? 0);
-                
-                // Create a simple text mask by drawing text to an image
-                const textWidth = run.advanceWidth || 200; // fallback width
-                const textHeight = run.fontSize * 1.2; // fallback height
-                
-                // For now, fall back to vector text if we can't do proper rasterization
-                const shadowX = this.coordinateTransformer.convertPxToPt(Tm.e + offsetX);
-                const shadowLocalBaseline = Tm.f - this.coordinateTransformer.pageOffsetPx + offsetY;
-                const shadowYPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(shadowLocalBaseline);
+                const baseAlpha = sh.color.a ?? 1;
 
-                const shadowSequence: string[] = [fillColorCommand(sh.color), "BT"];
-                if (appliedWordSpacing) shadowSequence.push(`${formatNumber(this.coordinateTransformer.convertPxToPt(wordSpacing))} Tw`);
-                shadowSequence.push(
-                  `/${font.resourceName} ${formatNumber(fontSizePt)} Tf`,
-                  `${formatNumber(Tm.a)} ${formatNumber(Tm.b)} ${formatNumber(Tm.c)} ${formatNumber(Tm.d)} ${formatNumber(shadowX)} ${formatNumber(shadowYPt)} Tm`,
-                  `(${escaped}) Tj`
-                );
-                if (appliedWordSpacing) shadowSequence.push("0 Tw");
-                shadowSequence.push("ET");
-                this.commands.push(...shadowSequence);
+                // If blur is very small, emit a single sample.
+                const samples: { dx: number; dy: number; weight: number }[] = [];
+                if (blurPx <= 1) {
+                  samples.push({ dx: 0, dy: 0, weight: 1 });
+                } else {
+                  // 9-sample approximation: center + 4 orthogonal + 4 diagonal
+                  const centerW = 0.38;
+                  const orthoW = 0.12;
+                  const diagW = (1 - (centerW + 4 * orthoW)) / 4;
+                  const radius = blurPx / 2;
+                  samples.push({ dx: 0, dy: 0, weight: centerW });
+                  samples.push({ dx: -radius, dy: 0, weight: orthoW });
+                  samples.push({ dx: radius, dy: 0, weight: orthoW });
+                  samples.push({ dx: 0, dy: -radius, weight: orthoW });
+                  samples.push({ dx: 0, dy: radius, weight: orthoW });
+                  samples.push({ dx: -radius, dy: -radius, weight: diagW });
+                  samples.push({ dx: radius, dy: -radius, weight: diagW });
+                  samples.push({ dx: -radius, dy: radius, weight: diagW });
+                  samples.push({ dx: radius, dy: radius, weight: diagW });
+                }
+
+                for (const s of samples) {
+                  const sx = s.dx;
+                  const sy = s.dy;
+                  const sampleAlpha = baseAlpha * s.weight;
+                  const sampleColor = { r: sh.color.r, g: sh.color.g, b: sh.color.b, a: sampleAlpha };
+
+                  const shadowX = this.coordinateTransformer.convertPxToPt(Tm.e + offsetX + sx);
+                  const shadowLocalBaseline = Tm.f - this.coordinateTransformer.pageOffsetPx + offsetY + sy;
+                  const shadowYPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(shadowLocalBaseline);
+
+                  const shadowSequence: string[] = [fillColorCommand(sampleColor), "BT"];
+                  if (appliedWordSpacing) shadowSequence.push(`${formatNumber(this.coordinateTransformer.convertPxToPt(wordSpacing))} Tw`);
+                  shadowSequence.push(
+                    `/${font.resourceName} ${formatNumber(fontSizePt)} Tf`,
+                    `${formatNumber(Tm.a)} ${formatNumber(Tm.b)} ${formatNumber(Tm.c)} ${formatNumber(Tm.d)} ${formatNumber(shadowX)} ${formatNumber(shadowYPt)} Tm`,
+                    `(${escaped}) Tj`
+                  );
+                  if (appliedWordSpacing) shadowSequence.push("0 Tw");
+                  shadowSequence.push("ET");
+                  this.commands.push(...shadowSequence);
+                }
               }
             } catch (e) {
-              // Fall back to vector text if rasterization fails
+              // Fall back to single-offset vector text as a last resort
               for (const sh of run.textShadows) {
                 if (!sh || !sh.color) continue;
                 const shadowX = this.coordinateTransformer.convertPxToPt(Tm.e + sh.offsetX);
@@ -498,8 +575,11 @@ function fillColorCommand(color: RGBA): string {
   const r = formatNumber(normalizeChannel(color.r));
   const g = formatNumber(normalizeChannel(color.g));
   const b = formatNumber(normalizeChannel(color.b));
-  if (color.a !== undefined && color.a < 1) {
-    // Transparency is not directly supported; ignore alpha for now.
+  const alpha = color.a ?? 1;
+  if (alpha < 1 && currentGraphicsStateManager) {
+    // Ensure an extGState exists for this alpha and emit it before the color operator.
+    const stateName = currentGraphicsStateManager.ensureFillAlphaState(alpha);
+    return `/${stateName} gs\n${r} ${g} ${b} rg`;
   }
   return `${r} ${g} ${b} rg`;
 }
