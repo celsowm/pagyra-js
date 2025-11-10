@@ -33,7 +33,7 @@ export function parseTtfBuffer(buffer: ArrayBuffer): TtfFontMetrics {
 
   const cmap = new CmapParser(parser, cmapTable);
 
-  return new TtfFontMetrics(metrics, glyphMetrics, cmap, headBBox);
+  return new TtfFontMetrics(metrics, glyphMetrics, cmap, headBBox, (gid: number) => null);
 }
 
 export function parseTtfFont(filePath: string): TtfFontMetrics {

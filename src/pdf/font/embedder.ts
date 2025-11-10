@@ -280,13 +280,26 @@ export class FontEmbedder {
     }
     entries.sort((a, b) => a.gid - b.gid);
 
+    // Helper: encode a Unicode code point to UTF-16BE hex string (handles non-BMP via surrogate pairs)
+    const uniToUtf16Hex = (cp: number): string => {
+      if (cp <= 0xffff) {
+        return cp.toString(16).padStart(4, "0").toUpperCase();
+      }
+      // surrogate pair
+      const v = cp - 0x10000;
+      const hi = 0xd800 + (v >> 10);
+      const lo = 0xdc00 + (v & 0x3ff);
+      return hi.toString(16).padStart(4, "0").toUpperCase() + lo.toString(16).padStart(4, "0").toUpperCase();
+    };
+
     // Build mapping directives: try to form bfrange for consecutive gid->unicode sequences
-    const mappings: ({ type: "range"; startG: number; endG: number; startU: number } | { type: "char"; gid: number; unicode: number })[] = [];
+    type Mapping = { type: "range"; startG: number; endG: number; startU: number } | { type: "char"; gid: number; unicode: number };
+    const mappings: Mapping[] = [];
     let idx = 0;
     while (idx < entries.length) {
       const start = entries[idx];
       let j = idx + 1;
-      // try to extend a consecutive run where gid increments by 1 and unicode increments by 1
+      // extend consecutive runs where gid increments by 1 and unicode increments by 1
       while (
         j < entries.length &&
         entries[j].gid === entries[j - 1].gid + 1 &&
@@ -296,7 +309,7 @@ export class FontEmbedder {
       }
       const runLen = j - idx;
       if (runLen >= 2) {
-        // create range mapping
+        // use bfrange for linear runs
         mappings.push({ type: "range", startG: start.gid, endG: entries[j - 1].gid, startU: start.unicode });
         idx = j;
       } else {
@@ -314,15 +327,15 @@ export class FontEmbedder {
     lines.push("/CMapName /Adobe-Identity-UCS def");
     lines.push("/CMapType 2 def");
     lines.push("1 begincodespacerange");
+    // source CIDs are represented as 2-byte values here
     lines.push("<0000> <FFFF>");
     lines.push("endcodespacerange");
 
     const CHUNK = 100;
     let p = 0;
     while (p < mappings.length) {
-      // collect same-type mappings up to CHUNK
       const currentType = mappings[p].type;
-      const group: typeof mappings = [];
+      const group: Mapping[] = [];
       while (p < mappings.length && mappings[p].type === currentType && group.length < CHUNK) {
         group.push(mappings[p]);
         p++;
@@ -332,18 +345,17 @@ export class FontEmbedder {
         lines.push(`${group.length} beginbfchar`);
         for (const m of group as { type: "char"; gid: number; unicode: number }[]) {
           const cid = m.gid.toString(16).padStart(4, "0").toUpperCase();
-          const uni = m.unicode.toString(16).padStart(4, "0").toUpperCase();
-          lines.push(`<${cid}> <${uni}>`);
+          const uniHex = uniToUtf16Hex(m.unicode);
+          lines.push(`<${cid}> <${uniHex}>`);
         }
         lines.push("endbfchar");
       } else {
-        // range group
         lines.push(`${group.length} beginbfrange`);
         for (const m of group as { type: "range"; startG: number; endG: number; startU: number }[]) {
           const startCid = m.startG.toString(16).padStart(4, "0").toUpperCase();
           const endCid = m.endG.toString(16).padStart(4, "0").toUpperCase();
-          const startUni = m.startU.toString(16).padStart(4, "0").toUpperCase();
-          lines.push(`<${startCid}> <${endCid}> <${startUni}>`);
+          const startUniHex = uniToUtf16Hex(m.startU);
+          lines.push(`<${startCid}> <${endCid}> <${startUniHex}>`);
         }
         lines.push("endbfrange");
       }
@@ -420,15 +432,16 @@ export async function getEmbeddedFont(name: "NotoSans-Regular" | "DejaVuSans", d
   return null;
 }
 
-export function buildToUnicodeCMap(uniqueCodepoints: number[]): string {
-  const mappings: string[] = [];
-  for (const cp of uniqueCodepoints) {
-    const cid = cp.toString(16).padStart(4, '0').toUpperCase();
-    const uni = cp.toString(16).padStart(4, '0').toUpperCase();
-    mappings.push(`<${cid}> <${uni}>`);
-  }
-
-  return `/CIDInit /ProcSet findresource begin
+/**
+ * Build ToUnicode CMap text from explicit gid->unicode mappings.
+ * Entries must be ordered by gid for best results but ordering is not required.
+ * Supports non-BMP code points by emitting UTF-16BE surrogate pairs.
+ *
+ * Output is a textual CMap ready to be registered as a PDF stream.
+ */
+export function createToUnicodeCMapText(entries: { gid: number; unicode: number }[]): string {
+  if (!entries || entries.length === 0) {
+    return `/CIDInit /ProcSet findresource begin
 12 dict begin
 begincmap
 /CIDSystemInfo <<
@@ -441,11 +454,103 @@ begincmap
 1 begincodespacerange
 <0000> <FFFF>
 endcodespacerange
-${mappings.length} beginbfchar
-${mappings.join('\n')}
-endbfchar
 endcmap
 CMapName currentdict /CMap defineresource pop
 end
 end`;
+  }
+
+  // sort by gid
+  const es = entries.slice().sort((a, b) => a.gid - b.gid);
+
+  const uniToUtf16Hex = (cp: number): string => {
+    if (cp <= 0xffff) {
+      return cp.toString(16).padStart(4, "0").toUpperCase();
+    }
+    const v = cp - 0x10000;
+    const hi = 0xd800 + (v >> 10);
+    const lo = 0xdc00 + (v & 0x3ff);
+    return hi.toString(16).padStart(4, "0").toUpperCase() + lo.toString(16).padStart(4, "0").toUpperCase();
+  };
+
+  // Build mapping directives (group consecutive linear runs into ranges)
+  type Mapping = { type: "range"; startG: number; endG: number; startU: number } | { type: "char"; gid: number; unicode: number };
+  const mappings: Mapping[] = [];
+  let i = 0;
+  while (i < es.length) {
+    const start = es[i];
+    let j = i + 1;
+    while (
+      j < es.length &&
+      es[j].gid === es[j - 1].gid + 1 &&
+      es[j].unicode === es[j - 1].unicode + 1
+    ) {
+      j++;
+    }
+    const runLen = j - i;
+    if (runLen >= 2) {
+      mappings.push({ type: "range", startG: start.gid, endG: es[j - 1].gid, startU: start.unicode });
+      i = j;
+    } else {
+      mappings.push({ type: "char", gid: start.gid, unicode: start.unicode });
+      i++;
+    }
+  }
+
+  const lines: string[] = [];
+  lines.push("/CIDInit /ProcSet findresource begin");
+  lines.push("12 dict begin");
+  lines.push("begincmap");
+  lines.push("/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def");
+  lines.push("/CMapName /Adobe-Identity-UCS def");
+  lines.push("/CMapType 2 def");
+  lines.push("1 begincodespacerange");
+  lines.push("<0000> <FFFF>");
+  lines.push("endcodespacerange");
+
+  const CHUNK = 100;
+  let p = 0;
+  while (p < mappings.length) {
+    const currentType = mappings[p].type;
+    const group: Mapping[] = [];
+    while (p < mappings.length && mappings[p].type === currentType && group.length < CHUNK) {
+      group.push(mappings[p]);
+      p++;
+    }
+
+    if (currentType === "char") {
+      lines.push(`${group.length} beginbfchar`);
+      for (const m of group as { type: "char"; gid: number; unicode: number }[]) {
+        const cid = m.gid.toString(16).padStart(4, "0").toUpperCase();
+        const uniHex = uniToUtf16Hex(m.unicode);
+        lines.push(`<${cid}> <${uniHex}>`);
+      }
+      lines.push("endbfchar");
+    } else {
+      lines.push(`${group.length} beginbfrange`);
+      for (const m of group as { type: "range"; startG: number; endG: number; startU: number }[]) {
+        const startCid = m.startG.toString(16).padStart(4, "0").toUpperCase();
+        const endCid = m.endG.toString(16).padStart(4, "0").toUpperCase();
+        const startUniHex = uniToUtf16Hex(m.startU);
+        lines.push(`<${startCid}> <${endCid}> <${startUniHex}>`);
+      }
+      lines.push("endbfrange");
+    }
+  }
+
+  lines.push("endcmap");
+  lines.push("CMapName currentdict /CMap defineresource pop");
+  lines.push("end");
+  lines.push("end");
+
+  return lines.join("\n");
+}
+
+/**
+ * Backwards-compatible helper: accept an array of codepoints and map each codepoint
+ * to the same CID value (cid == unicode). This preserves the old buildToUnicodeCMap behaviour.
+ */
+export function buildToUnicodeCMap(uniqueCodepoints: number[]): string {
+  const entries = uniqueCodepoints.map((cp) => ({ gid: cp, unicode: cp }));
+  return createToUnicodeCMapText(entries);
 }

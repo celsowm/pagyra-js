@@ -31,12 +31,25 @@ export interface CmapData {
   readonly unicodeMap: Map<number, number>; // Internal access for CMap generation
 }
 
+export type GlyphOutlineCmd =
+  | { type: "moveTo"; x: number; y: number }
+  | { type: "lineTo"; x: number; y: number }
+  | { type: "quadTo"; cx: number; cy: number; x: number; y: number } // quadratic Bézier
+  | { type: "cubicTo"; cx1: number; cy1: number; cx2: number; cy2: number; x: number; y: number } // cubic Bézier
+  | { type: "close" };
+
 export class TtfFontMetrics {
   constructor(
     public readonly metrics: TtfMetrics,
     public readonly glyphMetrics: Map<number, GlyphMetrics>,
     public readonly cmap: CmapData,
     // optional head bbox in font units [xMin, yMin, xMax, yMax]
-    public readonly headBBox?: readonly [number, number, number, number]
+    public readonly headBBox?: readonly [number, number, number, number],
+    /**
+     * Optional hook that returns a glyph's outline command sequence.
+     * Present to prepare the API for future glyf / CFF parsing; placeholder
+     * implementations should return null when outlines aren't available.
+     */
+    public readonly getGlyphOutline?: (gid: number) => GlyphOutlineCmd[] | null
   ) {}
 }
