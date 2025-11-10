@@ -1,5 +1,5 @@
 import type { PdfObjectRef, PdfDocument } from "../primitives/pdf-document.js";
-import { parseTtfFont } from "./ttf-lite.js";
+import { parseTtfBuffer } from "./ttf-lite.js";
 import type { FontFaceDef, FontConfig, TtfFontMetrics } from "../../types/fonts.js";
 import { log } from "../../debug/log.js";
 import { normalizeFontWeight } from "../../css/font-weight.js";
@@ -120,15 +120,22 @@ export function computeWidths(metrics: TtfFontMetrics): { DW: number; W: CIDFont
 export class FontEmbedder {
   private embeddedFonts = new Map<string, EmbeddedFont>();
   private faceMetrics = new Map<string, TtfFontMetrics>();
+  private fontData = new Map<string, Uint8Array>();
 
   constructor(private readonly config: FontConfig, private readonly doc: PdfDocument) {}
 
   async initialize(): Promise<void> {
     for (const face of this.config.fontFaceDefs) {
       try {
-        // TODO: Parse from pre-loaded data once parseTtfFont supports it
-        const metrics = parseTtfFont(face.src);
+        const { readFileSync } = require("fs");
+        const fontDataBuffer = readFileSync(face.src);
+        const fontData = fontDataBuffer.buffer.slice(
+          fontDataBuffer.byteOffset,
+          fontDataBuffer.byteOffset + fontDataBuffer.byteLength
+        );
+        const metrics = parseTtfBuffer(fontData);
         this.faceMetrics.set(face.name, metrics);
+        this.fontData.set(face.name, new Uint8Array(fontData));
       } catch (error) {
         log("FONT", "ERROR", `Failed to load font ${face.name}`, { error: error instanceof Error ? error.message : String(error) });
       }
@@ -177,7 +184,7 @@ export class FontEmbedder {
     log("FONT", "DEBUG", "embedding font", { face, glyphCount: metrics.glyphMetrics.size });
 
     // Create font subset (simplified - just the full TTF for now)
-    const fullFontData = this.loadFontData(face.src);
+    const fullFontData = this.fontData.get(face.name)!;
     const fontFileRef = this.doc.registerStream(fullFontData, {
       Filter: "/FlateDecode"
     });
@@ -370,11 +377,6 @@ export class FontEmbedder {
     return this.doc.registerStream(new TextEncoder().encode(cmapText), {});
   }
 
-  private loadFontData(path: string): Uint8Array {
-    // Legacy synchronous method for compatibility (to be removed)
-    const { readFileSync } = require("fs");
-    return readFileSync(path);
-  }
 
   /**
    * Return parsed TTF metrics for a loaded face by name, or null if not available.
@@ -554,11 +556,3 @@ end`;
   return lines.join("\n");
 }
 
-/**
- * Backwards-compatible helper: accept an array of codepoints and map each codepoint
- * to the same CID value (cid == unicode). This preserves the old buildToUnicodeCMap behaviour.
- */
-export function buildToUnicodeCMap(uniqueCodepoints: number[]): string {
-  const entries = uniqueCodepoints.map((cp) => ({ gid: cp, unicode: cp }));
-  return createToUnicodeCMapText(entries);
-}
