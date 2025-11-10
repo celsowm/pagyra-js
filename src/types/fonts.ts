@@ -35,6 +35,8 @@ export class TtfFontMetrics {
   constructor(
     public readonly metrics: TtfMetrics,
     public readonly glyphMetrics: Map<number, GlyphMetrics>,
-    public readonly cmap: CmapData
+    public readonly cmap: CmapData,
+    // optional head bbox in font units [xMin, yMin, xMax, yMax]
+    public readonly headBBox?: readonly [number, number, number, number]
   ) {}
 }

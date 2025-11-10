@@ -11,7 +11,7 @@ export function parseTtfBuffer(buffer: ArrayBuffer): TtfFontMetrics {
   const parser = new TtfTableParser(buffer);
 
   // Parse global metrics (head, hhea, OS/2)
-  const { metrics, numberOfHMetricsRaw } = parseGlobalMetrics(parser);
+  const { metrics, numberOfHMetricsRaw, headBBox } = parseGlobalMetrics(parser);
 
   // Parse maxp for numGlyphs
   const MAXP = 0x6d617870; // 'maxp'
@@ -33,7 +33,7 @@ export function parseTtfBuffer(buffer: ArrayBuffer): TtfFontMetrics {
 
   const cmap = new CmapParser(parser, cmapTable);
 
-  return new TtfFontMetrics(metrics, glyphMetrics, cmap);
+  return new TtfFontMetrics(metrics, glyphMetrics, cmap, headBBox);
 }
 
 export function parseTtfFont(filePath: string): TtfFontMetrics {

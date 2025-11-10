@@ -4,7 +4,6 @@ import type { FontFaceDef, FontConfig, TtfFontMetrics } from "../../types/fonts.
 import { log } from "../../debug/log.js";
 import { normalizeFontWeight } from "../../css/font-weight.js";
 
-const SYMBOLIC_FONT_FLAGS = 4;
 const TYPICAL_STEM_V = 80;
 
 export interface EmbeddedFont {
@@ -48,18 +47,81 @@ interface CIDFontDictionary {
     readonly Supplement: 0;
   };
   readonly FontDescriptor: PdfObjectRef;
+  readonly DW?: number;
   readonly W: readonly (readonly [number] | readonly [number, readonly number[]])[];
-  readonly CIDToGIDMap: PdfObjectRef;
+  readonly CIDToGIDMap: PdfObjectRef | string;
+}
+
+/**
+ * Compute DW (default width) and compressed W array from glyph metrics.
+ * Exported so it can be unit-tested.
+ */
+export function computeWidths(metrics: TtfFontMetrics): { DW: number; W: CIDFontDictionary["W"] } {
+  const count = metrics.glyphMetrics.size;
+  const widths: number[] = new Array(count).fill(0);
+  for (const [gid, gm] of metrics.glyphMetrics) {
+    widths[gid] = Math.round((gm.advanceWidth / metrics.metrics.unitsPerEm) * 1000);
+  }
+
+  const computeDW = (arr: number[]) => {
+    const freq = new Map<number, number>();
+    for (const v of arr) {
+      freq.set(v, (freq.get(v) ?? 0) + 1);
+    }
+    let best = arr[0] || 0;
+    let bestCount = 0;
+    for (const [v, c] of freq.entries()) {
+      if (c > bestCount || (c === bestCount && v < best)) {
+        best = v;
+        bestCount = c;
+      }
+    }
+    return best;
+  };
+
+  const DW = computeDW(widths);
+
+  // Compress widths into W entries using ranges for repeating values and arrays for heterogenous runs
+  const result: any[] = [];
+  let i = 0;
+  while (i < count) {
+    // skip DW values
+    if (widths[i] === DW) {
+      i++;
+      continue;
+    }
+
+    // try find long run of identical width (use range if length >= 4)
+    const start = i;
+    const val = widths[i];
+    let j = i + 1;
+    while (j < count && widths[j] === val) j++;
+    const runLen = j - start;
+    if (runLen >= 4) {
+      // [start end value]
+      result.push([start, j - 1, val]);
+      i = j;
+      continue;
+    }
+
+    // otherwise build a heterogenous list until we hit DW or reach a reasonable chunk (32)
+    const listStart = i;
+    const list: number[] = [];
+    while (i < count && widths[i] !== DW && list.length < 32) {
+      list.push(widths[i]);
+      i++;
+    }
+    result.push([listStart, list]);
+  }
+
+  return { DW, W: result as CIDFontDictionary["W"] };
 }
 
 export class FontEmbedder {
   private embeddedFonts = new Map<string, EmbeddedFont>();
   private faceMetrics = new Map<string, TtfFontMetrics>();
 
-  constructor(
-    private readonly config: FontConfig,
-    private readonly doc: PdfDocument
-  ) {}
+  constructor(private readonly config: FontConfig, private readonly doc: PdfDocument) {}
 
   async initialize(): Promise<void> {
     for (const face of this.config.fontFaceDefs) {
@@ -75,24 +137,36 @@ export class FontEmbedder {
 
   ensureFont(familyStack: string[], fontWeight?: number): EmbeddedFont | null {
     const targetWeight = normalizeFontWeight(fontWeight);
+
     for (const family of familyStack) {
-      const candidates = this.config.fontFaceDefs.filter((f) => f.family === family);
+      const normalizedFamily = family.toLowerCase().trim();
+      const candidates = this.config.fontFaceDefs.filter((f) => {
+        return (f.family || "").toLowerCase().trim() === normalizedFamily;
+      });
+
       if (candidates.length === 0) {
         continue;
       }
+
       const face = pickFaceByWeight(candidates, targetWeight);
       if (!face) {
         continue;
       }
-      const existing = this.embeddedFonts.get(face.name);
+
+      // Use normalized face name as key to avoid accidental mismatches due to spacing/case
+      const faceKey = (face.name || "").toLowerCase().trim();
+      const existing = this.embeddedFonts.get(face.name) ?? this.embeddedFonts.get(faceKey);
       if (existing) return existing;
 
       const embedded = this.embedFont(face);
       if (embedded) {
+        // store with both canonical and normalized keys for resilient lookups
         this.embeddedFonts.set(face.name, embedded);
+        this.embeddedFonts.set(faceKey, embedded);
         return embedded;
       }
     }
+
     return null;
   }
 
@@ -100,33 +174,52 @@ export class FontEmbedder {
     const metrics = this.faceMetrics.get(face.name);
     if (!metrics) return null;
 
-    log("FONT","DEBUG","embedding font", { face, glyphCount: metrics.glyphMetrics.size });
+    log("FONT", "DEBUG", "embedding font", { face, glyphCount: metrics.glyphMetrics.size });
 
     // Create font subset (simplified - just the full TTF for now)
     const fullFontData = this.loadFontData(face.src);
     const fontFileRef = this.doc.registerStream(fullFontData, {
-      Length: fullFontData.length.toString(),
       Filter: "/FlateDecode"
     });
 
     // Create font descriptor
+    // Compute PDF FontDescriptor fields and scale metrics to 1000 UPM
+    const unitsPerEm = metrics.metrics.unitsPerEm || 1000;
+    const scaleTo1000 = (v: number) => Math.round((v * 1000) / unitsPerEm);
+
+    // Use head bbox when available, otherwise fall back to a conservative box
+    let fontBBox: [number, number, number, number] = [-100, -300, 1000, 900];
+    // metrics may include headBBox from parser
+    // @ts-ignore - metrics may have headBBox added by parser
+    if ((metrics as any).headBBox) {
+      // headBBox in font units [xMin,yMin,xMax,yMax] -> scale to 1000
+      // ensure we copy to typed array
+      const hb = (metrics as any).headBBox as [number, number, number, number];
+      fontBBox = [scaleTo1000(hb[0]), scaleTo1000(hb[1]), scaleTo1000(hb[2]), scaleTo1000(hb[3])];
+    } else {
+      fontBBox = fontBBox.map((v) => Math.round(v * (1000 / unitsPerEm))) as [number, number, number, number];
+    }
+
     const fontDescriptor: FontDescriptor = {
       Type: "FontDescriptor",
       FontName: `/${face.name}`,
-      Flags: SYMBOLIC_FONT_FLAGS, // Symbolic font
-      FontBBox: [-100, -300, 1000, 900], // Simplified bbox
+      Flags: computePdfFlagsFromFace(face),
+      FontBBox: fontBBox,
       ItalicAngle: face.style === "italic" ? -12 : 0,
-      Ascent: metrics.metrics.ascender,
-      Descent: metrics.metrics.descender,
-      CapHeight: metrics.metrics.capHeight,
-      XHeight: metrics.metrics.xHeight,
-      StemV: TYPICAL_STEM_V, // Typical value
+      Ascent: scaleTo1000(metrics.metrics.ascender),
+      Descent: scaleTo1000(metrics.metrics.descender),
+      CapHeight: scaleTo1000(metrics.metrics.capHeight),
+      XHeight: scaleTo1000(metrics.metrics.xHeight),
+      StemV: TYPICAL_STEM_V,
       FontFile2: fontFileRef
     };
 
     const fontDescriptorRef = this.doc.register(fontDescriptor);
 
-    // Create CID font dictionary
+    // Compute DW and compressed W
+    const { DW, W } = computeWidths(metrics);
+
+    // Create CID font dictionary (include DW)
     const cidFontDict: CIDFontDictionary = {
       Type: "Font",
       Subtype: "CIDFontType2",
@@ -137,8 +230,9 @@ export class FontEmbedder {
         Supplement: 0
       },
       FontDescriptor: fontDescriptorRef,
-      W: this.buildWidthsArray(metrics),
-      CIDToGIDMap: this.doc.registerStream(new Uint8Array(), { Length: "0" }) // Identity mapping
+      DW,
+      W,
+      CIDToGIDMap: "/Identity"
     };
 
     const cidFontRef = this.doc.register(cidFontDict);
@@ -168,72 +262,100 @@ export class FontEmbedder {
   }
 
   private buildWidthsArray(metrics: TtfFontMetrics): CIDFontDictionary["W"] {
-    const widths: (readonly [number] | readonly [number, readonly number[]])[] = [];
-    let startGlyph = -1;
-    let currentWidths: number[] = [];
-
-    for (const [glyphId, glyphMetrics] of metrics.glyphMetrics) {
-      if (startGlyph === -1) {
-        startGlyph = glyphId;
-      }
-
-      const width = glyphMetrics.advanceWidth / metrics.metrics.unitsPerEm * 1000;
-      currentWidths.push(Math.round(width));
-
-      // Group consecutive glyphs with similar patterns (simplified)
-      if (currentWidths.length > 10) {
-        widths.push([startGlyph, currentWidths]);
-        startGlyph = -1;
-        currentWidths = [];
-      }
-    }
-
-    if (currentWidths.length > 0) {
-      widths.push([startGlyph, currentWidths]);
-    }
-
-    return widths;
+    const { W } = computeWidths(metrics);
+    return W;
   }
 
   private createToUnicodeCMap(metrics: TtfFontMetrics, uniqueUnicodes: number[] = []): PdfObjectRef {
-    // For each unique Unicode codepoint used in document, map CID to Unicode
-    const mappings: string[] = [];
-    const allUnicodes = new Set([...uniqueUnicodes, ...Array.from(metrics.cmap["unicodeMap"].keys())]);
+    // Build inverse mapping gid -> unicode (pick first unicode when multiple map to same gid)
+    const unicodeMap = metrics.cmap["unicodeMap"] as Map<number, number>;
+    const gidToUni = new Map<number, number>();
+    for (const [unicode, gid] of unicodeMap.entries()) {
+      if (!gidToUni.has(gid)) gidToUni.set(gid, unicode);
+    }
 
-    for (const unicode of allUnicodes) {
-      const glyphId = metrics.cmap["unicodeMap"].get(unicode);
-      if (glyphId !== undefined) {
-        const cid = glyphId.toString(16).padStart(4, '0').toUpperCase();
-        const uni = unicode.toString(16).padStart(4, '0').toUpperCase();
-        mappings.push(`<${cid}> <${uni}>`);
+    const entries: { gid: number; unicode: number }[] = [];
+    for (const [gid, unicode] of gidToUni.entries()) {
+      entries.push({ gid, unicode });
+    }
+    entries.sort((a, b) => a.gid - b.gid);
+
+    // Build mapping directives: try to form bfrange for consecutive gid->unicode sequences
+    const mappings: ({ type: "range"; startG: number; endG: number; startU: number } | { type: "char"; gid: number; unicode: number })[] = [];
+    let idx = 0;
+    while (idx < entries.length) {
+      const start = entries[idx];
+      let j = idx + 1;
+      // try to extend a consecutive run where gid increments by 1 and unicode increments by 1
+      while (
+        j < entries.length &&
+        entries[j].gid === entries[j - 1].gid + 1 &&
+        entries[j].unicode === entries[j - 1].unicode + 1
+      ) {
+        j++;
+      }
+      const runLen = j - idx;
+      if (runLen >= 2) {
+        // create range mapping
+        mappings.push({ type: "range", startG: start.gid, endG: entries[j - 1].gid, startU: start.unicode });
+        idx = j;
+      } else {
+        mappings.push({ type: "char", gid: start.gid, unicode: start.unicode });
+        idx++;
       }
     }
 
-    const cmap = `/CIDInit /ProcSet findresource begin
-12 dict begin
-begincmap
-/CIDSystemInfo <<
-  /Registry (Adobe)
-  /Ordering (UCS)
-  /Supplement 0
->> def
-/CMapName /Adobe-Identity-UCS def
-/CMapType 2 def
-1 begincodespacerange
-<0000> <FFFF>
-endcodespacerange
-${mappings.length} beginbfchar
-${mappings.join('\n')}
-endbfchar
-endcmap
-CMapName currentdict /CMap defineresource pop
-end
-end`;
+    // Emit CMap with blocks: group same-type mappings into chunks to emit beginbfchar / beginbfrange blocks.
+    const lines: string[] = [];
+    lines.push("/CIDInit /ProcSet findresource begin");
+    lines.push("12 dict begin");
+    lines.push("begincmap");
+    lines.push("/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def");
+    lines.push("/CMapName /Adobe-Identity-UCS def");
+    lines.push("/CMapType 2 def");
+    lines.push("1 begincodespacerange");
+    lines.push("<0000> <FFFF>");
+    lines.push("endcodespacerange");
 
-    return this.doc.registerStream(
-      new TextEncoder().encode(cmap),
-      { Length: cmap.length.toString() }
-    );
+    const CHUNK = 100;
+    let p = 0;
+    while (p < mappings.length) {
+      // collect same-type mappings up to CHUNK
+      const currentType = mappings[p].type;
+      const group: typeof mappings = [];
+      while (p < mappings.length && mappings[p].type === currentType && group.length < CHUNK) {
+        group.push(mappings[p]);
+        p++;
+      }
+
+      if (currentType === "char") {
+        lines.push(`${group.length} beginbfchar`);
+        for (const m of group as { type: "char"; gid: number; unicode: number }[]) {
+          const cid = m.gid.toString(16).padStart(4, "0").toUpperCase();
+          const uni = m.unicode.toString(16).padStart(4, "0").toUpperCase();
+          lines.push(`<${cid}> <${uni}>`);
+        }
+        lines.push("endbfchar");
+      } else {
+        // range group
+        lines.push(`${group.length} beginbfrange`);
+        for (const m of group as { type: "range"; startG: number; endG: number; startU: number }[]) {
+          const startCid = m.startG.toString(16).padStart(4, "0").toUpperCase();
+          const endCid = m.endG.toString(16).padStart(4, "0").toUpperCase();
+          const startUni = m.startU.toString(16).padStart(4, "0").toUpperCase();
+          lines.push(`<${startCid}> <${endCid}> <${startUni}>`);
+        }
+        lines.push("endbfrange");
+      }
+    }
+
+    lines.push("endcmap");
+    lines.push("CMapName currentdict /CMap defineresource pop");
+    lines.push("end");
+    lines.push("end");
+
+    const cmapText = lines.join("\n");
+    return this.doc.registerStream(new TextEncoder().encode(cmapText), {});
   }
 
   private loadFontData(path: string): Uint8Array {
@@ -258,6 +380,27 @@ function pickFaceByWeight(faces: FontFaceDef[], requestedWeight: number): FontFa
     }
   }
   return bestFace;
+}
+
+// Compute PDF Flags based on font family/style heuristics.
+// See AGENTS.md notes for bits: Symbolic vs Nonsymbolic, Serif, Italic, etc.
+function computePdfFlagsFromFace(face: FontFaceDef): number {
+  let flags = 0;
+  const family = (face.family || "").toLowerCase().trim();
+  const name = (face.name || "").toLowerCase().trim();
+  const style = (face.style || "").toLowerCase();
+
+  const isItalic = /italic|oblique/i.test(style);
+  const isSerif = /serif/i.test(family) || /serif/i.test(name);
+  const isSymbol = /symbol|dingbat|dingbats|zapfdingbats/i.test(family) || /symbol|dingbat|dingbats/i.test(name);
+
+  if (isSymbol) flags |= 1 << 2; // Symbolic
+  else flags |= 1 << 5; // Nonsymbolic
+
+  if (isSerif) flags |= 1 << 1; // Serif
+  if (isItalic) flags |= 1 << 6; // Italic
+
+  return flags;
 }
 
 export async function getEmbeddedFont(name: "NotoSans-Regular" | "DejaVuSans", doc: PdfDocument, config: FontConfig): Promise<EmbeddedFont | null> {

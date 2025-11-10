@@ -6,7 +6,7 @@ const HEAD = 0x68656164; // 'head'
 const HHEA = 0x68686561; // 'hhea'
 const OS_2 = 0x4f532f32; // 'OS/2'
 
-export function parseGlobalMetrics(parser: TtfTableParser): { metrics: TtfMetrics; numberOfHMetricsRaw: number } {
+export function parseGlobalMetrics(parser: TtfTableParser): { metrics: TtfMetrics; numberOfHMetricsRaw: number; headBBox?: readonly [number, number, number, number] } {
   const headTable = parser.getTable(HEAD);
   if (!headTable) throw new Error("Missing head table");
 
@@ -24,9 +24,25 @@ export function parseGlobalMetrics(parser: TtfTableParser): { metrics: TtfMetric
   const os2Table = parser.getTable(OS_2);
   let capHeight = ascender;
   let xHeight = Math.round(ascender * 0.5);
-  if (os2Table && os2Table.byteLength >= 96) {
-    capHeight = parser.getInt16(os2Table, 88);
-    xHeight = parser.getInt16(os2Table, 86);
+
+  // Only use OS/2 capHeight/xHeight if the table exists and version >= 2 (fields present)
+  if (os2Table && os2Table.byteLength >= 4) {
+    const os2Version = parser.getUint16(os2Table, 0);
+    if (os2Version >= 2 && os2Table.byteLength >= 96) {
+      capHeight = parser.getInt16(os2Table, 88);
+      xHeight = parser.getInt16(os2Table, 86);
+    }
+  }
+
+  // Read head bbox (xMin, yMin, xMax, yMax) if present
+  let headBBox: readonly [number, number, number, number] | undefined = undefined;
+  // head table contains bbox at offsets 36..42 (int16)
+  if (headTable.byteLength >= 44) {
+    const xMin = parser.getInt16(headTable, 36);
+    const yMin = parser.getInt16(headTable, 38);
+    const xMax = parser.getInt16(headTable, 40);
+    const yMax = parser.getInt16(headTable, 42);
+    headBBox = [xMin, yMin, xMax, yMax];
   }
 
   const metrics: TtfMetrics = {
@@ -38,5 +54,5 @@ export function parseGlobalMetrics(parser: TtfTableParser): { metrics: TtfMetric
     xHeight
   };
 
-  return { metrics, numberOfHMetricsRaw };
+  return { metrics, numberOfHMetricsRaw, headBBox };
 }
