@@ -47,7 +47,7 @@ export class PagePainter {
     this.coordinateTransformer = new CoordinateTransformer(pageHeightPt, pxToPt, pageOffsetPx);
     this.graphicsStateManager = new GraphicsStateManager();
     this.imageRenderer = new ImageRenderer(this.coordinateTransformer);
-    this.textRenderer = new TextRenderer(this.coordinateTransformer, fontRegistry, this.imageRenderer);
+    this.textRenderer = new TextRenderer(this.coordinateTransformer, fontRegistry, this.imageRenderer, this.graphicsStateManager);
     this.shapeRenderer = new ShapeRenderer(this.coordinateTransformer, this.graphicsStateManager);
   }
 

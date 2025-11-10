@@ -241,8 +241,9 @@ export class TextRenderer {
                 const r8 = Math.round(normalizeChannel(sh.color.r) * 255);
                 const g8 = Math.round(normalizeChannel(sh.color.g) * 255);
                 const b8 = Math.round(normalizeChannel(sh.color.b) * 255);
+                const shadowAlpha = sh.color.a ?? 1;
 
-                const cacheKey = `${run.text}|${(font as any).baseFont}|size:${fontSizePx}|blur:${Math.round(blurPx)}|color:${r8},${g8},${b8}|ss:${supersample}`;
+                const cacheKey = `${run.text}|${(font as any).baseFont}|size:${fontSizePx}|blur:${Math.round(blurPx)}|color:${r8},${g8},${b8},${shadowAlpha}|ss:${supersample}`;
 
                 let resAlias: string | undefined;
                 const cached = this.runShadowCache.get(cacheKey);
@@ -254,7 +255,7 @@ export class TextRenderer {
                     rgba[j] = r8;
                     rgba[j + 1] = g8;
                     rgba[j + 2] = b8;
-                    rgba[j + 3] = alphaBuf[i];
+                    rgba[j + 3] = Math.round(alphaBuf[i] * shadowAlpha);
                   }
 
                   const img: any = {
