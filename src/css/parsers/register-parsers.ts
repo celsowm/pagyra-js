@@ -124,6 +124,7 @@ import {
   parseTextTransform,
 } from "./text-parser-extended.js";
 import { parseOverflowWrap, parseWordWrap } from "./overflow-wrap-parser.js";
+import { parseTextShadow } from "./text-shadow-parser.js";
 
 // Background
 import {
@@ -258,6 +259,7 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("float", parseFloat);
   registerPropertyParser("overflow-wrap", parseOverflowWrap);
   registerPropertyParser("word-wrap", parseWordWrap);
+  registerPropertyParser("text-shadow", parseTextShadow);
 
   // Background
   registerPropertyParser("background-size", applyBackgroundSizeDecl);

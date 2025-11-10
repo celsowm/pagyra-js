@@ -118,6 +118,20 @@ export interface BoxShadowInput {
   color?: string;
 }
 
+export interface TextShadow {
+  offsetX: number;
+  offsetY: number;
+  blurRadius: number;
+  color?: string;
+}
+
+export interface TextShadowInput {
+  offsetX: NumericLength;
+  offsetY: NumericLength;
+  blurRadius?: NumericLength;
+  color?: string;
+}
+
 // src/css/apply-declarations.ts
 export interface StyleAccumulator {
   display?: Display;
@@ -127,6 +141,7 @@ export interface StyleAccumulator {
   backgroundLayers?: BackgroundLayer[];
   borderColor?: string;
   boxShadows?: BoxShadowInput[];
+  textShadows?: TextShadowInput[];
   borderTop?: LengthInput;
   borderRight?: LengthInput;
   borderBottom?: LengthInput;
@@ -232,6 +247,7 @@ export interface StyleProperties {
   backgroundLayers?: BackgroundLayer[];  // fonte da verdade
   borderColor?: string;
   boxShadows: BoxShadow[];
+  textShadows: TextShadow[];
   color?: string;
   fontFamily?: string;
   fontWeight?: number;
@@ -323,6 +339,7 @@ export class ComputedStyle implements StyleProperties {
   backgroundLayers?: BackgroundLayer[];
   borderColor?: string;
   boxShadows: BoxShadow[];
+  textShadows: TextShadow[];
   color?: string;
   fontFamily?: string;
   fontWeight?: number;
@@ -373,6 +390,7 @@ export class ComputedStyle implements StyleProperties {
       trackListColumns: [...(init?.trackListColumns ?? defaultStyle.trackListColumns)],
       trackListRows: [...(init?.trackListRows ?? defaultStyle.trackListRows)],
       backgroundLayers: init?.backgroundLayers ? [...init.backgroundLayers] : [],
+      textShadows: init?.textShadows ? [...init.textShadows] : [],
     };
 
     this.display = data.display;
@@ -415,6 +433,7 @@ export class ComputedStyle implements StyleProperties {
     this.backgroundLayers = data.backgroundLayers;
     this.borderColor = data.borderColor;
     this.boxShadows = [...data.boxShadows];
+    this.textShadows = [...data.textShadows];
     this.color = data.color;
     this.fontFamily = data.fontFamily;
     this.fontWeight = data.fontWeight;

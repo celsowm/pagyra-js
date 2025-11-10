@@ -4,6 +4,7 @@ import type { PdfObjectRef } from "../primitives/pdf-document.js";
 import { encodeAndEscapePdfText, encodeToWinAnsi } from "../utils/encoding.js";
 import { needsUnicode } from "../../text/text.js";
 import { log } from "../../debug/log.js";
+import { parseColor } from "../utils/color-utils.js";
 import { CoordinateTransformer } from "../utils/coordinate-transformer.js";
 
 export interface TextRendererResult {
@@ -74,6 +75,7 @@ export class TextRenderer {
     const color = run.fill ?? { r: 0, g: 0, b: 0, a: 1 };
     let before = run.text;
 
+
     if (run.fontVariant === 'small-caps') {
       before = before.toUpperCase();
     }
@@ -109,6 +111,47 @@ export class TextRenderer {
       x, y
     });
 
+    // Draw text shadows first (if any)
+    if (run.textShadows && run.textShadows.length > 0) {
+      for (const sh of run.textShadows) {
+        // sh is a ShadowLayer (color is RGBA)
+        if (!sh || !sh.color) continue;
+        const shadowColor = sh.color;
+        const shadowSequence: string[] = [
+          fillColorCommand(shadowColor),
+          "BT",
+        ];
+
+        const wordSpacing = run.wordSpacing ?? 0;
+        let appliedWordSpacing = false;
+        if (wordSpacing !== 0) {
+          const wordSpacingPt = this.coordinateTransformer.convertPxToPt(wordSpacing);
+          if (wordSpacingPt !== 0) {
+            shadowSequence.push(`${formatNumber(wordSpacingPt)} Tw`);
+            appliedWordSpacing = true;
+          }
+        }
+
+        const shadowX = this.coordinateTransformer.convertPxToPt(Tm.e + sh.offsetX);
+        // compute shadow y similar to main text y but add offset
+        const shadowLocalBaseline = Tm.f - this.coordinateTransformer.pageOffsetPx + sh.offsetY;
+        const shadowYPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(shadowLocalBaseline);
+
+        shadowSequence.push(
+          `/${font.resourceName} ${formatNumber(fontSizePt)} Tf`,
+          `${formatNumber(Tm.a)} ${formatNumber(Tm.b)} ${formatNumber(Tm.c)} ${formatNumber(Tm.d)} ${formatNumber(shadowX)} ${formatNumber(shadowYPt)} Tm`,
+          `(${escaped}) Tj`,
+        );
+
+        if (appliedWordSpacing) {
+          shadowSequence.push("0 Tw");
+        }
+        shadowSequence.push("ET");
+        this.commands.push(...shadowSequence);
+      }
+    }
+
+    // Now draw the main text
     const sequence: string[] = [
       fillColorCommand(color),
       "BT",
@@ -117,7 +160,7 @@ export class TextRenderer {
     const wordSpacing = run.wordSpacing ?? 0;
     let appliedWordSpacing = false;
     if (wordSpacing !== 0) {
-    const wordSpacingPt = this.coordinateTransformer.convertPxToPt(wordSpacing);
+      const wordSpacingPt = this.coordinateTransformer.convertPxToPt(wordSpacing);
       if (wordSpacingPt !== 0) {
         sequence.push(`${formatNumber(wordSpacingPt)} Tw`);
         appliedWordSpacing = true;

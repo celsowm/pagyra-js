@@ -139,6 +139,7 @@ export interface Run {
   wordSpacing?: number;
   decorations?: Decorations;
   advanceWidth?: number;
+  textShadows?: TextShadowLayer[];
 }
 
 export interface TextMatrix {

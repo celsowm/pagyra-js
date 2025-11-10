@@ -412,6 +412,16 @@ export class PagePainter {
     }
 
     // Combine with correct ordering: shadow images below shapes/backgrounds, then shapes, text, then other images
+    // Debug: log how many text renderer commands were produced and a short sample
+    try {
+      console.log("DEBUG: PagePainter.result - text commands count:", textResult.commands.length);
+      if (textResult.commands.length > 0) {
+        console.log("DEBUG: PagePainter.result - sample text commands:", textResult.commands.slice(0, 12));
+      }
+    } catch (e) {
+      console.log("DEBUG: PagePainter.result - error logging text commands", e);
+    }
+
     const allCommands = [
       ...preShadowImageCmds,
       ...shapeResult.commands,

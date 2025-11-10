@@ -22,6 +22,30 @@ export function resolveBoxShadows(node: LayoutNode, fallbackColor: RGBA): Shadow
   return result;
 }
 
+export function resolveTextShadows(node: LayoutNode, fallbackColor: RGBA): ShadowLayer[] {
+  const result: ShadowLayer[] = [];
+  const shadows = (node.style as any).textShadows ?? [];
+  for (const shadow of shadows) {
+    // shadow here is expected to have numeric offsetX/offsetY/blurRadius and optional color
+    const offsetX = shadow.offsetX ?? 0;
+    const offsetY = shadow.offsetY ?? 0;
+    const blur = clampNonNegative(shadow.blurRadius ?? 0);
+    const color = resolveShadowColor(shadow.color, node.style.color, fallbackColor);
+    if (!color) {
+      continue;
+    }
+    result.push({
+      inset: false,
+      offsetX,
+      offsetY,
+      blur,
+      spread: 0,
+      color,
+    });
+  }
+  return result;
+}
+
 export function resolveShadowColor(specified: string | undefined, styleColor: string | undefined, fallbackColor: RGBA): RGBA | undefined {
   if (!specified || specified.trim().length === 0) {
     return cloneColor(fallbackColor);

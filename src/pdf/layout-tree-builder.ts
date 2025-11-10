@@ -22,7 +22,7 @@ import { parseColor } from "./utils/color-utils.js";
 import { resolveBorderRadius } from "./utils/border-radius-utils.js";
 import { createTextRuns, resolveDecorations } from "./utils/text-utils.js";
 import { createListMarkerRun } from "./utils/list-utils.js";
-import { resolveBoxShadows, calculateVisualOverflow } from "./utils/shadow-utils.js";
+import { resolveBoxShadows, resolveTextShadows, calculateVisualOverflow } from "./utils/shadow-utils.js";
 import { extractImageRef } from "./utils/image-utils.js";
 import { calculateBoxDimensions } from "./utils/box-dimensions-utils.js";
 import type {
@@ -433,7 +433,7 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
     overflow: mapOverflow(node.style.overflowX ?? OverflowMode.Visible),
     textRuns,
     decorations: decorations ?? {},
-    textShadows: [],
+    textShadows: resolveTextShadows(node, fallbackShadowColor),
     boxShadows: resolveBoxShadows(node, textColor ?? DEFAULT_TEXT_COLOR),
     establishesStackingContext,
     zIndexComputed: zIndex,

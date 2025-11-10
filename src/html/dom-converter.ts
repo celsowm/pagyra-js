@@ -183,6 +183,7 @@ export async function convertDomNode(
         fontStyle: parentStyle.fontStyle,
         textDecorationLine: parentStyle.textDecorationLine,
         textTransform: parentStyle.textTransform,
+        textShadows: parentStyle.textShadows,
       });
       return new LayoutNode(textStyle, [], {
         textContent: " ",
@@ -215,6 +216,7 @@ export async function convertDomNode(
       fontStyle: parentStyle.fontStyle,
       textDecorationLine: parentStyle.textDecorationLine,
       textTransform: parentStyle.textTransform,
+      textShadows: parentStyle.textShadows,
     });
     return new LayoutNode(textStyle, [], {
       textContent: text,
@@ -313,6 +315,7 @@ export async function convertDomNode(
           whiteSpace: ownStyle.whiteSpace,
           textDecorationLine: ownStyle.textDecorationLine,
           textTransform: ownStyle.textTransform,
+          textShadows: ownStyle.textShadows,
         }), [], {
           textContent: normalized,
           customData: {
@@ -331,29 +334,30 @@ export async function convertDomNode(
     if (normalized.trim().length === 0) {
       normalized = shouldPreserveCollapsedWhitespace(layoutChildren, ownStyle) ? " " : "";
     }
-    if (normalized) {
-      const preserveLeading = normalized.startsWith(" ");
-      const preserveTrailing = normalized.endsWith(" ");
-      layoutChildren.push(new LayoutNode(new ComputedStyle({
-        display: Display.Inline,
-        color: ownStyle.color,
-        fontSize: ownStyle.fontSize,
-        lineHeight: cloneLineHeight(ownStyle.lineHeight),
-        fontFamily: ownStyle.fontFamily,
-        fontWeight: ownStyle.fontWeight,
-        fontStyle: ownStyle.fontStyle,
-        overflowWrap: ownStyle.overflowWrap,
-        whiteSpace: ownStyle.whiteSpace,
-        textDecorationLine: ownStyle.textDecorationLine,
-        textTransform: ownStyle.textTransform,
-      }), [], {
-        textContent: normalized,
-        customData: {
-          preserveLeadingSpace: preserveLeading,
-          preserveTrailingSpace: preserveTrailing,
-        },
-      }));
-    }
+      if (normalized) {
+        const preserveLeading = normalized.startsWith(" ");
+        const preserveTrailing = normalized.endsWith(" ");
+        layoutChildren.push(new LayoutNode(new ComputedStyle({
+          display: Display.Inline,
+          color: ownStyle.color,
+          fontSize: ownStyle.fontSize,
+          lineHeight: cloneLineHeight(ownStyle.lineHeight),
+          fontFamily: ownStyle.fontFamily,
+          fontWeight: ownStyle.fontWeight,
+          fontStyle: ownStyle.fontStyle,
+          overflowWrap: ownStyle.overflowWrap,
+          whiteSpace: ownStyle.whiteSpace,
+          textDecorationLine: ownStyle.textDecorationLine,
+          textTransform: ownStyle.textTransform,
+          textShadows: ownStyle.textShadows,
+        }), [], {
+          textContent: normalized,
+          customData: {
+            preserveLeadingSpace: preserveLeading,
+            preserveTrailingSpace: preserveTrailing,
+          },
+        }));
+      }
   }
 
   // Preserve the original HTML ID

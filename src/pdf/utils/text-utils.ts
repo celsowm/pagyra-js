@@ -4,6 +4,8 @@ import { estimateLineWidth } from "../../layout/utils/text-metrics.js";
 import type { LayoutNode } from "../../dom/node.js";
 import type { Run, Decorations, RGBA } from "../types.js";
 import { applyTextTransform } from "../../text/text-transform.js";
+import { resolveTextShadows } from "../../pdf/utils/shadow-utils.js";
+import { parseColor } from "../../pdf/utils/color-utils.js";
 
 export function resolveTextAlign(node: LayoutNode): string | undefined {
   let current: LayoutNode | null = node;
@@ -77,6 +79,7 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
         wordSpacing !== undefined && wordSpacing !== 0 && targetWidth > 0
           ? Math.max(targetWidth, baseWidth)
           : Math.max(baseWidth, 0);
+      const resolvedShadows = resolveTextShadows(node, defaultColor);
       runs.push({
         text: normalizedText,
         fontFamily,
@@ -89,6 +92,7 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
         wordSpacing,
         decorations: decoration ? { ...decoration } : undefined,
         advanceWidth,
+        textShadows: resolvedShadows,
       });
     }
     return runs;
@@ -104,6 +108,7 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
     const advanceWidth = Math.max(estimateLineWidth(normalized, node.style), 0);
     const startX = node.box.x;
 
+    const resolvedShadows = resolveTextShadows(node, defaultColor);
     return [{
       text: normalized,
       fontFamily,
@@ -115,6 +120,7 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
       lineMatrix: { a: 1, b: 0, c: 0, d: 1, e: startX, f: baseline },
       decorations: decoration ? { ...decoration } : undefined,
       advanceWidth,
+      textShadows: resolvedShadows,
     }];
   }
 

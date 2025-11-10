@@ -84,6 +84,10 @@ async function paintText(painter: PagePainter, box: RenderBox): Promise<void> {
     return;
   }
   for (const run of box.textRuns) {
+    // Merge box-level text shadows into the run so the renderer sees both.
+    if (box.textShadows && box.textShadows.length > 0) {
+      run.textShadows = [...(box.textShadows ?? []), ...(run.textShadows ?? [])];
+    }
     await painter.drawTextRun(run);
   }
 }

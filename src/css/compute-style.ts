@@ -383,6 +383,25 @@ export function computeStyleForElement(
       color: shadow.color,
     }));
   }
+
+  if (styleInit.textShadows !== undefined) {
+    const resolveShadowLength = (value: number | RelativeLength | undefined, clamp = false): number => {
+      const resolved = resolveNumberLike(value, computedFontSize, rootFontReference);
+      if (resolved === undefined) {
+        return 0;
+      }
+      if (clamp && resolved < 0) {
+        return 0;
+      }
+      return resolved;
+    };
+    styleOptions.textShadows = styleInit.textShadows.map((shadow) => ({
+      offsetX: resolveShadowLength(shadow.offsetX),
+      offsetY: resolveShadowLength(shadow.offsetY),
+      blurRadius: resolveShadowLength(shadow.blurRadius, true),
+      color: shadow.color,
+    }));
+  }
   if (styleInit.fontFamily !== undefined) styleOptions.fontFamily = styleInit.fontFamily;
   if (styleInit.fontStyle !== undefined) styleOptions.fontStyle = styleInit.fontStyle;
   if (styleInit.fontVariant !== undefined) styleOptions.fontVariant = styleInit.fontVariant;
