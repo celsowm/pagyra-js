@@ -9,7 +9,8 @@
     "start": "node ./dist/index.js",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "test": "vitest run",
-    "playground": "tsx playground/server.ts"
+    "playground": "tsx playground/server.ts",
+    "playground:render": "tsx scripts/render-playground-example.ts"
   },
   "devDependencies": {
     "@types/css": "^0.0.36",
