@@ -26,8 +26,15 @@ async function main() {
         await fs.stat(candidateExamples);
         examplePath = candidateExamples;
       } catch {
-        // Fallback: resolve under examplesDir (may still error later when reading)
-        examplePath = candidateExamples;
+        const withHtml = candidateExamples.endsWith('.html') ? '' : '.html';
+        const candidateWithExt = candidateExamples + withHtml;
+        try {
+          await fs.stat(candidateWithExt);
+          examplePath = candidateWithExt;
+        } catch {
+          // Fallback: resolve under examplesDir (may still error later when reading)
+          examplePath = candidateExamples;
+        }
       }
     }
   } else {

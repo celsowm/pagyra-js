@@ -342,7 +342,7 @@ export class TextRenderer {
                   const shadowLocalBaseline = Tm.f - this.coordinateTransformer.pageOffsetPx + offsetY + sy;
                   const shadowYPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(shadowLocalBaseline);
 
-                  const shadowSequence: string[] = [fillColorCommand(sampleColor), "BT"];
+                  const shadowSequence: string[] = ["q", fillColorCommand(sampleColor), "BT"];
                   if (appliedWordSpacing) shadowSequence.push(`${formatNumber(this.coordinateTransformer.convertPxToPt(wordSpacing))} Tw`);
                   shadowSequence.push(
                     `/${font.resourceName} ${formatNumber(fontSizePt)} Tf`,
@@ -350,7 +350,7 @@ export class TextRenderer {
                     `(${escaped}) Tj`
                   );
                   if (appliedWordSpacing) shadowSequence.push("0 Tw");
-                  shadowSequence.push("ET");
+                  shadowSequence.push("ET", "Q");
                   this.commands.push(...shadowSequence);
                 }
               }
@@ -362,7 +362,7 @@ export class TextRenderer {
                 const shadowLocalBaseline = Tm.f - this.coordinateTransformer.pageOffsetPx + sh.offsetY;
                 const shadowYPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(shadowLocalBaseline);
 
-                const shadowSequence: string[] = [fillColorCommand(sh.color), "BT"];
+                const shadowSequence: string[] = ["q", fillColorCommand(sh.color), "BT"];
                 if (appliedWordSpacing) shadowSequence.push(`${formatNumber(this.coordinateTransformer.convertPxToPt(wordSpacing))} Tw`);
                 shadowSequence.push(
                   `/${font.resourceName} ${formatNumber(fontSizePt)} Tf`,
@@ -370,30 +370,30 @@ export class TextRenderer {
                   `(${escaped}) Tj`
                 );
                 if (appliedWordSpacing) shadowSequence.push("0 Tw");
-                shadowSequence.push("ET");
+                shadowSequence.push("ET", "Q");
                 this.commands.push(...shadowSequence);
               }
             }
-          } else {
-            // Legacy vector fallback: draw text as text with offsets (no blur support)
-            for (const sh of run.textShadows) {
-              if (!sh || !sh.color) continue;
-              const shadowX = this.coordinateTransformer.convertPxToPt(Tm.e + sh.offsetX);
-              const shadowLocalBaseline = Tm.f - this.coordinateTransformer.pageOffsetPx + sh.offsetY;
-              const shadowYPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(shadowLocalBaseline);
+      } else {
+        // Legacy vector fallback: draw text as text with offsets (no blur support)
+        for (const sh of run.textShadows) {
+          if (!sh || !sh.color) continue;
+          const shadowX = this.coordinateTransformer.convertPxToPt(Tm.e + sh.offsetX);
+          const shadowLocalBaseline = Tm.f - this.coordinateTransformer.pageOffsetPx + sh.offsetY;
+          const shadowYPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(shadowLocalBaseline);
 
-              const shadowSequence: string[] = [fillColorCommand(sh.color), "BT"];
-              if (appliedWordSpacing) shadowSequence.push(`${formatNumber(this.coordinateTransformer.convertPxToPt(wordSpacing))} Tw`);
-              shadowSequence.push(
-                `/${font.resourceName} ${formatNumber(fontSizePt)} Tf`,
-                `${formatNumber(Tm.a)} ${formatNumber(Tm.b)} ${formatNumber(Tm.c)} ${formatNumber(Tm.d)} ${formatNumber(shadowX)} ${formatNumber(shadowYPt)} Tm`,
-                `(${escaped}) Tj`
-              );
-              if (appliedWordSpacing) shadowSequence.push("0 Tw");
-              shadowSequence.push("ET");
-              this.commands.push(...shadowSequence);
-            }
-          }
+          const shadowSequence: string[] = ["q", fillColorCommand(sh.color), "BT"];
+          if (appliedWordSpacing) shadowSequence.push(`${formatNumber(this.coordinateTransformer.convertPxToPt(wordSpacing))} Tw`);
+          shadowSequence.push(
+            `/${font.resourceName} ${formatNumber(fontSizePt)} Tf`,
+            `${formatNumber(Tm.a)} ${formatNumber(Tm.b)} ${formatNumber(Tm.c)} ${formatNumber(Tm.d)} ${formatNumber(shadowX)} ${formatNumber(shadowYPt)} Tm`,
+            `(${escaped}) Tj`
+          );
+          if (appliedWordSpacing) shadowSequence.push("0 Tw");
+          shadowSequence.push("ET", "Q");
+          this.commands.push(...shadowSequence);
+        }
+      }
         }
       } else {
         // Legacy vector fallback: draw text as text with offsets (no blur support)
