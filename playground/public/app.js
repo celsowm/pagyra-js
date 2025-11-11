@@ -14,6 +14,9 @@ const DOM = {
   previewTabButtons: /** @type {NodeListOf<HTMLButtonElement>} */ (document.querySelectorAll(".preview-panel .tab-button")),
   viewportWidth: /** @type {HTMLInputElement} */ (document.getElementById("viewport-width")),
   viewportHeight: /** @type {HTMLInputElement} */ (document.getElementById("viewport-height")),
+  ckeditorToggle: /** @type {HTMLInputElement} */ (document.getElementById("ckeditor-toggle")),
+  ckeditorCss: /** @type {HTMLLinkElement} */ (document.getElementById("ckeditor-css")),
+  ckeditorScript: /** @type {HTMLScriptElement} */ (document.getElementById("ckeditor-script")),
 };
 
 const PAGE_DEFAULTS = {
@@ -56,6 +59,10 @@ let cssEditor = null;
 let headerEditor = null;
 /** @type {CodeMirror.EditorFromTextArea | null} */
 let footerEditor = null;
+/** @type {any} */
+let ckeditorInstance = null;
+/** @type {boolean} */
+let useCKEditor = false;
 
 const CODEMIRROR_BASE_OPTIONS = {
   theme: "darcula",
@@ -67,6 +74,9 @@ const CODEMIRROR_BASE_OPTIONS = {
 };
 
 function getHtmlValue() {
+  if (useCKEditor && ckeditorInstance) {
+    return ckeditorInstance.getData();
+  }
   if (htmlEditor) {
     return htmlEditor.getValue();
   }
@@ -95,7 +105,9 @@ function getFooterValue() {
 }
 
 function setHtmlValue(value) {
-  if (htmlEditor) {
+  if (useCKEditor && ckeditorInstance) {
+    ckeditorInstance.setData(value);
+  } else if (htmlEditor) {
     htmlEditor.setValue(value);
     htmlEditor.refresh();
   } else {
@@ -463,6 +475,110 @@ function handleInputChange() {
   updateHtmlPreview();
 }
 
+async function enableCKEditor() {
+  if (useCKEditor) {
+    return;
+  }
+
+  try {
+    // Load CKEditor CSS
+    DOM.ckeditorCss.media = "all";
+
+    // Wait for CKEditor script to load if not already loaded
+    if (typeof ClassicEditor === "undefined") {
+      await new Promise((resolve, reject) => {
+        DOM.ckeditorScript.onload = resolve;
+        DOM.ckeditorScript.onerror = reject;
+        if (DOM.ckeditorScript.src && !DOM.ckeditorScript.loading) {
+          // Script already loaded
+          resolve();
+        }
+      });
+    }
+
+    // Get current HTML content
+    const currentHtml = getHtmlValue();
+
+    // Destroy CodeMirror instance if it exists
+    if (htmlEditor) {
+      htmlEditor.toTextArea();
+      htmlEditor = null;
+    }
+
+    // Create CKEditor instance
+    ckeditorInstance = await ClassicEditor.create(DOM.htmlInput, {
+      toolbar: [
+        'heading', '|',
+        'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|',
+        'indent', 'outdent', '|',
+        'blockQuote', 'insertTable', 'mediaEmbed', 'undo', 'redo'
+      ],
+      language: 'en'
+    });
+
+    // Set the content
+    ckeditorInstance.setData(currentHtml);
+
+    // Listen for changes
+    ckeditorInstance.model.document.on('change:data', () => {
+      updateHtmlPreview();
+    });
+
+    useCKEditor = true;
+    setStatus("CKEditor enabled.", "success");
+  } catch (error) {
+    console.error("Failed to enable CKEditor:", error);
+    setStatus("Failed to enable CKEditor.", "error");
+  }
+}
+
+async function disableCKEditor() {
+  if (!useCKEditor) {
+    return;
+  }
+
+  try {
+    // Get current content from CKEditor
+    const currentHtml = ckeditorInstance ? ckeditorInstance.getData() : "";
+
+    // Destroy CKEditor instance
+    if (ckeditorInstance) {
+      await ckeditorInstance.destroy();
+      ckeditorInstance = null;
+    }
+
+    // Hide CKEditor CSS
+    DOM.ckeditorCss.media = "none";
+
+    // Recreate CodeMirror instance
+    if (DOM.htmlInput && !htmlEditor) {
+      htmlEditor = CodeMirror.fromTextArea(DOM.htmlInput, {
+        ...CODEMIRROR_BASE_OPTIONS,
+        mode: "htmlmixed",
+      });
+      htmlEditor.setSize("100%", "100%");
+      htmlEditor.on("change", handleInputChange);
+    }
+
+    // Set the content back
+    setHtmlValue(currentHtml);
+
+    useCKEditor = false;
+    setStatus("CKEditor disabled.", "success");
+  } catch (error) {
+    console.error("Failed to disable CKEditor:", error);
+    setStatus("Failed to disable CKEditor.", "error");
+  }
+}
+
+function handleCKEditorToggle() {
+  if (DOM.ckeditorToggle.checked) {
+    void enableCKEditor();
+  } else {
+    void disableCKEditor();
+  }
+}
+
 async function init() {
   if (!DOM.renderButton) {
     return;
@@ -492,6 +608,11 @@ async function init() {
   }
   if (DOM.cssInput) {
     DOM.cssInput.addEventListener("input", handleInputChange);
+  }
+
+  // CKEditor toggle
+  if (DOM.ckeditorToggle) {
+    DOM.ckeditorToggle.addEventListener("change", handleCKEditorToggle);
   }
 
   try {

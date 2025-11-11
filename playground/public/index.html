@@ -6,6 +6,8 @@
     <link rel="stylesheet" href="/vendor/codemirror/codemirror.min.css" />
     <link rel="stylesheet" href="/vendor/codemirror/darcula.min.css" />
     <link rel="stylesheet" href="/styles.css" />
+    <!-- CKEditor 5 CSS (loaded conditionally) -->
+    <link id="ckeditor-css" rel="stylesheet" href="https://cdn.ckeditor.com/ckeditor5/41.4.2/ckeditor5.css" media="none" />
   </head>
   <body>
     <header class="header">
@@ -57,6 +59,12 @@
           </div>
           <div class="control-group">
             <label>
+              <input type="checkbox" id="ckeditor-toggle" />
+              Use CKEditor 5 for HTML editing
+            </label>
+          </div>
+          <div class="control-group">
+            <label>
               Viewport Width (px)
               <input id="viewport-width" type="number" min="200" value="800" />
             </label>
@@ -91,6 +99,8 @@
     <script src="/vendor/codemirror/javascript.min.js"></script>
     <script src="/vendor/codemirror/css.min.js"></script>
     <script src="/vendor/codemirror/htmlmixed.min.js"></script>
+    <!-- CKEditor 5 script (loaded conditionally) -->
+    <script id="ckeditor-script" src="https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/ckeditor.js"></script>
     <script type="module" src="/app.js"></script>
   </body>
 </html>
