@@ -202,7 +202,7 @@ export function breakTextIntoLines(
   text: string,
   style: ComputedStyle,
   availableWidth: number,
-  fontEmbedder: FontEmbedder | null
+  fontEmbedder: FontEmbedder | null = null
 ): LineBox[] {
   const effectiveText = applyTextTransform(text, style.textTransform);
   if (effectiveText.length === 0) {
@@ -317,4 +317,3 @@ export function breakTextIntoLines(
 
   return lines;
 }
-

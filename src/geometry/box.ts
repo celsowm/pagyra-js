@@ -28,7 +28,7 @@ export class Box {
   }
 }
 
-import type { FontEmbedder } from "../pdf/font/embedder";
+import type { FontEmbedder } from "../pdf/font/embedder.js";
 
 export interface Viewport {
   readonly width: number;

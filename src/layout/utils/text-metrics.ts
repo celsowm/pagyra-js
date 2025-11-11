@@ -47,7 +47,7 @@ const BASE14_BOLD_VARIANT = new Map<string, string>([
   ["Courier", "Courier-Bold"],
 ]);
 
-import type { FontEmbedder } from "../../pdf/font/embedder";
+import type { FontEmbedder } from "../../pdf/font/embedder.js";
 
 export function assignIntrinsicTextMetrics(root: LayoutNode, fontEmbedder: FontEmbedder | null): void {
   root.walk((node) => {

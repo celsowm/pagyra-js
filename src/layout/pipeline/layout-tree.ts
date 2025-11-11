@@ -6,7 +6,7 @@ import type { FontEmbedder } from "../../pdf/font/embedder.js";
 export function layoutTree(
   root: LayoutNode,
   viewport: Viewport,
-  fontEmbedder: FontEmbedder | null
+  fontEmbedder: FontEmbedder | null = null
 ): LayoutNode {
   const engine = createDefaultLayoutEngine();
   return engine.layoutTree(root, viewport, fontEmbedder);
