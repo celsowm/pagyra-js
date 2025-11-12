@@ -2,7 +2,7 @@ import type { SvgPoint } from "../../svg/types.js";
 import type { NormalizedPathCommand } from "../../svg/path-data.js";
 import type { PathCommand } from "../renderers/shape-renderer.js";
 import type { SvgRenderContext } from "./render-svg.js";
-import { applyMatrixToPoint } from "./matrix-utils.js";
+import { applyMatrixToPoint } from "../../geometry/matrix.js";
 
 export function mapPoints(points: readonly SvgPoint[], context: SvgRenderContext): { x: number; y: number }[] {
   const result: { x: number; y: number }[] = [];

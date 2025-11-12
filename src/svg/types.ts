@@ -1,4 +1,4 @@
-import type { Matrix } from "../pdf/svg/matrix-utils.js";
+import type { Matrix } from "../geometry/matrix.js";
 
 export type SvgNodeType =
   | "svg"

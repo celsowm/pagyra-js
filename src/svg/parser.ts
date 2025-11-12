@@ -23,7 +23,7 @@ import {
   type SvgUseNode,
   type SvgViewBox,
 } from "./types.js";
-import { parseTransform } from "../pdf/svg/matrix-utils.js";
+import { parseTransform } from "../transform/css-parser.js";
 
 export interface ParseSvgOptions {
   warn?: (message: string) => void;

@@ -16,7 +16,8 @@ import { buildEllipseSegments, buildRectSegments, buildRoundedRectSegments } fro
 import { mapPathSegments, mapPoints, mapSvgPoint } from "./coordinate-mapper.js";
 import { resolvePaint } from "./style-computer.js";
 import { clampAlpha } from "../utils/color-utils.js";
-import { applyMatrixToPoint, multiplyMatrices, parseTransform } from "./matrix-utils.js";
+import { applyMatrixToPoint, multiplyMatrices } from "../../geometry/matrix.js";
+import { parseTransform } from "../../transform/css-parser.js";
 import type { SvgLinearGradientNode } from "../../svg/types.js";
 import type { SvgRadialGradientNode } from "../../svg/types.js";
 import { parseLinearGradient, type LinearGradient } from "../../css/parsers/gradient-parser.js";

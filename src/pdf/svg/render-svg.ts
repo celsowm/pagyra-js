@@ -13,7 +13,8 @@ import {
   renderText,
 } from "./shape-renderer.js";
 import { createDefaultStyle, deriveStyle, type SvgStyle } from "./style-computer.js";
-import { computeStrokeScale, identityMatrix, type Matrix, multiplyMatrices, parseTransform } from "./matrix-utils.js";
+import { computeStrokeScale, identityMatrix, multiplyMatrices, type Matrix } from "../../geometry/matrix.js";
+import { parseTransform } from "../../transform/css-parser.js";
 import { mapSvgPoint } from "./coordinate-mapper.js";
 import { ImageService } from "../../image/image-service.js";
 import { getAlignFactors, parsePreserveAspectRatio } from "./aspect-ratio.js";
