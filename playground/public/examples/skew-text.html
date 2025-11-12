@@ -1,80 +1,21 @@
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Playground — Skew Text Example</title>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exemplo Skewed</title>
     <style>
-      body { font-family: Arial, sans-serif; padding: 24px; }
-      .demo {
-        width: 600px;
-        margin: 24px 0;
-        padding: 20px;
-        border: 1px solid #ddd;
-      }
-      .skewed {
-        font-size: 48px;
-        transform: skewX(20deg);
-        color: #1a73e8;
-      }
-      .controls { margin-top: 18px; }
-      button { padding: 8px 12px; font-size: 14px; }
-      pre { background:#f6f6f6;padding:12px;border-radius:4px; }
-    </style>
-  </head>
-  <body>
-    <h1>Skew Text (playground example)</h1>
-    <div class="demo">
-      <div class="skewed">Skewed text example</div>
-      <div class="controls">
-        <button id="render">Render to PDF (server)</button>
-        <span style="margin-left:12px;color:#666">The generated PDF will include a %PAGYRA_TRANSFORM comment when skew is applied.</span>
-      </div>
-    </div>
-
-    <h2>How to run</h2>
-    <ol>
-      <li>Start the local playground server: <code>npm run playground</code> or your usual dev command.</li>
-      <li>Open the playground app in your browser (usually at <code>http://localhost:3000</code>).</li>
-      <li>Open this example from the examples list or open the file directly via the server.</li>
-      <li>Click "Render to PDF (server)". The playground server will call the library to render PDF and download it.</li>
-      <li>Open the PDF with a text/hex viewer and search for <code>%PAGYRA_TRANSFORM</code> to verify the marker.</li>
-    </ol>
-
-    <script>
-      // Button tries to POST HTML to the local render endpoint used by the playground server.
-      // This is a best-effort helper — replace the endpoint if your playground uses a different route.
-      document.getElementById("render")?.addEventListener("click", async () => {
-        const html = document.documentElement.outerHTML;
-        try {
-          const resp = await fetch("/api/render", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              html,
-              css: "",
-              viewportWidth: 800,
-              viewportHeight: 600,
-              pageWidth: 595,
-              pageHeight: 842,
-              margins: { top: 0, right: 0, bottom: 0, left: 0 }
-            })
-          });
-          if (!resp.ok) {
-            alert("Render failed: " + resp.statusText);
-            return;
-          }
-          const blob = await resp.blob();
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = "skew-text-playground.pdf";
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-        } catch (e) {
-          alert("Error while requesting render: " + (e && e.message ? e.message : e));
+        .skewed {
+            font-size: 48px;
+            transform: skewX(20deg);
+            color: #1a73e8;
+            display: inline-block;
         }
-      });
-    </script>
-  </body>
+    </style>
+</head>
+<body>
+    <span class="skewed">
+        Texto Inclinado
+    </span>
+</body>
 </html>
