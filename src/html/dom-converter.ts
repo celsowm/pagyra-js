@@ -183,6 +183,7 @@ export async function convertDomNode(
         fontStyle: parentStyle.fontStyle,
         textDecorationLine: parentStyle.textDecorationLine,
         textTransform: parentStyle.textTransform,
+        transform: (parentStyle as any).transform,
         textShadows: parentStyle.textShadows,
       });
       return new LayoutNode(textStyle, [], {
@@ -216,6 +217,7 @@ export async function convertDomNode(
       fontStyle: parentStyle.fontStyle,
       textDecorationLine: parentStyle.textDecorationLine,
       textTransform: parentStyle.textTransform,
+      transform: (parentStyle as any).transform,
       textShadows: parentStyle.textShadows,
     });
     return new LayoutNode(textStyle, [], {
@@ -300,7 +302,7 @@ export async function convertDomNode(
       if (normalized.trim().length === 0) {
         normalized = shouldPreserveCollapsedWhitespace(layoutChildren, ownStyle) ? " " : "";
       }
-      if (normalized) {
+        if (normalized) {
         const preserveLeading = normalized.startsWith(" ");
         const preserveTrailing = normalized.endsWith(" ");
         layoutChildren.push(new LayoutNode(new ComputedStyle({
@@ -315,6 +317,7 @@ export async function convertDomNode(
           whiteSpace: ownStyle.whiteSpace,
           textDecorationLine: ownStyle.textDecorationLine,
           textTransform: ownStyle.textTransform,
+          transform: (ownStyle as any).transform,
           textShadows: ownStyle.textShadows,
         }), [], {
           textContent: normalized,
@@ -349,6 +352,7 @@ export async function convertDomNode(
           whiteSpace: ownStyle.whiteSpace,
           textDecorationLine: ownStyle.textDecorationLine,
           textTransform: ownStyle.textTransform,
+          transform: (ownStyle as any).transform,
           textShadows: ownStyle.textShadows,
         }), [], {
           textContent: normalized,

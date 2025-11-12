@@ -260,6 +260,11 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("overflow-wrap", parseOverflowWrap);
   registerPropertyParser("word-wrap", parseWordWrap);
   registerPropertyParser("text-shadow", parseTextShadow);
+  // Transform (store as raw string for limited later use)
+  registerPropertyParser("transform", (value, target) => {
+    // store raw transform string
+    (target as any).transform = value;
+  });
 
   // Background
   registerPropertyParser("background-size", applyBackgroundSizeDecl);

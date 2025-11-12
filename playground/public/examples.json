@@ -201,5 +201,10 @@
     "id": "opacity-example",
     "label": "Opacity Example",
     "htmlUrl": "examples/opacity-example.html"
+  },
+  {
+    "id": "skew-text",
+    "label": "Skew Text Example",
+    "htmlUrl": "examples/skew-text.html"
   }
 ]

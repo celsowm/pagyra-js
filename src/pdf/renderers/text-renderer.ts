@@ -446,6 +446,27 @@ export class TextRenderer {
     sequence.push("ET");
 
     this.commands.push(...sequence);
+
+    // Low-level PDF check: if the text matrix includes skew/shear components (b or c),
+    // emit a lightweight PDF comment into the content stream with the matrix values.
+    // This allows simple post-generation inspection of the produced PDF bytes to
+    // confirm transforms were applied. Comments begin with '%' and are ignored by PDF renderers.
+    try {
+      if (Tm && (Tm.b !== 0 || Tm.c !== 0)) {
+        const vals = [
+          formatNumber(Tm.a),
+          formatNumber(Tm.b),
+          formatNumber(Tm.c),
+          formatNumber(Tm.d),
+          formatNumber(Tm.e),
+          formatNumber(Tm.f),
+        ].join(" ");
+        this.commands.push(`%PAGYRA_TRANSFORM ${vals}`);
+      }
+    } catch {
+      // keep warn-and-continue: do not fail rendering for diagnostics
+    }
+
     this.drawTextRunDecorations(run, color);
   }
 

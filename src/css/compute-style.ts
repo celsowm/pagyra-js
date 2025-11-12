@@ -475,6 +475,11 @@ export function computeStyleForElement(
   if (styleInit.textAlign !== undefined) styleOptions.textAlign = styleInit.textAlign;
   if (styleInit.textIndent !== undefined) assignLength(styleInit.textIndent, (v) => (styleOptions.textIndent = v));
   if (styleInit.textTransform !== undefined) styleOptions.textTransform = styleInit.textTransform;
+  // If a raw transform string was parsed, preserve it on the computed style so downstream
+  // consumers (e.g. text run builders / renderers) can apply mapping for text.
+  if ((styleInit as any).transform !== undefined) {
+    styleOptions.transform = (styleInit as any).transform;
+  }
   if (styleInit.objectFit !== undefined) {
     styleOptions.objectFit = styleInit.objectFit as StyleProperties["objectFit"];
   }
