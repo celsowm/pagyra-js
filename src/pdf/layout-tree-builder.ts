@@ -25,6 +25,7 @@ import { createListMarkerRun } from "./utils/list-utils.js";
 import { resolveBoxShadows, resolveTextShadows, calculateVisualOverflow } from "./utils/shadow-utils.js";
 import { extractImageRef } from "./utils/image-utils.js";
 import { calculateBoxDimensions } from "./utils/box-dimensions-utils.js";
+import { parseTransform } from "../transform/css-parser.js";
 import type {
   ImageBackgroundLayer,
   GradientBackgroundLayer,
@@ -407,6 +408,11 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
     typeof node.style.zIndex === "number" && node.style.position !== Position.Static;
 
   console.log(`DEBUG: convertNode - tagName: ${node.tagName}, id: ${id}, node.style.opacity: ${node.style.opacity}`);
+  
+  // Extract and parse transform matrix if present
+  const transformString = node.style.transform;
+  const transform = transformString ? parseTransform(transformString) ?? undefined : undefined;
+  
   return {
     id,
     tagName: node.tagName,
@@ -445,5 +451,6 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
     background,
     image: imageRef,
     customData: node.customData ? { ...node.customData } : undefined,
+    transform,
   };
 }

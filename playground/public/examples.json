@@ -206,5 +206,10 @@
     "id": "skew-text",
     "label": "Skew Text Example",
     "htmlUrl": "examples/skew-text.html"
+  },
+  {
+    "id": "skew-div",
+    "label": "Skew DIV with Background & Border",
+    "htmlUrl": "examples/skew-div.html"
   }
 ]

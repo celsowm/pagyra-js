@@ -1,4 +1,4 @@
-import type { Rect, Run, RGBA, ImageRef, Radius, TextPaintOptions } from "./types.js";
+import type { Rect, Run, RGBA, ImageRef, Radius, TextPaintOptions, TextMatrix } from "./types.js";
 import type { LinearGradient, RadialGradient } from "../css/parsers/gradient-parser.js";
 import type { FontRegistry } from "./font/font-registry.js";
 import type { PdfObjectRef } from "./primitives/pdf-document.js";
@@ -8,6 +8,7 @@ import { ImageRenderer } from "./renderers/image-renderer.js";
 import { ShapeRenderer, type ShapePoint, type PathCommand } from "./renderers/shape-renderer.js";
 import { GraphicsStateManager } from "./renderers/graphics-state-manager.js";
 import { globalGlyphAtlas } from "./font/glyph-atlas.js";
+import { svgMatrixToPdf } from "./transform-adapter.js";
 
 export interface PainterResult {
   readonly content: string;
@@ -176,6 +177,43 @@ export class PagePainter {
   endOpacityScope(opacity: number): void {
     if (opacity >= 1) return;
     this.shapeRenderer.pushRawCommands(["Q"]);
+  }
+
+  beginTransformScope(transform: TextMatrix, rect: Rect): void {
+    // Store transform info for shape renderer to use
+    const pdfMatrix = svgMatrixToPdf(transform);
+    if (!pdfMatrix) {
+      this.shapeRenderer.pushRawCommands(["q"]);
+      return;
+    }
+    
+    // Convert rect position to PDF coordinates
+    const xPt = this.coordinateTransformer.convertPxToPt(rect.x);
+    const localY = rect.y - this.coordinateTransformer.pageOffsetPx;
+    const yPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localY);
+    
+    // Set up transform context: translate to position, apply transform
+    // This way shapes can be drawn at origin (0,0) and will be positioned and transformed correctly
+    const cmds: string[] = [
+      "q",
+      // First translate to element position
+      `1 0 0 1 ${formatNumber(xPt)} ${formatNumber(yPt)} cm`,
+      // Then apply the skew/transform
+      `${formatNumber(pdfMatrix.a)} ${formatNumber(pdfMatrix.b)} ${formatNumber(pdfMatrix.c)} ${formatNumber(pdfMatrix.d)} 0 0 cm`
+    ];
+    
+    // Add marker for testing
+    if (pdfMatrix.b !== 0 || pdfMatrix.c !== 0) {
+      cmds.push(`%PAGYRA_TRANSFORM ${formatNumber(pdfMatrix.a)} ${formatNumber(pdfMatrix.b)} ${formatNumber(pdfMatrix.c)} ${formatNumber(pdfMatrix.d)} ${formatNumber(pdfMatrix.e)} ${formatNumber(pdfMatrix.f)}`);
+    }
+    
+    this.shapeRenderer.pushRawCommands(cmds);
+    this.shapeRenderer.setTransformContext(rect);
+  }
+
+  endTransformScope(): void {
+    this.shapeRenderer.pushRawCommands(["Q"]);
+    this.shapeRenderer.clearTransformContext();
   }
 
   private buildImageMatrix(rect: Rect): string | null {

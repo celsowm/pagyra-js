@@ -23,12 +23,21 @@ export interface ShapeRendererResult {
 export class ShapeRenderer {
   private readonly commands: string[] = [];
   private readonly gradientService: GradientService;
+  private transformContext: Rect | null = null;
 
   constructor(
     private readonly coordinateTransformer: CoordinateTransformer,
     private readonly graphicsStateManager: GraphicsStateManager,
   ) {
     this.gradientService = new GradientService(coordinateTransformer);
+  }
+
+  setTransformContext(rect: Rect): void {
+    this.transformContext = rect;
+  }
+
+  clearTransformContext(): void {
+    this.transformContext = null;
   }
 
   drawBoxOutline(rect: Rect, color: RGBA = { r: 0.85, g: 0.85, b: 0.85, a: 1 }): void {
@@ -606,6 +615,18 @@ export class ShapeRenderer {
  }
 
   private transformForRect(rect: Rect): string {
+    // If we're in a transform context, use relative coordinates
+    if (this.transformContext) {
+      const relX = rect.x - this.transformContext.x;
+      const relY = rect.y - this.transformContext.y;
+      const scaleX = this.coordinateTransformer.convertPxToPt(1);
+      const scaleY = this.coordinateTransformer.convertPxToPt(1);
+      const translateX = this.coordinateTransformer.convertPxToPt(relX);
+      const translateY = this.coordinateTransformer.convertPxToPt(-relY); // Negative because PDF y-axis is flipped
+      return `${formatNumber(scaleX)} 0 0 ${formatNumber(scaleY)} ${formatNumber(translateX)} ${formatNumber(translateY)} cm`;
+    }
+    
+    // Normal absolute positioning
     const scaleX = this.coordinateTransformer.convertPxToPt(1);
     const scaleY = this.coordinateTransformer.convertPxToPt(1);
     const localY = rect.y - this.coordinateTransformer.pageOffsetPx;
@@ -625,6 +646,24 @@ export class ShapeRenderer {
     if (widthPx === 0 || heightPx === 0) {
       return null;
     }
+    
+    // If in transform context, use relative coordinates
+    if (this.transformContext) {
+      const relX = rect.x - this.transformContext.x;
+      const relY = rect.y - this.transformContext.y;
+      const x = this.coordinateTransformer.convertPxToPt(relX);
+      const y = this.coordinateTransformer.convertPxToPt(-(relY + heightPx)); // Negative for PDF y-axis
+      const width = this.coordinateTransformer.convertPxToPt(widthPx);
+      const height = this.coordinateTransformer.convertPxToPt(heightPx);
+      return {
+        x: formatNumber(x),
+        y: formatNumber(y),
+        width: formatNumber(width),
+        height: formatNumber(height),
+      };
+    }
+    
+    // Normal absolute positioning
     const localY = rect.y - this.coordinateTransformer.pageOffsetPx;
     const x = this.coordinateTransformer.convertPxToPt(rect.x);
     const y = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localY + heightPx);
@@ -641,6 +680,22 @@ export class ShapeRenderer {
   private pointToPdf(point: ShapePoint):
     | { x: string; y: string }
     | null {
+    // If in transform context, use relative coordinates
+    if (this.transformContext) {
+      const relX = point.x - this.transformContext.x;
+      const relY = point.y - this.transformContext.y;
+      const x = this.coordinateTransformer.convertPxToPt(relX);
+      const y = this.coordinateTransformer.convertPxToPt(-relY); // Negative for PDF y-axis
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        return null;
+      }
+      return {
+        x: formatNumber(x),
+        y: formatNumber(y),
+      };
+    }
+    
+    // Normal absolute positioning
     const localY = point.y - this.coordinateTransformer.pageOffsetPx;
     const x = this.coordinateTransformer.convertPxToPt(point.x);
     const y = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localY);

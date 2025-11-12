@@ -244,6 +244,7 @@ export interface RenderBox {
   customData?: Record<string, unknown>;
   borderColor?: RGBA;
   color?: RGBA;
+  transform?: TextMatrix;
 }
 
 export interface LayoutTree {
