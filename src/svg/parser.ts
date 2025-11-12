@@ -402,7 +402,7 @@ function parseRadialGradient(element: Element, context: SvgParseContext): SvgRad
   };
 }
 
-function parseGradientStops(element: Element, context: SvgParseContext): SvgGradientStop[] {
+function parseGradientStops(element: Element, _context: SvgParseContext): SvgGradientStop[] {
   const stops: SvgGradientStop[] = [];
   for (const child of Array.from(element.children)) {
     if (child.tagName.toLowerCase() === "stop") {

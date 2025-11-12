@@ -264,12 +264,9 @@ export class FontEmbedder {
     };
   }
 
-  private buildWidthsArray(metrics: TtfFontMetrics): CIDFontDictionary["W"] {
-    const { W } = computeWidths(metrics);
-    return W;
-  }
 
-  private createToUnicodeCMap(metrics: TtfFontMetrics, uniqueUnicodes: number[] = []): PdfObjectRef {
+
+  private createToUnicodeCMap(metrics: TtfFontMetrics, _uniqueUnicodes: number[] = []): PdfObjectRef {
     // Build inverse mapping gid -> unicode (pick first unicode when multiple map to same gid)
     const unicodeMap = metrics.cmap["unicodeMap"] as Map<number, number>;
     const gidToUni = new Map<number, number>();
@@ -551,4 +548,3 @@ end`;
 
   return lines.join("\n");
 }
-

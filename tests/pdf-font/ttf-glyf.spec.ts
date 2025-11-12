@@ -1,10 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { parseTtfFont } from "../../src/pdf/font/ttf-lite.js";
-import { readFileSync } from "fs";
 import { join } from "path";
 
 describe("TTF glyf/loca outline provider (minimal)", () => {
-  const fontsDir = join(__dirname, "../../assets/fonts");
   const fontPath = join(process.cwd(), "assets/fonts/DejaVuSans.ttf");
 
   it("should produce outlines for ASCII letters (A, a)", () => {

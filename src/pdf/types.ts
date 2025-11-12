@@ -73,6 +73,11 @@ export interface RGBA {
   a: number;
 }
 
+export interface ShapePoint {
+  x: number;
+  y: number;
+}
+
 export interface ShadowLayer {
   inset: boolean;
   offsetX: number;

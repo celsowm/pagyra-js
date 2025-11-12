@@ -4,12 +4,9 @@ import type { PdfObjectRef } from "../primitives/pdf-document.js";
 import { encodeAndEscapePdfText, encodeToWinAnsi } from "../utils/encoding.js";
 import { needsUnicode } from "../../text/text.js";
 import { log } from "../../debug/log.js";
-import { parseColor } from "../utils/color-utils.js";
 import { CoordinateTransformer } from "../utils/coordinate-transformer.js";
 import { getGlyphMask } from "../font/glyph-cache.js";
-import { flattenOutline, rasterizeContours } from "../font/rasterizer.js";
 import { blurAlpha } from "../font/blur.js";
-import type { TtfFontMetrics, GlyphOutlineCmd } from "../../types/fonts.js";
 import type { ImageRenderer } from "./image-renderer.js";
 import type { GraphicsStateManager } from "./graphics-state-manager.js";
 

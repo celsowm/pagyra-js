@@ -71,7 +71,7 @@ export function adjustPageBoxForHf(baseBox: Rect, layout: HeaderFooterLayout): R
 
 export function computeHfTokens(
   placeholders: HeaderFooterHTML["placeholders"],
-  totalPages: number,
+  _totalPages: number,
   meta: { title?: string } = {},
 ): Map<string, string | ((page: number, total: number) => string)> {
   const tokens = new Map<string, string | ((page: number, total: number) => string)>();

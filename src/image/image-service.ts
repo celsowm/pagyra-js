@@ -124,13 +124,13 @@ export class ImageService {
   /**
    * Placeholder GIF decoder
    */
-  private decodeGif(buffer: ArrayBuffer, options?: ImageDecodeOptions): ImageInfo {
+  private decodeGif(_buffer: ArrayBuffer, options?: ImageDecodeOptions): ImageInfo {
     // For now, return placeholder data
     const width = options?.maxWidth || 100;
     const height = options?.maxHeight || 100;
     const pixelCount = width * height;
     const imageData = new ArrayBuffer(pixelCount * 4); // RGBA
-    
+
     return {
       width,
       height,

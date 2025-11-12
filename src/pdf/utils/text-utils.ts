@@ -5,7 +5,6 @@ import type { LayoutNode } from "../../dom/node.js";
 import type { Run, Decorations, RGBA } from "../types.js";
 import { applyTextTransform } from "../../text/text-transform.js";
 import { resolveTextShadows } from "../../pdf/utils/shadow-utils.js";
-import { parseColor } from "../../pdf/utils/color-utils.js";
 import { parseTransform as parseCssTransform } from "../../transform/css-parser.js";
 import { multiplyMatrices } from "../../geometry/matrix.js";
 import { svgMatrixToPdf } from "../transform-adapter.js";

@@ -1,20 +1,16 @@
-# Top 10 arquivos .ts por número de linhas (recursivo, com progresso)
-$Path = "."      # diretório inicial
+# Top 10 arquivos .ts por numero de linhas (recursivo, com progresso)
+$Path = "."      # diretorio inicial
 $Top = 10        # quantidade a exibir
 $Pattern = "*.ts"
 $SkipPattern = '(\\|/)(?:node_modules|dist|\.git|bin|obj|\.venv|\.tox)(\\|/)'
 
-Write-Host "🔍 Buscando arquivos $Pattern em $Path..." -ForegroundColor Cyan
+Write-Host "Buscando arquivos $Pattern em $Path..." -ForegroundColor Cyan
 
 # filtra apenas .ts e ignora pastas grandes
 $files = Get-ChildItem -LiteralPath $Path -Recurse -File -Filter $Pattern -Force |
           Where-Object { $_.FullName -notmatch $SkipPattern }
 
 $total = $files.Count
-if ($total -eq 0) {
-  Write-Host "Nenhum arquivo $Pattern encontrado (verifique filtros)." -ForegroundColor Yellow
-  return
-}
 
 $i = 0
 $results = New-Object System.Collections.Generic.List[object]
@@ -35,7 +31,7 @@ foreach ($f in $files) {
 }
 
 Write-Progress -Activity "Contando linhas..." -Completed
-Write-Host "`n📊 Top $Top arquivos $Pattern por número de linhas:`n" -ForegroundColor Green
+Write-Host "`nTop $Top arquivos $Pattern por numero de linhas:`n" -ForegroundColor Green
 
 $results |
   Sort-Object Lines -Descending |

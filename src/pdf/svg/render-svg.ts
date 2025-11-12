@@ -214,7 +214,7 @@ function resolvePositive(value: number): number {
   return value;
 }
 
-async function renderImage(node: SvgImageNode, style: SvgStyle, context: SvgRenderContext): Promise<void> {
+async function renderImage(node: SvgImageNode, _style: SvgStyle, context: SvgRenderContext): Promise<void> {
   const hrefAttr = node.href ?? node.attributes?.href ?? node.attributes?.["xlink:href"];
   if (!hrefAttr || typeof hrefAttr !== "string") {
     return;

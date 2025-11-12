@@ -18,7 +18,7 @@ export function getBase14(family: "Helvetica" | "Times-Roman" | "Courier"): PdfF
 }
 
 // Note: getFontForText needs access to doc and config, so we'll modify the signature
-export function getFontForText(requestedFamily: string, text: string, doc: any, config: any): PdfFont {
+export function getFontForText(_requestedFamily: string, text: string, _doc: any, _config: any): PdfFont {
   if (needsUnicode(text)) {
     // For now, use a simplified approach - we'll assume NotoSans-Regular is available
     // In a full implementation, you'd initialize the embedder properly

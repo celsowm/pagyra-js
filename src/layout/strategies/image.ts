@@ -32,7 +32,7 @@ export class ImageStrategy {
   /**
    * Sets up image sizing based on CSS properties
    */
-  private static setupImageSizing(node: LayoutNode, imageInfo: ImageInfo): void {
+  private static setupImageSizing(node: LayoutNode, _imageInfo: ImageInfo): void {
     // If width is explicitly set, calculate proportional height
     if (node.style.width !== undefined && typeof node.style.width === 'number' && node.style.width > 0) {
       const specifiedWidth = resolveLength(node.style.width, node.intrinsicInlineSize!, { auto: "zero" });

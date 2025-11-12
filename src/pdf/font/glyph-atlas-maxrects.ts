@@ -284,7 +284,7 @@ export class GlyphAtlasMaxRects {
     this.hashIndex = newHash;
   }
 
-  private blitToPage(pageData: Uint8Array, pageW: number, pageH: number, dstX: number, dstY: number, mask: Uint8ClampedArray, w: number, h: number) {
+  private blitToPage(pageData: Uint8Array, pageW: number, _pageH: number, dstX: number, dstY: number, mask: Uint8ClampedArray, w: number, h: number) {
     for (let row = 0; row < h; row++) {
       const srcOff = row * w;
       const dstRow = (dstY + row) * pageW;

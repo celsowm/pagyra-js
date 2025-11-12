@@ -1,5 +1,4 @@
 import { readFileSync } from "fs";
-import type { TtfMetrics, GlyphMetrics, CmapData } from "../../types/fonts.js";
 import { TtfFontMetrics } from "../../types/fonts.js";
 import { TtfTableParser } from "./ttf-table-parser.js";
 import { parseGlobalMetrics } from "./ttf-global-metrics.js";

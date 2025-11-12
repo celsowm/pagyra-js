@@ -85,7 +85,7 @@ export function computeShadowVisualOverflow(base: Rect, shadow: ShadowLayer): Re
   };
 }
 
-export function calculateVisualOverflow(node: LayoutNode, borderBox: Rect, boxShadows: ShadowLayer[]): Rect {
+export function calculateVisualOverflow(_node: LayoutNode, borderBox: Rect, boxShadows: ShadowLayer[]): Rect {
   const visualOverflow = cloneRect(borderBox);
   
   for (const shadow of boxShadows) {

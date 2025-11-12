@@ -47,10 +47,10 @@ describe("computeWidths", () => {
       const e: any = entry as any;
       // W entries are either [start, end, value] or [start, [w1,w2,...]]
       if (Array.isArray(e[1])) {
-        const [start, arr] = e as [number, number[]];
+        const [_start, arr] = e as [number, number[]];
         for (const v of arr) expect(v).not.toBe(DW);
       } else if (typeof e[2] === "number") {
-        const [start, end, value] = e as [number, number, number];
+        const [_start, _end, value] = e as [number, number, number];
         expect(value).not.toBe(DW);
       } else {
         // unexpected shape; fail the test to surface issue

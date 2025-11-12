@@ -203,7 +203,7 @@ export class GlyphAtlas {
     // Eviction only updates placements above; nothing more to adjust here.
   }
 
-  private blitToPage(pageData: Uint8Array, pageW: number, pageH: number, dstX: number, dstY: number, mask: Uint8ClampedArray, w: number, h: number) {
+  private blitToPage(pageData: Uint8Array, pageW: number, _pageH: number, dstX: number, dstY: number, mask: Uint8ClampedArray, w: number, h: number) {
     // pageData is RGBA; we write R=G=B=0, A = mask
     for (let row = 0; row < h; row++) {
       const srcOff = row * w;

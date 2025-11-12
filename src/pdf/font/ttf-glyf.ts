@@ -88,14 +88,11 @@ export function createGlyfOutlineProvider(parser: TtfTableParser): (gid: number)
       // - recursion guarded to avoid malicious fonts.
       const MORE_COMPONENTS = 0x0020;
       const ARG_1_AND_2_ARE_WORDS = 0x0001;
-      const ARGS_ARE_XY_VALUES = 0x0002;
       const WE_HAVE_A_SCALE = 0x0008;
       const WE_HAVE_AN_X_AND_Y_SCALE = 0x0040;
       const WE_HAVE_A_TWO_BY_TWO = 0x0080;
 
       // start reading component records at offset 10
-      let off = 10;
-      const cmdsAccum: GlyphOutlineCmd[] = [];
       const visited: Set<number> = new Set();
       const recursionLimit = 8;
 
@@ -209,8 +206,6 @@ export function createGlyfOutlineProvider(parser: TtfTableParser): (gid: number)
             } else if (compStart < 0 || compEnd > glyfTable.byteLength || compStart > compEnd) {
               // invalid, skip
             } else {
-              // create a DataView for component glyph and reuse logic by recursively parsing if needed
-              const compView = new DataView(glyfTable.buffer, glyfTable.byteOffset + compStart, compEnd - compStart);
               // parse comp glyph locally by calling the same parsing logic: reuse outer provider via closure
               // To avoid duplicating low-level parsing, call the main provider function recursively using gid
               const compCmds = providerInternal(compGlyphIndex, depth + 1);
@@ -360,8 +355,6 @@ export function createGlyfOutlineProvider(parser: TtfTableParser): (gid: number)
                 curIndex = startPtIndex;
                 outCmds.push({ type: "moveTo", x: firstPoint.x, y: firstPoint.y });
               }
-              let cursorX = outCmds.length ? commandsLastX(outCmds) ?? firstPoint.x : firstPoint.x;
-              let cursorY = outCmds.length ? commandsLastY(outCmds) ?? firstPoint.y : firstPoint.y;
               let i = curIndex + 1;
               let steps = 0;
               while (steps < n) {
@@ -370,21 +363,15 @@ export function createGlyfOutlineProvider(parser: TtfTableParser): (gid: number)
                 const next = contour[getIdx(i + 1)];
                 if (pt.onCurve) {
                   outCmds.push({ type: "lineTo", x: pt.x, y: pt.y });
-                  cursorX = pt.x;
-                  cursorY = pt.y;
                 } else {
                   if (next.onCurve) {
                     outCmds.push({ type: "quadTo", cx: pt.x, cy: pt.y, x: next.x, y: next.y });
-                    cursorX = next.x;
-                    cursorY = next.y;
                     i++;
                     steps++;
                   } else {
                     const midx = (pt.x + next.x) / 2;
                     const midy = (pt.y + next.y) / 2;
                     outCmds.push({ type: "quadTo", cx: pt.x, cy: pt.y, x: midx, y: midy });
-                    cursorX = midx;
-                    cursorY = midy;
                   }
                 }
                 i++;
@@ -408,11 +395,6 @@ export function createGlyfOutlineProvider(parser: TtfTableParser): (gid: number)
       const composedCmds = providerInternal(gid, 0);
       return composedCmds;
     }
-
-    const xMin = view.getInt16(2, false);
-    const yMin = view.getInt16(4, false);
-    const xMax = view.getInt16(6, false);
-    const yMax = view.getInt16(8, false);
 
     const contourCount = numberOfContours;
 
@@ -570,13 +552,6 @@ export function createGlyfOutlineProvider(parser: TtfTableParser): (gid: number)
       }
 
       // We'll iterate through contour points in order, producing lineTo / quadTo as needed
-      // We'll keep a "cursor" point representing the last emitted on-curve point (cx,cy)
-      let cursorX = commandsLastX(cmds);
-      let cursorY = commandsLastY(cmds);
-
-      // If moveTo didn't populate cursor (rare), set to firstPoint coords
-      if (cursorX === null) { cursorX = firstPoint.x; cursorY = firstPoint.y; }
-
       // Walk points starting from next index after curIndex
       let i = curIndex + 1;
       let steps = 0;
@@ -588,15 +563,11 @@ export function createGlyfOutlineProvider(parser: TtfTableParser): (gid: number)
         if (pt.onCurve) {
           // straight to on-curve point
           cmds.push({ type: "lineTo", x: pt.x, y: pt.y });
-          cursorX = pt.x;
-          cursorY = pt.y;
         } else {
           // pt is off-curve; need to find next on-curve or handle consecutive off-curve
           if (next.onCurve) {
             // single control -> quadratic from cursor to next with control pt
             cmds.push({ type: "quadTo", cx: pt.x, cy: pt.y, x: next.x, y: next.y });
-            cursorX = next.x;
-            cursorY = next.y;
             i++; // consumed next as well
             steps++; // extra consume accounted below
           } else {
@@ -604,8 +575,6 @@ export function createGlyfOutlineProvider(parser: TtfTableParser): (gid: number)
             const midx = (pt.x + next.x) / 2;
             const midy = (pt.y + next.y) / 2;
             cmds.push({ type: "quadTo", cx: pt.x, cy: pt.y, x: midx, y: midy });
-            cursorX = midx;
-            cursorY = midy;
             // do not advance extra here; next will be processed as off-curve then paired with its successor
           }
         }
@@ -619,26 +588,4 @@ export function createGlyfOutlineProvider(parser: TtfTableParser): (gid: number)
 
     return cmds;
   };
-}
-
-/** Helpers to inspect last emitted moveTo coordinates (or null) */
-function commandsLastX(cmds: GlyphOutlineCmd[]): number | null {
-  for (let i = cmds.length - 1; i >= 0; i--) {
-    const c = cmds[i];
-    if (c.type === "moveTo") return c.x;
-    if (c.type === "lineTo") return c.x;
-    if (c.type === "quadTo") return c.x;
-    if (c.type === "cubicTo") return c.x;
-  }
-  return null;
-}
-function commandsLastY(cmds: GlyphOutlineCmd[]): number | null {
-  for (let i = cmds.length - 1; i >= 0; i--) {
-    const c = cmds[i];
-    if (c.type === "moveTo") return c.y;
-    if (c.type === "lineTo") return c.y;
-    if (c.type === "quadTo") return c.y;
-    if (c.type === "cubicTo") return c.y;
-  }
-  return null;
 }

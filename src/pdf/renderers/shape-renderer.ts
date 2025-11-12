@@ -334,7 +334,7 @@ export class ShapeRenderer {
   // (in page pixels) and use it as the gradient rectangle when creating the shading.
   // The path itself is converted to PDF commands and used as the clipping path before
   // painting the shading.
-  fillPathWithGradient(commands: PathCommand[], gradient: LinearGradient | RadialGradient, options: { fillRule?: "nonzero" | "evenodd" } = {}): void {
+  fillPathWithGradient(commands: PathCommand[], gradient: LinearGradient | RadialGradient, _options: { fillRule?: "nonzero" | "evenodd" } = {}): void {
     if (!commands || commands.length === 0) return;
     const pdfCommands = this.pathCommandsToPdf(commands);
     if (!pdfCommands || pdfCommands.length === 0) return;

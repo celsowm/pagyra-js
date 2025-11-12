@@ -31,7 +31,7 @@ const app = express();
 app.use(express.json({ limit: "2mb" }));
 
 // Add a logger middleware to debug static file requests
-app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((req: express.Request, _res: express.Response, next: express.NextFunction) => {
   console.log(`[playground] request: ${req.method} ${req.url}`);
   next();
 });

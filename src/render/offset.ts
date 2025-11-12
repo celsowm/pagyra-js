@@ -24,7 +24,7 @@ function offsetBackground(background: Background | undefined, dx: number, dy: nu
   }
 }
 
-export function offsetRenderTree(root: RenderBox, dx: number, dy: number, debug: boolean): void {
+export function offsetRenderTree(root: RenderBox, dx: number, dy: number, _debug: boolean): void {
   const stack: RenderBox[] = [root];
   while (stack.length > 0) {
     const box = stack.pop()!;

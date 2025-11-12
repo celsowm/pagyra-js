@@ -94,7 +94,7 @@ export class CmapParser implements CmapData {
     }
   }
 
-  private parseFormat4Table(parser: TtfTableParser, table: DataView, offset: number): void {
+  private parseFormat4Table(_parser: TtfTableParser, table: DataView, offset: number): void {
     if (offset + 8 > table.byteLength) throw new Error("Truncated cmap format 4 header");
     const format = table.getUint16(offset, false);
     if (format !== 4) throw new Error("Unexpected cmap format (not 4)");
@@ -146,7 +146,7 @@ export class CmapParser implements CmapData {
     }
   }
 
-  private parseFormat12Table(parser: TtfTableParser, table: DataView, offset: number): void {
+  private parseFormat12Table(_parser: TtfTableParser, table: DataView, offset: number): void {
     // Format 12 uses 32-bit fields
     if (offset + 16 > table.byteLength) throw new Error("Truncated cmap format 12 header");
     const format = table.getUint16(offset, false);
