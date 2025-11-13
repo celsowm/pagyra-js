@@ -2,7 +2,8 @@
   "env": {
     "browser": true,
     "node": true,
-    "es2021": true
+    "es2021": true,
+    "jest": true
   },
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
@@ -25,18 +26,5 @@
       }
     ],
     "@typescript-eslint/no-explicit-any": "warn"
-  },
-  "overrides": [
-    {
-      "files": [
-        "**/*.test.ts",
-        "**/*.test.tsx",
-        "**/*.spec.ts",
-        "**/*.spec.tsx"
-      ],
-      "env": {
-        "jest": true
-      }
-    }
-  ]
+  }
 }
