@@ -14,7 +14,7 @@ export type Pseudo =
   | { kind: 'first-child' }
   | { kind: 'last-child' }
   | { kind: 'nth-child'; a: number; b: number } // an+b (odd=2n+1, even=2n)
-  | { kind: 'not'; inner: Simple }              // apenas 1 n��vel simples
+  | { kind: 'not'; inner: Simple }              // apenas 1 nível simples
   | { kind: 'root' };
 
 export interface Simple {
@@ -27,5 +27,5 @@ export interface Simple {
 
 export interface Part {
   simple: Simple;
-  combinatorToLeft?: Combinator; // combinador imediatamente Ã  esquerda desse "simple"
+  combinatorToLeft?: Combinator; // combinador imediatamente à esquerda desse "simple"
 }

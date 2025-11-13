@@ -1,6 +1,6 @@
 // src/css/apply-declarations.ts
 
-import { getPropertyParser } from "./parsers/registry.js";
+import { getPropertyParser, type PropertyParser } from "./parsers/registry.js";
 import { registerAllPropertyParsers } from "./parsers/register-parsers.js";
 import { type StyleAccumulator } from "./style.js";
 import { type UnitParsers } from "../units/units.js";
@@ -27,7 +27,7 @@ const SHORTHAND_PROPERTIES = new Set([
 ]);
 
 // Cache for frequently used parsers to reduce Map lookups
-const parserCache = new Map<string, Function>();
+const parserCache = new Map<string, PropertyParser>();
 
 function getCachedParser(property: string) {
   if (parserCache.has(property)) {

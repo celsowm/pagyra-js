@@ -187,7 +187,7 @@ function parseGradientStop(value: string): GradientStop | null {
   // Just validate that it's a known color name, but preserve the original value
   if (colorNames[color.toLowerCase()]) {
     // Keep the original color value (don't convert to hex)
-    color = color;
+    // No conversion needed, color remains as-is
   }
   
   // Check if there's a position

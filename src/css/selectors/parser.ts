@@ -1,9 +1,9 @@
 ﻿import type { Part, Simple, AttrCond, AttrOp, Pseudo } from "./types.js";
 
 /**
- * Parser leve de seletor CSS â†’ cadeia de Parts (compostos) com combinador Ã  esquerda.
+ * Parser leve de seletor CSS → cadeia de Parts (compostos) com combinador à esquerda.
  * Suporta: tag, #id, .classe, [attr ops], :first/last/nth-child, :not(simple)
- * Combinadores: ' ' (desc), '>' (filho), '+' (irmÃ£o adjacente), '~' (irmÃ£os)
+ * Combinadores: ' ' (desc), '>' (filho), '+' (irmão adjacente), '~' (irmãos)
  */
 export function parseSelector(selector: string): Part[] | null {
   if (!selector?.trim()) {
@@ -78,7 +78,7 @@ export function parseSelector(selector: string): Part[] | null {
         continue;
       }
       if (ch === ':') {
-        // pseudos bÃ¡sicas
+        // pseudos básicas
         let m = /^:first-child/.exec(rest);
         if (m) { pseudos.push({ kind: 'first-child' }); rest = rest.slice(m[0].length); continue; }
         m = /^:last-child/.exec(rest);
@@ -96,12 +96,12 @@ export function parseSelector(selector: string): Part[] | null {
         m = /^:not\(\s*([^)]+)\s*\)/.exec(rest);
         if (m) {
           const innerTok = m[1];
-          const inner = parseSimpleToken(innerTok); // um nÃ­vel simples
+          const inner = parseSimpleToken(innerTok); // um nível simples
           if (inner) pseudos.push({ kind: 'not', inner });
           rest = rest.slice(m[0].length);
           continue;
         }
-        // pseudo desconhecida â†’ aborta para manter comportamento previsÃ­vel
+        // pseudo desconhecida → aborta para manter comportamento previsível
         return null;
       }
       break; // nada mais reconhecido
@@ -111,7 +111,7 @@ export function parseSelector(selector: string): Part[] | null {
     return result;
   }
 
-  // TokenizaÃ§Ã£o topo-nÃ­vel preservando combinadores (nÃ£o entra em []/())
+  // Tokenização topo-nível preservando combinadores (não entra em []/())
   const s = selector.trim().replace(/\s+/g, ' ');
   const tokens: (Simple | ' ' | '>' | '+' | '~')[] = [];
   let i = 0;
@@ -141,16 +141,16 @@ export function parseSelector(selector: string): Part[] | null {
     i = j;
   }
 
-  // ConstrÃ³i Parts com o combinador imediatamente Ã  esquerda
+  // Constrói Parts com o combinador imediatamente à esquerda
   const parts: Part[] = [];
   for (let k = 0; k < tokens.length; k++) {
     const t = tokens[k];
     if (typeof t !== 'string') {
       let comb: ' ' | '>' | '+' | '~' | undefined = undefined;
 
-      // procura combinador direto Ã  esquerda (pulando espaÃ§os redundantes)
+      // procura combinador direto à esquerda (pulando espaços redundantes)
       let p = k - 1;
-      // se houver espaÃ§os encadeados, tratamos como um Ãºnico '
+      // se houver espaços encadeados, tratamos como um único '
       while (p >= 0 && tokens[p] === ' ') { comb = ' '; p--; break; }
       if (p >= 0 && typeof tokens[p] === 'string' && tokens[p] !== ' ') comb = tokens[p] as any;
 
