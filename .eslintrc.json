@@ -1,13 +1,9 @@
 {
   "env": {
     "browser": true,
-    "es2021": true,
-    "node": true
+    "node": true,
+    "es2021": true
   },
-  "extends": [
-    "eslint:recommended",
-    "@typescript-eslint/recommended"
-  ],
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
     "ecmaVersion": "latest",
@@ -16,8 +12,31 @@
   "plugins": [
     "@typescript-eslint"
   ],
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
   "rules": {
-    "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+    "no-undef": "off",
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_"
+      }
+    ],
     "@typescript-eslint/no-explicit-any": "warn"
-  }
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.spec.ts",
+        "**/*.spec.tsx"
+      ],
+      "env": {
+        "jest": true
+      }
+    }
+  ]
 }
