@@ -77,7 +77,7 @@
 | `text-decoration-line`                        | Text decoration line specifically                                           | Implemented |
 | `text-transform`                              | Text case transformation (`uppercase`/`lowercase`/`capitalize`)            | Implemented |
 | `text-indent`                                 | First line indent                                                           | Implemented |
-| `text-shadow`                                 | Text shadow effect                                                          | Not Implemented |
+| `text-shadow`                                 | Text shadow effect                                                          | Implemented |
 | `letter-spacing`                              | Space between characters                                                    | Supported |
 | `word-spacing`                                | Space between words                                                         | Supported |
 | `white-space`                                 | Controls whitespace handling (`nowrap`/`pre-wrap`/etc.)                    | Supported |
@@ -100,7 +100,7 @@
 | `object-fit`                                  | Sizing behavior for replaced elements (img/video)                          | Implemented |
 | `object-position`                             | Positioning of replaced elements within container                          | Not Implemented |
 | **Transforms, Transitions & Animations**      |                                                                             |        |
-| `transform`                                   | 2D/3D transformations (`rotate`/`scale`/`translate`/etc.)                  | Not Implemented |
+| `transform`                                   | 2D/3D transformations (`rotate`/`scale`/`translate`/etc.)                  | Implemented |
 | `transform-origin`                            | Transformation origin point                                                 | Not Implemented |
 | `transform-style`                             | 3D rendering style (`preserve-3d`/`flat`)                                  | Not Implemented |
 | `perspective`                                 | 3D perspective depth for child elements                                    | Not Implemented |
@@ -121,7 +121,7 @@
 | `animation-fill-mode`                         | Styles applied before/after animation (`forwards`/`backwards`)             | Not Implemented |
 | `animation-play-state`                        | Pauses/plays animation (`paused`/`running`)                                | Not Implemented |
 | **Colors & Visual Effects**                   |                                                                             |        |
-| `opacity`                                     | Element transparency (0.0 to 1.0)                                          | Not Implemented |
+| `opacity`                                     | Element transparency (0.0 to 1.0)                                          | Implemented |
 | `filter`                                      | Visual filter effects (`blur`/`brightness`/etc.)                           | Not Implemented |
 | `backdrop-filter`                             | Filter effects on background                                                | Not Implemented |
 | `mix-blend-mode`                              | Blending mode between element and backdrop                                 | Not Implemented |
