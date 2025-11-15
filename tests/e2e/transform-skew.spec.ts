@@ -143,7 +143,9 @@ test("skewX(20deg) should produce correct transformation matrix in PDF", async (
   const matrices = extractTransformMatrix(content);
 
   // CSS skewX(20deg) matrix: [1, 0, tan(20°), 1, tx, ty]
-  const expectedC = Math.tan((20 * Math.PI) / 180); // ≈ 0.364
+  // After converting to PDF's Y-up coordinate system the shear sign flips.
+  const cssC = Math.tan((20 * Math.PI) / 180);
+  const expectedC = -cssC;
 
   const skewMatrix = matrices.find(
     (m) =>
@@ -191,7 +193,8 @@ test("skewY(15deg) should produce correct transformation matrix in PDF", async (
   const matrices = extractTransformMatrix(content);
 
   // CSS skewY(15deg) matrix: [1, tan(15°), 0, 1, tx, ty]
-  const expectedB = Math.tan((15 * Math.PI) / 180); // ≈ 0.268
+  const cssB = Math.tan((15 * Math.PI) / 180);
+  const expectedB = -cssB;
 
   const skewMatrix = matrices.find(
     (m) =>
@@ -303,7 +306,7 @@ test("rectangle should be drawn at origin (0,0) within transform context", async
   }
 });
 
-test("negative skew angle should produce negative tan value in matrix", async () => {
+test("negative skew angle should still flip to positive shear in PDF", async () => {
   const html = `
     <div style="
       width: 100px;
@@ -331,7 +334,8 @@ test("negative skew angle should produce negative tan value in matrix", async ()
   const content = extractPdfContent(Buffer.from(pdf));
   const matrices = extractTransformMatrix(content);
 
-  const expectedC = Math.tan((-15 * Math.PI) / 180); // ≈ -0.268
+  const cssNegativeC = Math.tan((-15 * Math.PI) / 180); // CSS value ≈ -0.268
+  const expectedC = -cssNegativeC;
 
   const skewMatrix = matrices.find(
     (m) =>
@@ -344,8 +348,62 @@ test("negative skew angle should produce negative tan value in matrix", async ()
   expect(skewMatrix).toBeDefined();
   if (skewMatrix) {
     expect(skewMatrix.c).toBeCloseTo(expectedC, 2);
-    expect(skewMatrix.c).toBeLessThan(0); // deve ser negativo para skewX(-15deg)
+    expect(skewMatrix.c).toBeGreaterThan(0); // após flip do eixo-y fica positivo
   }
+});
+
+test("skew transforms pivot around the element center", async () => {
+  const html = `
+    <div style="
+      width: 200px;
+      height: 100px;
+      transform: skewX(20deg);
+      background-color: #4a90e2;
+      margin: 40px;
+    ">
+      Center
+    </div>
+  `;
+
+  const pdf = await renderHtmlToPdf({
+    html,
+    css: "",
+    viewportWidth: 640,
+    viewportHeight: 480,
+    pageWidth: 595,
+    pageHeight: 842,
+    margins: { top: 0, right: 0, bottom: 0, left: 0 },
+  });
+
+  const content = extractPdfContent(Buffer.from(pdf));
+  const matrices = extractTransformMatrix(content);
+
+  const pxToPt = (value: number) => (value * 72) / 96;
+  const halfWidthPt = pxToPt(200 / 2); // 75pt
+  const halfHeightPt = pxToPt(100 / 2); // 37.5pt
+
+  const translateToCenter = matrices.find(
+    (m) =>
+      approxEqual(m.a, 1, 0.001) &&
+      approxEqual(m.d, 1, 0.001) &&
+      approxEqual(m.b, 0, 0.001) &&
+      approxEqual(m.c, 0, 0.001) &&
+      approxEqual(m.e, -halfWidthPt, 0.5) &&
+      approxEqual(m.f, halfHeightPt, 0.5)
+  );
+
+  const translateBackFromCenter = matrices.find(
+    (m) =>
+      approxEqual(m.a, 1, 0.001) &&
+      approxEqual(m.d, 1, 0.001) &&
+      approxEqual(m.b, 0, 0.001) &&
+      approxEqual(m.c, 0, 0.001) &&
+      approxEqual(m.e, halfWidthPt, 0.5) &&
+      approxEqual(m.f, -halfHeightPt, 0.5)
+  );
+
+  expect(translateToCenter).toBeDefined();
+  expect(translateBackFromCenter).toBeDefined();
 });
 
 test("PDF should contain graphics state save (q) before and restore (Q) after transform", async () => {

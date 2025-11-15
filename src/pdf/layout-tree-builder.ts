@@ -469,8 +469,12 @@ function applyTransformToTextRuns(runs: Run[], cssMatrix: Matrix | undefined, or
   if (!pdfMatrix) {
     return;
   }
-  const originX = Number.isFinite(originBox.x) ? originBox.x : 0;
-  const originY = Number.isFinite(originBox.y) ? originBox.y : 0;
+  const baseOriginX = Number.isFinite(originBox.x) ? originBox.x : 0;
+  const baseOriginY = Number.isFinite(originBox.y) ? originBox.y : 0;
+  const originWidth = Number.isFinite(originBox.width) ? originBox.width : 0;
+  const originHeight = Number.isFinite(originBox.height) ? originBox.height : 0;
+  const originX = baseOriginX + originWidth / 2;
+  const originY = baseOriginY + originHeight / 2;
   const toOrigin = translationMatrix(-originX, -originY);
   const fromOrigin = translationMatrix(originX, originY);
   for (const run of runs) {
