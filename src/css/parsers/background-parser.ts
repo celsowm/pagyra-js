@@ -296,16 +296,13 @@ function parseBackgroundSizeValue(value: string): BackgroundSize {
 /**
  * Parses background-position value
  */
-function parseBackgroundPosition(x: string, y?: string): { x: string; y: string } {
-  const posX = x.toLowerCase();
-  const posY = y?.toLowerCase() || "top";
+const VERTICAL_POSITION_KEYWORDS = new Set(["top", "bottom"]);
 
-  // Handle single keywords that apply to both
-  if (posX === "center") {
-    return { x: "center", y: "center" };
-  }
-
-  return { x: posX, y: posY };
+function parseBackgroundPosition(x: string, y: string): { x: string; y: string } {
+  return {
+    x: x.toLowerCase(),
+    y: y.toLowerCase(),
+  };
 }
 
 /**
@@ -375,18 +372,29 @@ function parseBackgroundPositionValue(value: string): BackgroundPosition {
   if (tokens.length === 0) {
     return { x: "left", y: "top" };
   }
+
+  const normalizedTokens = tokens.map((token) => token.toLowerCase());
+  const first = normalizedTokens[0];
+
   if (tokens.length === 1) {
-    const token = tokens[0];
-    if (isPositionKeyword(token)) {
-      if (token === "top" || token === "bottom") {
-        return parseBackgroundPosition("center", token);
-      }
-      return parseBackgroundPosition(token, undefined);
+    if (first === "center") {
+      return parseBackgroundPosition("center", "center");
     }
-    return parseBackgroundPosition(token, undefined);
+    if (VERTICAL_POSITION_KEYWORDS.has(first)) {
+      return parseBackgroundPosition("center", first);
+    }
+    return parseBackgroundPosition(first, "center");
   }
-  const [first, second] = tokens;
-  return parseBackgroundPosition(first, second);
+
+  const second = normalizedTokens[1];
+  const firstIsVertical = VERTICAL_POSITION_KEYWORDS.has(first);
+
+  if (firstIsVertical) {
+    const horizontalToken = tokens[1] ?? "center";
+    return parseBackgroundPosition(horizontalToken, first);
+  }
+
+  return parseBackgroundPosition(first, second ?? "center");
 }
 
 export function applyBackgroundPosition(style: any, value: string): void {

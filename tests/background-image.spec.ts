@@ -106,4 +106,27 @@ describe("Background images", () => {
     expect(gradientLayer.position).toEqual({ x: "0", y: "0" });
   });
 
+  it("normalizes keyword combinations for background-position", async () => {
+    const cases: Array<[string, { x: string; y: string }]> = [
+      ["bottom right", { x: "right", y: "bottom" }],
+      ["right bottom", { x: "right", y: "bottom" }],
+      ["left", { x: "left", y: "center" }],
+      ["bottom", { x: "center", y: "bottom" }],
+    ];
+
+    for (const [value, expected] of cases) {
+      const root = await renderElement(
+        '<div class="with-bg">conteǧdo</div>',
+        `.with-bg { width: 80px; height: 40px; background-image: url(example.png); background-position: ${value}; }`
+      );
+      const div = findNode(root, "div");
+      const imageLayer = div.style.backgroundLayers?.find((layer) => layer.kind === "image");
+      expect(imageLayer).toBeDefined();
+      if (!imageLayer) {
+        continue;
+      }
+      expect(imageLayer.position).toEqual(expected);
+    }
+  });
+
 });
