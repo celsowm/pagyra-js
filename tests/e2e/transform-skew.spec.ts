@@ -84,6 +84,25 @@ function extractRectangles(
   return rectangles;
 }
 
+function extractPagyraTransformComments(
+  content: string
+): Array<{ a: number; b: number; c: number; d: number; e: number; f: number }> {
+  const matches: Array<{ a: number; b: number; c: number; d: number; e: number; f: number }> = [];
+  const regex = /%PAGYRA_TRANSFORM\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(content)) !== null) {
+    matches.push({
+      a: parseFloat(match[1]),
+      b: parseFloat(match[2]),
+      c: parseFloat(match[3]),
+      d: parseFloat(match[4]),
+      e: parseFloat(match[5]),
+      f: parseFloat(match[6]),
+    });
+  }
+  return matches;
+}
+
 /**
  * Helper to check if two numbers are approximately equal
  */
@@ -365,4 +384,61 @@ test("PDF should contain graphics state save (q) before and restore (Q) after tr
   expect(QCount).toBeGreaterThan(0);
   // q e Q devem estar balanceados
   expect(qCount).toBe(QCount);
+});
+
+test("skewed text runs use local coordinates independent of page offset", async () => {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+          }
+          .box {
+            width: 200px;
+            height: 100px;
+            margin: 40px 0;
+            background: #4a90e2;
+            color: red;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform: skewX(20deg);
+          }
+          .offset {
+            margin-top: 200px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="box">Skew</div>
+        <div class="box offset">Skew</div>
+      </body>
+    </html>
+  `;
+
+  const pdf = await renderHtmlToPdf({
+    html,
+    css: "",
+    viewportWidth: 800,
+    viewportHeight: 1200,
+    pageWidth: 595,
+    pageHeight: 1000,
+    margins: { top: 0, right: 0, bottom: 0, left: 0 },
+  });
+
+  const content = extractPdfContent(Buffer.from(pdf));
+  const transforms = extractPagyraTransformComments(content).filter(
+    (m) => Math.abs(m.f) > 0.01 && Math.abs(m.c) > 0.001
+  );
+
+  expect(transforms.length).toBeGreaterThanOrEqual(2);
+  const sorted = transforms.sort((a, b) => a.f - b.f);
+  const first = sorted[0];
+  const second = sorted[1];
+
+  expect(Math.abs(first.e - second.e)).toBeLessThan(0.5);
+  expect(Math.sign(first.c)).toEqual(Math.sign(second.c));
 });

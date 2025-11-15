@@ -14,6 +14,7 @@ import {
   type ImageRef,
   type Background,
   type BackgroundImage,
+  type Run,
   NodeKind,
   Overflow,
   LayerMode,
@@ -26,6 +27,9 @@ import { resolveBoxShadows, resolveTextShadows, calculateVisualOverflow } from "
 import { extractImageRef } from "./utils/image-utils.js";
 import { calculateBoxDimensions } from "./utils/box-dimensions-utils.js";
 import { parseTransform } from "../transform/css-parser.js";
+import { svgMatrixToPdf } from "./transform-adapter.js";
+import { multiplyMatrices } from "../geometry/matrix.js";
+import type { Matrix } from "../geometry/matrix.js";
 import type {
   ImageBackgroundLayer,
   GradientBackgroundLayer,
@@ -381,6 +385,9 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
   const visualOverflow = calculateVisualOverflow(node, borderBox, boxShadows);
   const borderRadius = resolveBorderRadius(node.style, borderBox);
 
+  const transformString = node.style.transform;
+  const transform = transformString ? parseTransform(transformString) ?? undefined : undefined;
+
   const children = node.children.map((child) => convertNode(child, state));
   const imageRef = extractImageRef(node);
   const decorations = resolveDecorations(node.style);
@@ -390,6 +397,9 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
     if (markerRun) {
       textRuns.unshift(markerRun);
     }
+  }
+  if (transform && textRuns.length > 0) {
+    applyTransformToTextRuns(textRuns, transform, borderBox);
   }
 
   log("RENDER_TREE","DEBUG","node converted", {
@@ -408,10 +418,6 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
     typeof node.style.zIndex === "number" && node.style.position !== Position.Static;
 
   console.log(`DEBUG: convertNode - tagName: ${node.tagName}, id: ${id}, node.style.opacity: ${node.style.opacity}`);
-  
-  // Extract and parse transform matrix if present
-  const transformString = node.style.transform;
-  const transform = transformString ? parseTransform(transformString) ?? undefined : undefined;
   
   return {
     id,
@@ -453,4 +459,28 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
     customData: node.customData ? { ...node.customData } : undefined,
     transform,
   };
+}
+
+function applyTransformToTextRuns(runs: Run[], cssMatrix: Matrix | undefined, originBox: Rect): void {
+  if (!cssMatrix || runs.length === 0) {
+    return;
+  }
+  const pdfMatrix = svgMatrixToPdf(cssMatrix);
+  if (!pdfMatrix) {
+    return;
+  }
+  const originX = Number.isFinite(originBox.x) ? originBox.x : 0;
+  const originY = Number.isFinite(originBox.y) ? originBox.y : 0;
+  const toOrigin = translationMatrix(-originX, -originY);
+  const fromOrigin = translationMatrix(originX, originY);
+  for (const run of runs) {
+    const baseMatrix = run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+    const localMatrix = multiplyMatrices(toOrigin, baseMatrix);
+    const transformedLocal = multiplyMatrices(pdfMatrix, localMatrix);
+    run.lineMatrix = multiplyMatrices(fromOrigin, transformedLocal);
+  }
+}
+
+function translationMatrix(tx: number, ty: number): Matrix {
+  return { a: 1, b: 0, c: 0, d: 1, e: tx, f: ty };
 }

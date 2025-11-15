@@ -5,9 +5,6 @@ import type { LayoutNode } from "../../dom/node.js";
 import type { Run, Decorations, RGBA } from "../types.js";
 import { applyTextTransform } from "../../text/text-transform.js";
 import { resolveTextShadows } from "../../pdf/utils/shadow-utils.js";
-import { parseTransform as parseCssTransform } from "../../transform/css-parser.js";
-import { multiplyMatrices } from "../../geometry/matrix.js";
-import { svgMatrixToPdf } from "../transform-adapter.js";
 
 export function resolveTextAlign(node: LayoutNode): string | undefined {
   let current: LayoutNode | null = node;
@@ -82,22 +79,7 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
           ? Math.max(targetWidth, baseWidth)
           : Math.max(baseWidth, 0);
       const resolvedShadows = resolveTextShadows(node, defaultColor);
-      // Build base line matrix (text-local -> element-local in px)
       const baseLineMatrix = { a: 1, b: 0, c: 0, d: 1, e: startX, f: baseline };
-      // If a CSS transform is present on the node, attempt to parse and apply it.
-      // Note: This implements a limited transform support (skew/rotate/scale/translate) for text runs.
-      let finalLineMatrix = baseLineMatrix;
-      try {
-        const parsed = typeof (node.style as any)?.transform === "string" ? parseCssTransform((node.style as any).transform) : null;
-        if (parsed) {
-          const pdfM = svgMatrixToPdf(parsed);
-          if (pdfM) {
-            finalLineMatrix = multiplyMatrices(pdfM, baseLineMatrix);
-          }
-        }
-      } catch {
-        // If parsing fails, ignore and keep base matrix (warn-and-continue policy)
-      }
       runs.push({
         text: normalizedText,
         fontFamily,
@@ -106,7 +88,7 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
         fontStyle,
         fontVariant,
         fill: defaultColor,
-        lineMatrix: finalLineMatrix,
+        lineMatrix: baseLineMatrix,
         wordSpacing,
         decorations: decoration ? { ...decoration } : undefined,
         advanceWidth,
@@ -127,20 +109,7 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
     const startX = node.box.x;
 
     const resolvedShadows = resolveTextShadows(node, defaultColor);
-    // Base matrix for single-line fallback
     const baseLineMatrix = { a: 1, b: 0, c: 0, d: 1, e: startX, f: baseline };
-    let finalLineMatrix = baseLineMatrix;
-    try {
-      const parsed = typeof (node.style as any)?.transform === "string" ? parseCssTransform((node.style as any).transform) : null;
-      if (parsed) {
-        const pdfM = svgMatrixToPdf(parsed);
-        if (pdfM) {
-          finalLineMatrix = multiplyMatrices(pdfM, baseLineMatrix);
-        }
-      }
-    } catch {
-      // ignore parse failures
-    }
     return [{
       text: normalized,
       fontFamily,
@@ -149,7 +118,7 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
       fontStyle,
       fontVariant,
       fill: defaultColor,
-      lineMatrix: finalLineMatrix,
+      lineMatrix: baseLineMatrix,
       decorations: decoration ? { ...decoration } : undefined,
       advanceWidth,
       textShadows: resolvedShadows,
