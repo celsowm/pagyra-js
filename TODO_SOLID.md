@@ -78,3 +78,37 @@ This document outlines the identified violations of SOLID principles within the 
     - **OCP & DIP:** The engine depends on the `LayoutStrategy` abstraction, and concrete strategies are provided via Dependency Injection. This makes the system fully extensible to new layout types without modifying the engine.
     - **LSP & ISP:** The `LayoutStrategy` interface is a simple, robust contract that is well-defined and correctly implemented by all strategies.
 - **Recommendation:** This architecture should be used as a reference or blueprint for refactoring the CSS and PDF modules. The patterns used here (Strategy Pattern, Dependency Injection) would directly solve many of the issues identified in the other modules.
+
+---
+---
+
+## Part 4: Font Architecture Analysis (`src/pdf/font`)
+
+### High Severity
+
+#### 1. Violation: Open/Closed Principle (OCP) & Dependency Inversion Principle (DIP)
+
+- **Component:** The entire font embedding architecture, particularly `FontEmbedder` (`embedder.ts`) and `FontRegistry` (`font-registry.ts`).
+- **Problem:** The architecture is rigidly designed for the TTF font format. High-level modules like `FontRegistry` directly instantiate and depend on the concrete low-level `FontEmbedder`, which itself contains TTF-specific logic. There are no abstractions for font parsers or embedders.
+- **Impact:**
+    - **Rigidity:** The system is not open to extension with new font formats (like WOFF2 or OTF) without significant modifications to existing code.
+    - **High Coupling & Untestable Code:** `FontRegistry` is tightly coupled to `FontEmbedder`, making it very difficult to unit test in isolation.
+- **Suggested Refactoring:**
+    1.  **Introduce Abstractions:** Create interfaces like `IFontParser` and `IFontEmbedder`.
+    2.  **Implement Strategy Pattern:** Create concrete classes like `TtfParser` and `TtfEmbedder` that implement these interfaces.
+    3.  **Use Dependency Injection:** Refactor `FontRegistry` to depend on the `IFontEmbedder` interface, and inject the concrete implementation.
+
+---
+
+### Medium Severity
+
+#### 2. Violation: Single Responsibility Principle (SRP)
+
+- **Component:** `FontRegistry` class and `FontEmbedder` class.
+- **Problem:**
+    - `FontRegistry`: Accumulates multiple responsibilities: font caching, font name resolution/aliasing, font variant selection, and orchestration of embedding.
+    - `FontEmbedder`: Its `embedFont` method is a "God method" that handles the low-level construction of multiple complex PDF objects.
+- **Impact:** The classes have low cohesion, making them harder to understand, maintain, and test.
+- **Suggested Refactoring:**
+    - **For `FontRegistry`:** Extract the logic for font name resolution and variant selection into a separate `FontResolver` class.
+    - **For `FontEmbedder`:** Decompose the `embedFont` method by extracting the logic for creating PDF objects into dedicated builder or factory functions.
