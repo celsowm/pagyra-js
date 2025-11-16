@@ -1,7 +1,7 @@
 import type { RGBA, Run, TextPaintOptions, Rect } from "../types.js";
 import type { FontRegistry, FontResource } from "../font/font-registry.js";
 import type { PdfObjectRef } from "../primitives/pdf-document.js";
-import { encodeAndEscapePdfText, encodeToWinAnsi } from "../utils/encoding.js";
+import { encodeAndEscapePdfText, type PdfEncodingScheme } from "../utils/encoding.js";
 import { needsUnicode } from "../../text/text.js";
 import { log } from "../../debug/log.js";
 import { CoordinateTransformer } from "../utils/coordinate-transformer.js";
@@ -46,23 +46,20 @@ export class TextRenderer {
     const yPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(yPx - offsetY);
     const color = options.color ?? { r: 0, g: 0, b: 0, a: 1 };
     const before = text;
-
-    // Use Identity-H encoding if using embedded font, otherwise WinAnsi
-    const useIdentityH = !font.isBase14;
-    const encodedText = useIdentityH ? text : encodeAndEscapePdfText(text);
-    const escaped = useIdentityH ? encodeAndEscapePdfText(text) : encodedText; // For Identity-H, we pass raw text then escape for PDF
+    const scheme: PdfEncodingScheme = font.isBase14 ? "WinAnsi" : "Identity-H";
+    const encoded = encodeAndEscapePdfText(before, scheme);
 
     const baselineAdjust = options.fontSizePt;
 
     // === diagnóstico cirúrgico: caminho de encoding ===
     log("ENCODING", "INFO", "encoding-path", {
-      scheme: font.isBase14 ? "WinAnsi" : "Identity-H",
+      scheme,
       font: font.baseFont
     });
 
     log("PAINT","TRACE","drawText(content)", {
       before: before.length > 60 ? before.slice(0, 57) + "..." : before,
-      encoded: escaped.length > 60 ? escaped.slice(0, 57) + "..." : escaped,
+      encoded: encoded.length > 60 ? encoded.slice(0, 57) + "..." : encoded,
       font: font.baseFont, size: options.fontSizePt
     });
 
@@ -78,7 +75,7 @@ export class TextRenderer {
       "BT",
       `/${font.resourceName} ${formatNumber(options.fontSizePt)} Tf`,
       `${formatNumber(xPt)} ${formatNumber(yPt - baselineAdjust)} Td`,
-      `(${escaped}) Tj`,
+      `(${encoded}) Tj`,
       "ET",
     );
   }
@@ -86,17 +83,12 @@ export class TextRenderer {
   async drawTextRun(run: Run): Promise<void> {
     const font = await this.ensureFont({ fontFamily: run.fontFamily, fontWeight: run.fontWeight, fontStyle: run.fontStyle, fontVariant: run.fontVariant, text: run.text });
     const color = run.fill ?? { r: 0, g: 0, b: 0, a: 1 };
-    let before = run.text;
-
-
-    if (run.fontVariant === 'small-caps') {
-      before = before.toUpperCase();
+    let normalizedText = run.text;
+    if (run.fontVariant === "small-caps") {
+      normalizedText = normalizedText.toUpperCase();
     }
-
-    // Use Identity-H encoding if using embedded font, otherwise WinAnsi
-    const useIdentityH = !font.isBase14;
-    const payloadText = useIdentityH ? run.text : encodeToWinAnsi(run.text);
-    const escaped = encodeAndEscapePdfText(payloadText);
+    const scheme: PdfEncodingScheme = font.isBase14 ? "WinAnsi" : "Identity-H";
+    const encoded = encodeAndEscapePdfText(normalizedText, scheme);
 
     const Tm = run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
     const fontSizePt = this.coordinateTransformer.convertPxToPt(run.fontSize);
@@ -106,18 +98,18 @@ export class TextRenderer {
 
     // === diagnóstico cirúrgico: caminho de encoding ===
     log("ENCODING", "INFO", "encoding-path", {
-      scheme: font.isBase14 ? "WinAnsi" : "Identity-H",
+      scheme,
       font: font.baseFont
     });
 
     log("PAINT","TRACE","drawText(content)", {
-      before: before.length > 60 ? before.slice(0, 57) + "..." : before,
-      encoded: escaped.length > 60 ? escaped.slice(0, 57) + "..." : escaped,
+      before: normalizedText.length > 60 ? normalizedText.slice(0, 57) + "..." : normalizedText,
+      encoded: encoded.length > 60 ? encoded.slice(0, 57) + "..." : encoded,
       font: font.baseFont, size: fontSizePt
     });
 
     log("PAINT","DEBUG","drawing text run", {
-      text: run.text.slice(0, 32),
+      text: normalizedText.slice(0, 32),
       fontName: font.baseFont,
       fontSizePt,
       Tm,
@@ -344,7 +336,7 @@ export class TextRenderer {
                   shadowSequence.push(
                     `/${font.resourceName} ${formatNumber(fontSizePt)} Tf`,
                     `${formatNumber(Tm.a)} ${formatNumber(Tm.b)} ${formatNumber(Tm.c)} ${formatNumber(Tm.d)} ${formatNumber(shadowX)} ${formatNumber(shadowYPt)} Tm`,
-                    `(${escaped}) Tj`
+                    `(${encoded}) Tj`
                   );
                   if (appliedWordSpacing) shadowSequence.push("0 Tw");
                   shadowSequence.push("ET", "Q");
@@ -364,7 +356,7 @@ export class TextRenderer {
                 shadowSequence.push(
                   `/${font.resourceName} ${formatNumber(fontSizePt)} Tf`,
                   `${formatNumber(Tm.a)} ${formatNumber(Tm.b)} ${formatNumber(Tm.c)} ${formatNumber(Tm.d)} ${formatNumber(shadowX)} ${formatNumber(shadowYPt)} Tm`,
-                  `(${escaped}) Tj`
+                  `(${encoded}) Tj`
                 );
                 if (appliedWordSpacing) shadowSequence.push("0 Tw");
                 shadowSequence.push("ET", "Q");
@@ -384,7 +376,7 @@ export class TextRenderer {
           shadowSequence.push(
             `/${font.resourceName} ${formatNumber(fontSizePt)} Tf`,
             `${formatNumber(Tm.a)} ${formatNumber(Tm.b)} ${formatNumber(Tm.c)} ${formatNumber(Tm.d)} ${formatNumber(shadowX)} ${formatNumber(shadowYPt)} Tm`,
-            `(${escaped}) Tj`
+            `(${encoded}) Tj`
           );
           if (appliedWordSpacing) shadowSequence.push("0 Tw");
           shadowSequence.push("ET", "Q");
@@ -405,7 +397,7 @@ export class TextRenderer {
           shadowSequence.push(
             `/${font.resourceName} ${formatNumber(fontSizePt)} Tf`,
             `${formatNumber(Tm.a)} ${formatNumber(Tm.b)} ${formatNumber(Tm.c)} ${formatNumber(Tm.d)} ${formatNumber(shadowX)} ${formatNumber(shadowYPt)} Tm`,
-            `(${escaped}) Tj`
+            `(${encoded}) Tj`
           );
           if (appliedWordSpacing) shadowSequence.push("0 Tw");
           shadowSequence.push("ET");
@@ -433,7 +425,7 @@ export class TextRenderer {
     sequence.push(
       `/${font.resourceName} ${formatNumber(fontSizePt)} Tf`,
       `${formatNumber(Tm.a)} ${formatNumber(Tm.b)} ${formatNumber(Tm.c)} ${formatNumber(Tm.d)} ${formatNumber(x)} ${formatNumber(y)} Tm`,
-      `(${escaped}) Tj`,
+      `(${encoded}) Tj`,
     );
 
     if (appliedWordSpacing) {

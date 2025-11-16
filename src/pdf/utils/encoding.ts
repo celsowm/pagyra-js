@@ -1,3 +1,5 @@
+import { log } from "../../debug/log.js";
+
 const WIN_ANSI_UNICODE = (() => {
   const table: number[] = new Array(256);
   for (let code = 0; code <= 0xff; code++) {
@@ -53,34 +55,34 @@ const UNICODE_TO_WIN_ANSI = (() => {
   return map;
 })();
 
-import { log } from "../../debug/log.js";
-
 export { UNICODE_TO_WIN_ANSI };
 
+export type PdfEncodingScheme = "WinAnsi" | "Identity-H";
+
 export function encodeToWinAnsi(text: string): string {
-  let result = "", misses = 0, details: number[] = [];
+  let result = "",
+    misses = 0,
+    details: number[] = [];
   for (const char of text) {
     const codePoint = char.codePointAt(0);
     if (codePoint === undefined) {
       continue;
     }
-    
-    // Special handling: if we encounter byte 0x95, this represents a bullet character
-    // that was converted from Unicode in the pipeline. Encode it as the WinAnsi bullet.
-    if (codePoint === 0x95) { // This is the byte representation of bullet (•)
-      result += String.fromCharCode(0x95); // Keep as WinAnsi bullet byte
-    } else {
-      const byte = UNICODE_TO_WIN_ANSI.get(codePoint);
-      if (byte === undefined) {
-        misses++;
-        details.push(codePoint);
-        result += "?";
-        continue;
-      }
-      result += String.fromCharCode(byte);
+    const byte = UNICODE_TO_WIN_ANSI.get(codePoint);
+    if (byte === undefined) {
+      misses++;
+      details.push(codePoint);
+      result += "?";
+      continue;
     }
+    result += String.fromCharCode(byte);
   }
-  if (misses) log("ENCODING","DEBUG","WinAnsi misses", { misses, codepoints: details.slice(0,20) });
+  if (misses) {
+    log("ENCODING", "DEBUG", "WinAnsi misses", {
+      misses,
+      codepoints: details.slice(0, 20),
+    });
+  }
   return result;
 }
 
@@ -88,9 +90,9 @@ export function escapePdfLiteral(text: string): string {
   return text.replace(/([()\\])/g, "\\$1");
 }
 
-export function encodeAndEscapePdfText(text: string): string {
+export function encodeAndEscapePdfText(text: string, scheme: PdfEncodingScheme = "WinAnsi"): string {
   const before = text;
-  const encoded = encodeToWinAnsi(text);
-  log("ENCODING","TRACE","PdfText transformation", { before, after: encoded });
-  return escapePdfLiteral(encoded);
+  const payload = scheme === "WinAnsi" ? encodeToWinAnsi(text) : text;
+  log("ENCODING", "TRACE", "PdfText transformation", { scheme, before, after: payload });
+  return escapePdfLiteral(payload);
 }

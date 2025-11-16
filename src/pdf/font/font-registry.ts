@@ -265,7 +265,6 @@ export async function ensureFontSubset(registry: FontRegistry, run: Run): Promis
 export function ensureFontSubsetSync(registry: FontRegistry, run: Run): FontResource {
   const font = registry.ensureFontResourceSync(run.fontFamily, run.fontWeight, run.fontStyle);
   // === diagnóstico cirúrgico: caminho de fonte ===
-  console.log(`[FONT_DEBUG] Run text: "${run.text}", fontFamily: "${run.fontFamily}", font.isBase14: ${font.isBase14}, font.baseFont: ${font.baseFont}, encoding: ${font.isBase14 ? "WinAnsi" : "Identity-H"}`);
   log("FONT", "INFO", "font-path", {
     base14: font.isBase14 === true,
     family: font.baseFont,

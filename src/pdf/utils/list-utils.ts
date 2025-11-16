@@ -23,9 +23,7 @@ export function createListMarkerRun(
   const fontSize = node.style.fontSize;
   const fontWeight = node.style.fontWeight;
   const color = fallbackColor ?? { r: 0, g: 0, b: 0, a: 1 };
-  
-  console.log(`[LIST_MARKER] markerText: "${markerText}", codepoints: [${[...markerText].map(c => c.codePointAt(0)).join(', ')}]`);
-  
+
   const baseline =
     firstRun?.lineMatrix.f ??
     (node.box.baseline > 0 ? node.box.baseline : contentBox.y + fontSize);
