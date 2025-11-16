@@ -1,8 +1,6 @@
 import type { Run, TextPaintOptions } from "../types.js";
 import type { FontRegistry, FontResource } from "../font/font-registry.js";
 import type { PdfObjectRef } from "../primitives/pdf-document.js";
-import { encodeAndEscapePdfText, escapePdfLiteral, type PdfEncodingScheme } from "../utils/encoding.js";
-import { needsUnicode } from "../../text/text.js";
 import { log } from "../../debug/log.js";
 import { CoordinateTransformer } from "../utils/coordinate-transformer.js";
 import type { ImageRenderer } from "./image-renderer.js";
@@ -10,6 +8,8 @@ import type { GraphicsStateManager } from "./graphics-state-manager.js";
 import { fillColorCommand, formatNumber } from "./text-renderer-utils.js";
 import { TextShadowRenderer } from "./text-shadow-renderer.js";
 import { TextDecorationRenderer } from "./text-decoration-renderer.js";
+import { TextFontResolver } from "./text-font-resolver.js";
+import { encodeTextPayload } from "./text-encoder.js";
 
 export interface TextRendererResult {
   readonly commands: string[];
@@ -22,6 +22,7 @@ export class TextRenderer {
   private readonly decorationRenderer: TextDecorationRenderer;
   private readonly shadowRenderer: TextShadowRenderer;
   private readonly graphicsStateManager?: GraphicsStateManager;
+  private readonly fontResolver: TextFontResolver;
 
   constructor(
     private readonly coordinateTransformer: CoordinateTransformer,
@@ -30,6 +31,7 @@ export class TextRenderer {
     graphicsStateManager?: GraphicsStateManager,
   ) {
     this.graphicsStateManager = graphicsStateManager;
+    this.fontResolver = new TextFontResolver(fontRegistry);
     this.shadowRenderer = new TextShadowRenderer(coordinateTransformer, fontRegistry, imageRenderer, graphicsStateManager);
     this.decorationRenderer = new TextDecorationRenderer(coordinateTransformer, graphicsStateManager);
   }
@@ -39,14 +41,15 @@ export class TextRenderer {
       return;
     }
     
-    const font = await this.ensureFont({ fontFamily: options.fontFamily, fontWeight: options.fontWeight, text });
+    const font = await this.fontResolver.ensureFontResource({ fontFamily: options.fontFamily, fontWeight: options.fontWeight, text });
+    this.registerFont(font);
     const usePageOffset = !(options.absolute ?? false);
     const offsetY = usePageOffset ? this.coordinateTransformer.pageOffsetPx : 0;
     const xPt = this.coordinateTransformer.convertPxToPt(xPx);
     const yPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(yPx - offsetY);
     const color = options.color ?? { r: 0, g: 0, b: 0, a: 1 };
     const before = text;
-    const { scheme, encoded } = this.encodeTextPayload(before, font);
+    const { scheme, encoded } = encodeTextPayload(before, font);
 
     const baselineAdjust = options.fontSizePt;
 
@@ -80,13 +83,14 @@ export class TextRenderer {
   }
 
   async drawTextRun(run: Run): Promise<void> {
-    const font = await this.ensureFont({ fontFamily: run.fontFamily, fontWeight: run.fontWeight, fontStyle: run.fontStyle, fontVariant: run.fontVariant, text: run.text });
+    const font = await this.fontResolver.ensureFontResource({ fontFamily: run.fontFamily, fontWeight: run.fontWeight, fontStyle: run.fontStyle, fontVariant: run.fontVariant, text: run.text });
+    this.registerFont(font);
     const color = run.fill ?? { r: 0, g: 0, b: 0, a: 1 };
     let normalizedText = run.text;
     if (run.fontVariant === "small-caps") {
       normalizedText = normalizedText.toUpperCase();
     }
-    const { scheme, encoded } = this.encodeTextPayload(normalizedText, font);
+    const { scheme, encoded } = encodeTextPayload(normalizedText, font);
 
     const Tm = run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
     const fontSizePt = this.coordinateTransformer.convertPxToPt(run.fontSize);
@@ -179,46 +183,10 @@ export class TextRenderer {
     this.commands.push(...this.decorationRenderer.render(run, color));
   }
 
-  private async ensureFont(options: { fontFamily?: string; fontWeight?: number; fontStyle?: string; fontVariant?: string; text?: string }): Promise<FontResource> {
-    const text = options.text ?? "";
-    const requiresUnicode = needsUnicode(text);
-    let resource = await this.fontRegistry.ensureFontResource(options.fontFamily, options.fontWeight, options.fontStyle);
-
-    if (requiresUnicode && resource.isBase14) {
-      const fallback = await this.fontRegistry.ensureFontResource(undefined, options.fontWeight, options.fontStyle);
-      if (!fallback.isBase14) {
-        resource = fallback;
-      }
+  private registerFont(font: FontResource): void {
+    if (!this.fonts.has(font.resourceName)) {
+      this.fonts.set(font.resourceName, font.ref);
     }
-
-    if (!this.fonts.has(resource.resourceName)) {
-      this.fonts.set(resource.resourceName, resource.ref);
-    }
-    return resource;
-  }
-
-  private encodeTextPayload(text: string, font: FontResource): { encoded: string; scheme: PdfEncodingScheme } {
-    if (font.isBase14) {
-      return { encoded: encodeAndEscapePdfText(text, "WinAnsi"), scheme: "WinAnsi" };
-    }
-    return { encoded: this.encodeIdentityText(text, font), scheme: "Identity-H" };
-  }
-
-  private encodeIdentityText(text: string, font: FontResource): string {
-    const metrics = font.metrics;
-    if (!metrics) {
-      return encodeAndEscapePdfText(text, "WinAnsi");
-    }
-    let encoded = "";
-    for (const char of text) {
-      const codePoint = char.codePointAt(0);
-      if (codePoint === undefined) {
-        continue;
-      }
-      const glyphId = metrics.cmap.getGlyphId(codePoint);
-      encoded += String.fromCharCode((glyphId >> 8) & 0xff, glyphId & 0xff);
-    }
-    return escapePdfLiteral(encoded);
   }
 
   getResult(): TextRendererResult {
