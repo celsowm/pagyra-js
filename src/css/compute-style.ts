@@ -212,6 +212,7 @@ export function computeStyleForElement(
     overflowWrap: parentStyle.overflowWrap ?? mergedDefaults.overflowWrap,
     textIndent: parentStyle.textIndent ?? mergedDefaults.textIndent ?? 0,
     textTransform: parentStyle.textTransform ?? mergedDefaults.textTransform ?? "none",
+    listStyleType: parentStyle.listStyleType ?? mergedDefaults.listStyleType ?? "disc",
   };
 
   const styleInit: StyleAccumulator = {};
@@ -306,6 +307,7 @@ export function computeStyleForElement(
     overflowWrap: inherited.overflowWrap,
     textIndent: inherited.textIndent ?? mergedDefaults.textIndent ?? 0,
     textTransform: inherited.textTransform ?? "none",
+    listStyleType: inherited.listStyleType ?? mergedDefaults.listStyleType ?? "disc",
     // Apply computed values
     display,
     float: floatValue ?? FloatMode.None,
@@ -475,6 +477,7 @@ export function computeStyleForElement(
   if (styleInit.textAlign !== undefined) styleOptions.textAlign = styleInit.textAlign;
   if (styleInit.textIndent !== undefined) assignLength(styleInit.textIndent, (v) => (styleOptions.textIndent = v));
   if (styleInit.textTransform !== undefined) styleOptions.textTransform = styleInit.textTransform;
+  if (styleInit.listStyleType !== undefined) styleOptions.listStyleType = styleInit.listStyleType;
   // If a raw transform string was parsed, preserve it on the computed style so downstream
   // consumers (e.g. text run builders / renderers) can apply mapping for text.
   if ((styleInit as any).transform !== undefined) {

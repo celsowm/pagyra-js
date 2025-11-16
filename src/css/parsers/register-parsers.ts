@@ -125,6 +125,7 @@ import {
 } from "./text-parser-extended.js";
 import { parseOverflowWrap, parseWordWrap } from "./overflow-wrap-parser.js";
 import { parseTextShadow } from "./text-shadow-parser.js";
+import { parseListStyleType } from "./list-style-parser.js";
 
 // Background
 import {
@@ -260,6 +261,7 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("overflow-wrap", parseOverflowWrap);
   registerPropertyParser("word-wrap", parseWordWrap);
   registerPropertyParser("text-shadow", parseTextShadow);
+  registerPropertyParser("list-style-type", parseListStyleType);
   // Transform (store as raw string for limited later use)
   registerPropertyParser("transform", (value, target) => {
     // store raw transform string

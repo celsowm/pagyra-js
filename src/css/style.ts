@@ -179,6 +179,7 @@ export interface StyleAccumulator {
   textAlign?: string;
   textIndent?: LengthInput;
   textTransform?: TextTransform;
+  listStyleType?: string;
   objectFit?: string;
 
   textDecorationLine?: string;

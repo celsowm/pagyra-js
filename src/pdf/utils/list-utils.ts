@@ -82,6 +82,18 @@ export function formatListMarker(styleType: string, index: number): string | und
       return `${index}.`;
     case "decimal-leading-zero":
       return `${String(index).padStart(2, "0")}.`;
+    case "lower-alpha":
+      return `${toAlphaSequence(index).toLowerCase()}.`;
+    case "upper-alpha":
+      return `${toAlphaSequence(index).toUpperCase()}.`;
+    case "lower-roman": {
+      const roman = toRomanNumeral(index);
+      return roman ? `${roman.toLowerCase()}.` : `${index}.`;
+    }
+    case "upper-roman": {
+      const roman = toRomanNumeral(index);
+      return roman ? `${roman.toUpperCase()}.` : `${index}.`;
+    }
     case "disc":
       // Use Unicode bullet character (U+2022) to ensure proper encoding
       return "\u2022";
@@ -93,6 +105,51 @@ export function formatListMarker(styleType: string, index: number): string | und
       // Use Unicode bullet character (U+2022) to ensure proper encoding
       return "\u2022";
   }
+}
+
+function toAlphaSequence(index: number): string {
+  let n = Math.max(1, Math.floor(index));
+  let result = "";
+  while (n > 0) {
+    n -= 1;
+    const charCode = 65 + (n % 26);
+    result = String.fromCharCode(charCode) + result;
+    n = Math.floor(n / 26);
+  }
+  return result;
+}
+
+function toRomanNumeral(index: number): string | undefined {
+  if (!Number.isFinite(index) || index <= 0 || index >= 4000) {
+    return undefined;
+  }
+  const romanPairs: Array<[number, string]> = [
+    [1000, "M"],
+    [900, "CM"],
+    [500, "D"],
+    [400, "CD"],
+    [100, "C"],
+    [90, "XC"],
+    [50, "L"],
+    [40, "XL"],
+    [10, "X"],
+    [9, "IX"],
+    [5, "V"],
+    [4, "IV"],
+    [1, "I"],
+  ];
+  let remainder = Math.floor(index);
+  let result = "";
+  for (const [value, numeral] of romanPairs) {
+    while (remainder >= value) {
+      result += numeral;
+      remainder -= value;
+    }
+    if (remainder === 0) {
+      break;
+    }
+  }
+  return result;
 }
 
 export function resolveListStyleType(node: LayoutNode): string | undefined {
