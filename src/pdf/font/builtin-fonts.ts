@@ -12,6 +12,7 @@ const BUILTIN_FACES: BuiltinFace[] = [
   { name: "Roboto-Italic", family: "Roboto", weight: 400, style: "italic", file: "Roboto-Italic.ttf" },
   { name: "Roboto-BoldItalic", family: "Roboto", weight: 700, style: "italic", file: "Roboto-BoldItalic.ttf" },
   { name: "NotoSans-Regular", family: "Noto Sans", weight: 400, style: "normal", file: "NotoSans-Regular.ttf" },
+  { name: "DejaVuSans-Regular", family: "DejaVu Sans", weight: 400, style: "normal", file: "DejaVuSans.ttf" },
 ];
 
 let cachedConfig: FontConfig | null | undefined;
@@ -47,7 +48,7 @@ export async function loadBuiltinFontConfig(): Promise<FontConfig | null> {
       }
       cachedConfig = {
         fontFaceDefs: faces,
-        defaultStack: ["Noto Sans", "Roboto"],
+        defaultStack: ["Noto Sans", "Roboto", "DejaVu Sans"],
       };
       return cachedConfig;
     } catch (error) {
