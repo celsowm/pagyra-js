@@ -11,6 +11,7 @@ const createMockFontRegistry = () => {
     initializeEmbedder: vi.fn().mockResolvedValue(undefined),
     setFontConfig: vi.fn(),
     getEmbedder: vi.fn().mockReturnValue(null),
+    getDefaultFontStack: vi.fn().mockReturnValue([]),
   } as any;
 };
 

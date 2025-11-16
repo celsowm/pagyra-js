@@ -95,6 +95,13 @@ export class FontRegistry {
     return this.embedder;
   }
 
+  getDefaultFontStack(): string[] {
+    if (!this.fontConfig?.defaultStack || this.fontConfig.defaultStack.length === 0) {
+      return [];
+    }
+    return [...this.fontConfig.defaultStack];
+  }
+
   ensureFontResourceSync(family: string | undefined, weight?: number, style?: string): FontResource {
     const normalizedWeight = normalizeFontWeight(weight);
     const familyKey = this.makeFamilyKey(family, normalizedWeight, style);

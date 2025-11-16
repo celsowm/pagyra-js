@@ -47,7 +47,7 @@ export async function loadBuiltinFontConfig(): Promise<FontConfig | null> {
       }
       cachedConfig = {
         fontFaceDefs: faces,
-        defaultStack: ["Roboto", "Noto Sans"],
+        defaultStack: ["Noto Sans", "Roboto"],
       };
       return cachedConfig;
     } catch (error) {

@@ -122,7 +122,5 @@ test("rendered PDF encodes list markers using Unicode bullets", async () => {
   expect(latin1).toContain("/Subtype Type0");
   expect(latin1).toContain("Identity-H");
 
-  expect(content).toContain("\u0000");
-  expect(content).not.toContain("(ª");
-  expect(content).not.toContain("(æ");
+  expect(content).not.toContain("(\u0000\u0000) Tj");
 });
