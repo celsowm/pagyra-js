@@ -13,7 +13,7 @@ test('Row 3, Cell 3 fits on one line inside td', () => {
     const text = 'Row 3, Cell 3';
     // width deliberately generous so it should not wrap
     const avail = 1000;
-    const lines = buildLineBoxes(text, style, avail, (t, f, s, w, i) => measurer(6)(t));
+    const lines = buildLineBoxes(text, style, avail, (t, _, __, ___, ____) => measurer(6)(t));
     expect(lines.length).toBe(1);
     expect(lines[0].text.trim()).toBe('Row 3, Cell 3');
 });

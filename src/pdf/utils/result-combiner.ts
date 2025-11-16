@@ -44,7 +44,7 @@ export class ResultCombiner {
       if (pages && pages.length > 0) {
         this.imageRenderer.registerAtlasPages(pages);
       }
-    } catch (e) {
+    } catch {
       // ignore atlas registration errors - fall back to per-glyph images
     }
 
@@ -57,7 +57,7 @@ export class ResultCombiner {
 
     // Partition image commands: shadow rasters (drawn beneath shapes) vs others
     const shadowAliases = new Set<string>();
-    for (const [_, res] of imageResult.images) {
+    for (const [, res] of imageResult.images) {
       if (res.image.src && typeof res.image.src === 'string' && res.image.src.startsWith('internal:shadow:')) {
         shadowAliases.add(res.alias);
       }
@@ -92,8 +92,8 @@ export class ResultCombiner {
       if (textResult.commands.length > 0) {
         console.log("DEBUG: PagePainter.result - sample text commands:", textResult.commands.slice(0, 12));
       }
-    } catch (e) {
-      console.log("DEBUG: PagePainter.result - error logging text commands", e);
+    } catch {
+      console.log("DEBUG: PagePainter.result - error logging text commands");
     }
 
     const allCommands = [
@@ -105,7 +105,7 @@ export class ResultCombiner {
 
     // Process image resources to match the expected format
     const processedImages: PainterImageResource[] = [];
-    for (const [_, resource] of imageResult.images) {
+    for (const [, resource] of imageResult.images) {
       // Convert the image resource to the expected format
       processedImages.push({
         alias: resource.alias,

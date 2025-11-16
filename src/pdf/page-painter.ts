@@ -205,7 +205,7 @@ export class PagePainter {
       if (pages && pages.length > 0) {
         this.imageRenderer.registerAtlasPages(pages);
       }
-    } catch (e) {
+    } catch {
       // ignore atlas registration errors - fall back to per-glyph images
     }
     return this.resultCombiner.combineResults();

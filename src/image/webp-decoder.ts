@@ -395,7 +395,7 @@ export class WebpDecoder extends BaseDecoder {
     // Skip the Huffman codes and pixel data for transforms
     try {
       this.readHuffmanCodes(br); // Skip Huffman codes
-    } catch (e) {
+    } catch {
       // If reading Huffman codes fails, skip a reasonable amount of bits
       const maxBitsToSkip = Math.min(width * height * 4, 10000);
       for (let i = 0; i < maxBitsToSkip && br.hasMore(); i++) {

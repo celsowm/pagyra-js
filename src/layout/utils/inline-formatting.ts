@@ -69,7 +69,6 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
   let cursorX = 0;
   let lineTop = options.startY;
   let lineHeight = Math.max(resolvedLineHeight(container.style), 0);
-  let totalHeight = 0;
   const lineItems: InlineMetrics[] = [];
 
   const offsets = () => floatContext.inlineOffsets(lineTop, lineTop + lineHeight, contentWidth);
@@ -126,7 +125,6 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
     for (const item of lineItems) {
       placeInlineItem(item, contentX + inlineOffset.start, lineTop);
     }
-    totalHeight += lineHeight;
     lineTop += lineHeight;
     cursorX = 0;
     lineHeight = Math.max(resolvedLineHeight(container.style), 0);

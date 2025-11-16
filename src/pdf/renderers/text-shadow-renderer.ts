@@ -219,7 +219,7 @@ export class TextShadowRenderer {
                 commands.push(...shadowSequence);
               }
             }
-          } catch (e) {
+          } catch {
             this.appendVectorShadowLayers(commands, run, font, encoded, Tm, fontSizePt, wordSpacingCmd, resetWordSpacingCmd);
           }
         } else {
