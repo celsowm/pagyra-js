@@ -12,31 +12,19 @@ import {
   type Positioning,
   type RGBA,
   type ImageRef,
-  type Background,
-  type BackgroundImage,
-  type Run,
   NodeKind,
   Overflow,
   LayerMode,
 } from "./types.js";
 import { parseColor } from "./utils/color-utils.js";
 import { resolveBorderRadius } from "./utils/border-radius-utils.js";
-import { createTextRuns, resolveDecorations } from "./utils/text-utils.js";
-import { createListMarkerRun } from "./utils/list-utils.js";
 import { resolveBoxShadows, resolveTextShadows, calculateVisualOverflow } from "./utils/shadow-utils.js";
 import { extractImageRef } from "./utils/image-utils.js";
 import { calculateBoxDimensions } from "./utils/box-dimensions-utils.js";
+import { resolveDecorations } from "./utils/text-decoration-utils.js";
+import { resolveBackgroundLayers } from "./utils/background-layer-resolver.js";
 import { parseTransform } from "../transform/css-parser.js";
-import { svgMatrixToPdf } from "./transform-adapter.js";
-import { multiplyMatrices } from "../geometry/matrix.js";
-import type { Matrix } from "../geometry/matrix.js";
-import type {
-  ImageBackgroundLayer,
-  GradientBackgroundLayer,
-  BackgroundSize,
-  BackgroundPosition,
-} from "../css/background-types.js";
-import type { ImageInfo } from "../image/types.js";
+import { buildNodeTextRuns } from "./utils/node-text-run-factory.js";
 
 export interface RenderTreeOptions {
   dpiAssumption?: number;
@@ -125,250 +113,6 @@ function mapOverflow(mode: OverflowMode): Overflow {
   }
 }
 
-function selectBackgroundOriginRect(
-  layer: { origin?: ImageBackgroundLayer["origin"] },
-  borderBox: Rect,
-  paddingBox: Rect,
-  contentBox: Rect,
-): Rect {
-  const origin = layer.origin ?? "padding-box";
-  switch (origin) {
-    case "border-box":
-      return { ...borderBox };
-    case "content-box":
-      return { ...contentBox };
-    default:
-      return { ...paddingBox };
-  }
-}
-
-function parseBackgroundSizeComponent(component: string | undefined, axisLength: number, intrinsic: number): number | undefined {
-  if (!component) {
-    return undefined;
-  }
-  const normalized = component.trim().toLowerCase();
-  if (!normalized || normalized === "auto") {
-    return undefined;
-  }
-  if (normalized.endsWith("%")) {
-    const value = Number.parseFloat(normalized.slice(0, -1));
-    if (Number.isFinite(value)) {
-      return (axisLength * value) / 100;
-    }
-    return undefined;
-  }
-  if (normalized.endsWith("px")) {
-    const value = Number.parseFloat(normalized.slice(0, -2));
-    return Number.isFinite(value) ? value : undefined;
-  }
-  const numeric = Number.parseFloat(normalized);
-  return Number.isFinite(numeric) ? numeric : intrinsic;
-}
-
-function resolveBackgroundImageSize(size: BackgroundSize | undefined, area: Rect, info: ImageInfo): { width: number; height: number } {
-  const intrinsicWidth = info.width;
-  const intrinsicHeight = info.height;
-  if (!size || size === "auto") {
-    return { width: intrinsicWidth, height: intrinsicHeight };
-  }
-  if (size === "cover") {
-    const scale = Math.max(
-      area.width > 0 && intrinsicWidth > 0 ? area.width / intrinsicWidth : 0,
-      area.height > 0 && intrinsicHeight > 0 ? area.height / intrinsicHeight : 0,
-    );
-    const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
-    return {
-      width: intrinsicWidth * safeScale,
-      height: intrinsicHeight * safeScale,
-    };
-  }
-  if (size === "contain") {
-    const scale = Math.min(
-      area.width > 0 && intrinsicWidth > 0 ? area.width / intrinsicWidth : Number.POSITIVE_INFINITY,
-      area.height > 0 && intrinsicHeight > 0 ? area.height / intrinsicHeight : Number.POSITIVE_INFINITY,
-    );
-    const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
-    return {
-      width: intrinsicWidth * safeScale,
-      height: intrinsicHeight * safeScale,
-    };
-  }
-  const widthComponent = parseBackgroundSizeComponent(size.width, area.width, intrinsicWidth);
-  const heightComponent = parseBackgroundSizeComponent(size.height, area.height, intrinsicHeight);
-
-  let width = widthComponent ?? intrinsicWidth;
-  let height = heightComponent ?? intrinsicHeight;
-
-  if (widthComponent !== undefined && heightComponent === undefined && intrinsicWidth > 0) {
-    const scale = widthComponent / intrinsicWidth;
-    height = intrinsicHeight * scale;
-  } else if (heightComponent !== undefined && widthComponent === undefined && intrinsicHeight > 0) {
-    const scale = heightComponent / intrinsicHeight;
-    width = intrinsicWidth * scale;
-  }
-
-  return {
-    width,
-    height,
-  };
-}
-
-function resolveGradientSize(size: BackgroundSize | undefined, area: Rect): { width: number; height: number } {
-  if (!size || size === "auto" || size === "cover" || size === "contain") {
-    return { width: area.width, height: area.height };
-  }
-  const widthComponent = parseBackgroundSizeComponent(size.width, area.width, area.width);
-  const heightComponent = parseBackgroundSizeComponent(size.height, area.height, area.height);
-  return {
-    width: widthComponent ?? area.width,
-    height: heightComponent ?? area.height,
-  };
-}
-
-function resolvePositionComponent(value: string, start: number, available: number, size: number, axis: "x" | "y"): number {
-  const keyword = value.toLowerCase();
-  if (keyword === "center") {
-    return start + (available - size) / 2;
-  }
-  if (axis === "x") {
-    if (keyword === "right") {
-      return start + (available - size);
-    }
-    if (keyword === "left") {
-      return start;
-    }
-  } else {
-    if (keyword === "bottom") {
-      return start + (available - size);
-    }
-    if (keyword === "top") {
-      return start;
-    }
-  }
-  if (keyword.endsWith("%")) {
-    const valuePct = Number.parseFloat(keyword.slice(0, -1));
-    if (Number.isFinite(valuePct)) {
-      return start + ((available - size) * valuePct) / 100;
-    }
-  }
-  const numeric = Number.parseFloat(keyword);
-  if (Number.isFinite(numeric)) {
-    return start + numeric;
-  }
-  return start;
-}
-
-function resolveBackgroundPosition(
-  position: BackgroundPosition | undefined,
-  area: Rect,
-  width: number,
-  height: number,
-): { x: number; y: number } {
-  const posX = position?.x ?? "left";
-  const posY = position?.y ?? "top";
-  const x = resolvePositionComponent(posX, area.x, area.width, width, "x");
-  const y = resolvePositionComponent(posY, area.y, area.height, height, "y");
-  return { x, y };
-}
-
-function convertToImageRef(layer: ImageBackgroundLayer, info: ImageInfo): ImageRef {
-  return {
-    src: layer.resolvedUrl ?? layer.originalUrl ?? "",
-    width: info.width,
-    height: info.height,
-    format: info.format,
-    channels: info.channels,
-    bitsPerComponent: info.bitsPerChannel,
-    data: info.data,
-  };
-}
-
-function createBackgroundImage(
-  layer: ImageBackgroundLayer,
-  borderBox: Rect,
-  paddingBox: Rect,
-  contentBox: Rect,
-): BackgroundImage | undefined {
-  if (!layer.imageInfo) {
-    return undefined;
-  }
-  const originRect = selectBackgroundOriginRect(layer, borderBox, paddingBox, contentBox);
-  const size = resolveBackgroundImageSize(layer.size, originRect, layer.imageInfo);
-  if (size.width <= 0 || size.height <= 0) {
-    return undefined;
-  }
-  const position = resolveBackgroundPosition(layer.position, originRect, size.width, size.height);
-  const imageRef = convertToImageRef(layer, layer.imageInfo);
-  return {
-    image: imageRef,
-    rect: {
-      x: position.x,
-      y: position.y,
-      width: size.width,
-      height: size.height,
-    },
-    repeat: layer.repeat ?? "repeat",
-    originRect,
-  };
-}
-
-function createGradientBackground(
-  layer: GradientBackgroundLayer,
-  borderBox: Rect,
-  paddingBox: Rect,
-  contentBox: Rect,
-): Background["gradient"] | undefined {
-  const originRect = selectBackgroundOriginRect(layer, borderBox, paddingBox, contentBox);
-  const size = resolveGradientSize(layer.size, originRect);
-  if (size.width <= 0 || size.height <= 0) {
-    return undefined;
-  }
-  const position = resolveBackgroundPosition(layer.position, originRect, size.width, size.height);
-  return {
-    gradient: layer.gradient,
-    rect: {
-      x: position.x,
-      y: position.y,
-      width: size.width,
-      height: size.height,
-    },
-    repeat: layer.repeat ?? "no-repeat",
-    originRect,
-  };
-}
-
-function handleBackground(
-  node: LayoutNode,
-  borderBox: Rect,
-  paddingBox: Rect,
-  contentBox: Rect,
-): Background {
-  const style = node.style;
-  const layers = style.backgroundLayers ?? [];
-  const background: Background = {};
-
-  for (let i = layers.length - 1; i >= 0; i--) {
-    const layer = layers[i];
-    if (layer.kind === "gradient" && background.gradient === undefined) {
-      const gradient = createGradientBackground(layer, borderBox, paddingBox, contentBox);
-      if (gradient) {
-        background.gradient = gradient;
-      }
-    } else if (layer.kind === "image" && background.image === undefined) {
-      const image = createBackgroundImage(layer, borderBox, paddingBox, contentBox);
-      if (image) {
-        background.image = image;
-      }
-    }
-  }
-
-  const color = parseColor(style.backgroundColor || undefined);
-  if (color) {
-    background.color = color;
-  }
-
-  return background;
-}
 
 // ====================
 // MAIN CONVERSION FUNCTION
@@ -391,16 +135,16 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
   const children = node.children.map((child) => convertNode(child, state));
   const imageRef = extractImageRef(node);
   const decorations = resolveDecorations(node.style);
-  const textRuns = node.textContent ? createTextRuns(node, textColor, decorations) : [];
-  if (node.tagName === "li") {
-    const markerRun = createListMarkerRun(node, contentBox, children, textColor ?? DEFAULT_TEXT_COLOR);
-    if (markerRun) {
-      textRuns.unshift(markerRun);
-    }
-  }
-  if (transform && textRuns.length > 0) {
-    applyTransformToTextRuns(textRuns, transform, borderBox);
-  }
+  const textRuns = buildNodeTextRuns({
+    node,
+    children,
+    borderBox,
+    contentBox,
+    textColor,
+    decorations,
+    transform: transform ?? undefined,
+    fallbackColor: textColor ?? DEFAULT_TEXT_COLOR,
+  });
 
   log("RENDER_TREE","DEBUG","node converted", {
     tagName: node.tagName,
@@ -410,15 +154,12 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
     contentBox,
   });
 
-  // Handle background (colors, gradients, images)
-  const background = handleBackground(node, borderBox, paddingBox, contentBox);
+  const background = resolveBackgroundLayers(node, { borderBox, paddingBox, contentBox });
   
   const zIndex = typeof node.style.zIndex === "number" ? node.style.zIndex : 0;
   const establishesStackingContext =
     typeof node.style.zIndex === "number" && node.style.position !== Position.Static;
 
-  console.log(`DEBUG: convertNode - tagName: ${node.tagName}, id: ${id}, node.style.opacity: ${node.style.opacity}`);
-  
   return {
     id,
     tagName: node.tagName,
@@ -459,32 +200,4 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
     customData: node.customData ? { ...node.customData } : undefined,
     transform,
   };
-}
-
-function applyTransformToTextRuns(runs: Run[], cssMatrix: Matrix | undefined, originBox: Rect): void {
-  if (!cssMatrix || runs.length === 0) {
-    return;
-  }
-  const pdfMatrix = svgMatrixToPdf(cssMatrix);
-  if (!pdfMatrix) {
-    return;
-  }
-  const baseOriginX = Number.isFinite(originBox.x) ? originBox.x : 0;
-  const baseOriginY = Number.isFinite(originBox.y) ? originBox.y : 0;
-  const originWidth = Number.isFinite(originBox.width) ? originBox.width : 0;
-  const originHeight = Number.isFinite(originBox.height) ? originBox.height : 0;
-  const originX = baseOriginX + originWidth / 2;
-  const originY = baseOriginY + originHeight / 2;
-  const toOrigin = translationMatrix(-originX, -originY);
-  const fromOrigin = translationMatrix(originX, originY);
-  for (const run of runs) {
-    const baseMatrix = run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
-    const localMatrix = multiplyMatrices(toOrigin, baseMatrix);
-    const transformedLocal = multiplyMatrices(pdfMatrix, localMatrix);
-    run.lineMatrix = multiplyMatrices(fromOrigin, transformedLocal);
-  }
-}
-
-function translationMatrix(tx: number, ty: number): Matrix {
-  return { a: 1, b: 0, c: 0, d: 1, e: tx, f: ty };
 }

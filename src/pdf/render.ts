@@ -1,5 +1,4 @@
 import { PdfDocument } from "./primitives/pdf-document.js";
-import type { PdfObjectRef } from "./primitives/pdf-document.js";
 import type { LayoutTree, PageSize, PdfMetadata, RenderBox, RGBA, TextPaintOptions } from "./types.js";
 import {
   initHeaderFooterContext,
@@ -8,10 +7,10 @@ import {
 } from "./header-footer.js";
 import { paginateTree } from "./pagination.js";
 import { initFontSystem, finalizeFontSubsets, preflightFontsForPdfa } from "./font/font-registry.js";
-import type { PainterResult } from "./page-painter.js";
 import type { FontConfig } from "../types/fonts.js";
 import { paintLayoutPage } from "./renderer/page-paint.js";
 import { loadBuiltinFontConfig } from "./font/builtin-fonts.js";
+import { registerPageResources, type PageResources } from "./utils/page-resource-registrar.js";
 
 const DEFAULT_PAGE_SIZE: PageSize = { widthPt: 595.28, heightPt: 841.89 }; // A4 in points
 
@@ -19,13 +18,6 @@ export interface RenderPdfOptions {
   readonly pageSize?: PageSize;
   readonly metadata?: PdfMetadata;
   readonly fontConfig?: FontConfig;
-}
-
-interface PageResources {
-  fonts: Map<string, PdfObjectRef>;
-  xObjects: Map<string, PdfObjectRef>;
-  extGStates: Map<string, PdfObjectRef>;
-  shadings: Map<string, PdfObjectRef>;
 }
 
 export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = {}): Promise<Uint8Array> {
@@ -75,7 +67,7 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
       pageBackground,
     });
 
-    const resources = registerPainterResources(doc, painterResult);
+    const resources = registerPageResources(doc, painterResult);
 
     doc.addPage({
       width: pageSize.widthPt,
@@ -88,34 +80,6 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
 
   finalizeFontSubsets(fontRegistry);
   return doc.finalize();
-}
-
-function registerPainterResources(doc: PdfDocument, result: PainterResult): PageResources {
-  const xObjects = new Map<string, PdfObjectRef>();
-  for (const image of result.images) {
-    const ref = doc.registerImage(image.image);
-    image.ref = ref;
-    xObjects.set(image.alias, ref);
-  }
-
-  const extGStates = new Map<string, PdfObjectRef>();
-  for (const [name, alpha] of result.graphicsStates) {
-    const ref = doc.registerExtGState(alpha);
-    extGStates.set(name, ref);
-  }
-
-  const shadings = new Map<string, PdfObjectRef>();
-  for (const [name, dict] of result.shadings) {
-    const ref = doc.registerShading(name, dict);
-    shadings.set(name, ref);
-  }
-
-  return {
-    fonts: result.fonts,
-    xObjects,
-    extGStates,
-    shadings,
-  };
 }
 
 function resolvePageBackground(root: RenderBox): RGBA | undefined {
