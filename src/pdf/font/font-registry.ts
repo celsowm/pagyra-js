@@ -1,6 +1,6 @@
 import type { CSSFontFace, Run, StyleSheets } from "../types.js";
 import { PdfDocument, type PdfObjectRef } from "../primitives/pdf-document.js";
-import type { FontConfig } from "../../types/fonts.js";
+import type { FontConfig, TtfFontMetrics } from "../../types/fonts.js";
 import { FontEmbedder } from "./embedder.js";
 import { log } from "../../debug/log.js";
 import { needsUnicode } from "../../text/text.js";
@@ -38,6 +38,7 @@ export interface FontResource {
   readonly resourceName: string;
   readonly ref: PdfObjectRef;
   readonly isBase14: boolean;
+  readonly metrics?: TtfFontMetrics;
 }
 
 export class FontRegistry {
@@ -76,7 +77,8 @@ export class FontRegistry {
           baseFont: embedded.baseFont,
           resourceName: embedded.resourceName,
           ref: embedded.ref,
-          isBase14: false
+          isBase14: false,
+          metrics: embedded.metrics
         };
         this.fontsByFamilyWeight.set(familyKey, resource);
         return resource;

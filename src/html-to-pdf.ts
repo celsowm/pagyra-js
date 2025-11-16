@@ -19,6 +19,7 @@ import { computeStyleForElement } from "./css/compute-style.js";
 import type { HeaderFooterHTML } from "./pdf/types.js";
 import { FontEmbedder } from "./pdf/font/embedder.js";
 import { PdfDocument } from "./pdf/primitives/pdf-document.js";
+import { loadBuiltinFontConfig } from "./pdf/font/builtin-fonts.js";
 
 export interface RenderHtmlOptions {
   html: string;
@@ -44,8 +45,10 @@ export interface PreparedRender {
 }
 
 export async function renderHtmlToPdf(options: RenderHtmlOptions): Promise<Uint8Array> {
-  const prepared = await prepareHtmlRender(options);
-  return renderPdf(prepared.renderTree, { pageSize: prepared.pageSize, fontConfig: options.fontConfig });
+  const resolvedFontConfig = options.fontConfig ?? (await loadBuiltinFontConfig());
+  const preparedOptions = resolvedFontConfig ? { ...options, fontConfig: resolvedFontConfig } : options;
+  const prepared = await prepareHtmlRender(preparedOptions);
+  return renderPdf(prepared.renderTree, { pageSize: prepared.pageSize, fontConfig: resolvedFontConfig ?? undefined });
 }
 
 export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<PreparedRender> {

@@ -11,6 +11,7 @@ import { initFontSystem, finalizeFontSubsets, preflightFontsForPdfa } from "./fo
 import type { PainterResult } from "./page-painter.js";
 import type { FontConfig } from "../types/fonts.js";
 import { paintLayoutPage } from "./renderer/page-paint.js";
+import { loadBuiltinFontConfig } from "./font/builtin-fonts.js";
 
 const DEFAULT_PAGE_SIZE: PageSize = { widthPt: 595.28, heightPt: 841.89 }; // A4 in points
 
@@ -28,6 +29,7 @@ interface PageResources {
 }
 
 export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = {}): Promise<Uint8Array> {
+  const fontConfig = options.fontConfig ?? (await loadBuiltinFontConfig());
   const pageSize = options.pageSize ?? derivePageSize(layout);
   const pxToPt = createPxToPt(layout.dpiAssumption);
   const ptToPx = createPtToPx(layout.dpiAssumption);
@@ -35,8 +37,8 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
   const fontRegistry = initFontSystem(doc, layout.css);
 
   // Initialize font embedding if fontConfig provided
-  if (options.fontConfig) {
-    await fontRegistry.initializeEmbedder(options.fontConfig);
+  if (fontConfig) {
+    await fontRegistry.initializeEmbedder(fontConfig);
   }
 
   preflightFontsForPdfa(fontRegistry);

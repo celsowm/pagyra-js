@@ -1,7 +1,7 @@
 import type { RGBA, Run, TextPaintOptions, Rect } from "../types.js";
 import type { FontRegistry, FontResource } from "../font/font-registry.js";
 import type { PdfObjectRef } from "../primitives/pdf-document.js";
-import { encodeAndEscapePdfText, type PdfEncodingScheme } from "../utils/encoding.js";
+import { encodeAndEscapePdfText, escapePdfLiteral, type PdfEncodingScheme } from "../utils/encoding.js";
 import { needsUnicode } from "../../text/text.js";
 import { log } from "../../debug/log.js";
 import { CoordinateTransformer } from "../utils/coordinate-transformer.js";
@@ -46,8 +46,7 @@ export class TextRenderer {
     const yPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(yPx - offsetY);
     const color = options.color ?? { r: 0, g: 0, b: 0, a: 1 };
     const before = text;
-    const scheme: PdfEncodingScheme = font.isBase14 ? "WinAnsi" : "Identity-H";
-    const encoded = encodeAndEscapePdfText(before, scheme);
+    const { scheme, encoded } = this.encodeTextPayload(before, font);
 
     const baselineAdjust = options.fontSizePt;
 
@@ -87,8 +86,7 @@ export class TextRenderer {
     if (run.fontVariant === "small-caps") {
       normalizedText = normalizedText.toUpperCase();
     }
-    const scheme: PdfEncodingScheme = font.isBase14 ? "WinAnsi" : "Identity-H";
-    const encoded = encodeAndEscapePdfText(normalizedText, scheme);
+    const { scheme, encoded } = this.encodeTextPayload(normalizedText, font);
 
     const Tm = run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
     const fontSizePt = this.coordinateTransformer.convertPxToPt(run.fontSize);
@@ -519,35 +517,45 @@ export class TextRenderer {
   }
 
   private async ensureFont(options: { fontFamily?: string; fontWeight?: number; fontStyle?: string; fontVariant?: string; text?: string }): Promise<FontResource> {
-    const family = options.fontFamily;
-    const fontWeight = options.fontWeight;
-    const fontStyle = options.fontStyle;
-    const text = options.text || '';
+    const text = options.text ?? "";
+    const requiresUnicode = needsUnicode(text);
+    let resource = await this.fontRegistry.ensureFontResource(options.fontFamily, options.fontWeight, options.fontStyle);
 
-    // Check if we need Unicode support (combining marks, symbols beyond WinAnsi)
-    const needsUnicodeFont = needsUnicode(text);
-
-    if (needsUnicodeFont) {
-      // For now, simplify - just return a placeholder indicating Identity-H encoding
-      // In full implementation, this would get the embedded font and resource
-      const resource: FontResource = {
-        baseFont: "NotoSans-Regular",
-        resourceName: "FU", // Unicode font
-        ref: { objectNumber: -1 }, // placeholder negative number for missing font
-        isBase14: false
-      };
-      if (!this.fonts.has(resource.resourceName)) {
-        this.fonts.set(resource.resourceName, resource.ref);
+    if (requiresUnicode && resource.isBase14) {
+      const fallback = await this.fontRegistry.ensureFontResource(undefined, options.fontWeight, options.fontStyle);
+      if (!fallback.isBase14) {
+        resource = fallback;
       }
-      return resource;
     }
 
-    // Fall back to standard registry resolution for Base14 fonts
-    const resource = await this.fontRegistry.ensureFontResource(family, fontWeight, fontStyle);
     if (!this.fonts.has(resource.resourceName)) {
       this.fonts.set(resource.resourceName, resource.ref);
     }
     return resource;
+  }
+
+  private encodeTextPayload(text: string, font: FontResource): { encoded: string; scheme: PdfEncodingScheme } {
+    if (font.isBase14) {
+      return { encoded: encodeAndEscapePdfText(text, "WinAnsi"), scheme: "WinAnsi" };
+    }
+    return { encoded: this.encodeIdentityText(text, font), scheme: "Identity-H" };
+  }
+
+  private encodeIdentityText(text: string, font: FontResource): string {
+    const metrics = font.metrics;
+    if (!metrics) {
+      return encodeAndEscapePdfText(text, "WinAnsi");
+    }
+    let encoded = "";
+    for (const char of text) {
+      const codePoint = char.codePointAt(0);
+      if (codePoint === undefined) {
+        continue;
+      }
+      const glyphId = metrics.cmap.getGlyphId(codePoint);
+      encoded += String.fromCharCode((glyphId >> 8) & 0xff, glyphId & 0xff);
+    }
+    return escapePdfLiteral(encoded);
   }
 
   private rectToPdf(rect: Rect | null | undefined):

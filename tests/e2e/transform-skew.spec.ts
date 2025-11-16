@@ -13,6 +13,11 @@ function extractPdfContent(pdfBuffer: Buffer): string {
 
   let match: RegExpExecArray | null;
   while ((match = streamRegex.exec(pdfStr)) !== null) {
+    const startIndex = match.index ?? 0;
+    const prefix = pdfStr.slice(Math.max(0, startIndex - 200), startIndex);
+    if (/FontFile/i.test(prefix) || /CIDFont/i.test(prefix) || /ToUnicode/i.test(prefix)) {
+      continue;
+    }
     matches.push(match[1]);
   }
 

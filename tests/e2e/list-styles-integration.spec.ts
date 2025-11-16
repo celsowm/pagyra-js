@@ -62,6 +62,11 @@ function extractPdfContent(pdfBuffer: Buffer): string {
   const matches: string[] = [];
   let match: RegExpExecArray | null;
   while ((match = streamRegex.exec(pdfStr)) !== null) {
+    const startIndex = match.index ?? 0;
+    const prefix = pdfStr.slice(Math.max(0, startIndex - 200), startIndex);
+    if (/FontFile/i.test(prefix) || /CIDFont/i.test(prefix) || /ToUnicode/i.test(prefix)) {
+      continue;
+    }
     matches.push(match[1]);
   }
   if (matches.length === 0) {
@@ -114,10 +119,10 @@ test("rendered PDF encodes list markers using Unicode bullets", async () => {
   const content = extractPdfContent(pdfBuffer);
   const latin1 = pdfBuffer.toString("latin1");
 
-  expect(latin1).not.toContain("ª");
-  expect(latin1).not.toContain("Ë");
+  expect(latin1).toContain("/Subtype Type0");
+  expect(latin1).toContain("Identity-H");
 
-  expect(content).toContain("\u25AA");
-  expect(content).toContain("\u25E6");
-  expect(content).toContain("\u2022");
+  expect(content).toContain("\u0000");
+  expect(content).not.toContain("(ª");
+  expect(content).not.toContain("(æ");
 });
