@@ -73,6 +73,14 @@ export function computeListItemIndex(node: LayoutNode): number {
   return Math.max(index, 1);
 }
 
+export const LIST_STYLE_MARKERS: Record<"disc" | "circle" | "square", string> = {
+  disc: "\u2022", // • BULLET
+  circle: "\u25E6", // ◦ WHITE BULLET
+  square: "\u25AA", // ▪ BLACK SMALL SQUARE
+};
+
+const DEFAULT_MARKER = LIST_STYLE_MARKERS.disc;
+
 export function formatListMarker(styleType: string, index: number): string | undefined {
   const normalized = styleType.trim().toLowerCase();
   switch (normalized) {
@@ -95,15 +103,11 @@ export function formatListMarker(styleType: string, index: number): string | und
       return roman ? `${roman.toUpperCase()}.` : `${index}.`;
     }
     case "disc":
-      // Use Unicode bullet character (U+2022) to ensure proper encoding
-      return "\u2022";
     case "circle":
-      return "\u25CB"; // White circle (U+25CB)
     case "square":
-      return "\u25AA"; // Black small square (U+25AA)
+      return LIST_STYLE_MARKERS[normalized];
     default:
-      // Use Unicode bullet character (U+2022) to ensure proper encoding
-      return "\u2022";
+      return DEFAULT_MARKER;
   }
 }
 

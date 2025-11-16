@@ -18,8 +18,13 @@ describe("formatListMarker", () => {
     expect(formatListMarker("upper-roman", 14)).toBe("XIV.");
   });
 
+  it("uses Unicode bullets for disc/circle/square markers", () => {
+    expect(formatListMarker("disc", 1)).toBe("\u2022");
+    expect(formatListMarker("circle", 1)).toBe("\u25E6");
+    expect(formatListMarker("square", 1)).toBe("\u25AA");
+  });
+
   it("omits markers when list-style-type is none", () => {
     expect(formatListMarker("none", 1)).toBeUndefined();
   });
 });
-

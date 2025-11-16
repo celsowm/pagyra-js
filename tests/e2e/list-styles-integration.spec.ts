@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { prepareHtmlRender } from "../../src/html-to-pdf.js";
+import { prepareHtmlRender, renderHtmlToPdf } from "../../src/html-to-pdf.js";
 import type { RenderBox } from "../../src/pdf/types.js";
 
 function collectListItemBoxes(box: RenderBox, acc: RenderBox[] = []): RenderBox[] {
@@ -54,4 +54,70 @@ test("list-style-type declarations propagate to PDF text runs", async () => {
   expect(squareBox.textRuns[0]?.text).toBe("\u25AA");
   expect(alphaBox.textRuns[0]?.text).toBe("A.");
   expect(noneBox.textRuns.length).toBe(0);
+});
+
+function extractPdfContent(pdfBuffer: Buffer): string {
+  const pdfStr = pdfBuffer.toString("latin1");
+  const streamRegex = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+  const matches: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = streamRegex.exec(pdfStr)) !== null) {
+    matches.push(match[1]);
+  }
+  if (matches.length === 0) {
+    throw new Error("No content streams found in rendered PDF");
+  }
+  return matches.join("\n");
+}
+
+test("rendered PDF encodes list markers using Unicode bullets", async () => {
+  const html = `
+    <main>
+      <section>
+        <h2>Square Bullets</h2>
+        <ul style="list-style-type: square">
+          <li>Square marker one</li>
+          <li>Square marker two</li>
+          <li>Square marker three</li>
+        </ul>
+      </section>
+      <section>
+        <h2>Circle Bullets</h2>
+        <ul style="list-style-type: circle">
+          <li>Circle marker one</li>
+          <li>Circle marker two</li>
+          <li>Circle marker three</li>
+        </ul>
+      </section>
+      <section>
+        <h2>Disc Bullets</h2>
+        <ul style="list-style-type: disc">
+          <li>Disc marker one</li>
+          <li>Disc marker two</li>
+          <li>Disc marker three</li>
+        </ul>
+      </section>
+    </main>
+  `;
+
+  const pdf = await renderHtmlToPdf({
+    html,
+    css: "",
+    viewportWidth: 800,
+    viewportHeight: 1200,
+    pageWidth: 595,
+    pageHeight: 842,
+    margins: { top: 20, right: 20, bottom: 20, left: 20 },
+  });
+
+  const pdfBuffer = Buffer.from(pdf);
+  const content = extractPdfContent(pdfBuffer);
+  const latin1 = pdfBuffer.toString("latin1");
+
+  expect(latin1).not.toContain("ª");
+  expect(latin1).not.toContain("Ë");
+
+  expect(content).toContain("\u25AA");
+  expect(content).toContain("\u25E6");
+  expect(content).toContain("\u2022");
 });
