@@ -12,7 +12,7 @@ async function getPdfRaw(html: string): Promise<string> {
     margins: { top: 10, right: 10, bottom: 10, left: 10 },
     fontConfig: {
       fontFaceDefs: [
-        { name: 'Roboto', family: 'Roboto', weight: 400, style: 'normal', src: './assets/fonts/Roboto-Regular.ttf' },
+        { name: 'Roboto', family: 'Roboto', weight: 400, style: 'normal', src: './assets/fonts/ttf/roboto/Roboto-Regular.ttf' },
       ],
       defaultStack: ['Roboto'],
     },
