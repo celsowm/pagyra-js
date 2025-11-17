@@ -1,0 +1,42 @@
+import { describe, it, expect } from 'vitest';
+import { parseWoff, parseWoff2 } from '../../src/fonts/index.js';
+import fs from 'node:fs/promises';
+
+describe('WOFF Font Parsers', () => {
+  it('rejects invalid WOFF signature', async () => {
+    const invalidData = new Uint8Array([0x77, 0x4f, 0x46, 0x31]); // wOF1
+    await expect(parseWoff(invalidData)).rejects.toThrow('Invalid WOFF signature');
+  });
+
+  it('rejects WOFF too short', async () => {
+    const shortData = new Uint8Array(43);
+    shortData.set(new TextEncoder().encode('wOFF'), 0);
+    await expect(parseWoff(shortData)).rejects.toThrow('Invalid WOFF: file too short');
+  });
+
+  it('parses real Lato WOFF correctly', async () => {
+    const buffer = await fs.readFile('assets/fonts/woff/lato/lato-latin-400-normal.woff');
+    const fontData = new Uint8Array(buffer);
+
+    const font = await parseWoff(fontData);
+
+    expect(font.flavor).toBe(0x00010000); // TrueType
+    expect(font.numTables).toBe(12);
+    expect(Object.keys(font.tables)).toHaveLength(12);
+    expect(Object.keys(font.tables)).toContain('head');
+    expect(Object.keys(font.tables)).toContain('hhea');
+    expect(Object.keys(font.tables)).toContain('maxp');
+    expect(font.tables.head.length).toBe(54);
+  });
+
+  it('rejects invalid WOFF2 signature', async () => {
+    const invalidData = new Uint8Array([0x77, 0x4f, 0x46, 0x32]); // wOF2 but wrong
+    await expect(parseWoff2(invalidData)).rejects.toThrow('Invalid WOFF2 signature');
+  });
+
+  it('rejects WOFF2 too short', async () => {
+    const shortData = new Uint8Array(47);
+    shortData.set(new TextEncoder().encode('wOF2'), 0);
+    await expect(parseWoff2(shortData)).rejects.toThrow('Invalid WOFF2: file too short');
+  });
+});
