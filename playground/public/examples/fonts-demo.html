@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Custom Fonts Demo</title>
+  <style>
+    @font-face {
+      font-family: 'DemoRoboto';
+      src: url('../assets/fonts/ttf/roboto/Roboto-Regular.ttf') format('truetype');
+      font-weight: 400;
+      font-style: normal;
+    }
+
+    @font-face {
+      font-family: 'DemoLato';
+      src: url('../assets/fonts/woff/lato/lato-latin-400-normal.woff') format('woff');
+      font-weight: 400;
+      font-style: normal;
+    }
+
+    body {
+      font-family: serif;
+      max-width: 800px;
+      margin: 40px auto;
+      line-height: 1.6;
+    }
+
+    h1 {
+      font-family: 'DemoRoboto', serif;
+      color: #333;
+      text-align: center;
+    }
+
+    h2 {
+      font-family: 'DemoLato', serif;
+      color: #007bff;
+    }
+
+    p {
+      font-family: 'DemoRoboto', serif;
+      font-size: 18px;
+    }
+
+    .metrics-test {
+      font-family: 'DemoLato', serif;
+      font-size: 24px;
+      letter-spacing: 1px;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <h1>🅛🅞🅐🅓🅔🅓🅕🅞🅝🅣 Demo</h1>
+  <p>This page loads <strong>Roboto TTF</strong> and <strong>Lato WOFF</strong> via @font-face.</p>
+  <p>Custom fonts parsed via FontOrchestrator → LoadedFont (metrics for layout, program for PDF embed).</p>
+  <h2>Font Metrics in Action</h2>
+  <p class="metrics-test">Glyph advances, bbox, cmap used for precise text layout & shaping.</p>
+  <p>PDF output embeds subsetted font program (glyf/glyf paths, tables).</p>
+  <ul>
+    <li>TTF: assets/fonts/ttf/roboto/Roboto-Regular.ttf</li>
+    <li>WOFF: assets/fonts/woff/lato/lato-latin-400-normal.woff</li>
+  </ul>
+</body>
+</html>

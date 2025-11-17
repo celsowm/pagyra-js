@@ -1,3 +1,3 @@
-export type { ParsedFont } from './types.js';
-export { parseWoff } from './woff-parser.js';
-export { parseWoff2 } from './woff2-parser.js';
+export type { ParsedFont, UnifiedFont, FontFormat } from './types.js';
+export { FontOrchestrator } from './orchestrator.js';
+export { detectFontFormat, isSupportedFontFormat } from './detector.js';

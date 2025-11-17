@@ -216,5 +216,10 @@
     "id": "skew-div",
     "label": "Skew DIV with Background & Border",
     "htmlUrl": "examples/skew-div.html"
+  },
+  {
+    "id": "fonts-demo",
+    "label": "LoadedFont @font-face Demo",
+    "htmlUrl": "examples/fonts-demo.html"
   }
 ]
