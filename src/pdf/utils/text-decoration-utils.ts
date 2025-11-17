@@ -1,5 +1,6 @@
 import type { ComputedStyle } from "../../css/style.js";
-import type { Decorations } from "../types.js";
+import type { Decorations, RGBA } from "../types.js";
+import { parseColor } from "./color-utils.js";
 
 export function resolveDecorations(style: ComputedStyle): Decorations | undefined {
   const value = style.textDecorationLine?.trim().toLowerCase();
@@ -23,5 +24,26 @@ export function resolveDecorations(style: ComputedStyle): Decorations | undefine
         break;
     }
   }
-  return decoration.underline || decoration.overline || decoration.lineThrough ? decoration : undefined;
+  if (!(decoration.underline || decoration.overline || decoration.lineThrough)) {
+    return undefined;
+  }
+  const color = resolveDecorationColor(style);
+  if (color) {
+    decoration.color = color;
+  }
+  return decoration;
+}
+
+function resolveDecorationColor(style: ComputedStyle): RGBA | undefined {
+  const raw = style.textDecorationColor;
+  if (raw) {
+    if (raw.toLowerCase() === "currentcolor") {
+      return parseColor(style.color);
+    }
+    const parsed = parseColor(raw);
+    if (parsed) {
+      return parsed;
+    }
+  }
+  return parseColor(style.color);
 }

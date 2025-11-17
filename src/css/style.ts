@@ -138,6 +138,7 @@ export interface StyleAccumulator {
   position?: Position;
   float?: string;
   color?: string;
+  textDecorationColor?: string;
   backgroundLayers?: BackgroundLayer[];
   borderColor?: string;
   boxShadows?: BoxShadowInput[];
@@ -207,6 +208,7 @@ export interface StyleProperties {
   textAlign?: string;
   verticalAlign?: string;
   textDecorationLine?: string;
+  textDecorationColor?: string;
   textIndent: LengthLike;
   textTransform: TextTransform;
   transform?: string;
@@ -300,6 +302,7 @@ export class ComputedStyle implements StyleProperties {
   textAlign?: string;
   verticalAlign?: string;
   textDecorationLine?: string;
+  textDecorationColor?: string;
   textIndent: LengthLike;
   textTransform: TextTransform;
   transform?: string;
@@ -485,6 +488,7 @@ export class ComputedStyle implements StyleProperties {
     this.textAlign = init?.textAlign ?? undefined;
     this.verticalAlign = init?.verticalAlign ?? undefined;
     this.textDecorationLine = init?.textDecorationLine ?? defaultStyle.textDecorationLine;
+    this.textDecorationColor = init?.textDecorationColor ?? defaultStyle.textDecorationColor;
     this.opacity = data.opacity;
   }
 

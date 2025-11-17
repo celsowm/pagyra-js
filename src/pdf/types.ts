@@ -124,6 +124,7 @@ export interface Decorations {
   underline?: boolean;
   overline?: boolean;
   lineThrough?: boolean;
+  color?: RGBA;
 }
 
 export interface Link {

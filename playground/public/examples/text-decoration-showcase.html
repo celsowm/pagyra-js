@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Text Decoration Showcase</title>
+    <style>
+      :root {
+        font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        color: #1b1f24;
+      }
+
+      body {
+        margin: 48px;
+        line-height: 1.5;
+      }
+
+      h1 {
+        font-size: 28px;
+        margin-bottom: 8px;
+      }
+
+      p.subtitle {
+        color: #6b7280;
+        margin-top: 0;
+      }
+
+      section {
+        margin-top: 32px;
+        padding: 20px 24px;
+        border: 1px solid #d1d5db;
+        border-radius: 12px;
+        background: linear-gradient(180deg, #fff, #f8fafc);
+      }
+
+      section + section {
+        margin-top: 24px;
+      }
+
+      .example-label {
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #9ca3af;
+        margin-bottom: 8px;
+      }
+
+      .stack {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .swatch {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        border-radius: 10px;
+        background: #fff;
+        border: 1px dashed #cbd5f5;
+      }
+
+      .swatch strong {
+        min-width: 140px;
+        color: #64748b;
+      }
+
+      .accent {
+        text-decoration: underline;
+        text-decoration-thickness: 2px;
+      }
+
+      .accent-ruby {
+        text-decoration: underline #d946ef;
+      }
+
+      .accent-amber {
+        text-decoration-line: underline;
+        text-decoration-color: #f97316;
+      }
+
+      .accent-current {
+        color: #0284c7;
+        text-decoration: underline currentColor;
+      }
+
+      .accent-overline {
+        text-decoration: overline;
+        text-decoration-color: #059669;
+      }
+
+      .accent-multi {
+        text-decoration: underline overline line-through;
+        text-decoration-color: rgb(244, 63, 94);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Text Decoration Showcase</h1>
+    <p class="subtitle">Underline, overline, strike-through, and custom colors rendered through the PDF pipeline.</p>
+
+    <section>
+      <div class="example-label">Underline Styles</div>
+      <div class="stack">
+        <div class="swatch">
+          <strong>Default</strong>
+          <span class="accent">Deterministic rendering matters.</span>
+        </div>
+        <div class="swatch">
+          <strong>Shorthand Color</strong>
+          <span class="accent-ruby">Audit-ready highlights in one declaration.</span>
+        </div>
+        <div class="swatch">
+          <strong>Longhand Color</strong>
+          <span class="accent-amber">Underline with text-decoration-color.</span>
+        </div>
+        <div class="swatch">
+          <strong>currentColor</strong>
+          <span class="accent-current">Decoration tracks the text color.</span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="example-label">Compound Decorations</div>
+      <div class="stack">
+        <div class="swatch">
+          <strong>Overline</strong>
+          <span class="accent-overline">Budget variance flagged above the run.</span>
+        </div>
+        <div class="swatch">
+          <strong>Combined</strong>
+          <span class="accent-multi">Escalations demand bold emphasis.</span>
+        </div>
+      </div>
+    </section>
+  </body>
+</html>

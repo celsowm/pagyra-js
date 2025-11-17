@@ -160,4 +160,22 @@ describe("text decorations", () => {
 
     expect(run?.decorations?.lineThrough ?? false).toBe(false);
   });
+
+  it("captures text-decoration-color longhand", async () => {
+    const html = '<p style="text-decoration-line: underline; text-decoration-color: rgb(255, 0, 0)">Accent</p>';
+    const runs = await renderRuns(html);
+    const run = runs.find((candidate) => candidate.text.includes("Accent"));
+
+    expect(run?.decorations?.underline).toBe(true);
+    expect(run?.decorations?.color).toEqual({ r: 255, g: 0, b: 0, a: 1 });
+  });
+
+  it("parses shorthand text-decoration color tokens", async () => {
+    const html = '<p style="color: #2222ff; text-decoration: underline rebeccapurple">Shade</p>';
+    const runs = await renderRuns(html);
+    const run = runs.find((candidate) => candidate.text.includes("Shade"));
+
+    expect(run?.decorations?.underline).toBe(true);
+    expect(run?.decorations?.color).toEqual({ r: 102, g: 51, b: 153, a: 1 });
+  });
 });

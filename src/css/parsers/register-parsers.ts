@@ -119,6 +119,7 @@ import {
   parseTextAlign,
   parseTextDecoration,
   parseTextDecorationLine,
+  parseTextDecorationColor,
   parseFloat,
   parseTextIndent,
   parseTextTransform,
@@ -255,6 +256,7 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("text-align", parseTextAlign);
   registerPropertyParser("text-decoration", parseTextDecoration);
   registerPropertyParser("text-decoration-line", parseTextDecorationLine);
+  registerPropertyParser("text-decoration-color", parseTextDecorationColor);
   registerPropertyParser("text-indent", parseTextIndent);
   registerPropertyParser("text-transform", parseTextTransform);
   registerPropertyParser("float", parseFloat);

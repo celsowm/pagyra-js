@@ -56,13 +56,14 @@ export class TextDecorationRenderer {
     }
 
     const commands: string[] = [];
+    const decorationColor = run.decorations.color ?? color;
     for (const rect of rects) {
       const pdfRect = this.rectToPdf(rect);
       if (!pdfRect) {
         continue;
       }
       commands.push(
-        fillColorCommand(color, this.graphicsStateManager),
+        fillColorCommand(decorationColor, this.graphicsStateManager),
         `${pdfRect.x} ${pdfRect.y} ${pdfRect.width} ${pdfRect.height} re`,
         "f",
       );

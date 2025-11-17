@@ -3,6 +3,7 @@
 import { parseTextDecorationLine as parseTextDecorationLineValue } from "./text-parser.js";
 import { parseLengthOrPercent } from "./length-parser.js";
 import type { StyleAccumulator, TextTransform } from "../style.js";
+import { NAMED_COLORS } from "../named-colors.js";
 
 export function parseTextAlign(value: string, target: StyleAccumulator): void {
   target.textAlign = value.toLowerCase();
@@ -13,6 +14,10 @@ export function parseTextDecoration(value: string, target: StyleAccumulator): vo
   if (parsed !== undefined) {
     target.textDecorationLine = parsed;
   }
+  const color = extractTextDecorationColor(value);
+  if (color) {
+    target.textDecorationColor = color;
+  }
 }
 
 export function parseTextDecorationLine(value: string, target: StyleAccumulator): void {
@@ -20,6 +25,14 @@ export function parseTextDecorationLine(value: string, target: StyleAccumulator)
   if (parsed !== undefined) {
     target.textDecorationLine = parsed;
   }
+}
+
+export function parseTextDecorationColor(value: string, target: StyleAccumulator): void {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return;
+  }
+  target.textDecorationColor = trimmed;
 }
 
 export function parseFloat(value: string, target: StyleAccumulator): void {
@@ -55,4 +68,34 @@ export function parseTextTransform(value: string, target: StyleAccumulator): voi
   if (resolved) {
     target.textTransform = resolved;
   }
+}
+
+const COLOR_KEYWORDS = new Set(Object.keys(NAMED_COLORS).map((name) => name.toLowerCase()));
+COLOR_KEYWORDS.add("transparent");
+COLOR_KEYWORDS.add("currentcolor");
+const DECORATION_LINE_KEYWORDS = new Set(["underline", "overline", "line-through", "none"]);
+
+function extractTextDecorationColor(value: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const functionalMatch = value.match(/\b(?:rgba?|hsla?)\([^)]*\)/i);
+  if (functionalMatch) {
+    return functionalMatch[0].trim();
+  }
+  const hexMatch = value.match(/#[0-9a-f]{3,8}\b/i);
+  if (hexMatch) {
+    return hexMatch[0];
+  }
+  const tokens = value.trim().split(/\s+/);
+  for (const token of tokens) {
+    const normalized = token.toLowerCase();
+    if (DECORATION_LINE_KEYWORDS.has(normalized)) {
+      continue;
+    }
+    if (COLOR_KEYWORDS.has(normalized)) {
+      return normalized;
+    }
+  }
+  return undefined;
 }

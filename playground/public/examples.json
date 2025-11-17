@@ -193,6 +193,11 @@
     "htmlUrl": "examples/margin-inline-showcase.html"
   },
   {
+    "id": "text-decoration-showcase",
+    "label": "Text Decoration Showcase",
+    "htmlUrl": "examples/text-decoration-showcase.html"
+  },
+  {
     "id": "text-shadow-example",
     "label": "Text Shadow Example",
     "htmlUrl": "examples/text-shadow-example.html"

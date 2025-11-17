@@ -499,6 +499,23 @@ export function computeStyleForElement(
   }
   styleOptions.textDecorationLine = decoration;
 
+  let decorationColor =
+    styleInit.textDecorationColor !== undefined
+      ? normalizeTextDecorationColor(styleInit.textDecorationColor)
+      : undefined;
+  if (decorationColor === undefined) {
+    decorationColor =
+      elementDefaults.textDecorationColor !== undefined
+        ? normalizeTextDecorationColor(elementDefaults.textDecorationColor)
+        : undefined;
+  }
+  if (decorationColor === undefined && inherited.textDecorationColor !== undefined) {
+    decorationColor = inherited.textDecorationColor;
+  }
+  if (decorationColor !== undefined) {
+    styleOptions.textDecorationColor = decorationColor;
+  }
+
   // Debug fontStyle for em and strong elements
   if (tagName === 'em' || tagName === 'strong') {
     const debugInfo = {
@@ -512,4 +529,25 @@ export function computeStyleForElement(
   }
 
   return new ComputedStyle(styleOptions);
+}
+
+function normalizeTextDecorationColor(value: string | undefined): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const lower = trimmed.toLowerCase();
+  if (lower === "inherit") {
+    return undefined;
+  }
+  if (lower === "initial") {
+    return "currentcolor";
+  }
+  if (lower === "unset" || lower === "revert" || lower === "revert-layer") {
+    return undefined;
+  }
+  return lower === "currentcolor" ? "currentcolor" : trimmed;
 }
