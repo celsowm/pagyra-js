@@ -30,7 +30,8 @@ export async function parseWoff2(fontData: Uint8Array): Promise<ParsedFont> {
   if (reserved !== 0) {
     throw new Error('Invalid WOFF2 extended header reserved field');
   }
-  const totalCompressedSize = readUInt16BE(fontData, extendedOffset + 2);
+  // CORREÇÃO: WOFF2 usa 4 bytes para totalCompressedSize (uint32)
+  const totalCompressedSize = readUInt32BE(fontData, extendedOffset + 4);
 
   // Table directory starts at 48
   const tableDirOffset = 48;
@@ -41,10 +42,21 @@ export async function parseWoff2(fontData: Uint8Array): Promise<ParsedFont> {
     const tag = new TextDecoder().decode(fontData.slice(dirOffset, dirOffset + 4));
     const origChecksum = readUInt32BE(fontData, dirOffset + 4);
     const transformByte = fontData[dirOffset + 8];
-    const transformVersion = transformByte & 0x1F; // low 5 bits transform ID
+    const transformVersion = transformByte & 0x1F;
     let transformLength: number | undefined;
-    if (transformVersion !== 15) { // 15 = 0x0F no transform
+    
+    // Adicionar validação da versão de transformação
+    if (transformVersion > 4) { // Versões 0-4 são válidas pelo spec
+      throw new Error(`Invalid WOFF2 transform version: ${transformVersion}`);
+    }
+    
+    if (transformVersion !== 15) {
       transformLength = readUInt24BE(fontData, dirOffset + 9);
+      
+      // Validar comprimento máximo para prevenir overflow
+      if (transformLength && transformLength > 1_000_000) {
+        throw new Error(`Suspicious WOFF2 transform length: ${transformLength}`);
+      }
     }
     const origLength = readUInt32BE(fontData, dirOffset + 12);
 
