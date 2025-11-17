@@ -1,5 +1,5 @@
 import type { PdfObjectRef, PdfDocument } from "../primitives/pdf-document.js";
-import { parseTtfBuffer } from "./ttf-lite.js";
+import { parseFont } from "./font-parser.js";
 import type { FontFaceDef, FontConfig, TtfFontMetrics } from "../../types/fonts.js";
 import { log } from "../../debug/log.js";
 import { normalizeFontWeight } from "../../css/font-weight.js";
@@ -130,7 +130,7 @@ export class FontEmbedder {
         continue;
       }
       try {
-        const metrics = parseTtfBuffer(face.data);
+        const metrics = parseFont(face.data);
         this.faceMetrics.set(face.name, metrics);
       } catch (error) {
         log("FONT", "ERROR", `Failed to load font ${face.name}`, { error: error instanceof Error ? error.message : String(error) });
