@@ -37,6 +37,7 @@ export interface ElementDefaults {
   borderSpacing?: number;
   objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down";
   textDecorationLine?: string;
+  textDecorationColor?: string;
   overflowWrap?: "normal" | "break-word" | "anywhere";
   textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
 }

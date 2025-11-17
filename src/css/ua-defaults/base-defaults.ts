@@ -180,6 +180,7 @@ export function createBaseDefaultsObject(): any {
     letterSpacing: TypographyDefaults.getLetterSpacing(),
     wordSpacing: TypographyDefaults.getWordSpacing(),
     textDecorationLine: "none",
+    textDecorationColor: "currentcolor",
     listStyleType: "disc",
 
     // Box model

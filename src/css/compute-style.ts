@@ -209,6 +209,7 @@ export function computeStyleForElement(
     fontVariant: parentStyle.fontVariant ?? mergedDefaults.fontVariant,
     fontWeight: parentStyle.fontWeight ?? mergedDefaults.fontWeight,
     textDecorationLine: parentStyle.textDecorationLine ?? mergedDefaults.textDecorationLine,
+    textDecorationColor: parentStyle.textDecorationColor ?? mergedDefaults.textDecorationColor,
     overflowWrap: parentStyle.overflowWrap ?? mergedDefaults.overflowWrap,
     textIndent: parentStyle.textIndent ?? mergedDefaults.textIndent ?? 0,
     textTransform: parentStyle.textTransform ?? mergedDefaults.textTransform ?? "none",
