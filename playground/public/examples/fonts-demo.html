@@ -1,22 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Custom Fonts Demo</title>
+  <title>Fonts Demo</title>
   <style>
-    @font-face {
-      font-family: 'DemoRoboto';
-      src: url('../assets/fonts/ttf/roboto/Roboto-Regular.ttf') format('truetype');
-      font-weight: 400;
-      font-style: normal;
-    }
-
-    @font-face {
-      font-family: 'DemoLato';
-      src: url('../assets/fonts/woff/lato/lato-latin-400-normal.woff') format('woff');
-      font-weight: 400;
-      font-style: normal;
-    }
-
     body {
       font-family: serif;
       max-width: 800px;
@@ -24,40 +10,99 @@
       line-height: 1.6;
     }
 
-    h1 {
-      font-family: 'DemoRoboto', serif;
-      color: #333;
-      text-align: center;
+    @font-face {
+      font-family: 'DemoDejaVuSans';
+      src: url('../../../assets/fonts/ttf/dejavu/DejaVuSans.ttf') format('truetype');
+      font-weight: 400;
+      font-style: normal;
     }
 
-    h2 {
-      font-family: 'DemoLato', serif;
-      color: #007bff;
+    @font-face {
+      font-family: 'DemoNotoSans';
+      src: url('../../../assets/fonts/ttf/notosans/NotoSans-Regular.ttf') format('truetype');
+      font-weight: 400;
+      font-style: normal;
     }
 
-    p {
-      font-family: 'DemoRoboto', serif;
-      font-size: 18px;
+    @font-face {
+      font-family: 'DemoRobotoRegular';
+      src: url('../../../assets/fonts/ttf/roboto/Roboto-Regular.ttf') format('truetype');
+      font-weight: 400;
+      font-style: normal;
     }
 
-    .metrics-test {
-      font-family: 'DemoLato', serif;
-      font-size: 24px;
-      letter-spacing: 1px;
-      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    @font-face {
+      font-family: 'DemoRobotoBold';
+      src: url('../../../assets/fonts/ttf/roboto/Roboto-Bold.ttf') format('truetype');
+      font-weight: 700;
+      font-style: normal;
+    }
+
+    @font-face {
+      font-family: 'DemoRobotoItalic';
+      src: url('../../../assets/fonts/ttf/roboto/Roboto-Italic.ttf') format('truetype');
+      font-weight: 400;
+      font-style: italic;
+    }
+
+    @font-face {
+      font-family: 'DemoRobotoBoldItalic';
+      src: url('../../../assets/fonts/ttf/roboto/Roboto-BoldItalic.ttf') format('truetype');
+      font-weight: 700;
+      font-style: italic;
+    }
+
+    @font-face {
+      font-family: 'DemoLato400Normal';
+      src: url('../../../assets/fonts/woff2/lato/lato-latin-400-normal.woff2') format('woff2');
+      font-weight: 400;
+      font-style: normal;
+    }
+
+    @font-face {
+      font-family: 'DemoLato400Italic';
+      src: url('../../../assets/fonts/woff2/lato/lato-latin-400-italic.woff2') format('woff2');
+      font-weight: 400;
+      font-style: italic;
+    }
+
+    @font-face {
+      font-family: 'DemoLato700Normal';
+      src: url('../../../assets/fonts/woff2/lato/lato-latin-700-normal.woff2') format('woff2');
+      font-weight: 700;
+      font-style: normal;
+    }
+
+    @font-face {
+      font-family: 'DemoLato700Italic';
+      src: url('../../../assets/fonts/woff2/lato/lato-latin-700-italic.woff2') format('woff2');
+      font-weight: 700;
+      font-style: italic;
     }
   </style>
 </head>
 <body>
-  <h1>🅛🅞🅐🅓🅔🅓🅕🅞🅝🅣 Demo</h1>
-  <p>This page loads <strong>Roboto TTF</strong> and <strong>Lato WOFF</strong> via @font-face.</p>
-  <p>Custom fonts parsed via FontOrchestrator → LoadedFont (metrics for layout, program for PDF embed).</p>
-  <h2>Font Metrics in Action</h2>
-  <p class="metrics-test">Glyph advances, bbox, cmap used for precise text layout & shaping.</p>
-  <p>PDF output embeds subsetted font program (glyf/glyf paths, tables).</p>
-  <ul>
-    <li>TTF: assets/fonts/ttf/roboto/Roboto-Regular.ttf</li>
-    <li>WOFF: assets/fonts/woff/lato/lato-latin-400-normal.woff</li>
-  </ul>
+  <h1>Fonts Demo</h1>
+  <p>Simple spans each with one font from /assets/fonts. Pangram: "The quick brown fox jumps over the lazy dog. 123 ABC xyz"</p>
+
+  <span style="display: block; margin: 20px 0; font-size: 24px; font-family: 'DemoDejaVuSans', serif; font-weight: 400; font-style: normal;">DejaVuSans: The quick brown fox jumps over the lazy dog. 123 ABC xyz</span>
+
+  <span style="display: block; margin: 20px 0; font-size: 24px; font-family: 'DemoNotoSans', serif; font-weight: 400; font-style: normal;">NotoSans: The quick brown fox jumps over the lazy dog. 123 ABC xyz</span>
+
+  <span style="display: block; margin: 20px 0; font-size: 24px; font-family: 'DemoRobotoRegular', serif; font-weight: 400; font-style: normal;">Roboto Regular: The quick brown fox jumps over the lazy dog. 123 ABC xyz</span>
+
+  <span style="display: block; margin: 20px 0; font-size: 24px; font-family: 'DemoRobotoBold', serif; font-weight: 700; font-style: normal;">Roboto Bold: The quick brown fox jumps over the lazy dog. 123 ABC xyz</span>
+
+  <span style="display: block; margin: 20px 0; font-size: 24px; font-family: 'DemoRobotoItalic', serif; font-weight: 400; font-style: italic;">Roboto Italic: The quick brown fox jumps over the lazy dog. 123 ABC xyz</span>
+
+  <span style="display: block; margin: 20px 0; font-size: 24px; font-family: 'DemoRobotoBoldItalic', serif; font-weight: 700; font-style: italic;">Roboto Bold Italic: The quick brown fox jumps over the lazy dog. 123 ABC xyz</span>
+
+  <span style="display: block; margin: 20px 0; font-size: 24px; font-family: 'DemoLato400Normal', serif; font-weight: 400; font-style: normal;">Lato 400 Normal: The quick brown fox jumps over the lazy dog. 123 ABC xyz</span>
+
+  <span style="display: block; margin: 20px 0; font-size: 24px; font-family: 'DemoLato400Italic', serif; font-weight: 400; font-style: italic;">Lato 400 Italic: The quick brown fox jumps over the lazy dog. 123 ABC xyz</span>
+
+  <span style="display: block; margin: 20px 0; font-size: 24px; font-family: 'DemoLato700Normal', serif; font-weight: 700; font-style: normal;">Lato 700 Normal: The quick brown fox jumps over the lazy dog. 123 ABC xyz</span>
+
+  <span style="display: block; margin: 20px 0; font-size: 24px; font-family: 'DemoLato700Italic', serif; font-weight: 700; font-style: italic;">Lato 700 Italic: The quick brown fox jumps over the lazy dog. 123 ABC xyz</span>
 </body>
 </html>
