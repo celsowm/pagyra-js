@@ -143,6 +143,7 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   if (options.fontConfig) {
     for (const face of options.fontConfig.fontFaceDefs) {
       if (!face.data) {
+        console.log("Loading font from", face.src);
         const { readFileSync } = require("fs");
         const fontDataBuffer = readFileSync(face.src);
         (face as any).data = fontDataBuffer.buffer.slice(

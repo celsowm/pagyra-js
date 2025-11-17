@@ -3,7 +3,7 @@ import { parseTtfFont } from "../../src/pdf/font/ttf-lite.js";
 import { join } from "path";
 
 describe("TTF glyf/loca outline provider (minimal)", () => {
-  const fontPath = join(process.cwd(), "assets/fonts/DejaVuSans.ttf");
+  const fontPath = join(process.cwd(), "assets/fonts/ttf/dejavu/DejaVuSans.ttf");
 
   it("should produce outlines for ASCII letters (A, a)", () => {
     const metrics = parseTtfFont(fontPath);

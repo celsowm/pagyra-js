@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { parseTtfFont } from "../../src/pdf/font/ttf-lite.js";
 import { flattenOutline, rasterizeContours } from "../../src/pdf/font/rasterizer.js";
 
-const fontPath = "assets/fonts/DejaVuSans.ttf";
+const fontPath = "assets/fonts/ttf/dejavu/DejaVuSans.ttf";
 
 describe("Rasterizer (minimal)", () => {
   it("should flatten and rasterize glyph 'A' producing a non-empty alpha mask", () => {

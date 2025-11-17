@@ -4,9 +4,9 @@ import { readFileSync } from "fs";
 
 describe("ttf-lite (basic integration)", () => {
   const fonts = [
-    "assets/fonts/DejaVuSans.ttf",
-    "assets/fonts/NotoSans-Regular.ttf",
-    "assets/fonts/Roboto-Regular.ttf"
+    "assets/fonts/ttf/dejavu/DejaVuSans.ttf",
+    "assets/fonts/ttf/notosans/NotoSans-Regular.ttf",
+    "assets/fonts/ttf/roboto/Roboto-Regular.ttf"
   ];
 
   for (const fontPath of fonts) {

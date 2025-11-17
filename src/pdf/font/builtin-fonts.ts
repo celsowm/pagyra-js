@@ -7,21 +7,19 @@ import type { FontConfig, FontFaceDef } from "../../types/fonts.js";
 type BuiltinFace = Omit<FontFaceDef, "src" | "data"> & { file: string };
 
 const BUILTIN_FACES: BuiltinFace[] = [
-  { name: "Roboto-Regular", family: "Roboto", weight: 400, style: "normal", file: "Roboto-Regular.ttf" },
-  { name: "Roboto-Bold", family: "Roboto", weight: 700, style: "normal", file: "Roboto-Bold.ttf" },
-  { name: "Roboto-Italic", family: "Roboto", weight: 400, style: "italic", file: "Roboto-Italic.ttf" },
-  { name: "Roboto-BoldItalic", family: "Roboto", weight: 700, style: "italic", file: "Roboto-BoldItalic.ttf" },
-  { name: "NotoSans-Regular", family: "Noto Sans", weight: 400, style: "normal", file: "NotoSans-Regular.ttf" },
-  { name: "DejaVuSans-Regular", family: "DejaVu Sans", weight: 400, style: "normal", file: "DejaVuSans.ttf" },
+  { name: "Roboto-Regular", family: "Roboto", weight: 400, style: "normal", file: "ttf/roboto/Roboto-Regular.ttf" },
+  { name: "Roboto-Bold", family: "Roboto", weight: 700, style: "normal", file: "ttf/roboto/Roboto-Bold.ttf" },
+  { name: "Roboto-Italic", family: "Roboto", weight: 400, style: "italic", file: "ttf/roboto/Roboto-Italic.ttf" },
+  { name: "Roboto-BoldItalic", family: "Roboto", weight: 700, style: "italic", file: "ttf/roboto/Roboto-BoldItalic.ttf" },
+  { name: "NotoSans-Regular", family: "Noto Sans", weight: 400, style: "normal", file: "ttf/notosans/NotoSans-Regular.ttf" },
+  { name: "DejaVuSans-Regular", family: "DejaVu Sans", weight: 400, style: "normal", file: "ttf/dejavu/DejaVuSans.ttf" },
 ];
 
 let cachedConfig: FontConfig | null | undefined;
 let loading: Promise<FontConfig | null> | null = null;
 
 export async function loadBuiltinFontConfig(): Promise<FontConfig | null> {
-  if (cachedConfig !== undefined) {
-    return cachedConfig;
-  }
+
   if (loading) {
     return loading;
   }
@@ -33,9 +31,11 @@ export async function loadBuiltinFontConfig(): Promise<FontConfig | null> {
   loading = (async () => {
     try {
       const baseDir = resolveFontsDir();
+      console.log("Builtin font baseDir:", baseDir);
       const faces: FontFaceDef[] = [];
       for (const face of BUILTIN_FACES) {
         const filePath = path.join(baseDir, face.file);
+        console.log("Loading font file:", filePath);
         const buffer = await readFile(filePath);
         faces.push({
           name: face.name,
