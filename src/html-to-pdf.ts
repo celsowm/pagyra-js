@@ -21,6 +21,7 @@ import type { HeaderFooterHTML } from "./pdf/types.js";
 import { FontEmbedder } from "./pdf/font/embedder.js";
 import { PdfDocument } from "./pdf/primitives/pdf-document.js";
 import { loadBuiltinFontConfig } from "./pdf/font/builtin-fonts.js";
+import { decompress } from "./lib/wawoff2/index.js";
 
 export interface RenderHtmlOptions {
   html: string;
@@ -153,44 +154,56 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
           url = url.substring('file://'.length);
         }
         const fontPath = path.resolve(resourceBaseDir, url);
-        try {
-          const fontDataBuffer = readFileSync(fontPath);
-          const fontData = fontDataBuffer.buffer.slice(
-            fontDataBuffer.byteOffset,
-            fontDataBuffer.byteOffset + fontDataBuffer.byteLength
-          );
-          if (options.fontConfig) {
-            const weightStr = fontFace.declarations['font-weight'] || '400';
-            const styleStr = fontFace.declarations['font-style'] || 'normal';
+        if (options.fontConfig) {
+          const weightStr = fontFace.declarations['font-weight'] || '400';
+          const styleStr = fontFace.declarations['font-style'] || 'normal';
+          const weight = parseInt(weightStr, 10);
+          const style = styleStr as 'normal' | 'italic';
+          if (!options.fontConfig.fontFaceDefs.some(f => f.family === fontFamily && f.weight === weight && f.style === style)) {
             options.fontConfig.fontFaceDefs.push({
               name: fontFamily,
               family: fontFamily,
               src: fontPath,
-              data: fontData,
-              weight: parseInt(weightStr, 10),
-              style: styleStr as 'normal' | 'italic',
+              weight,
+              style,
             });
           }
-        } catch (error) {
-          console.error(`Failed to load font from ${fontPath}:`, error);
         }
       }
     }
   }
 
   // In a browser environment, the font data should be pre-loaded and passed in the fontConfig.
+  // Load font data and decompress WOFF2 if necessary
   if (options.fontConfig) {
     for (const face of options.fontConfig.fontFaceDefs) {
       if (!face.data && face.src) {
         try {
           console.log("Loading font from", face.src);
           const fontDataBuffer = readFileSync(face.src);
-          (face as any).data = fontDataBuffer.buffer.slice(
+          face.data = fontDataBuffer.buffer.slice(
             fontDataBuffer.byteOffset,
             fontDataBuffer.byteOffset + fontDataBuffer.byteLength
           );
         } catch (error) {
           console.error(`Failed to load pre-defined font from ${face.src}:`, error);
+          continue;
+        }
+      }
+      if (face.data) {
+        const fontDataView = new DataView(face.data);
+        const signature = new TextDecoder().decode(new Uint8Array(face.data, 0, 4));
+        if (signature === 'wOF2') {
+          try {
+            console.log(`Decompressing WOFF2 font data for ${face.name}`);
+            const ttfUint8Array = await decompress(new Uint8Array(face.data));
+            face.data = ttfUint8Array.buffer.slice(
+                ttfUint8Array.byteOffset,
+                ttfUint8Array.byteOffset + ttfUint8Array.byteLength
+            );
+          } catch (error) {
+             console.error(`Failed to decompress font data for ${face.name}:`, error);
+          }
         }
       }
     }
