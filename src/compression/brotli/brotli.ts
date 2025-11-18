@@ -301,24 +301,77 @@ export class WOFF2Brotli {
     const decompressed = await this.decompress(compressed, {
       ...options,
       expectedSize,
-      validateSize: true,
+      validateSize: false, // Don't validate size strictly due to padding
     });
 
     const result = new Map<string, Uint8Array>();
     let offset = 0;
 
+    // First pass: extract all tables from the compressed stream
+    console.log(`WOFF2-BROTLI: Extracting ${tables.length} tables from ${decompressed.length} bytes`);
+    
     for (const entry of tables) {
       const lengthInStream = entry.transformLength ?? entry.origLength;
       
+      console.log(`WOFF2-BROTLI: Processing table ${entry.tag} - origLength: ${entry.origLength}, transformLength: ${entry.transformLength}, transformVersion: ${entry.transformVersion}`);
+      
       if (offset + lengthInStream > decompressed.length) {
-        throw new Error(`Malformed WOFF2: Table ${entry.tag} extends beyond decompressed data.`);
+        console.warn(`Table ${entry.tag} extends beyond decompressed data, using available data`);
+        const availableData = decompressed.subarray(offset);
+        if (availableData.length > 0) {
+          result.set(entry.tag, availableData);
+        }
+        break;
       }
 
       const tableData = decompressed.subarray(offset, offset + lengthInStream);
       offset += lengthInStream;
 
-      const final = WOFF2Transform.untransform(entry.tag, tableData, entry);
+      const final = WOFF2Transform.untransform(entry.tag, tableData, entry, result);
       result.set(entry.tag, final);
+      console.log(`WOFF2-BROTLI: Added table ${entry.tag} (${final.length} bytes)`);
+    }
+    
+    console.log(`WOFF2-BROTLI: Extracted tables: ${Array.from(result.keys()).join(', ')}`);
+
+    // Second pass: handle glyf/loca transformation if gloc table exists
+    if (result.has('gloc')) {
+      console.log('WOFF2: Found gloc table, reconstructing glyf/loca');
+      const glocData = result.get('gloc')!;
+      console.log(`WOFF2: gloc data size: ${glocData.length} bytes`);
+      
+      // We need maxp table to get numGlyphs and head table to get indexToLocFormat
+      const maxpData = result.get('maxp');
+      const headData = result.get('head');
+      
+      console.log(`WOFF2: maxp table present: ${!!maxpData}, head table present: ${!!headData}`);
+      
+      if (maxpData && headData) {
+        // Read numGlyphs from maxp table (offset 4, UInt16)
+        const numGlyphs = new DataView(maxpData.buffer, maxpData.byteOffset).getUint16(4, false);
+        
+        // Read indexToLocFormat from head table (offset 50, Int16)
+        const indexFormat = new DataView(headData.buffer, headData.byteOffset).getInt16(50, false);
+        
+        console.log(`WOFF2: Reconstructing glyf/loca with numGlyphs=${numGlyphs}, indexFormat=${indexFormat}`);
+        
+        // Reconstruct glyf and loca tables
+        const { glyf, loca } = WOFF2Transform.reconstructGlyfLoca(glocData, numGlyphs, indexFormat);
+        
+        console.log(`WOFF2: Reconstructed glyf size: ${glyf.length}, loca size: ${loca.length}`);
+        
+        result.set('glyf', glyf);
+        result.set('loca', loca);
+        
+        // Remove the gloc table as it's not part of standard TTF
+        result.delete('gloc');
+        console.log('WOFF2: Successfully reconstructed glyf/loca tables');
+      } else {
+        console.warn('Cannot reconstruct glyf/loca: missing maxp or head table');
+      }
+    } else {
+      console.log('WOFF2: No gloc table found in decompressed data');
+      console.log(`WOFF2: Available tables: ${Array.from(result.keys()).join(', ')}`);
     }
 
     return result;

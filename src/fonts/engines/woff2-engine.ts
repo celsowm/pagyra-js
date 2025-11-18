@@ -18,6 +18,8 @@ export class Woff2Engine {
     private static decoder = new TextDecoder('ascii');
 
     async parse(fontData: Uint8Array): Promise<ParsedFont> {
+        console.log(`WOFF2: Starting parse, file size: ${fontData.length} bytes`);
+        
         if (fontData.length < WOFF2_HEADER_SIZE) {
             throw new Error('Invalid WOFF2: file too short');
         }
@@ -32,6 +34,8 @@ export class Woff2Engine {
         const numTables = readUInt16BE(fontData, 12);
         // const reserved = readUInt16BE(fontData, 14);
         const totalCompressedSize = readUInt32BE(fontData, 20);
+
+        console.log(`WOFF2: Header parsed - flavor: 0x${flavor.toString(16)}, numTables: ${numTables}, compressedSize: ${totalCompressedSize}`);
 
         const tableDirectory: WOFF2TableEntry[] = [];
         let currentOffset = WOFF2_HEADER_SIZE;
@@ -83,14 +87,31 @@ export class Woff2Engine {
         const compressedStreamEnd = Math.min(currentOffset + totalCompressedSize, fontData.length);
         const compressedData = fontData.subarray(currentOffset, compressedStreamEnd);
 
+        console.log(`WOFF2: Decompressing ${tableDirectory.length} tables`);
         const decompressedTables = await decompressMultipleTables(compressedData, tableDirectory);
+        
+        console.log(`WOFF2: Decompressed tables: ${Array.from(decompressedTables.keys()).join(', ')}`);
 
+        // Convert Map to Record for compatibility
         const filteredTables: Record<string, Uint8Array> = {};
         for (const [tag, data] of decompressedTables.entries()) {
-            if (tag === 'gloc') { continue; }
-            if (['gvar', 'hvar'].includes(tag)) { continue; }
+            // Skip variable font tables that we don't support yet
+            if (['gvar', 'hvar', 'MVAR', 'STAT', 'avar', 'cvar', 'fvar'].includes(tag)) {
+                console.log(`Skipping unsupported variable font table: ${tag}`);
+                continue;
+            }
+            console.log(`WOFF2: Adding table ${tag} (${data.length} bytes)`);
             filteredTables[tag] = data;
         }
+
+        // Verify we have essential tables
+        const essentialTables = ['head', 'hhea', 'maxp', 'hmtx', 'cmap', 'name'];
+        const missingTables = essentialTables.filter(tag => !filteredTables[tag]);
+        if (missingTables.length > 0) {
+            console.warn(`WOFF2: Missing essential tables: ${missingTables.join(', ')}`);
+        }
+        
+        console.log(`WOFF2: Final table count: ${Object.keys(filteredTables).length}`);
 
         return {
             flavor,
