@@ -28,7 +28,7 @@ export class Woff2Engine {
         }
 
         const flavor = readUInt32BE(fontData, 4);
-        const length = readUInt32BE(fontData, 8);
+        // const length = readUInt32BE(fontData, 8);
         const numTables = readUInt16BE(fontData, 12);
         // const reserved = readUInt16BE(fontData, 14);
         const totalCompressedSize = readUInt32BE(fontData, 20);
@@ -59,7 +59,9 @@ export class Woff2Engine {
             const transformVersion = (flags >> 6) & 0x3;
             let transformLength = 0;
 
-            // FIX: Correctly determine if transformLength is present
+            // FIX: Correctly determine if transformLength is present in the stream
+            // transformVersion 3 means no transform (so no length).
+            // transformVersion 0 means "default" transform. For glyf/loca this DOES imply a transform length.
             const isGlyphOrLoca = tagIndex === 10 || tagIndex === 11; // 10=glyf, 11=loca
             const hasTransformLength = (transformVersion !== 0 && transformVersion !== 3) || (transformVersion === 0 && isGlyphOrLoca);
 
@@ -78,24 +80,17 @@ export class Woff2Engine {
             });
         }
 
-        // Determine the end of the compressed stream based on totalCompressedSize
-        // The stream starts immediately after the Table Directory
         const compressedStreamEnd = Math.min(currentOffset + totalCompressedSize, fontData.length);
         const compressedData = fontData.subarray(currentOffset, compressedStreamEnd);
 
         const decompressedTables = await decompressMultipleTables(compressedData, tableDirectory);
 
-        // Filter out unsupported tables or temporary tables
         const filteredTables: Record<string, Uint8Array> = {};
         for (const [tag, data] of decompressedTables.entries()) {
-            if (tag === 'gloc') { continue; } // Graphite table not supported
-            if (['gvar', 'hvar'].includes(tag)) { continue; } // Variations not supported
+            if (tag === 'gloc') { continue; }
+            if (['gvar', 'hvar'].includes(tag)) { continue; }
             filteredTables[tag] = data;
         }
-
-        // Reconstruct the directory based on what we actually have
-        // (Some tables might have been skipped or failed to decompress)
-        // const reconstructedDirectory = tableDirectory.filter(entry => filteredTables[entry.tag] !== undefined);
 
         return {
             flavor,
@@ -106,9 +101,7 @@ export class Woff2Engine {
 
     async convertToUnified(parsedFont: ParsedFont): Promise<UnifiedFont> {
         try {
-            // Attempt to reconstruct a basic TTF/OTF buffer from the parsed tables
             const ttfBuffer = this.createBasicTtfBuffer(parsedFont);
-            // Use the TTF parser to extract metrics and outlines
             const ttfMetrics = parseTtfBuffer(ttfBuffer);
 
             return {
@@ -131,8 +124,8 @@ export class Woff2Engine {
     }
 
     private createBasicTtfBuffer(parsedFont: ParsedFont): ArrayBuffer {
-        // Sort tables by tag as required by TTF spec
-        const filteredTables = Object.entries(parsedFont.tables).sort(([tagA], [tagB]) => tagA.localeCompare(tagB));
+        // Explicitly type cast to avoid 'unknown' errors
+        const filteredTables = Object.entries(parsedFont.tables).sort(([tagA], [tagB]) => tagA.localeCompare(tagB)) as [string, Uint8Array][];
         const numTables = filteredTables.length;
         
         const headerSize = 12;
@@ -141,20 +134,17 @@ export class Woff2Engine {
         
         let totalDataSize = 0;
         for (const [, data] of filteredTables) {
-            totalDataSize += (data as Uint8Array).length;
-            // Tables must be 4-byte aligned
-            totalDataSize += (4 - ((data as Uint8Array).length % 4)) & 3;
+            totalDataSize += data.length;
+            totalDataSize += (4 - (data.length % 4)) & 3;
         }
 
         const buffer = new ArrayBuffer(headerSize + tableDirSize + totalDataSize);
         const u8 = new Uint8Array(buffer);
         const view = new DataView(buffer);
 
-        // Offset Table
-        view.setUint32(0, parsedFont.flavor, false); // sfnt version
+        view.setUint32(0, parsedFont.flavor, false);
         view.setUint16(4, numTables, false);
         
-        // Search Range stuff (standard boilerplate)
         if (numTables > 0) {
             const maxPower2 = 1 << Math.floor(Math.log2(numTables));
             const searchRange = maxPower2 * 16;
@@ -169,28 +159,20 @@ export class Woff2Engine {
         let currentDataOffset = headerSize + tableDirSize;
 
         for (const [tag, data] of filteredTables) {
-            // Tag
             for (let i = 0; i < 4; i++) {
                 u8[dirOffset + i] = tag.charCodeAt(i);
             }
-
-            // Checksum (simple sum)
-            const checksum = this.calculateTableChecksum(data as Uint8Array);
+            
+            const checksum = this.calculateTableChecksum(data);
             view.setUint32(dirOffset + 4, checksum, false);
-
-            // Offset
             view.setUint32(dirOffset + 8, currentDataOffset, false);
-
-            // Length
-            view.setUint32(dirOffset + 12, (data as Uint8Array).length, false);
-
-            // Write Data
-            u8.set(data as Uint8Array, currentDataOffset);
-
-            // Padding
-            const pad = (4 - ((data as Uint8Array).length % 4)) & 3;
-            currentDataOffset += (data as Uint8Array).length + pad;
-
+            view.setUint32(dirOffset + 12, data.length, false);
+            
+            u8.set(data, currentDataOffset);
+            
+            const pad = (4 - (data.length % 4)) & 3;
+            currentDataOffset += data.length + pad;
+            
             dirOffset += 16;
         }
 
@@ -206,7 +188,6 @@ export class Woff2Engine {
             sum = (sum + view.getUint32(i * 4, false)) >>> 0;
         }
         
-        // Handle remaining bytes
         const leftOver = data.length % 4;
         if (leftOver > 0) {
             let val = 0;
