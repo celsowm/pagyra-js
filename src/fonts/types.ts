@@ -58,3 +58,22 @@ export interface FontEngine<T = ParsedFont> {
   parse(fontData: Uint8Array): Promise<T> | T;
   convertToUnified(parsedFont: T): Promise<UnifiedFont> | UnifiedFont;
 }
+
+/**
+ * WOFF2-specific types for enhanced separation
+ */
+export interface Woff2FontProgram extends FontProgram {
+  readonly sourceFormat: 'woff2';
+  readonly compressionInfo?: {
+    type: 'woff2';
+    tables: Map<string, any>;
+  };
+  readonly transformInfo?: {
+    glyphTransformed: boolean;
+    locaTransformed: boolean;
+  };
+}
+
+export interface Woff2Font extends LoadedFont {
+  readonly program: Woff2FontProgram;
+}
