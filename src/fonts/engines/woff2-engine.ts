@@ -33,9 +33,14 @@ export class Woff2Engine {
     }
 
     const flavor = readUInt32BE(fontData, 4);
-    // We ignore header length/metadata offsets for core parsing, 
-    // but strictly we should check fontData.length vs header totalLength.
+    // Length at offset 8
     const numTables = readUInt16BE(fontData, 12);
+    // Reserved at 14
+    // TotalSfntSize at 16
+    
+    // CRUCIAL FIX: Read the exact compressed stream size.
+    // Passing extra trailing bytes (metadata/padding) causes Brotli to fail.
+    const totalCompressedSize = readUInt32BE(fontData, 20);
     
     const tableDirectory: WOFF2TableEntry[] = [];
     let currentOffset = WOFF2_HEADER_SIZE;
@@ -62,16 +67,9 @@ export class Woff2Engine {
       currentOffset += bytesReadOrig;
       
       // Transformation version (0-3)
-      // 0 = null/none (except for glyf/loca which have specific defaults)
-      // 1/2 = specific WOFF2 transforms
-      // 3 = reserved
       const transformVersion = (flags >> 6) & 0x3;
       
       let transformLength = 0;
-      // If transform is applied (version != 0) OR specifically for glyf/loca where 
-      // defaults apply, the length might be encoded. 
-      // Note: The logic below follows the standard WOFF2 reading flow: 
-      // if (version != 0) read encoded length.
       if (transformVersion !== 0) {
         const [len, bytesRead] = readUBASE128(fontData, currentOffset);
         transformLength = len;
@@ -87,11 +85,17 @@ export class Woff2Engine {
       });
     }
 
-    // The rest of the file is the compressed data stream
-    const compressedData = fontData.subarray(currentOffset);
+    // CORRECTION: Cut the buffer exactly at the compressed size length.
+    // WOFF2 files may have metadata or padding after the stream, which breaks Brotli decoders.
+    if (currentOffset + totalCompressedSize > fontData.length) {
+       // Fallback: if header size says it's bigger than file, just take rest of file (file might be truncated but we try)
+       console.warn(`WOFF2 Header claims compressed size ${totalCompressedSize}, but file ends earlier.`);
+    }
     
-    // Important: decompressMultipleTables is assumed to handle 
-    // WOFF2 specific table reconstruction (e.g. reconstructing 'loca' from 'glyf')
+    const compressedStreamEnd = Math.min(currentOffset + totalCompressedSize, fontData.length);
+    const compressedData = fontData.subarray(currentOffset, compressedStreamEnd);
+    
+    // Now decompress with the clean buffer
     const decompressedTables = await decompressMultipleTables(compressedData, tableDirectory);
     
     const tables: Record<string, Uint8Array> = {};
@@ -103,7 +107,6 @@ export class Woff2Engine {
   }
 
   async convertToUnified(parsedFont: ParsedFont): Promise<UnifiedFont> {
-    // Reconstruct a container (SFNT) to use the generic TTF parser
     const ttfBuffer = this.createBasicTtfBuffer(parsedFont);
     
     try {
@@ -123,17 +126,15 @@ export class Woff2Engine {
         },
       };
     } catch (error) {
-      console.warn('TTF parsing failed during WOFF2 conversion, using fallback metrics.', error);
+      console.warn('TTF parsing failed during WOFF2 conversion (fallback used):', error);
       return this.createFallbackUnifiedFont(parsedFont);
     }
   }
 
   /**
    * Reconstructs a basic SFNT (TTF) binary structure from raw table data.
-   * This allows us to reuse standard TTF parsers for WOFF2 data.
    */
   private createBasicTtfBuffer(parsedFont: ParsedFont): ArrayBuffer {
-    // TTF tables must be sorted by tag for binary search and checksum compliance
     const sortedTables = Object.entries(parsedFont.tables)
       .sort(([tagA], [tagB]) => tagA.localeCompare(tagB));
 
@@ -142,24 +143,21 @@ export class Woff2Engine {
     const tableDirEntrySize = 16;
     const tableDirSize = tableDirEntrySize * numTables;
     
-    // Calculate total size needed including padding
     let totalDataSize = 0;
     for (const [, data] of sortedTables) {
       totalDataSize += data.length;
-      // Tables must be 4-byte aligned
-      totalDataSize += (4 - (data.length % 4)) & 3; 
+      totalDataSize += (4 - (data.length % 4)) & 3; // Padding
     }
     
     const buffer = new ArrayBuffer(headerSize + tableDirSize + totalDataSize);
     const u8 = new Uint8Array(buffer);
     const view = new DataView(buffer);
     
-    // --- Write Offset Table (Header) ---
-    view.setUint32(0, parsedFont.flavor, false); // sfnt version
+    // Header
+    view.setUint32(0, parsedFont.flavor, false);
     view.setUint16(4, numTables, false);
     
     if (numTables > 0) {
-      // Calculation of searchRange, entrySelector, rangeShift
       const maxPower2 = 1 << Math.floor(Math.log2(numTables));
       const searchRange = maxPower2 * 16;
       const entrySelector = Math.floor(Math.log2(maxPower2));
@@ -170,35 +168,25 @@ export class Woff2Engine {
       view.setUint16(10, rangeShift, false);
     }
     
-    // --- Write Table Directory & Data ---
+    // Directory & Data
     let dirOffset = 12;
     let currentDataOffset = headerSize + tableDirSize;
     
     for (const [tag, data] of sortedTables) {
-      // 1. Write Tag (4 bytes)
       for (let i = 0; i < 4; i++) {
         u8[dirOffset + i] = tag.charCodeAt(i);
       }
       
-      // 2. Calculate Checksum
       const checksum = this.calculateTableChecksum(data);
       view.setUint32(dirOffset + 4, checksum, false);
-      
-      // 3. Offset & Length
       view.setUint32(dirOffset + 8, currentDataOffset, false);
       view.setUint32(dirOffset + 12, data.length, false);
       
-      // 4. Write Data
       u8.set(data, currentDataOffset);
       
-      // 5. Handle Padding (zero fill)
+      // Padding
       const pad = (4 - (data.length % 4)) & 3;
-      currentDataOffset += data.length;
-      if (pad > 0) {
-        // Uint8Array is zero-initialized by default, but explicit clarity helps
-        // if reusing buffers. Here, new ArrayBuffer implies 0s.
-        currentDataOffset += pad; 
-      }
+      currentDataOffset += data.length + pad;
       
       dirOffset += 16;
     }
@@ -212,21 +200,15 @@ export class Woff2Engine {
     const view = new DataView(data.buffer, data.byteOffset, data.length);
 
     for (let i = 0; i < nLongs; i++) {
-      // Use simple addition; overflow is handled by bitwise operator | 0 at end
-      // strictly, TTF uses unsigned 32-bit addition (modulo 2^32)
       sum = (sum + view.getUint32(i * 4, false)) >>> 0; 
     }
 
-    // Handle remaining bytes (padding logic for checksum)
     const leftOver = data.length % 4;
     if (leftOver > 0) {
       let val = 0;
-      // We construct a uint32 from the remaining bytes
-      // byte0 << 24 | byte1 << 16 | ...
       for (let i = 0; i < leftOver; i++) {
         val = (val << 8) | data[nLongs * 4 + i];
       }
-      // Shift remaining bits to align to the left (Big Endian padding)
       val = val << (8 * (4 - leftOver));
       sum = (sum + val) >>> 0;
     }
@@ -246,21 +228,21 @@ export class Woff2Engine {
           xHeight: 500,
         },
         glyphMetrics: new Map([
-          [0, { advanceWidth: 500, leftSideBearing: 0 }], // .notdef
-          [1, { advanceWidth: 250, leftSideBearing: 0 }], // space
+          [0, { advanceWidth: 500, leftSideBearing: 0 }],
+          [1, { advanceWidth: 250, leftSideBearing: 0 }],
           [2, { advanceWidth: 500, leftSideBearing: 0 }],
         ]),
         cmap: {
           getGlyphId: () => 1,
           hasCodePoint: () => true,
-          unicodeMap: new Map([[65, 1]]), // 'A' -> glyph 1 example
+          unicodeMap: new Map([[65, 1]]),
         },
-        headBBox: [0, -200, 1000, 800] // Add plausible BBox
+        headBBox: [0, -200, 1000, 800]
       },
       program: {
         sourceFormat: 'woff2' as FontFormat,
         getRawTableData: (tag: string) => parsedFont.tables[tag] || null,
-        getGlyphOutline: () => null, // No outlines in fallback
+        getGlyphOutline: () => null,
       },
     };
   }
