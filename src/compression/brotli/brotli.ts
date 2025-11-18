@@ -206,11 +206,12 @@ export class WOFF2Brotli {
    * Browser Brotli compression using CompressionStream API
    */
   private static async browserBrotliCompress(data: Uint8Array): Promise<Uint8Array> {
-    const stream = new CompressionStream('br' as CompressionFormat);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const stream = new CompressionStream('br' as any); 
     const writer = stream.writable.getWriter();
     
-    // Explicitly cast to BufferSource to satisfy TS overlap with SharedArrayBuffer
-    writer.write(data as BufferSource).catch(() => { /* ignore write errors here, will catch at reader */ });
+    // Forçamos o cast para BufferSource para evitar conflito com tipos do Node
+    writer.write(data as BufferSource).catch(() => { /* ignore write errors here */ });
     writer.close();
 
     const chunks: Uint8Array[] = [];
@@ -233,10 +234,10 @@ export class WOFF2Brotli {
    * Browser Brotli decompression using DecompressionStream API
    */
   private static async browserBrotliDecompress(data: Uint8Array): Promise<Uint8Array> {
-    const stream = new DecompressionStream('br' as CompressionFormat);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const stream = new DecompressionStream('br' as any);
     const writer = stream.writable.getWriter();
     
-    // Explicitly cast to BufferSource
     writer.write(data as BufferSource).catch(() => { /* ignore */ });
     writer.close();
 
