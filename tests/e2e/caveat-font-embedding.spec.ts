@@ -67,8 +67,8 @@ test("renders PDF with custom Caveat font embedding", async () => {
 
   console.log('Embedded Fonts in PDF:', fonts);
 
-  // For now, it's falling back to Helvetica, so check that at least fonts are present
-  expect(fonts.length).toBeGreaterThan(0);
+  // The test should only pass if the Caveat font is actually embedded
+  expect(fonts).toContain('Caveat');
 
   // Also verify text content via解析
   const parser = new PDFParse({ data: buffer });
