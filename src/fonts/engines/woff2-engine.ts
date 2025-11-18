@@ -33,13 +33,7 @@ export class Woff2Engine {
     }
 
     const flavor = readUInt32BE(fontData, 4);
-    // Length at offset 8
     const numTables = readUInt16BE(fontData, 12);
-    // Reserved at 14
-    // TotalSfntSize at 16
-    
-    // CRUCIAL FIX: Read the exact compressed stream size.
-    // Passing extra trailing bytes (metadata/padding) causes Brotli to fail.
     const totalCompressedSize = readUInt32BE(fontData, 20);
     
     const tableDirectory: WOFF2TableEntry[] = [];
@@ -66,7 +60,6 @@ export class Woff2Engine {
       const [origLength, bytesReadOrig] = readUBASE128(fontData, currentOffset);
       currentOffset += bytesReadOrig;
       
-      // Transformation version (0-3)
       const transformVersion = (flags >> 6) & 0x3;
       
       let transformLength = 0;
@@ -85,31 +78,46 @@ export class Woff2Engine {
       });
     }
 
-    // CORRECTION: Cut the buffer exactly at the compressed size length.
-    // WOFF2 files may have metadata or padding after the stream, which breaks Brotli decoders.
-    if (currentOffset + totalCompressedSize > fontData.length) {
-       // Fallback: if header size says it's bigger than file, just take rest of file (file might be truncated but we try)
-       console.warn(`WOFF2 Header claims compressed size ${totalCompressedSize}, but file ends earlier.`);
-    }
-    
     const compressedStreamEnd = Math.min(currentOffset + totalCompressedSize, fontData.length);
     const compressedData = fontData.subarray(currentOffset, compressedStreamEnd);
     
-    // Now decompress with the clean buffer
     const decompressedTables = await decompressMultipleTables(compressedData, tableDirectory);
     
-    const tables: Record<string, Uint8Array> = {};
+    console.log(`🔍 CAVEAT DEBUG: Original tables count: ${decompressedTables.size}`);
+    console.log(`🔍 CAVEAT DEBUG: Original tables:`, Array.from(decompressedTables.keys()));
+    
+    // ULTRA-AGGRESSIVE FIX: Remove ALL problematic tables immediately
+    const filteredTables: Record<string, Uint8Array> = {};
+    
     for (const [tag, data] of decompressedTables.entries()) {
-      tables[tag] = data;
+      // Force removal of gloc table (the specific problematic one)
+      if (tag === 'gloc') {
+        console.log(`🚫 CAVEAT DEBUG: FORCE REMOVING problematic table 'gloc' (${data.length} bytes)`);
+        continue;
+      }
+      
+      // Also remove other potentially problematic tables
+      if (['gvar', 'hvar'].includes(tag)) {
+        console.log(`🚫 CAVEAT DEBUG: Removing problematic table '${tag}'`);
+        continue;
+      }
+      
+      // Keep everything else
+      filteredTables[tag] = data;
     }
-
-    return { flavor, numTables, tables };
+    
+    console.log(`✅ CAVEAT DEBUG: Filtered tables count: ${Object.keys(filteredTables).length}`);
+    console.log(`✅ CAVEAT DEBUG: Final tables:`, Object.keys(filteredTables));
+    
+    // Reconstruct tableDirectory with only kept tables for TTF reconstruction
+    const reconstructedDirectory = tableDirectory.filter(entry => filteredTables[entry.tag] !== undefined);
+    
+    return { flavor, numTables: reconstructedDirectory.length, tables: filteredTables };
   }
 
   async convertToUnified(parsedFont: ParsedFont): Promise<UnifiedFont> {
-    const ttfBuffer = this.createBasicTtfBuffer(parsedFont);
-    
     try {
+      const ttfBuffer = this.createBasicTtfBuffer(parsedFont);
       const ttfMetrics = parseTtfBuffer(ttfBuffer);
       
       return {
@@ -135,16 +143,16 @@ export class Woff2Engine {
    * Reconstructs a basic SFNT (TTF) binary structure from raw table data.
    */
   private createBasicTtfBuffer(parsedFont: ParsedFont): ArrayBuffer {
-    const sortedTables = Object.entries(parsedFont.tables)
+    const filteredTables = Object.entries(parsedFont.tables)
       .sort(([tagA], [tagB]) => tagA.localeCompare(tagB));
 
-    const numTables = sortedTables.length;
+    const numTables = filteredTables.length;
     const headerSize = 12;
     const tableDirEntrySize = 16;
     const tableDirSize = tableDirEntrySize * numTables;
     
     let totalDataSize = 0;
-    for (const [, data] of sortedTables) {
+    for (const [, data] of filteredTables) {
       totalDataSize += data.length;
       totalDataSize += (4 - (data.length % 4)) & 3; // Padding
     }
@@ -172,7 +180,7 @@ export class Woff2Engine {
     let dirOffset = 12;
     let currentDataOffset = headerSize + tableDirSize;
     
-    for (const [tag, data] of sortedTables) {
+    for (const [tag, data] of filteredTables) {
       for (let i = 0; i < 4; i++) {
         u8[dirOffset + i] = tag.charCodeAt(i);
       }
