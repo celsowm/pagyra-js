@@ -27,6 +27,32 @@ describe("PDF text and fonts", () => {
     const result = await parser.getText();
     expect(result.text).toContain("Hello inline world");
   });
+
+  it.each([
+    ["TTF", "DejaVu Sans", "assets/fonts/ttf/dejavu/DejaVuSans.ttf"],
+  ])("embeds and renders text with %s fonts", async (format, family, path) => {
+    const root = new LayoutNode(new ComputedStyle());
+    const paragraph = new LayoutNode(new ComputedStyle({ display: Display.Block }));
+    const text = new LayoutNode(
+      new ComputedStyle({ display: Display.Inline, fontSize: 12, fontFamily: family }),
+      [],
+      { textContent: `Hello ${format} world` },
+    );
+    paragraph.appendChild(text);
+    root.appendChild(paragraph);
+
+    layoutTree(root, { width: 500, height: 500 });
+    const renderable = buildRenderTree(root, {
+      stylesheets: {
+        fontFaces: [{ family, src: [`url(${path})`] }],
+      },
+    });
+    const pdfBytes = await renderPdf(renderable);
+
+    const parser = new PDFParse({ data: Buffer.from(pdfBytes) });
+    const result = await parser.getText();
+    expect(result.text).toContain(`Hello ${format} world`);
+  });
 });
 
 function createSampleLayout(): LayoutNode {
