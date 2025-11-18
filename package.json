@@ -23,6 +23,7 @@
     "eslint": "^9.39.1",
     "express": "^4.21.2",
     "linkedom": "^0.16.11",
+    "pdf-parse": "^2.4.5",
     "tsx": "^4.7.1",
     "typescript": "^5.9.0",
     "vitest": "^1.6.0"

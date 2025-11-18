@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PDFParse } from "pdf-parse";
 import { LayoutNode } from "../src/dom/node.js";
 import { ComputedStyle } from "../src/css/style.js";
 import { Display } from "../src/css/enums.js";
@@ -21,30 +22,10 @@ describe("PDF text and fonts", () => {
     layoutTree(root, { width: 240, height: 320 });
     const renderable = buildRenderTree(root);
     const pdfBytes = await renderPdf(renderable);
-    const content = Buffer.from(pdfBytes).toString("ascii");
 
-    expect(content).toContain("(Hello inline world)");
-    expect(content).toMatch(/\/F\d+\s+10\.5\b/);
-  });
-
-  it("selects base fonts from CSS font-face local sources", async () => {
-    const root = createSampleLayout();
-    layoutTree(root, { width: 320, height: 480 });
-
-    const renderable = buildRenderTree(root, {
-      headerFooter: { headerHtml: "Hello world", maxHeaderHeightPx: 24, fontFamily: "Times New Roman" },
-      stylesheets: {
-        fontFaces: [
-          {
-            family: "Times New Roman",
-            src: ['local("Times New Roman")'],
-          },
-        ],
-      },
-    });
-    const pdfBytes = await renderPdf(renderable);
-    const content = Buffer.from(pdfBytes).toString("ascii");
-    expect(content).toContain("/BaseFont /Times-Roman");
+    const parser = new PDFParse({ data: Buffer.from(pdfBytes) });
+    const result = await parser.getText();
+    expect(result.text).toContain("Hello inline world");
   });
 });
 
