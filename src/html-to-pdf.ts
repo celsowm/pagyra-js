@@ -2,6 +2,7 @@
 
 import { parseHTML } from "linkedom";
 import path from "path";
+import { readFileSync } from "fs";
 import { type FontConfig } from "./types/fonts.js";
 import { configureDebug, log, type LogCat, type LogLevel } from "./debug/log.js";
 import { parseCss } from "./html/css/parse-css.js";
@@ -139,7 +140,6 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   }
 
   const pdfDoc = new PdfDocument();
-  const { readFileSync } = require("fs");
 
   // Process @font-face rules
   for (const fontFace of fontFaceRules) {
