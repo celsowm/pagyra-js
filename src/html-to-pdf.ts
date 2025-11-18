@@ -81,8 +81,8 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   for (const styleTag of styleTags) {
     if (styleTag.textContent) mergedCss += "\n" + styleTag.textContent;
   }
-  const cssRules = parseCss(mergedCss);
-  log("PARSE", "DEBUG", "CSS rules", { count: cssRules.length });
+  const { styleRules: cssRules, fontFaceRules } = parseCss(mergedCss);
+  log("PARSE", "DEBUG", "CSS rules", { count: cssRules.length, fontFaces: fontFaceRules.length });
 
   // Determine the root element to process - prefer body, but fall back to documentElement if body is empty
   let rootElement = document.body;
@@ -139,17 +139,59 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   }
 
   const pdfDoc = new PdfDocument();
+  const { readFileSync } = require("fs");
+
+  // Process @font-face rules
+  for (const fontFace of fontFaceRules) {
+    const fontFamily = fontFace.declarations['font-family']?.replace(/['"]/g, '');
+    const src = fontFace.declarations['src'];
+    if (fontFamily && src) {
+      const urlMatch = /url\(['"]?(.*?)['"]?\)/.exec(src);
+      if (urlMatch) {
+        let url = urlMatch[1];
+        if (url.startsWith('file://')) {
+          url = url.substring('file://'.length);
+        }
+        const fontPath = path.resolve(resourceBaseDir, url);
+        try {
+          const fontDataBuffer = readFileSync(fontPath);
+          const fontData = fontDataBuffer.buffer.slice(
+            fontDataBuffer.byteOffset,
+            fontDataBuffer.byteOffset + fontDataBuffer.byteLength
+          );
+          if (options.fontConfig) {
+            const weightStr = fontFace.declarations['font-weight'] || '400';
+            const styleStr = fontFace.declarations['font-style'] || 'normal';
+            options.fontConfig.fontFaceDefs.push({
+              name: fontFamily,
+              family: fontFamily,
+              src: fontPath,
+              data: fontData,
+              weight: parseInt(weightStr, 10),
+              style: styleStr as 'normal' | 'italic',
+            });
+          }
+        } catch (error) {
+          console.error(`Failed to load font from ${fontPath}:`, error);
+        }
+      }
+    }
+  }
+
   // In a browser environment, the font data should be pre-loaded and passed in the fontConfig.
   if (options.fontConfig) {
     for (const face of options.fontConfig.fontFaceDefs) {
-      if (!face.data) {
-        console.log("Loading font from", face.src);
-        const { readFileSync } = require("fs");
-        const fontDataBuffer = readFileSync(face.src);
-        (face as any).data = fontDataBuffer.buffer.slice(
-          fontDataBuffer.byteOffset,
-          fontDataBuffer.byteOffset + fontDataBuffer.byteLength
-        );
+      if (!face.data && face.src) {
+        try {
+          console.log("Loading font from", face.src);
+          const fontDataBuffer = readFileSync(face.src);
+          (face as any).data = fontDataBuffer.buffer.slice(
+            fontDataBuffer.byteOffset,
+            fontDataBuffer.byteOffset + fontDataBuffer.byteLength
+          );
+        } catch (error) {
+          console.error(`Failed to load pre-defined font from ${face.src}:`, error);
+        }
       }
     }
   }

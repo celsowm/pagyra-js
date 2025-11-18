@@ -5,50 +5,71 @@ export type DomEl = any; // adapt to your DOM type, e.g. HTMLElement or any
 
 export interface CssRuleEntry {
   selector: string;
-  declarations: Record<string,string>;
+  declarations: Record<string, string>;
   match: (el: DomEl) => boolean;
+}
+
+export interface FontFaceRule {
+  declarations: Record<string, string>;
+}
+
+export interface ParsedCss {
+  styleRules: CssRuleEntry[];
+  fontFaceRules: FontFaceRule[];
 }
 
 type CssDeclaration = cssParser.Declaration;
 type CssRule = cssParser.Rule;
+type CssFontFaceRule = cssParser.FontFace;
 
-export function buildCssRules(cssText: string): CssRuleEntry[] {
+export function buildCssRules(cssText: string): ParsedCss {
+  const result: ParsedCss = { styleRules: [], fontFaceRules: [] };
   if (!cssText.trim()) {
-    return [];
+    return result;
   }
   const stylesheet = cssParser.parse(cssText);
-  const result: CssRuleEntry[] = [];
   const rules = stylesheet.stylesheet?.rules ?? [];
+
   for (const rule of rules) {
-    if (rule.type !== "rule") {
-      continue;
-    }
-    const typedRule = rule as CssRule;
-    const selectors = typedRule.selectors ?? [];
-    const decls = typedRule.declarations ?? [];
-    const declarations: Record<string, string> = {};
-    for (const decl of decls) {
-      if (!decl || decl.type !== "declaration") {
-        continue;
+    if (rule.type === "rule") {
+      const typedRule = rule as CssRule;
+      const selectors = typedRule.selectors ?? [];
+      const decls = typedRule.declarations ?? [];
+      const declarations: Record<string, string> = {};
+      for (const decl of decls) {
+        if (decl.type !== "declaration") continue;
+        const declaration = decl as CssDeclaration;
+        if (!declaration.property || declaration.value === undefined) {
+          continue;
+        }
+        declarations[declaration.property.trim().toLowerCase()] = declaration.value.trim();
       }
-      const declaration = decl as CssDeclaration;
-      if (!declaration.property || declaration.value === undefined) {
-        continue;
+      for (const selector of selectors) {
+        const matcher = createSelectorMatcher(selector.trim());
+        if (!matcher) {
+          console.warn(`Invalid CSS selector: ${selector.trim()}`);
+          continue;
+        }
+        result.styleRules.push({ selector, declarations: { ...declarations }, match: matcher });
       }
-      declarations[declaration.property.trim().toLowerCase()] = declaration.value.trim();
-    }
-    for (const selector of selectors) {
-      const matcher = createSelectorMatcher(selector.trim());
-      if (!matcher) {
-        console.warn(`Invalid CSS selector: ${selector.trim()}`);
-        continue;
+    } else if (rule.type === "font-face") {
+      const typedRule = rule as CssFontFaceRule;
+      const decls = typedRule.declarations ?? [];
+      const declarations: Record<string, string> = {};
+      for (const decl of decls) {
+        if (decl.type !== "declaration") continue;
+        const declaration = decl as CssDeclaration;
+        if (!declaration.property || declaration.value === undefined) {
+          continue;
+        }
+        declarations[declaration.property.trim().toLowerCase()] = declaration.value.trim();
       }
-      result.push({ selector, declarations: { ...declarations }, match: matcher });
+      result.fontFaceRules.push({ declarations });
     }
   }
   return result;
 }
 
-export function parseCss(cssText: string): CssRuleEntry[] {
+export function parseCss(cssText: string): ParsedCss {
   return buildCssRules(cssText);
 }

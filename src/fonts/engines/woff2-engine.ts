@@ -1,63 +1,109 @@
 import type { WOFF2TableEntry } from '../../compression/brotli/types.js';
 import { decompressMultipleTables } from '../../compression/brotli/index.js';
-import { readUInt32BE } from '../../compression/utils.js';
+import { readUInt32BE, readUInt16BE, readUBASE128 } from '../../compression/utils.js';
 import { parseTtfBuffer } from '../../pdf/font/ttf-lite.js';
 import type { ParsedFont, UnifiedFont, FontFormat } from '../types.js';
 
-const readUInt16BE = (buf: Uint8Array, offset: number): number => {
-  return (buf[offset] << 8) | buf[offset + 1];
-};
+// WOFF2 Header is fixed 48 bytes
+const WOFF2_HEADER_SIZE = 48;
+const WOFF2_SIGNATURE = 'wOF2';
 
-/**
- * Simplified WOFF2 engine for Pagyra.
- * 
- * This provides basic WOFF2 support for testing and simple use cases.
- * For production use, a full WOFF2 implementation would be needed.
- */
+const KNOWN_TAGS = [
+  'cmap', 'head', 'hhea', 'hmtx', 'maxp', 'name', 'OS/2', 'post', 'cvt ',
+  'fpgm', 'glyf', 'loca', 'prep', 'CFF ', 'VORG', 'EBDT', 'EBLC', 'gasp',
+  'hdmx', 'kern', 'LTSH', 'PCLT', 'VDMX', 'vhea', 'vmtx', 'BASE', 'GDEF',
+  'GPOS', 'GSUB', 'EBSC', 'JSTF', 'MATH', 'CBDT', 'CBLC', 'COLR', 'CPAL',
+  'SVG ', 'sbix', 'acnt', 'avar', 'bdat', 'bloc', 'bsln', 'cvar', 'fdsc',
+  'feat', 'fmtx', 'fvar', 'gvar', 'hsty', 'just', 'lcar', 'mort', 'morx',
+  'opbd', 'prop', 'trak', 'Zapf', 'Silf', 'Glat', 'Gloc', 'Feat', 'Sill'
+];
+
 export class Woff2Engine {
-  private decoder = new TextDecoder('ascii');
+  // Reuse decoder instance
+  private static decoder = new TextDecoder('ascii');
 
   async parse(fontData: Uint8Array): Promise<ParsedFont> {
-    // Minimal length check
-    if (fontData.length < 48) {
+    if (fontData.length < WOFF2_HEADER_SIZE) {
       throw new Error('Invalid WOFF2: file too short');
     }
 
-    // Check WOFF2 signature
-    const signature = this.decoder.decode(fontData.subarray(0, 4));
-    if (signature !== 'wOF2') {
+    const signature = Woff2Engine.decoder.decode(fontData.subarray(0, 4));
+    if (signature !== WOFF2_SIGNATURE) {
       throw new Error(`Invalid WOFF2 signature: ${signature}`);
     }
 
-    // Parse basic header information
     const flavor = readUInt32BE(fontData, 4);
-    const length = readUInt32BE(fontData, 8);
+    // We ignore header length/metadata offsets for core parsing, 
+    // but strictly we should check fontData.length vs header totalLength.
     const numTables = readUInt16BE(fontData, 12);
     
-    console.log(`WOFF2 Debug: file size=${fontData.length}, claimed length=${length}, numTables=${numTables}`);
+    const tableDirectory: WOFF2TableEntry[] = [];
+    let currentOffset = WOFF2_HEADER_SIZE;
+    
+    for (let i = 0; i < numTables; i++) {
+      if (currentOffset >= fontData.length) {
+        throw new Error('Invalid WOFF2: Unexpected end of file in Table Directory');
+      }
 
-    // Create a basic table structure for testing
-    // This is a simplified approach - real WOFF2 would parse actual tables
-    const tables: Record<string, Uint8Array> = {
-      'head': new Uint8Array(54), // Required head table
-      'hhea': new Uint8Array(36), // Required hhea table  
-      'maxp': new Uint8Array(6),  // Required maxp table (version 0.5)
-      'name': new Uint8Array(1),  // Required name table
-      'cmap': new Uint8Array(1),  // Required cmap table
-      'post': new Uint8Array(32), // Required post table
-      'glyf': new Uint8Array(1),  // Glyph data table
-      'loca': new Uint8Array(1),  // Index to location table
-    };
+      const flags = fontData[currentOffset++];
+      const tagIndex = flags & 0x3F;
+      
+      let tag: string;
+      if (tagIndex === 0x3F) {
+        tag = Woff2Engine.decoder.decode(fontData.subarray(currentOffset, currentOffset + 4));
+        currentOffset += 4;
+      } else {
+        tag = KNOWN_TAGS[tagIndex];
+      }
+      
+      if (!tag) throw new Error(`Invalid known tag index: ${tagIndex}`);
 
-    return {
-      flavor,
-      numTables,
-      tables,
-    };
+      const [origLength, bytesReadOrig] = readUBASE128(fontData, currentOffset);
+      currentOffset += bytesReadOrig;
+      
+      // Transformation version (0-3)
+      // 0 = null/none (except for glyf/loca which have specific defaults)
+      // 1/2 = specific WOFF2 transforms
+      // 3 = reserved
+      const transformVersion = (flags >> 6) & 0x3;
+      
+      let transformLength = 0;
+      // If transform is applied (version != 0) OR specifically for glyf/loca where 
+      // defaults apply, the length might be encoded. 
+      // Note: The logic below follows the standard WOFF2 reading flow: 
+      // if (version != 0) read encoded length.
+      if (transformVersion !== 0) {
+        const [len, bytesRead] = readUBASE128(fontData, currentOffset);
+        transformLength = len;
+        currentOffset += bytesRead;
+      }
+
+      tableDirectory.push({ 
+        tag, 
+        flags, 
+        origLength, 
+        transformLength: transformLength || undefined, 
+        transformVersion 
+      });
+    }
+
+    // The rest of the file is the compressed data stream
+    const compressedData = fontData.subarray(currentOffset);
+    
+    // Important: decompressMultipleTables is assumed to handle 
+    // WOFF2 specific table reconstruction (e.g. reconstructing 'loca' from 'glyf')
+    const decompressedTables = await decompressMultipleTables(compressedData, tableDirectory);
+    
+    const tables: Record<string, Uint8Array> = {};
+    for (const [tag, data] of decompressedTables.entries()) {
+      tables[tag] = data;
+    }
+
+    return { flavor, numTables, tables };
   }
 
   async convertToUnified(parsedFont: ParsedFont): Promise<UnifiedFont> {
-    // Create a basic TTF buffer structure for parsing
+    // Reconstruct a container (SFNT) to use the generic TTF parser
     const ttfBuffer = this.createBasicTtfBuffer(parsedFont);
     
     try {
@@ -77,61 +123,43 @@ export class Woff2Engine {
         },
       };
     } catch (error) {
-      console.warn('TTF parsing failed, using fallback:', error);
-      
-      // Fallback to basic metrics if TTF parsing fails
-      return {
-        metrics: {
-          metrics: {
-            unitsPerEm: 1000,
-            ascender: 800,
-            descender: -200,
-            lineGap: 0,
-            capHeight: 700,
-            xHeight: 500,
-          },
-          glyphMetrics: new Map([
-            [0, { advanceWidth: 500, leftSideBearing: 0 }],
-            [1, { advanceWidth: 250, leftSideBearing: 0 }],
-            [2, { advanceWidth: 500, leftSideBearing: 0 }],
-          ]),
-          cmap: {
-            getGlyphId: () => 1,
-            hasCodePoint: () => true,
-            unicodeMap: new Map([[65, 1]]), // 'A' -> glyph 1
-          },
-        },
-        program: {
-          sourceFormat: 'woff2' as FontFormat,
-          getRawTableData: (tag: string) => parsedFont.tables[tag] || null,
-          getGlyphOutline: () => null,
-        },
-      };
+      console.warn('TTF parsing failed during WOFF2 conversion, using fallback metrics.', error);
+      return this.createFallbackUnifiedFont(parsedFont);
     }
   }
 
+  /**
+   * Reconstructs a basic SFNT (TTF) binary structure from raw table data.
+   * This allows us to reuse standard TTF parsers for WOFF2 data.
+   */
   private createBasicTtfBuffer(parsedFont: ParsedFont): ArrayBuffer {
-    const numTables = Object.keys(parsedFont.tables).length;
+    // TTF tables must be sorted by tag for binary search and checksum compliance
+    const sortedTables = Object.entries(parsedFont.tables)
+      .sort(([tagA], [tagB]) => tagA.localeCompare(tagB));
+
+    const numTables = sortedTables.length;
     const headerSize = 12;
-    const tableDirSize = 16 * numTables;
+    const tableDirEntrySize = 16;
+    const tableDirSize = tableDirEntrySize * numTables;
     
-    // Calculate total size needed
+    // Calculate total size needed including padding
     let totalDataSize = 0;
-    for (const data of Object.values(parsedFont.tables)) {
+    for (const [, data] of sortedTables) {
       totalDataSize += data.length;
-      totalDataSize += (4 - (data.length % 4)) & 3; // 4-byte padding
+      // Tables must be 4-byte aligned
+      totalDataSize += (4 - (data.length % 4)) & 3; 
     }
     
     const buffer = new ArrayBuffer(headerSize + tableDirSize + totalDataSize);
     const u8 = new Uint8Array(buffer);
     const view = new DataView(buffer);
     
-    // Write TTF header
+    // --- Write Offset Table (Header) ---
     view.setUint32(0, parsedFont.flavor, false); // sfnt version
     view.setUint16(4, numTables, false);
     
-    // Calculate table directory parameters
     if (numTables > 0) {
+      // Calculation of searchRange, entrySelector, rangeShift
       const maxPower2 = 1 << Math.floor(Math.log2(numTables));
       const searchRange = maxPower2 * 16;
       const entrySelector = Math.floor(Math.log2(maxPower2));
@@ -142,38 +170,98 @@ export class Woff2Engine {
       view.setUint16(10, rangeShift, false);
     }
     
-    // Write table directory and data
+    // --- Write Table Directory & Data ---
     let dirOffset = 12;
-    let currentOffset = headerSize + tableDirSize;
-    let tableIndex = 0;
+    let currentDataOffset = headerSize + tableDirSize;
     
-    for (const [tag, data] of Object.entries(parsedFont.tables).sort()) {
-      // Directory entry
+    for (const [tag, data] of sortedTables) {
+      // 1. Write Tag (4 bytes)
       for (let i = 0; i < 4; i++) {
         u8[dirOffset + i] = tag.charCodeAt(i);
       }
       
-      view.setUint32(dirOffset + 4, 0, false); // checksum (placeholder)
-      view.setUint32(dirOffset + 8, currentOffset, false); // offset
-      view.setUint32(dirOffset + 12, data.length, false); // length
+      // 2. Calculate Checksum
+      const checksum = this.calculateTableChecksum(data);
+      view.setUint32(dirOffset + 4, checksum, false);
       
-      // Table data
-      u8.set(data, currentOffset);
-      currentOffset += data.length;
+      // 3. Offset & Length
+      view.setUint32(dirOffset + 8, currentDataOffset, false);
+      view.setUint32(dirOffset + 12, data.length, false);
       
-      // 4-byte padding
+      // 4. Write Data
+      u8.set(data, currentDataOffset);
+      
+      // 5. Handle Padding (zero fill)
       const pad = (4 - (data.length % 4)) & 3;
+      currentDataOffset += data.length;
       if (pad > 0) {
-        for (let i = 0; i < pad; i++) {
-          u8[currentOffset + i] = 0;
-        }
-        currentOffset += pad;
+        // Uint8Array is zero-initialized by default, but explicit clarity helps
+        // if reusing buffers. Here, new ArrayBuffer implies 0s.
+        currentDataOffset += pad; 
       }
       
       dirOffset += 16;
-      tableIndex++;
     }
     
     return buffer;
+  }
+
+  private calculateTableChecksum(data: Uint8Array): number {
+    let sum = 0;
+    const nLongs = Math.floor(data.length / 4);
+    const view = new DataView(data.buffer, data.byteOffset, data.length);
+
+    for (let i = 0; i < nLongs; i++) {
+      // Use simple addition; overflow is handled by bitwise operator | 0 at end
+      // strictly, TTF uses unsigned 32-bit addition (modulo 2^32)
+      sum = (sum + view.getUint32(i * 4, false)) >>> 0; 
+    }
+
+    // Handle remaining bytes (padding logic for checksum)
+    const leftOver = data.length % 4;
+    if (leftOver > 0) {
+      let val = 0;
+      // We construct a uint32 from the remaining bytes
+      // byte0 << 24 | byte1 << 16 | ...
+      for (let i = 0; i < leftOver; i++) {
+        val = (val << 8) | data[nLongs * 4 + i];
+      }
+      // Shift remaining bits to align to the left (Big Endian padding)
+      val = val << (8 * (4 - leftOver));
+      sum = (sum + val) >>> 0;
+    }
+
+    return sum;
+  }
+
+  private createFallbackUnifiedFont(parsedFont: ParsedFont): UnifiedFont {
+    return {
+      metrics: {
+        metrics: {
+          unitsPerEm: 1000,
+          ascender: 800,
+          descender: -200,
+          lineGap: 0,
+          capHeight: 700,
+          xHeight: 500,
+        },
+        glyphMetrics: new Map([
+          [0, { advanceWidth: 500, leftSideBearing: 0 }], // .notdef
+          [1, { advanceWidth: 250, leftSideBearing: 0 }], // space
+          [2, { advanceWidth: 500, leftSideBearing: 0 }],
+        ]),
+        cmap: {
+          getGlyphId: () => 1,
+          hasCodePoint: () => true,
+          unicodeMap: new Map([[65, 1]]), // 'A' -> glyph 1 example
+        },
+        headBBox: [0, -200, 1000, 800] // Add plausible BBox
+      },
+      program: {
+        sourceFormat: 'woff2' as FontFormat,
+        getRawTableData: (tag: string) => parsedFont.tables[tag] || null,
+        getGlyphOutline: () => null, // No outlines in fallback
+      },
+    };
   }
 }
