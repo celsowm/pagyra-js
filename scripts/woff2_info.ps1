@@ -1,5 +1,5 @@
 param(
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$File
 )
 
@@ -10,5 +10,7 @@ $output = Invoke-Expression $cmd
 # Se não houve saída, imprime uma mensagem útil
 if ([string]::IsNullOrWhiteSpace($output)) {
     Write-Output "[INFO] No stdout/stderr produced. File appears valid or binary is quiet."
-} else {
+}
+else {
     Write-Output $output
+}
