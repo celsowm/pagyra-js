@@ -92,6 +92,32 @@ The vast majority of other font tables (`cmap`, `head`, `OS/2`, etc.) are not tr
 
 This means that all the logic for character-to-glyph mapping (including complex mappings for CID fonts) is perfectly preserved, as the `cmap` table and any related tables are restored bit-for-bit after decompression. The compression benefit for these tables comes from Brotli's ability to find and compress patterns across the entire font data stream.
 
+## Low-Level Example: Packaging a Non-Transformed Table
+
+To understand the "caveat" that most tables are not transformed, let's trace a proof-of-concept example using the `head` table.
+
+Suppose a font's original `head` table is **54 bytes** long and starts with the following binary data (in hexadecimal):
+`00 01 00 00 00 01 00 00 B3 20 67 C3 ...`
+
+Here’s how a WOFF2 encoder processes it:
+
+1.  **Create the `TableDirectoryEntry`:**
+    *   **`flags`**: The encoder sets this to `0x01`.
+        *   The lower 6 bits are `000001` (1), which is the known index for the `head` table tag.
+        *   The upper 2 bits are `00` (0), indicating a **null transform**.
+    *   **`tag`**: Because `head` is a "known tag", this 4-byte field is **omitted**.
+    *   **`origLength`**: The encoder writes the original length, 54. Since 54 is less than 128, this is encoded as a single `UIntBase128` byte: `0x36`.
+    *   **`transformLength`**: Because the transform version is `0`, this field is **omitted**.
+
+    The final entry in the WOFF2 table directory for the `head` table is just two bytes: `01 36`.
+
+2.  **Append to Data Stream:**
+    *   The encoder takes the **entire 54 bytes** of the original `head` table and appends them to a raw data stream.
+    *   It does the same for all other non-transformed tables (`cmap`, `OS/2`, etc.).
+    *   This complete, concatenated stream of raw table data is then compressed in a single pass by the Brotli algorithm.
+
+Upon decompression, the decoder performs the reverse: it reads the `01 36` entry, identifies it as the `head` table of 54 bytes, extracts those 54 bytes from the decompressed data stream, and has a perfect, bit-for-bit copy of the original table. This demonstrates that for most tables, WOFF2 is a simple "container" format that relies on Brotli's powerful general-purpose compression.
+
 ## Extended Metadata and Private Data Blocks
 
 WOFF2 allows for two optional data blocks at the end of the file:
@@ -104,21 +130,7 @@ WOFF2 allows for two optional data blocks at the end of the file:
 
 This section compares the WOFF2 decoder implementation found in this repository (`woff2-parser.ts`) with Google's official C++ reference implementation.
 
-### Your Implementation (`woff2-parser.ts`)
-
--   **Focus and Scope:** Your implementation is a pure **WOFF2 container parser**. Its primary responsibility is to parse the WOFF2 file structure (header and table directory), correctly identify the compressed data, and delegate the actual decompression and transformation to a dedicated Brotli/transformation module. This is an excellent example of the **Single Responsibility Principle**.
--   **Architecture:** It uses a modern, high-level, object-oriented approach in TypeScript. The use of `async/await` for decompression makes the asynchronous nature of the operation clean and easy to follow. The code is well-structured, readable, and highly maintainable.
--   **Logic:** The logic for parsing the table directory is precise and correctly handles all the nuances of the specification, including the "known tags" optimization, the variable-length `UIntBase128` fields, and the conditional presence of the `transformLength` field.
--   **Abstraction:** It operates at a higher level of abstraction. It prepares a list of table entries and a data buffer, and then hands them off to another function (`decompressMultipleTables`) to perform the complex, low-level work of decompression and transformation. This makes the parser itself simple and robust.
-
-### Google's Reference Implementation (C++)
-
--   **Focus and Scope:** The Google implementation is a complete, end-to-end **WOFF2-to-TTF converter**. It is not just a parser; it is a full decoder that includes the logic for both parsing the container and reversing the specific table transformations (`glyf`, `hmtx`, etc.) to reconstruct a fully-formed SFNT font file.
--   **Architecture:** It is written in low-level, performance-oriented C++. The code is highly optimized for speed and minimal memory usage. Functions are often large and monolithic, directly manipulating memory buffers (`uint8_t*`) to avoid the overhead of intermediate data structures. This makes the code less modular and harder to read than your implementation, but extremely fast.
--   **Logic:** The core logic resides in `woff2_dec.cc`. The function `ReconstructGlyf` is a prime example of its approach: it's a large, complex function that reads from multiple substreams simultaneously, decodes the `triplet` format for coordinates, reconstructs glyphs point-by-point, and builds the final `glyf` and `loca` tables directly in the output buffer.
--   **Completeness:** It is the reference implementation and therefore covers the entire specification, including complex edge cases and support for font collections (TTCs).
-
-### Key Differences and Conclusion
+### Architectural Comparison
 
 | Aspect | Your Implementation (`woff2-parser.ts`) | Google's Implementation (C++) |
 | :--- | :--- | :--- |
@@ -127,9 +139,18 @@ This section compares the WOFF2 decoder implementation found in this repository 
 | **Architecture** | High cohesion, low coupling. Delegates transformation logic. | Vertically integrated. Parsing and transformation are tightly coupled. |
 | **Abstraction** | High. Deals with concepts like "table entries" and "data streams". | Low. Deals with raw byte buffers, pointers, and manual memory management. |
 
-**In conclusion, both implementations are excellent but serve different purposes.**
+**Conclusion:** Your `woff2-parser.ts` is a well-designed, modern parser component. It correctly handles the WOFF2 container format. However, the rendering bug indicates an issue not in the parser itself, but in the lower-level transformation logic it delegates to.
 
--   Your `woff2-parser.ts` is a perfect example of a modern, maintainable **parser component**. It does its one job—parsing the WOFF2 wrapper—exceptionally well and relies on other specialized components to handle the details of decompression.
--   Google's C++ code is a highly optimized, complete **conversion utility**. It prioritizes raw performance and spec-completeness over readability and modularity, which is appropriate for a reference implementation that serves as the engine for major web browsers.
+### Algorithm-Level Analysis and Bug Root Cause
 
-Your implementation fits perfectly within a larger, modular system (like this project), while Google's serves as the definitive, high-performance benchmark.
+The "texto embaralhado" (scrambled text) bug is caused by a critical flaw in the algorithm that reconstructs the glyph shapes from the transformed `glyf` table. The root cause is in the `woff2-glyf-transform.ts` file.
+
+**The Bug:** The core of the issue lies in the **`readTriplet` function**. This function is responsible for decoding the compressed coordinates of each point in a glyph's outline. Your implementation of this function **does not correctly follow the WOFF2 specification's "Triplet Encoding" table**.
+
+-   **Incorrect Logic:** The `readTriplet` function uses a series of `if/else if` conditions with hardcoded numerical ranges (e.g., `b0 < 84`, `b0 < 1300`) and mathematical operations that do not match the spec. The WOFF2 specification defines 128 different ways a "triplet" (a flag byte plus 0-4 data bytes) can encode the change in x and y coordinates (`dx`, `dy`).
+-   **Comparison to Reference:** Google's `TripletDecode` function in `woff2_dec.cc` is a direct, faithful implementation of that specification table. It correctly interprets the flag bits to determine the signs of `dx` and `dy` and how to combine the subsequent data bytes.
+-   **Result:** Because your `readTriplet` function calculates incorrect `dx` and `dy` values, the coordinates of the points that define each character's shape are placed in the wrong positions. This completely distorts the glyph outlines, causing the text to appear scrambled, garbled, or like a jumble of random lines.
+
+**Secondary Issue:** The `reconstructSimpleGlyph` function attempts to rebuild the TrueType `flags` for each point from scratch. This is an unnecessarily complex and error-prone approach. The reference implementation, in contrast, correctly converts the WOFF2 flags into the appropriate TTF flags, preserving all necessary information.
+
+**How to Fix:** To fix the rendering bug, the `readTriplet` function in `woff2-glyf-transform.ts` must be **completely rewritten** to be a direct and correct implementation of the "Triplet Encoding" table found in Section 5.2 of the WOFF2 specification. The logic in Google's `TripletDecode` function serves as a perfect reference for this.
