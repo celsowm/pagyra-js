@@ -41,7 +41,7 @@ export class Woff2Parser {
    */
   async parseTables(fontData: Uint8Array): Promise<FontTableData> {
     console.log(`WOFF2 Parser: Starting parse, file size: ${fontData.length} bytes`);
-    
+
     if (fontData.length < Woff2Parser.HEADER_SIZE) {
       throw new Error('Invalid WOFF2: file too short');
     }
@@ -82,7 +82,7 @@ export class Woff2Parser {
       currentOffset += bytesReadOrig;
 
       const transformVersion = (flags >> 6) & 0x3;
-      let transformLength = 0;
+      let transformLength: number | undefined;
 
       // Determine if transformLength is present in the stream
       const isGlyphOrLoca = tagIndex === 10 || tagIndex === 11; // 10=glyf, 11=loca
@@ -98,7 +98,7 @@ export class Woff2Parser {
         tag,
         flags,
         origLength,
-        transformLength: transformLength || undefined,
+        transformLength,
         transformVersion
       });
     }
@@ -108,7 +108,7 @@ export class Woff2Parser {
 
     console.log(`WOFF2 Parser: Decompressing ${tableDirectory.length} tables`);
     const decompressedTables = await decompressMultipleTables(compressedData, tableDirectory);
-    
+
     console.log(`WOFF2 Parser: Decompressed tables: ${Array.from(decompressedTables.keys()).join(', ')}`);
 
     // Convert Map to Record for compatibility
@@ -123,7 +123,7 @@ export class Woff2Parser {
       }
       console.log(`WOFF2 Parser: Adding table ${tag} (${data.length} bytes)`);
       filteredTables[tag] = data;
-      
+
       // Track compression info
       const originalTableEntry = tableDirectory.find(entry => entry.tag === tag);
       if (originalTableEntry) {
@@ -141,7 +141,7 @@ export class Woff2Parser {
     if (missingTables.length > 0) {
       console.warn(`WOFF2 Parser: Missing essential tables: ${missingTables.join(', ')}`);
     }
-    
+
     console.log(`WOFF2 Parser: Final table count: ${Object.keys(filteredTables).length}`);
 
     return {

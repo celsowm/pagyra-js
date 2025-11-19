@@ -334,11 +334,29 @@ export class WOFF2Brotli {
 
     console.log(`WOFF2-BROTLI: Extracted tables: ${Array.from(result.keys()).join(', ')}`);
 
-    // Second pass: handle glyf/loca transformation if gloc table exists
-    if (result.has('gloc')) {
-      console.log('WOFF2: Found gloc table, reconstructing glyf/loca');
-      const glocData = result.get('gloc')!;
-      console.log(`WOFF2: gloc data size: ${glocData.length} bytes`);
+    // Second pass: handle glyf/loca transformation
+    // Check for gloc table OR separate transformed glyf/loca tables
+    // WOFF2 spec allows glyf/loca to be separate but transformed (transformVersion 0)
+    const hasGloc = result.has('gloc');
+    const glyfEntry = tables.find(t => t.tag === 'glyf');
+    const hasTransformedGlyf = result.has('glyf') && glyfEntry?.transformVersion === 0;
+
+    if (hasGloc || hasTransformedGlyf) {
+      console.log('WOFF2: Found transformed glyf/loca data, reconstructing...');
+
+      let glocData: Uint8Array;
+
+      if (hasGloc) {
+        console.log('WOFF2: Using gloc table');
+        glocData = result.get('gloc')!;
+        result.delete('gloc');
+      } else {
+        console.log('WOFF2: Using transformed glyf table');
+        // If glyf is transformed, it contains the streams needed for reconstruction
+        glocData = result.get('glyf')!;
+      }
+
+      console.log(`WOFF2: Transform data size: ${glocData.length} bytes`);
 
       // We need maxp table to get numGlyphs and head table to get indexToLocFormat
       const maxpData = result.get('maxp');
@@ -363,8 +381,6 @@ export class WOFF2Brotli {
         result.set('glyf', glyf);
         result.set('loca', loca);
 
-        // Remove the gloc table as it's not part of standard TTF
-        result.delete('gloc');
         console.log('WOFF2: Successfully reconstructed glyf/loca tables');
       } else {
         console.warn('Cannot reconstruct glyf/loca: missing maxp or head table');
