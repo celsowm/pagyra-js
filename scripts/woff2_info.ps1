@@ -6,7 +6,8 @@ param(
     # ttx (CLI da FontTools)
     [string]$Ttx = "ttx",
 
-    # Nome do arquivo de saída TTX
+    # Nome base do arquivo de saída TTX (sem ou com .ttx)
+    # O script vai adicionar automaticamente o sufixo com o nome da fonte.
     [string]$OutFile = "font_dump.ttx",
 
     # Formato da saída do script
@@ -26,7 +27,28 @@ param(
 ### 1. Resolve paths
 $fullPath = (Resolve-Path $File).Path
 
-$ttxOut = Join-Path $PSScriptRoot $OutFile
+# Nome da fonte baseado no arquivo (sem extensão)
+$fontBaseName = [System.IO.Path]::GetFileNameWithoutExtension($fullPath)
+
+# Se o usuário passou um caminho com diretório em $OutFile, respeita.
+# Caso contrário, usa o diretório do script.
+$outDir = Split-Path -Path $OutFile -Parent
+if ([string]::IsNullOrWhiteSpace($outDir)) {
+    $outDir = $PSScriptRoot
+}
+
+$outName = [System.IO.Path]::GetFileName($OutFile)
+
+# Se não tiver extensão, assume .ttx
+$outBase = [System.IO.Path]::GetFileNameWithoutExtension($outName)
+$outExt = [System.IO.Path]::GetExtension($outName)
+if ([string]::IsNullOrWhiteSpace($outExt)) {
+    $outExt = ".ttx"
+}
+
+# Monta o nome final com sufixo da fonte
+$finalOutName = "{0}-{1}{2}" -f $outBase, $fontBaseName, $outExt
+$ttxOut = Join-Path $outDir $finalOutName
 
 if ((Test-Path $ttxOut) -and (-not $Force)) {
     Write-Output "[ERROR] Output file already exists: $ttxOut"
@@ -37,6 +59,8 @@ if ((Test-Path $ttxOut) -and (-not $Force)) {
 if ($Force -and (Test-Path $ttxOut)) {
     Remove-Item $ttxOut -Force
 }
+
+Write-Output "[INFO] Generating TTX to: $ttxOut"
 
 ### 2. Gera o TTX (XML)
 $cmd = "$Ttx -o `"$ttxOut`" `"$fullPath`" 2>&1"
