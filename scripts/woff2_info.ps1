@@ -63,7 +63,7 @@ function Convert-ToJsonCompact($obj) {
 }
 
 function Convert-ToJsonPretty($obj) {
-    return ($obj | ConvertTo-Json -Depth 20 -Indent 2)
+    return ($obj | ConvertTo-Json -Depth 20)
 }
 
 ### 6. Modos especializados
