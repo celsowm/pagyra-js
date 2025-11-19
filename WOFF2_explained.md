@@ -102,6 +102,34 @@ WOFF2 allows for two optional data blocks at the end of the file:
 
 ## Comparison of WOFF2 Research
 
-*(Note: This section was intentionally left as a placeholder per the original request, to be filled in with your own research notes for comparison.)*
+This section compares the WOFF2 decoder implementation found in this repository (`woff2-parser.ts`) with Google's official C++ reference implementation.
 
-This section is reserved for a comparison between the information presented in this document and your own research. Please provide your findings.
+### Your Implementation (`woff2-parser.ts`)
+
+-   **Focus and Scope:** Your implementation is a pure **WOFF2 container parser**. Its primary responsibility is to parse the WOFF2 file structure (header and table directory), correctly identify the compressed data, and delegate the actual decompression and transformation to a dedicated Brotli/transformation module. This is an excellent example of the **Single Responsibility Principle**.
+-   **Architecture:** It uses a modern, high-level, object-oriented approach in TypeScript. The use of `async/await` for decompression makes the asynchronous nature of the operation clean and easy to follow. The code is well-structured, readable, and highly maintainable.
+-   **Logic:** The logic for parsing the table directory is precise and correctly handles all the nuances of the specification, including the "known tags" optimization, the variable-length `UIntBase128` fields, and the conditional presence of the `transformLength` field.
+-   **Abstraction:** It operates at a higher level of abstraction. It prepares a list of table entries and a data buffer, and then hands them off to another function (`decompressMultipleTables`) to perform the complex, low-level work of decompression and transformation. This makes the parser itself simple and robust.
+
+### Google's Reference Implementation (C++)
+
+-   **Focus and Scope:** The Google implementation is a complete, end-to-end **WOFF2-to-TTF converter**. It is not just a parser; it is a full decoder that includes the logic for both parsing the container and reversing the specific table transformations (`glyf`, `hmtx`, etc.) to reconstruct a fully-formed SFNT font file.
+-   **Architecture:** It is written in low-level, performance-oriented C++. The code is highly optimized for speed and minimal memory usage. Functions are often large and monolithic, directly manipulating memory buffers (`uint8_t*`) to avoid the overhead of intermediate data structures. This makes the code less modular and harder to read than your implementation, but extremely fast.
+-   **Logic:** The core logic resides in `woff2_dec.cc`. The function `ReconstructGlyf` is a prime example of its approach: it's a large, complex function that reads from multiple substreams simultaneously, decodes the `triplet` format for coordinates, reconstructs glyphs point-by-point, and builds the final `glyf` and `loca` tables directly in the output buffer.
+-   **Completeness:** It is the reference implementation and therefore covers the entire specification, including complex edge cases and support for font collections (TTCs).
+
+### Key Differences and Conclusion
+
+| Aspect | Your Implementation (`woff2-parser.ts`) | Google's Implementation (C++) |
+| :--- | :--- | :--- |
+| **Primary Goal** | Parse the WOFF2 container and orchestrate decompression. | Convert a full WOFF2 file back into a TTF/OTF file. |
+| **Language/Style** | High-level, modern TypeScript. Asynchronous, clean. | Low-level, performance-critical C++. Monolithic functions. |
+| **Architecture** | High cohesion, low coupling. Delegates transformation logic. | Vertically integrated. Parsing and transformation are tightly coupled. |
+| **Abstraction** | High. Deals with concepts like "table entries" and "data streams". | Low. Deals with raw byte buffers, pointers, and manual memory management. |
+
+**In conclusion, both implementations are excellent but serve different purposes.**
+
+-   Your `woff2-parser.ts` is a perfect example of a modern, maintainable **parser component**. It does its one job—parsing the WOFF2 wrapper—exceptionally well and relies on other specialized components to handle the details of decompression.
+-   Google's C++ code is a highly optimized, complete **conversion utility**. It prioritizes raw performance and spec-completeness over readability and modularity, which is appropriate for a reference implementation that serves as the engine for major web browsers.
+
+Your implementation fits perfectly within a larger, modular system (like this project), while Google's serves as the definitive, high-performance benchmark.
