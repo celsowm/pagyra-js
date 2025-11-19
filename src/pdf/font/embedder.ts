@@ -296,6 +296,19 @@ export class FontEmbedder {
   private createToUnicodeCMap(metrics: TtfFontMetrics, _uniqueUnicodes: number[] = []): PdfObjectRef {
     // Build inverse mapping gid -> unicode (pick first unicode when multiple map to same gid)
     const unicodeMap = metrics.cmap["unicodeMap"] as Map<number, number>;
+    log("FONT", "DEBUG", "createToUnicodeCMap - unicodeMap size", { size: unicodeMap.size });
+
+    // Sample first few entries for debugging
+    const samples: Array<{ unicode: number, char: string, gid: number }> = [];
+    let count = 0;
+    for (const [unicode, gid] of unicodeMap.entries()) {
+      if (count < 10) {
+        samples.push({ unicode, char: String.fromCodePoint(unicode), gid });
+      }
+      count++;
+    }
+    log("FONT", "DEBUG", "createToUnicodeCMap - sample entries", { samples });
+
     const gidToUni = new Map<number, number>();
     for (const [unicode, gid] of unicodeMap.entries()) {
       if (!gidToUni.has(gid)) gidToUni.set(gid, unicode);
