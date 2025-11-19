@@ -12,8 +12,8 @@ A WOFF2 file is composed of several distinct blocks of data, arranged in a speci
 2.  **Table Directory:** A directory of font tables, similar to the one in an SFNT font file, but with some modifications to improve compression.
 3.  **Collection Directory (Optional):** This block is only present if the WOFF2 file is a font collection (i.e., a `.ttc` file).
 4.  **Compressed Font Data:** A single block of data containing all the font tables, compressed using the Brotli algorithm.
-5.  **Extended Metadata (Optional):_ A block of compressed XML metadata.
-6.  **Private Data (Optional):_ A block of arbitrary data for use by the font designer or foundry.
+5.  **Extended Metadata (Optional):** A block of compressed XML metadata.
+6.  **Private Data (Optional):** A block of arbitrary data for use by the font designer or foundry.
 
 ## WOFF2 Header
 
@@ -57,7 +57,7 @@ The upper 2 bits ([6..7]) of the `flags` field specify the transformation versio
 
 The core of WOFF2's efficiency comes from its two-stage compression process. First, specific font tables are pre-processed with content-aware transformations to reduce redundancy. Second, the entire collection of (potentially transformed) font tables is concatenated and compressed as a single data stream using the Brotli algorithm.
 
-### `glyf` and `loca` Table Transformations
+### `glyf` and `loca` Table Transformations (For TrueType Fonts)
 
 For TrueType-outline fonts (`.ttf`), the `glyf` (glyph data) and `loca` (glyph location) tables often constitute the bulk of the file size. WOFF2 applies a sophisticated transformation to this data.
 
@@ -80,6 +80,18 @@ The `hmtx` table contains horizontal metrics for each glyph, such as advance wid
 
 If this condition holds true for all glyphs in a font, the LSB data can be omitted from the `hmtx` table and reconstructed by the decoder using the `xMin` values from the `glyf` table. This eliminates redundant data and further improves compression.
 
+### CFF Table Handling (For PostScript/CID Fonts)
+
+For fonts with PostScript outlines, such as OpenType CFF or CID-keyed fonts, WOFF2 does not apply a complex transformation like it does for `glyf` data. Instead, the `CFF ` table is subjected to a "null transform," meaning its data is included directly in the stream for Brotli compression.
+
+However, the WOFF2 specification makes a strong recommendation for an external preprocessing step: **de-subroutinization**. CFF fonts use subroutines to compactly store repeating path segments in glyphs. While this is efficient for the uncompressed font, the Brotli algorithm can achieve a much higher compression ratio on the raw, expanded glyph data. A WOFF2 encoder should therefore de-subroutinize the CFF data *before* WOFF2 compression to achieve the best results.
+
+### `cmap` and Other Font Tables
+
+The vast majority of other font tables (`cmap`, `head`, `OS/2`, etc.) are not transformed.WOFF2 treats them as opaque blocks of data. They are passed through with a "null transform" and compressed by Brotli along with all other table data.
+
+This means that all the logic for character-to-glyph mapping (including complex mappings for CID fonts) is perfectly preserved, as the `cmap` table and any related tables are restored bit-for-bit after decompression. The compression benefit for these tables comes from Brotli's ability to find and compress patterns across the entire font data stream.
+
 ## Extended Metadata and Private Data Blocks
 
 WOFF2 allows for two optional data blocks at the end of the file:
@@ -89,5 +101,7 @@ WOFF2 allows for two optional data blocks at the end of the file:
 -   **Private Data Block:** This is a block of arbitrary data that can be used by font designers, foundries, or vendors for their own purposes. The content of this block is not interpreted by user agents and can be in any format.
 
 ## Comparison of WOFF2 Research
+
+*(Note: This section was intentionally left as a placeholder per the original request, to be filled in with your own research notes for comparison.)*
 
 This section is reserved for a comparison between the information presented in this document and your own research. Please provide your findings.
