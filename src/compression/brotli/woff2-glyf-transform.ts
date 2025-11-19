@@ -400,6 +400,8 @@ export class WOFF2GlyfTransform {
       currentGlyphPos += bytesRead;
       currentX += dx;
       currentY += dy;
+      xCoordinates.push(currentX); // Populate xCoordinates
+      yCoordinates.push(currentY); // Populate yCoordinates
       // TTF flags are different from WOFF2 flags?
       // WOFF2 flags: bit 0-6 are standard TTF flags? No.
       // WOFF2 flags:
@@ -419,100 +421,107 @@ export class WOFF2GlyfTransform {
       // TTF uses delta encoding relative to previous point.
       // We have absolute coords now.
       // Let's re-calculate deltas and encode.
-
-      const ttfFlags: number[] = [];
-      const xBytes: number[] = [];
-      const yBytes: number[] = [];
-
-      let prevX = 0;
-      let prevY = 0;
-
-      for (let i = 0; i < numPoints; i++) {
-        const x = xCoordinates[i];
-        const y = yCoordinates[i];
-        const dx = x - prevX;
-        const dy = y - prevY;
-
-        let flag = 0; // We'll rebuild flags
-        // Preserve on-curve bit from WOFF2 flag (bit 0)
-        flag |= (flags[i] & 1);
-
-        // Encode X
-        if (dx === 0) {
-          flag |= 0x10; // This x is same
-        } else if (dx > -256 && dx < 256) {
-          flag |= 0x02; // X-Short
-          if (dx > 0) {
-            flag |= 0x10; // Positive
-            xBytes.push(dx);
-          } else {
-            xBytes.push(-dx);
-          }
-        } else {
-          // Long
-          xBytes.push((dx >> 8) & 0xff);
-          xBytes.push(dx & 0xff);
-        }
-
-        // Encode Y
-        if (dy === 0) {
-          flag |= 0x20; // This y is same
-        } else if (dy > -256 && dy < 256) {
-          flag |= 0x04; // Y-Short
-          if (dy > 0) {
-            flag |= 0x20; // Positive
-            yBytes.push(dy);
-          } else {
-            yBytes.push(-dy);
-          }
-        } else {
-          // Long
-          yBytes.push((dy >> 8) & 0xff);
-          yBytes.push(dy & 0xff);
-        }
-
-        ttfFlags.push(flag);
-        prevX = x;
-        prevY = y;
-      }
-
-      const totalSize = 10 + nContours * 2 + 2 + instructions.length + ttfFlags.length + xBytes.length + yBytes.length;
-
-      // Pad to 2 bytes? Glyphs must be 2-byte aligned?
-      // The 'glyf' table entries are 2-byte aligned.
-      const padding = totalSize % 2;
-
-      const glyph = new Uint8Array(totalSize + padding);
-      const view = new DataView(glyph.buffer as ArrayBuffer);
-
-      let offset = 0;
-      view.setInt16(offset, nContours, false); offset += 2;
-      view.setInt16(offset, finalXMin, false); offset += 2;
-      view.setInt16(offset, finalYMin, false); offset += 2;
-      view.setInt16(offset, finalXMax, false); offset += 2;
-      view.setInt16(offset, finalYMax, false); offset += 2;
-
-      for (const endPt of endPtsOfContours) {
-        view.setUint16(offset, endPt, false); offset += 2;
-      }
-
-      view.setUint16(offset, instructions.length, false); offset += 2;
-      glyph.set(instructions, offset); offset += instructions.length;
-
-      glyph.set(new Uint8Array(ttfFlags), offset); offset += ttfFlags.length;
-      glyph.set(new Uint8Array(xBytes), offset); offset += xBytes.length;
-      glyph.set(new Uint8Array(yBytes), offset); offset += yBytes.length;
-
-      return {
-        glyph,
-        bytesRead: {
-          nPoints: nPointsBytesRead,
-          flags: flagsBytesRead,
-          glyph: glyphBytesRead,
-          instructions: instructionLength
-        }
-      };
     }
+
+    const ttfFlags: number[] = [];
+    const xBytes: number[] = [];
+    const yBytes: number[] = [];
+
+    let prevX = 0;
+    let prevY = 0;
+
+    for (let i = 0; i < numPoints; i++) {
+      const x = xCoordinates[i];
+      const y = yCoordinates[i];
+      const dx = x - prevX;
+      const dy = y - prevY;
+
+      let flag = 0; // We'll rebuild flags
+      // Preserve on-curve bit from WOFF2 flag (bit 0)
+      flag |= (flags[i] & 1);
+
+      // Encode X
+      if (dx === 0) {
+        flag |= 0x10; // This x is same
+      } else if (dx > -256 && dx < 256) {
+        flag |= 0x02; // X-Short
+        if (dx > 0) {
+          flag |= 0x10; // Positive
+          xBytes.push(dx);
+        } else {
+          xBytes.push(-dx);
+        }
+      } else {
+        // Long
+        xBytes.push((dx >> 8) & 0xff);
+        xBytes.push(dx & 0xff);
+      }
+
+      // Encode Y
+      if (dy === 0) {
+        flag |= 0x20; // This y is same
+      } else if (dy > -256 && dy < 256) {
+        flag |= 0x04; // Y-Short
+        if (dy > 0) {
+          flag |= 0x20; // Positive
+          yBytes.push(dy);
+        } else {
+          yBytes.push(-dy);
+        }
+      } else {
+        // Long
+        yBytes.push((dy >> 8) & 0xff);
+        yBytes.push(dy & 0xff);
+      }
+
+      ttfFlags.push(flag);
+      prevX = x;
+      prevY = y;
+    }
+
+    // We need finalXMin, finalYMin, finalXMax, finalYMax for the glyf header
+    // If bboxExplicit is true, use those. Otherwise, compute from xCoordinates, yCoordinates
+    const finalXMin = bboxExplicit ? xMin : Math.min(...xCoordinates);
+    const finalYMin = bboxExplicit ? yMin : Math.min(...yCoordinates);
+    const finalXMax = bboxExplicit ? xMax : Math.max(...xCoordinates);
+    const finalYMax = bboxExplicit ? yMax : Math.max(...yCoordinates);
+
+    const totalSize = 10 + nContours * 2 + 2 + instructions.length + ttfFlags.length + xBytes.length + yBytes.length;
+
+    // Pad to 2 bytes? Glyphs must be 2-byte aligned.
+    const padding = totalSize % 2;
+
+    const glyph = new Uint8Array(totalSize + padding);
+    const view = new DataView(glyph.buffer as ArrayBuffer);
+
+    let offset = 0;
+    view.setInt16(offset, nContours, false); offset += 2;
+    view.setInt16(offset, finalXMin, false); offset += 2;
+    view.setInt16(offset, finalYMin, false); offset += 2;
+    view.setInt16(offset, finalXMax, false); offset += 2;
+    view.setInt16(offset, finalYMax, false); offset += 2;
+
+    for (const endPt of endPtsOfContours) {
+      view.setUint16(offset, endPt, false); offset += 2;
+    }
+
+    view.setUint16(offset, instructions.length, false); offset += 2;
+    glyph.set(instructions, offset); offset += instructions.length;
+
+    glyph.set(new Uint8Array(ttfFlags), offset); offset += ttfFlags.length;
+    glyph.set(new Uint8Array(xBytes), offset); offset += xBytes.length;
+    glyph.set(new Uint8Array(yBytes), offset); offset += yBytes.length;
+
+    return {
+      glyph,
+      bytesRead: {
+        nPoints: nPointsBytesRead,
+        flags: flagsBytesRead,
+        glyph: currentGlyphPos - glyphPos, // Total bytes read from glyphStream
+        instructions: instructionLength
+      }
+    };
+  } // Corrected closing brace for reconstructSimpleGlyph
 
   private static reconstructCompositeGlyph(
       nContours: number,
