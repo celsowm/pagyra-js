@@ -34,7 +34,7 @@ describe("W compression heuristics", () => {
   });
 
   it("uses range form for runs >= 4 identical widths", () => {
-    // glyphs 0-3 = 500 (run length 4) -> should produce a [start,end,value] entry for 0..3
+    // glyphs 0-3 = 500 (run length 4) -> should produce a c_first c_last w sequence
     const adv = [
       100, 100, 100, 100, 100, 100, // ensure DW = 100 (majority)
       500, 500, 500, 500, // run of 4 (non-DW)
@@ -43,16 +43,26 @@ describe("W compression heuristics", () => {
     const metrics = makeMetrics(adv);
     const { W } = computeWidths(metrics);
 
-    // find any range entries [start,end,value]
-    const rangeEntries = W.filter((e: any) => e.length === 3);
-    expect(rangeEntries.length).toBeGreaterThan(0);
-    // ensure one of the ranges covers the 4-long run (indices 6..9) with value 500
-    const covers = rangeEntries.some((r: any) => r[0] === 6 && r[1] === 9 && r[2] === 500);
-    expect(covers).toBe(true);
+    // W is a flat array of mixed types. We need to scan it.
+    let foundRange = false;
+    for (let i = 0; i < W.length; i++) {
+      // Look for sequence: number, number, number where middle > first
+      if (typeof W[i] === 'number' && typeof W[i + 1] === 'number' && typeof W[i + 2] === 'number') {
+        const start = W[i] as number;
+        const end = W[i + 1] as number;
+        const val = W[i + 2] as number;
+        // Check if this looks like our range
+        if (start === 6 && end === 9 && val === 500) {
+          foundRange = true;
+          break;
+        }
+      }
+    }
+    expect(foundRange).toBe(true);
   });
 
   it("does not use range form for runs < 4 (uses array/list instead)", () => {
-    // glyphs 0-2 = 400 (run length 3) -> should NOT create a [start,end,value] for this run
+    // glyphs 0-2 = 400 (run length 3) -> should NOT create a range for this run
     const adv = [
       100, 100, 100, // ensure DW = 100
       400, 400, 400, // run length 3 (non-DW)
@@ -61,15 +71,37 @@ describe("W compression heuristics", () => {
     const metrics = makeMetrics(adv);
     const { W } = computeWidths(metrics);
 
-    const rangeEntries = W.filter((e: any) => e.length === 3);
-    const hasSmallRange = rangeEntries.some((r: any) => r[0] === 0 && r[1] === 2 && r[2] === 400);
-    expect(hasSmallRange).toBe(false);
+    // Scan for range 0..2
+    let foundRange = false;
+    for (let i = 0; i < W.length; i++) {
+      if (typeof W[i] === 'number' && typeof W[i + 1] === 'number' && typeof W[i + 2] === 'number') {
+        const start = W[i] as number;
+        const end = W[i + 1] as number;
+        const val = W[i + 2] as number;
+        if (start === 0 && end === 2 && val === 400) {
+          foundRange = true;
+        }
+      }
+    }
+    expect(foundRange).toBe(false);
 
     // ensure there's an array entry that includes the start 0 (list form)
-    const listEntries = W.filter((e: any) => Array.isArray(e[1]));
-    // for the small-run case the heterogenous list should start at index 3 (after DW entries)
-    const includesStart = listEntries.some((l: any) => l[0] === 3);
-    expect(includesStart).toBe(true);
+    // Format: c [w1 ... wn]
+    let foundList = false;
+    for (let i = 0; i < W.length; i++) {
+      if (typeof W[i] === 'number' && Array.isArray(W[i + 1])) {
+        const start = W[i] as number;
+        // The list starts at 3 because 0,1,2 are 100 (DW). 3,4,5 are 400. 6 is 500. 7 is 600.
+        // So it should be one list starting at 3 containing [400, 400, 400, 500, 600]
+        if (start === 3) {
+          const list = W[i + 1] as number[];
+          if (list.length >= 3 && list[0] === 400 && list[1] === 400 && list[2] === 400) {
+            foundList = true;
+          }
+        }
+      }
+    }
+    expect(foundList).toBe(true);
   });
 
   it("splits heterogeneous lists to max length 32", () => {
@@ -81,23 +113,28 @@ describe("W compression heuristics", () => {
     const metrics = makeMetrics(adv);
     const { W } = computeWidths(metrics);
 
-    // All entries will be lists (no DW) or ranges; ensure no list has length > 32
-    const listEntries = W.filter((e: any) => Array.isArray(e[1]));
-    expect(listEntries.length).toBeGreaterThanOrEqual(1);
-    for (const le of listEntries) {
-      const arr = le[1] as number[];
-      expect(arr.length).toBeLessThanOrEqual(32);
+    // Scan W for list entries
+    const listLengths: number[] = [];
+    let covered = 0;
+
+    for (let i = 0; i < W.length; i++) {
+      if (typeof W[i] === 'number' && Array.isArray(W[i + 1])) {
+        const list = W[i + 1] as number[];
+        listLengths.push(list.length);
+        covered += list.length;
+        i++; // skip the array
+      } else if (typeof W[i] === 'number' && typeof W[i + 1] === 'number' && typeof W[i + 2] === 'number') {
+        // range
+        const start = W[i] as number;
+        const end = W[i + 1] as number;
+        covered += (end - start + 1);
+        i += 2;
+      }
     }
 
-    // Ensure the lists combined cover the 80 glyphs (sum of list lengths + ranges lengths)
-    let covered = 0;
-    for (const e of W) {
-      if (Array.isArray(e[1])) {
-        covered += (e[1] as number[]).length;
-      } else if ((e as any).length === 3) {
-        // range entry [start, end, value]
-        covered += ((e as any)[1] - (e as any)[0] + 1);
-      }
+    expect(listLengths.length).toBeGreaterThanOrEqual(1);
+    for (const len of listLengths) {
+      expect(len).toBeLessThanOrEqual(32);
     }
     expect(covered).toBe(80);
   });

@@ -51,7 +51,7 @@ interface CIDFontDictionary {
   };
   readonly FontDescriptor: PdfObjectRef;
   readonly DW?: number;
-  readonly W: readonly (readonly [number] | readonly [number, readonly number[]])[];
+  readonly W: readonly (number | readonly number[])[];
   readonly CIDToGIDMap: PdfObjectRef | string;
 }
 
@@ -85,7 +85,10 @@ export function computeWidths(metrics: TtfFontMetrics): { DW: number; W: CIDFont
   const DW = computeDW(widths);
 
   // Compress widths into W entries using ranges for repeating values and arrays for heterogenous runs
-  const result: any[] = [];
+  // The PDF spec requires a flat array of mixed types:
+  // c [w1 w2 ... wn]
+  // c_first c_last w
+  const result: (number | number[])[] = [];
   let i = 0;
   while (i < count) {
     // skip DW values
@@ -101,8 +104,10 @@ export function computeWidths(metrics: TtfFontMetrics): { DW: number; W: CIDFont
     while (j < count && widths[j] === val) j++;
     const runLen = j - start;
     if (runLen >= 4) {
-      // [start end value]
-      result.push([start, j - 1, val]);
+      // c_first c_last w
+      result.push(start);
+      result.push(j - 1);
+      result.push(val);
       i = j;
       continue;
     }
@@ -114,10 +119,12 @@ export function computeWidths(metrics: TtfFontMetrics): { DW: number; W: CIDFont
       list.push(widths[i]);
       i++;
     }
-    result.push([listStart, list]);
+    // c [w1 ... wn]
+    result.push(listStart);
+    result.push(list);
   }
 
-  return { DW, W: result as CIDFontDictionary["W"] };
+  return { DW, W: result };
 }
 
 export class FontEmbedder {
@@ -203,32 +210,25 @@ export class FontEmbedder {
   private embedFont(face: FontFaceDef): EmbeddedFont | null {
     const metrics = this.faceMetrics.get(face.name);
     if (!metrics) return null;
+    const unitsPerEm = metrics.metrics.unitsPerEm;
+    const scaleTo1000 = (v: number) => Math.round((v / unitsPerEm) * 1000);
 
-    log("FONT", "DEBUG", "embedding font", { face, glyphCount: metrics.glyphMetrics.size });
-
-    // Create font subset (simplified - just the full TTF for now)
-    const fullFontData = new Uint8Array(face.data!);
-    const fontFileRef = this.doc.registerStream(fullFontData, {
-      Filter: "/FlateDecode"
-    });
-
-    // Create font descriptor
-    // Compute PDF FontDescriptor fields and scale metrics to 1000 UPM
-    const unitsPerEm = metrics.metrics.unitsPerEm || 1000;
-    const scaleTo1000 = (v: number) => Math.round((v * 1000) / unitsPerEm);
-
-    // Use head bbox when available, otherwise fall back to a conservative box
-    let fontBBox: [number, number, number, number] = [-100, -300, 1000, 900];
-    // metrics may include headBBox from parser
-    // @ts-ignore - metrics may have headBBox added by parser
-    if ((metrics as any).headBBox) {
-      // headBBox in font units [xMin,yMin,xMax,yMax] -> scale to 1000
-      // ensure we copy to typed array
-      const hb = (metrics as any).headBBox as [number, number, number, number];
+    let fontBBox: [number, number, number, number];
+    if (metrics.headBBox) {
+      const hb = metrics.headBBox;
       fontBBox = [scaleTo1000(hb[0]), scaleTo1000(hb[1]), scaleTo1000(hb[2]), scaleTo1000(hb[3])];
     } else {
-      fontBBox = fontBBox.map((v) => Math.round(v * (1000 / unitsPerEm))) as [number, number, number, number];
+      // Fallback if headBBox is missing
+      fontBBox = [-1000, -1000, 1000, 1000];
     }
+
+    // Register the font file stream
+    // We need the full font data here. In the initialize method we updated face.data
+    // but here we need to access it.
+    // Since we can't easily change the interface, we'll assume face.data is the source.
+    // If it was converted to TTF in initialize, face.data (casted) holds the TTF buffer.
+    const fullFontData = new Uint8Array(face.data!);
+    const fontFileRef = this.doc.registerStream(fullFontData, { Length1: fullFontData.length.toString() });
 
     const fontDescriptor: FontDescriptor = {
       Type: "FontDescriptor",
@@ -313,6 +313,17 @@ export class FontEmbedder {
     for (const [unicode, gid] of unicodeMap.entries()) {
       if (!gidToUni.has(gid)) gidToUni.set(gid, unicode);
     }
+
+    // Debug: log sample gid->unicode mappings
+    const gidSamples: Array<{ gid: number, unicode: number, char: string }> = [];
+    let gidCount = 0;
+    for (const [gid, unicode] of gidToUni.entries()) {
+      if (gidCount < 20) {
+        gidSamples.push({ gid, unicode, char: String.fromCodePoint(unicode) });
+      }
+      gidCount++;
+    }
+    log("FONT", "DEBUG", "createToUnicodeCMap - gid->unicode sample", { samples: gidSamples });
 
     const entries: { gid: number; unicode: number }[] = [];
     for (const [gid, unicode] of gidToUni.entries()) {

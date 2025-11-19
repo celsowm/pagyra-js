@@ -412,6 +412,11 @@ export class WOFF2Brotli {
     // Better check: if transformVersion is 0, it IS transformed.
     if (hmtxEntry.transformVersion !== 0) return;
 
+    // If transformLength is missing, it means the table length matches origLength.
+    // For hmtx, transformed data is usually smaller (or larger by 1 byte).
+    // If it matches origLength exactly, it's likely raw data despite the version flag.
+    if (hmtxEntry.transformLength === undefined) return;
+
     const hmtxData = result.get('hmtx')!;
     const hheaData = result.get('hhea');
     const maxpData = result.get('maxp');

@@ -114,8 +114,8 @@ export class WOFF2Transform {
     }
 
     const flags = hmtxData[0];
-    const hasLsbArray = (flags & 1) === 0;
-    const hasLeftSideBearingArray = (flags & 2) === 0;
+    const hasLsbArray = (flags & 1) !== 0;
+    const hasLeftSideBearingArray = (flags & 2) !== 0;
 
     let offset = 1;
     const advanceWidths: number[] = [];
