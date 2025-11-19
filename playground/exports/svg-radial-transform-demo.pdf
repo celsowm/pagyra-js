@@ -376,13 +376,13 @@ ET
 BT
 /F1 14.04 Tf
 1 0 0 1 0 335.112 Tm
-(? scale\(2,1\)) Tj
+(— scale\(2,1\)) Tj
 ET
 0 0 0 rg
 BT
 /F1 14.04 Tf
 1 0 0 1 240 343.536 Tm
-(User space units ? rotate\(30\)) Tj
+(User space units — rotate\(30\)) Tj
 ET
 0 0 0 rg
 BT
@@ -394,13 +394,13 @@ ET
 BT
 /F1 14.04 Tf
 1 0 0 1 0 198.324 Tm
-(Ratio units ? skewX\(30\)) Tj
+(Ratio units — skewX\(30\)) Tj
 ET
 0 0 0 rg
 BT
 /F1 14.04 Tf
 1 0 0 1 240 198.324 Tm
-(User space ? combined transforms) Tj
+(User space — combined transforms) Tj
 ET
 endstream
 endobj
