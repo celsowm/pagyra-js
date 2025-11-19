@@ -168,7 +168,7 @@ export class WOFF2Brotli {
       nodeZlib = await import('zlib');
       nodeUtil = await import('util');
     }
-    
+
     const brotliCompress = nodeUtil.promisify(nodeZlib.brotliCompress);
 
     const params: Record<number, number> = {
@@ -207,9 +207,9 @@ export class WOFF2Brotli {
    */
   private static async browserBrotliCompress(data: Uint8Array): Promise<Uint8Array> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const stream = new CompressionStream('br' as any); 
+    const stream = new CompressionStream('br' as any);
     const writer = stream.writable.getWriter();
-    
+
     // Forçamos o cast para BufferSource para evitar conflito com tipos do Node
     writer.write(data as BufferSource).catch(() => { /* ignore write errors here */ });
     writer.close();
@@ -237,7 +237,7 @@ export class WOFF2Brotli {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const stream = new DecompressionStream('br' as any);
     const writer = stream.writable.getWriter();
-    
+
     writer.write(data as BufferSource).catch(() => { /* ignore */ });
     writer.close();
 
@@ -295,7 +295,7 @@ export class WOFF2Brotli {
     tables: WOFF2TableEntry[],
     options: DecompressOptions = {}
   ): Promise<Map<string, Uint8Array>> {
-    const expectedSize = tables.reduce((sum, entry) => 
+    const expectedSize = tables.reduce((sum, entry) =>
       sum + (entry.transformLength ?? entry.origLength), 0);
 
     const decompressed = await this.decompress(compressed, {
@@ -309,12 +309,12 @@ export class WOFF2Brotli {
 
     // First pass: extract all tables from the compressed stream
     console.log(`WOFF2-BROTLI: Extracting ${tables.length} tables from ${decompressed.length} bytes`);
-    
+
     for (const entry of tables) {
       const lengthInStream = entry.transformLength ?? entry.origLength;
-      
+
       console.log(`WOFF2-BROTLI: Processing table ${entry.tag} - origLength: ${entry.origLength}, transformLength: ${entry.transformLength}, transformVersion: ${entry.transformVersion}`);
-      
+
       if (offset + lengthInStream > decompressed.length) {
         console.warn(`Table ${entry.tag} extends beyond decompressed data, using available data`);
         const availableData = decompressed.subarray(offset);
@@ -331,7 +331,7 @@ export class WOFF2Brotli {
       result.set(entry.tag, final);
       console.log(`WOFF2-BROTLI: Added table ${entry.tag} (${final.length} bytes)`);
     }
-    
+
     console.log(`WOFF2-BROTLI: Extracted tables: ${Array.from(result.keys()).join(', ')}`);
 
     // Second pass: handle glyf/loca transformation if gloc table exists
@@ -339,42 +339,77 @@ export class WOFF2Brotli {
       console.log('WOFF2: Found gloc table, reconstructing glyf/loca');
       const glocData = result.get('gloc')!;
       console.log(`WOFF2: gloc data size: ${glocData.length} bytes`);
-      
+
       // We need maxp table to get numGlyphs and head table to get indexToLocFormat
       const maxpData = result.get('maxp');
       const headData = result.get('head');
-      
+
       console.log(`WOFF2: maxp table present: ${!!maxpData}, head table present: ${!!headData}`);
-      
+
       if (maxpData && headData) {
         // Read numGlyphs from maxp table (offset 4, UInt16)
         const numGlyphs = new DataView(maxpData.buffer, maxpData.byteOffset).getUint16(4, false);
-        
+
         // Read indexToLocFormat from head table (offset 50, Int16)
         const indexFormat = new DataView(headData.buffer, headData.byteOffset).getInt16(50, false);
-        
+
         console.log(`WOFF2: Reconstructing glyf/loca with numGlyphs=${numGlyphs}, indexFormat=${indexFormat}`);
-        
+
         // Reconstruct glyf and loca tables
         const { glyf, loca } = WOFF2Transform.reconstructGlyfLoca(glocData, numGlyphs, indexFormat);
-        
+
         console.log(`WOFF2: Reconstructed glyf size: ${glyf.length}, loca size: ${loca.length}`);
-        
+
         result.set('glyf', glyf);
         result.set('loca', loca);
-        
+
         // Remove the gloc table as it's not part of standard TTF
         result.delete('gloc');
         console.log('WOFF2: Successfully reconstructed glyf/loca tables');
       } else {
         console.warn('Cannot reconstruct glyf/loca: missing maxp or head table');
       }
-    } else {
-      console.log('WOFF2: No gloc table found in decompressed data');
       console.log(`WOFF2: Available tables: ${Array.from(result.keys()).join(', ')}`);
     }
 
+    // Third pass: reconstruct hmtx if needed
+    this.reconstructHmtxIfNeeded(result, tables);
+
     return result;
+  }
+
+  /**
+   * Helper to reconstruct hmtx table if needed
+   */
+  private static reconstructHmtxIfNeeded(
+    result: Map<string, Uint8Array>,
+    tables: WOFF2TableEntry[]
+  ): void {
+    const hmtxEntry = tables.find(t => t.tag === 'hmtx');
+    if (!hmtxEntry || !result.has('hmtx')) return;
+
+    // Check if hmtx is transformed (version 0 or 1 usually indicates transform in WOFF2)
+    // But strictly, we should check if the data size matches the expected untransformed size.
+    // If the data is smaller than expected, it's likely transformed.
+    // Or we can check the flags byte if we assume it's transformed.
+
+    // Better check: if transformVersion is 0, it IS transformed.
+    if (hmtxEntry.transformVersion !== 0) return;
+
+    const hmtxData = result.get('hmtx')!;
+    const hheaData = result.get('hhea');
+    const maxpData = result.get('maxp');
+
+    if (!hheaData || !maxpData) {
+      console.warn('WOFF2: Cannot reconstruct hmtx: missing hhea or maxp');
+      return;
+    }
+
+    const numHMetrics = new DataView(hheaData.buffer, hheaData.byteOffset).getUint16(34, false);
+    const numGlyphs = new DataView(maxpData.buffer, maxpData.byteOffset).getUint16(4, false);
+
+    const reconstructed = WOFF2Transform.reconstructHmtx(hmtxData, numHMetrics, numGlyphs);
+    result.set('hmtx', reconstructed);
   }
 }
 

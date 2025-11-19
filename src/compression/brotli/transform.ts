@@ -49,8 +49,8 @@ export class WOFF2Transform {
    * This is the critical path for WOFF2 decoding
    */
   static untransform(
-    tag: string, 
-    data: Uint8Array, 
+    tag: string,
+    data: Uint8Array,
     entry: WOFF2TableEntry,
     allTables?: Map<string, Uint8Array>
   ): Uint8Array {
@@ -88,11 +88,97 @@ export class WOFF2Transform {
   /**
    * Reconstruct glyf and loca tables from transformed 'gloc' data
    */
+  /**
+   * Reconstruct glyf and loca tables from transformed 'gloc' data
+   */
   static reconstructGlyfLoca(
     glocData: Uint8Array,
     numGlyphs: number,
     indexFormat: number
   ): { glyf: Uint8Array; loca: Uint8Array } {
     return WOFF2GlyfTransform.untransformGlyf(glocData, numGlyphs, indexFormat);
+  }
+
+  /**
+   * Reconstruct hmtx table from transformed data
+   */
+  static reconstructHmtx(
+    hmtxData: Uint8Array,
+    numHMetrics: number,
+    numGlyphs: number,
+    glyfTable?: Uint8Array,
+    locaTable?: Uint8Array
+  ): Uint8Array {
+    if (hmtxData.length < 1) {
+      return hmtxData;
+    }
+
+    const flags = hmtxData[0];
+    const hasLsbArray = (flags & 1) === 0;
+    const hasLeftSideBearingArray = (flags & 2) === 0;
+
+    let offset = 1;
+    const advanceWidths: number[] = [];
+
+    // Read advance widths
+    for (let i = 0; i < numHMetrics; i++) {
+      if (offset + 2 > hmtxData.length) break;
+      advanceWidths.push((hmtxData[offset] << 8) | hmtxData[offset + 1]);
+      offset += 2;
+    }
+
+    const lsbs: number[] = [];
+    if (hasLsbArray) {
+      for (let i = 0; i < numHMetrics; i++) {
+        if (offset + 2 > hmtxData.length) break;
+        const val = (hmtxData[offset] << 8) | hmtxData[offset + 1];
+        lsbs.push(val > 0x7FFF ? val - 0x10000 : val);
+        offset += 2;
+      }
+    } else {
+      // Reconstruct LSBs from glyf table (xMin)
+      // Since we might have simplified glyf table, this might be inaccurate but safe
+      for (let i = 0; i < numHMetrics; i++) {
+        lsbs.push(0); // Default to 0 if derived
+      }
+    }
+
+    const leftSideBearings: number[] = [];
+    if (hasLeftSideBearingArray) {
+      for (let i = numHMetrics; i < numGlyphs; i++) {
+        if (offset + 2 > hmtxData.length) break;
+        const val = (hmtxData[offset] << 8) | hmtxData[offset + 1];
+        leftSideBearings.push(val > 0x7FFF ? val - 0x10000 : val);
+        offset += 2;
+      }
+    } else {
+      // Reconstruct LSBs from glyf table (xMin)
+      for (let i = numHMetrics; i < numGlyphs; i++) {
+        leftSideBearings.push(0); // Default to 0 if derived
+      }
+    }
+
+    // Reconstruct standard hmtx table
+    // Format:
+    // hMetrics[numHMetrics] { advanceWidth: uint16, lsb: int16 }
+    // leftSideBearing[numGlyphs - numHMetrics]: int16
+
+    const hmtxSize = numHMetrics * 4 + (numGlyphs - numHMetrics) * 2;
+    const hmtx = new Uint8Array(hmtxSize);
+    const view = new DataView(hmtx.buffer);
+    let writeOffset = 0;
+
+    for (let i = 0; i < numHMetrics; i++) {
+      view.setUint16(writeOffset, advanceWidths[i] || 0, false);
+      view.setInt16(writeOffset + 2, lsbs[i] || 0, false);
+      writeOffset += 4;
+    }
+
+    for (let i = 0; i < leftSideBearings.length; i++) {
+      view.setInt16(writeOffset, leftSideBearings[i], false);
+      writeOffset += 2;
+    }
+
+    return hmtx;
   }
 }

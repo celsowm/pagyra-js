@@ -3,6 +3,9 @@ import { parseTtfBuffer } from "./ttf-lite.js";
 import type { FontFaceDef, FontConfig, TtfFontMetrics } from "../../types/fonts.js";
 import { log } from "../../debug/log.js";
 import { normalizeFontWeight } from "../../css/font-weight.js";
+import { detectFontFormat } from "../../fonts/detector.js";
+import { Woff2Engine } from "../../fonts/engines/woff2-engine.js";
+import { reconstructTtf } from "../../fonts/utils/ttf-reconstructor.js";
 
 const TYPICAL_STEM_V = 80;
 
@@ -121,7 +124,7 @@ export class FontEmbedder {
   private embeddedFonts = new Map<string, EmbeddedFont>();
   private faceMetrics = new Map<string, TtfFontMetrics>();
 
-  constructor(private readonly config: FontConfig, private readonly doc: PdfDocument) {}
+  constructor(private readonly config: FontConfig, private readonly doc: PdfDocument) { }
 
   async initialize(): Promise<void> {
     for (const face of this.config.fontFaceDefs) {
@@ -130,7 +133,31 @@ export class FontEmbedder {
         continue;
       }
       try {
-        const metrics = parseTtfBuffer(face.data);
+        let fontData = new Uint8Array(face.data);
+        const format = detectFontFormat(fontData);
+
+        if (format === 'woff2') {
+          log("FONT", "DEBUG", `Detected WOFF2 font for ${face.name}, converting to TTF for embedding`);
+          try {
+            const engine = new Woff2Engine();
+            const parsed = await engine.parse(fontData);
+            const ttfBuffer = reconstructTtf(parsed);
+            fontData = new Uint8Array(ttfBuffer);
+            // Update the face data so subsequent usages (like embedding) use the converted TTF
+            // Note: We can't easily update the readonly face.data, but we can use the local fontData
+            // for metrics parsing. For embedding, we might need to store the converted data.
+            // However, since face.data is readonly in the interface, we'll just use the converted buffer
+            // for metrics parsing here. The actual embedding (embedFont) also needs the data.
+            // We'll store the converted data in a side map or cast to any to update.
+            // For now, let's cast to any to update the cache in config (dirty but effective for this fix)
+            (face as any).data = ttfBuffer;
+          } catch (e) {
+            log("FONT", "ERROR", `Failed to convert WOFF2 font ${face.name}`, { error: e instanceof Error ? e.message : String(e) });
+            // Continue and try parsing as is (will likely fail if it's still WOFF2)
+          }
+        }
+
+        const metrics = parseTtfBuffer(face.data!); // Use the potentially updated data
         this.faceMetrics.set(face.name, metrics);
       } catch (error) {
         log("FONT", "ERROR", `Failed to load font ${face.name}`, { error: error instanceof Error ? error.message : String(error) });
