@@ -238,3 +238,41 @@ The "texto embaralhado" (scrambled text) bug is caused by a critical flaw in the
 5. **Production-ready compression**: 350KB → 45KB (87% savings)
 
 The format's genius lies in **content-aware transforms + general-purpose Brotli**, yielding optimal results across diverse font types.
+
+## Appendix: WOFF2 Triplet Encoding Specification
+
+The WOFF2 `glyf` table transformation uses a specific "Triplet Encoding" to efficiently store the coordinates of points in glyph outlines. This encoding is critical for the correct reconstruction of the glyph shapes.
+
+The coordinates are stored as a sequence of triplets: `(flag, xCoordinate, yCoordinate)`.
+- **flag**: A byte from the `flagStream`.
+- **xCoordinate**: A value from the `glyphStream`.
+- **yCoordinate**: A value from the `glyphStream`.
+
+The `flag` byte determines how many bytes are read from the `glyphStream` for `xCoordinate` and `yCoordinate`, and their signs.
+
+The following table defines the decoding logic based on the `flag` byte (denoted as `b0`).
+
+| Flag Byte (`b0`) Range | `dx` (x-coordinate delta) | `dy` (y-coordinate delta) | Bytes Read from `glyphStream` |
+| :--- | :--- | :--- | :--- |
+| `b0 < 10` | `0` | `((b0 - 0) << 8) \| b1` | 1 (`b1`) |
+| `b0 < 20` | `((b0 - 10) << 8) \| b1` | `0` | 1 (`b1`) |
+| `b0 < 84` | `b0 - 20` | `0` | 0 |
+| `b0 < 148` | `-(b0 - 84)` | `0` | 0 |
+| `b0 < 212` | `0` | `b0 - 148` | 0 |
+| `b0 < 276` | `0` | `-(b0 - 212)` | 0 |
+| `b0 < 1300` | `((b0 - 276) >> 4) + 1` | `(((b0 - 276) & 15) << 8) \| b1` | 1 (`b1`) |
+| `b0 < 2324` | `((b0 - 1300) >> 4) + 1` | `-((((b0 - 1300) & 15) << 8) \| b1)` | 1 (`b1`) |
+| `b0 < 3348` | `-(((b0 - 2324) >> 4) + 1)` | `(((b0 - 2324) & 15) << 8) \| b1` | 1 (`b1`) |
+| `b0 < 4372` | `-(((b0 - 3348) >> 4) + 1)` | `-((((b0 - 3348) & 15) << 8) \| b1)` | 1 (`b1`) |
+| `b0 < 5396` | `(((b0 - 4372) & 15) << 8) \| b1` | `((b0 - 4372) >> 4) + 1` | 1 (`b1`) |
+| `b0 < 6420` | `-((((b0 - 5396) & 15) << 8) \| b1)` | `((b0 - 5396) >> 4) + 1` | 1 (`b1`) |
+| `b0 < 7444` | `(((b0 - 6420) & 15) << 8) \| b1` | `-(((b0 - 6420) >> 4) + 1)` | 1 (`b1`) |
+| `b0 < 8468` | `-((((b0 - 7444) & 15) << 8) \| b1)` | `-(((b0 - 7444) >> 4) + 1)` | 1 (`b1`) |
+| `b0 == 8468` | `b1` (signed 8-bit) | `b2` (signed 8-bit) | 2 (`b1`, `b2`) |
+| `b0 == 8469` | `b1 << 8 \| b2` (signed 16-bit) | `b3 << 8 \| b4` (signed 16-bit) | 4 (`b1`..`b4`) |
+| `b0 >= 8470` | Reserved | Reserved | - |
+
+**Note:**
+- `b1`, `b2`, etc., represent subsequent bytes read from the `glyphStream`.
+- The `<< 8` operation implies multiplying by 256.
+- The values are deltas relative to the previous point (or 0,0 for the first point).

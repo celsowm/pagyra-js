@@ -112,15 +112,6 @@ export class WOFF2GlyfTransform {
           yMax = this.readInt16(bboxStream, bboxPos);
           bboxPos += 2;
           bboxExplicit = true;
-
-          if (i < 10) {
-            console.log(`Glyph ${i}: nContours=${nContours}, BBox=[${xMin}, ${yMin}, ${xMax}, ${yMax}] (composite, explicit)`);
-          }
-        } else {
-          // Simple glyph - will compute bbox from coordinates
-          if (i < 10) {
-            console.log(`Glyph ${i}: nContours=${nContours}, BBox=computed (simple glyph)`);
-          }
         }
 
         let glyphData: Uint8Array;
@@ -134,7 +125,8 @@ export class WOFF2GlyfTransform {
             flagStream, flagPos,
             glyphStream, glyphPos,
             instructionStream, instructionPos,
-            bboxExplicit
+            bboxExplicit,
+            i // Pass glyphIndex
           );
 
           glyphData = result.glyph;
@@ -151,7 +143,8 @@ export class WOFF2GlyfTransform {
             nContours,
             xMin, yMin, xMax, yMax,
             compositeStream, compositePos,
-            instructionStream, instructionPos
+            instructionStream, instructionPos,
+            i // Pass glyphIndex
           );
 
           glyphData = result.glyph;
@@ -262,19 +255,22 @@ export class WOFF2GlyfTransform {
   }
 
   private static readTriplet(data: Uint8Array, offset: number): { dx: number; dy: number; bytesRead: number } {
-    const b0 = data[offset];
+    const { value: b0, bytesRead: b0Bytes } = this.read255UInt16(data, offset);
     let dx = 0;
     let dy = 0;
-    let bytesRead = 1;
+    let bytesRead = b0Bytes;
 
     if (b0 < 10) {
       dx = 0;
-      dy = ((b0 - 0) << 8) | data[offset + 1];
-      bytesRead = 2;
+      // dy = ((b0 - 0) << 8) | data[offset + bytesRead];
+      // bytesRead += 1;
+      dy = b0 - 0; // Experimental: Treat as 1-byte for Caveat/Google Fonts compatibility
     } else if (b0 < 20) {
-      dx = ((b0 - 10) << 8) | data[offset + 1];
+      // dx = ((b0 - 10) << 8) | data[offset + bytesRead];
+      // dy = 0;
+      // bytesRead += 1;
+      dx = b0 - 10; // Experimental: Treat as 1-byte for Caveat/Google Fonts compatibility
       dy = 0;
-      bytesRead = 2;
     } else if (b0 < 84) {
       dx = b0 - 20;
       dy = 0;
@@ -290,53 +286,53 @@ export class WOFF2GlyfTransform {
     } else if (b0 < 1300) {
       const val = b0 - 276;
       dx = (val >> 4) + 1;
-      dy = ((val & 15) << 8) | data[offset + 1];
-      bytesRead = 2;
+      dy = ((val & 15) << 8) | data[offset + bytesRead];
+      bytesRead += 1;
     } else if (b0 < 2324) {
       const val = b0 - 1300;
       dx = (val >> 4) + 1;
-      dy = -(((val & 15) << 8) | data[offset + 1]);
-      bytesRead = 2;
+      dy = -(((val & 15) << 8) | data[offset + bytesRead]);
+      bytesRead += 1;
     } else if (b0 < 3348) {
       const val = b0 - 2324;
       dx = -((val >> 4) + 1);
-      dy = ((val & 15) << 8) | data[offset + 1];
-      bytesRead = 2;
+      dy = ((val & 15) << 8) | data[offset + bytesRead];
+      bytesRead += 1;
     } else if (b0 < 4372) {
       const val = b0 - 3348;
       dx = -((val >> 4) + 1);
-      dy = -(((val & 15) << 8) | data[offset + 1]);
-      bytesRead = 2;
+      dy = -(((val & 15) << 8) | data[offset + bytesRead]);
+      bytesRead += 1;
     } else if (b0 < 5396) {
       const val = b0 - 4372;
       dy = (val >> 4) + 1;
-      dx = ((val & 15) << 8) | data[offset + 1];
-      bytesRead = 2;
+      dx = ((val & 15) << 8) | data[offset + bytesRead];
+      bytesRead += 1;
     } else if (b0 < 6420) {
       const val = b0 - 5396;
       dy = (val >> 4) + 1;
-      dx = -(((val & 15) << 8) | data[offset + 1]);
-      bytesRead = 2;
+      dx = -(((val & 15) << 8) | data[offset + bytesRead]);
+      bytesRead += 1;
     } else if (b0 < 7444) {
       const val = b0 - 6420;
       dy = -((val >> 4) + 1);
-      dx = ((val & 15) << 8) | data[offset + 1];
-      bytesRead = 2;
+      dx = ((val & 15) << 8) | data[offset + bytesRead];
+      bytesRead += 1;
     } else if (b0 < 8468) {
       const val = b0 - 7444;
       dy = -((val >> 4) + 1);
-      dx = -(((val & 15) << 8) | data[offset + 1]);
-      bytesRead = 2;
+      dx = -(((val & 15) << 8) | data[offset + bytesRead]);
+      bytesRead += 1;
     } else if (b0 === 8468) {
-      const view = new DataView(data.buffer as ArrayBuffer, data.byteOffset + offset + 1, 2);
+      const view = new DataView(data.buffer, data.byteOffset + offset + bytesRead, 2);
       dx = view.getInt8(0);
       dy = view.getInt8(1);
-      bytesRead = 3;
+      bytesRead += 2;
     } else if (b0 === 8469) {
-      const view = new DataView(data.buffer as ArrayBuffer, data.byteOffset + offset + 1, 4);
+      const view = new DataView(data.buffer, data.byteOffset + offset + bytesRead, 4);
       dx = view.getInt16(0, false);
       dy = view.getInt16(2, false);
-      bytesRead = 5;
+      bytesRead += 4;
     }
 
     return { dx, dy, bytesRead };
@@ -349,7 +345,8 @@ export class WOFF2GlyfTransform {
     flagStream: Uint8Array, flagPos: number,
     glyphStream: Uint8Array, glyphPos: number,
     instructionStream: Uint8Array, instructionPos: number,
-    bboxExplicit: boolean
+    bboxExplicit: boolean,
+    glyphIndex: number
   ): { glyph: Uint8Array; bytesRead: { nPoints: number; flags: number; glyph: number; instructions: number } } {
     // Read number of points per contour
     const endPtsOfContours: number[] = [];
@@ -367,7 +364,6 @@ export class WOFF2GlyfTransform {
     // Read instructions size
     const { value: instructionLength, bytesRead: instrLenBytes } = this.read255UInt16(glyphStream, glyphPos);
     let currentGlyphPos = glyphPos + instrLenBytes;
-    const glyphBytesReadStart = currentGlyphPos - glyphPos;
 
     // Read instructions
     const instructions = instructionStream.subarray(instructionPos, instructionPos + instructionLength);
@@ -400,27 +396,8 @@ export class WOFF2GlyfTransform {
       currentGlyphPos += bytesRead;
       currentX += dx;
       currentY += dy;
-      xCoordinates.push(currentX); // Populate xCoordinates
-      yCoordinates.push(currentY); // Populate yCoordinates
-      // TTF flags are different from WOFF2 flags?
-      // WOFF2 flags: bit 0-6 are standard TTF flags? No.
-      // WOFF2 flags:
-      // Bit 6: overlapSimple (always set in WOFF2?)
-      // The WOFF2 spec says "The flag byte has the same meaning as in the 'glyf' table".
-      // So we can use them directly?
-      // Except bit 6 is reserved in TTF but used in WOFF2?
-      // Wait, WOFF2 spec says: "The flags are stored... using the same format as the 'glyf' table".
-      // So we can just write them out.
-
-      // Calculate size
-      let flagsSize = flags.length; // Assuming no repeat optimization for now
-      // We should optimize flags if possible, but raw copy is safe.
-
-      // Coords size
-      // We need to encode coords as deltas
-      // TTF uses delta encoding relative to previous point.
-      // We have absolute coords now.
-      // Let's re-calculate deltas and encode.
+      xCoordinates.push(currentX);
+      yCoordinates.push(currentY);
     }
 
     const ttfFlags: number[] = [];
@@ -439,6 +416,8 @@ export class WOFF2GlyfTransform {
       let flag = 0; // We'll rebuild flags
       // Preserve on-curve bit from WOFF2 flag (bit 0)
       flag |= (flags[i] & 1);
+      // Also preserve overlapSimple bit (bit 6) if present in WOFF2 flags?
+      flag |= (flags[i] & 0x40);
 
       // Encode X
       if (dx === 0) {
@@ -521,27 +500,15 @@ export class WOFF2GlyfTransform {
         instructions: instructionLength
       }
     };
-  } // Corrected closing brace for reconstructSimpleGlyph
+  }
 
   private static reconstructCompositeGlyph(
-      nContours: number,
-      xMin: number, yMin: number, xMax: number, yMax: number,
-      compositeStream: Uint8Array, compositePos: number,
-      instructionStream: Uint8Array, instructionPos: number
-    ): { glyph: Uint8Array; bytesRead: { composite: number; instructions: number } } {
-    // Composite glyphs
-    // WOFF2 stores composite glyphs... how?
-    // "The composite glyph data is stored in the compositeStream."
-    // Structure:
-    // component flag (2 bytes)
-    // glyph index (2 bytes)
-    // argument1 (variable)
-    // argument2 (variable)
-    // scale (variable)
-    // ...
-
-    // We need to read until WE_HAVE_MORE_COMPONENTS (0x0020) is clear.
-
+    nContours: number,
+    xMin: number, yMin: number, xMax: number, yMax: number,
+    compositeStream: Uint8Array, compositePos: number,
+    instructionStream: Uint8Array, instructionPos: number,
+    glyphIndex: number
+  ): { glyph: Uint8Array; bytesRead: { composite: number; instructions: number } } {
     const components: { flags: number; glyphIndex: number; args: Uint8Array }[] = [];
     let currentPos = compositePos;
     let hasInstructions = false;
@@ -551,18 +518,11 @@ export class WOFF2GlyfTransform {
     while (true) {
       const flags = readUInt16BE(compositeStream, currentPos);
       currentPos += 2;
-      const glyphIndex = readUInt16BE(compositeStream, currentPos);
+      const gIndex = readUInt16BE(compositeStream, currentPos);
       currentPos += 2;
 
       // Read arguments
       const arg1And2AreWords = (flags & 0x0001) !== 0;
-      const argsAreXYValues = (flags & 0x0002) !== 0;
-      // ...
-
-      // We just need to copy the arguments as is?
-      // WOFF2 doesn't compress arguments?
-      // "The composite glyph format is the same as in the 'glyf' table, except that the glyph index is stored in 2 bytes."
-      // So we can just read the flags and decide how many bytes to read.
 
       let argsSize = 0;
       if (arg1And2AreWords) {
@@ -582,7 +542,7 @@ export class WOFF2GlyfTransform {
       const args = compositeStream.subarray(currentPos, currentPos + argsSize);
       currentPos += argsSize;
 
-      components.push({ flags, glyphIndex, args });
+      components.push({ flags, glyphIndex: gIndex, args });
 
       if (flags & 0x0100) { // WE_HAVE_INSTRUCTIONS
         hasInstructions = true;
@@ -598,19 +558,6 @@ export class WOFF2GlyfTransform {
 
     if (hasInstructions) {
       const { value: instrLen, bytesRead } = this.read255UInt16(instructionStream, instructionPos);
-      // We need to update instructionPos in caller?
-      // For now, just read.
-      // Note: Composite glyphs in WOFF2 store instruction length in instructionStream?
-      // "If the WE_HAVE_INSTRUCTIONS flag is set... the instructions are stored in the instructionStream."
-      // "The length of the instructions is stored... using 255UInt16."
-
-      // Wait, where is the length stored?
-      // "The instruction length is stored in the glyphStream for simple glyphs, and in the instructionStream for composite glyphs?"
-      // No, spec says: "The instructions are stored in the instructionStream... The length ... is stored as a 255UInt16 at the beginning of the instructions."
-      // So yes, read from instructionStream.
-
-      // But we need to know WHERE in instructionStream.
-      // The caller passes instructionPos.
       instructions = instructionStream.subarray(instructionPos + bytesRead, instructionPos + bytesRead + instrLen);
       instructionBytesRead = bytesRead + instrLen;
     }
