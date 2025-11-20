@@ -13,6 +13,10 @@ const BUILTIN_FACES: BuiltinFace[] = [
   { name: "Roboto-BoldItalic", family: "Roboto", weight: 700, style: "italic", file: "ttf/roboto/Roboto-BoldItalic.ttf" },
   { name: "NotoSans-Regular", family: "Noto Sans", weight: 400, style: "normal", file: "ttf/notosans/NotoSans-Regular.ttf" },
   { name: "DejaVuSans-Regular", family: "DejaVu Sans", weight: 400, style: "normal", file: "ttf/dejavu/DejaVuSans.ttf" },
+  { name: "Tinos-Regular", family: "Tinos", weight: 400, style: "normal", file: "ttf/tinos/Tinos-Regular.ttf" },
+  { name: "Tinos-Bold", family: "Tinos", weight: 700, style: "normal", file: "ttf/tinos/Tinos-Bold.ttf" },
+  { name: "Tinos-Italic", family: "Tinos", weight: 400, style: "italic", file: "ttf/tinos/Tinos-Italic.ttf" },
+  { name: "Tinos-BoldItalic", family: "Tinos", weight: 700, style: "italic", file: "ttf/tinos/Tinos-BoldItalic.ttf" },
 ];
 
 let cachedConfig: FontConfig | null | undefined;
@@ -48,7 +52,7 @@ export async function loadBuiltinFontConfig(): Promise<FontConfig | null> {
       }
       cachedConfig = {
         fontFaceDefs: faces,
-        defaultStack: ["Noto Sans", "Roboto", "DejaVu Sans"],
+        defaultStack: ["Noto Sans", "Roboto", "Tinos", "DejaVu Sans"],
       };
       return cachedConfig;
     } catch (error) {
