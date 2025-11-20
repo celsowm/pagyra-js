@@ -31,7 +31,7 @@ export function getFontForText(_requestedFamily: string, text: string, _doc: any
   return f;
 }
 
-const DEFAULT_FONT = "Helvetica";
+const DEFAULT_FONT = "Roboto"; // Use embedded TTF font instead of base14
 
 export interface FontResource {
   readonly baseFont: string;
@@ -184,9 +184,9 @@ export class FontRegistry {
       const currentVariant = classifyBase14Variant(baseFont);
       const targetVariant: Base14Variant =
         wantsBold && wantsItalic ? "boldItalic"
-        : wantsBold ? "bold"
-        : wantsItalic ? "italic"
-        : "normal";
+          : wantsBold ? "bold"
+            : wantsItalic ? "italic"
+              : "normal";
 
       if (currentVariant === targetVariant) {
         return baseFont;
@@ -246,13 +246,13 @@ export class FontRegistry {
     this.fontConfig = fontConfig;
     this.embedder = new FontEmbedder(fontConfig, this.doc);
     await this.embedder.initialize();
-    log("FONT","DEBUG","embedder initialized", { fontConfig });
+    log("FONT", "DEBUG", "embedder initialized", { fontConfig });
   }
 
   setFontConfig(fontConfig: FontConfig): void {
     this.fontConfig = fontConfig;
     this.embedder = new FontEmbedder(fontConfig, this.doc);
-    log("FONT","DEBUG","font config set", { fontConfig });
+    log("FONT", "DEBUG", "font config set", { fontConfig });
   }
 }
 
@@ -291,27 +291,28 @@ export function preflightFontsForPdfa(_registry: FontRegistry): void {
 }
 
 const BASE_FONT_ALIASES = new Map<string, string>([
-  ["helvetica", "Helvetica"],
-  ["arial", "Helvetica"],
-  ["times", "Times-Roman"],
-  ["times-roman", "Times-Roman"],
-  ["times new roman", "Times-Roman"],
-  ["georgia", "Times-Roman"],
-  ["courier", "Courier"],
-  ["courier new", "Courier"],
-  ["monaco", "Courier"],
+  ["helvetica", "Roboto"],           // Use Roboto instead of Helvetica
+  ["arial", "Roboto"],                // Use Roboto instead of Helvetica
+  ["times", "Roboto"],                // Use Roboto instead of Times-Roman
+  ["times-roman", "Roboto"],          // Use Roboto instead of Times-Roman
+  ["times new roman", "Roboto"],      // Use Roboto instead of Times-Roman
+  ["georgia", "Roboto"],              // Use Roboto instead of Times-Roman
+  ["courier", "DejaVu Sans"],         // Use DejaVu instead of Courier
+  ["courier new", "DejaVu Sans"],     // Use DejaVu instead of Courier
+  ["monaco", "DejaVu Sans"],          // Use DejaVu instead of Courier
   ["symbol", "Symbol"],
   ["zapfdingbats", "ZapfDingbats"],
   ["notosans-regular", "NotoSans-Regular"],  // Unicode-capable font for bullets
+  ["roboto", "Roboto-Regular"],              // Map generic Roboto to specific variant
 ]);
 
 const GENERIC_FAMILIES = new Map<string, string>([
-  ["serif", "Times-Roman"],
-  ["sans-serif", "Helvetica"],
-  ["monospace", "Courier"],
-  ["system-ui", "Helvetica"],
-  ["cursive", "Times-Roman"],
-  ["fantasy", "Helvetica"],
+  ["serif", "Roboto"],           // Use Roboto instead of Times-Roman
+  ["sans-serif", "Roboto"],       // Use Roboto instead of Helvetica
+  ["monospace", "DejaVu Sans"],   // Use DejaVu instead of Courier
+  ["system-ui", "Roboto"],        // Use Roboto instead of Helvetica
+  ["cursive", "Roboto"],          // Use Roboto instead of Times-Roman
+  ["fantasy", "Roboto"],          // Use Roboto instead of Helvetica
 ]);
 
 const BASE14_FAMILY_VARIANTS = {

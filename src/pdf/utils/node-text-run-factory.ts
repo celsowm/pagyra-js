@@ -5,6 +5,8 @@ import { createTextRuns } from "./text-utils.js";
 import { createListMarkerRun } from "./list-utils.js";
 import { svgMatrixToPdf } from "../transform-adapter.js";
 import { multiplyMatrices } from "../../geometry/matrix.js";
+import type { FontResolver } from "../../fonts/types.js";
+import type { GlyphRun } from "../../layout/text-run.js";
 
 export interface NodeTextRunContext {
   node: LayoutNode;
@@ -15,11 +17,17 @@ export interface NodeTextRunContext {
   decorations?: Decorations;
   transform?: Matrix;
   fallbackColor: RGBA;
+  fontResolver?: FontResolver;
 }
 
 export function buildNodeTextRuns(context: NodeTextRunContext): Run[] {
-  const { node, children, borderBox, contentBox, textColor, decorations, transform, fallbackColor } = context;
+  const { node, children, borderBox, contentBox, textColor, decorations, transform, fallbackColor, fontResolver } = context;
   const textRuns = createTextRuns(node, textColor, decorations);
+
+  // If we have a fontResolver, enhance text runs with GlyphRun data
+  if (fontResolver) {
+    enrichTextRunsWithGlyphs(textRuns, fontResolver);
+  }
 
   if (node.tagName === "li") {
     const markerRun = createListMarkerRun(node, contentBox, children, textColor ?? fallbackColor);
@@ -61,4 +69,67 @@ function applyTransformToTextRuns(runs: Run[], cssMatrix: Matrix, originBox: Rec
 
 function translationMatrix(tx: number, ty: number): Matrix {
   return { a: 1, b: 0, c: 0, d: 1, e: tx, f: ty };
+}
+
+/**
+ * Enriches text runs with GlyphRun data for TTF-based rendering.
+ * For each run, resolves the font, maps text to glyph IDs, and computes positions.
+ */
+function enrichTextRunsWithGlyphs(runs: Run[], fontResolver: FontResolver): void {
+  for (const run of runs) {
+    try {
+      // Resolve the font synchronously if possible
+      const font = fontResolver.resolveSync
+        ? fontResolver.resolveSync(run.fontFamily, run.fontWeight, run.fontStyle)
+        : undefined;
+
+      if (!font) {
+        // If we can't resolve synchronously, skip glyph enrichment for now
+        continue;
+      }
+
+      // Map Unicode text to glyph IDs
+      const glyphIds: number[] = [];
+      const positions: { x: number; y: number }[] = [];
+      let currentX = 0;
+
+      for (let i = 0; i < run.text.length; i++) {
+        const codePoint = run.text.codePointAt(i) ?? 0;
+        const glyphId = font.metrics.cmap.getGlyphId(codePoint);
+
+        glyphIds.push(glyphId);
+
+        // Get advance width for this glyph
+        const glyphMetric = font.metrics.glyphMetrics.get(glyphId);
+        const advanceWidth = glyphMetric?.advanceWidth ?? 0;
+
+        // Scale advance width to font size
+        const unitsPerEm = font.metrics.metrics.unitsPerEm;
+        const scaledAdvance = (advanceWidth / unitsPerEm) * run.fontSize;
+
+        positions.push({ x: currentX, y: 0 });
+        currentX += scaledAdvance;
+
+        // Handle surrogate pairs (advance i if this was a surrogate pair)
+        if (codePoint > 0xFFFF) {
+          i++;
+        }
+      }
+
+      // Attach GlyphRun to the Run object
+      const glyphRun: GlyphRun = {
+        font,
+        glyphIds,
+        positions,
+        text: run.text,
+        fontSize: run.fontSize,
+        width: currentX,
+      };
+
+      run.glyphs = glyphRun;
+    } catch (error) {
+      // If font resolution or glyph mapping fails, continue without glyph data
+      console.warn(`Failed to create GlyphRun for text "${run.text}": ${error}`);
+    }
+  }
 }

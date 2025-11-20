@@ -1,4 +1,5 @@
 import type { BackgroundRepeat, Gradient } from "../css/background-types.js";
+import type { GlyphRun } from "../layout/text-run.js";
 
 export enum NodeKind {
   Container = "container",
@@ -87,7 +88,7 @@ export interface ShadowLayer {
   color: RGBA;
 }
 
-export interface TextShadowLayer extends ShadowLayer {}
+export interface TextShadowLayer extends ShadowLayer { }
 
 export enum Overflow {
   Visible = "visible",
@@ -157,11 +158,7 @@ export interface TextMatrix {
   f: number;
 }
 
-export interface GlyphRun {
-  glyphIds: number[];
-  advances: number[];
-  positions: Array<{ x: number; y: number }>;
-}
+// GlyphRun is now imported from ../layout/text-run.js
 
 export interface TableModel {
   mode: "separate" | "collapse";

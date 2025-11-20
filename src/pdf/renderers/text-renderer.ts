@@ -10,6 +10,7 @@ import { TextShadowRenderer } from "./text-shadow-renderer.js";
 import { TextDecorationRenderer } from "./text-decoration-renderer.js";
 import { TextFontResolver } from "./text-font-resolver.js";
 import { encodeTextPayload } from "./text-encoder.js";
+import { drawGlyphRun } from "../utils/glyph-run-renderer.js";
 
 export interface TextRendererResult {
   readonly commands: string[];
@@ -40,7 +41,7 @@ export class TextRenderer {
     if (!text) {
       return;
     }
-    
+
     const font = await this.fontResolver.ensureFontResource({ fontFamily: options.fontFamily, fontWeight: options.fontWeight, text });
     this.registerFont(font);
     const usePageOffset = !(options.absolute ?? false);
@@ -59,13 +60,13 @@ export class TextRenderer {
       font: font.baseFont
     });
 
-    log("PAINT","TRACE","drawText(content)", {
+    log("PAINT", "TRACE", "drawText(content)", {
       before: before.length > 60 ? before.slice(0, 57) + "..." : before,
       encoded: encoded.length > 60 ? encoded.slice(0, 57) + "..." : encoded,
       font: font.baseFont, size: options.fontSizePt
     });
 
-    log("PAINT","DEBUG","drawing text", {
+    log("PAINT", "DEBUG", "drawing text", {
       text: text.slice(0, 32),
       fontName: font.baseFont,
       fontSizePt: options.fontSizePt,
@@ -83,6 +84,13 @@ export class TextRenderer {
   }
 
   async drawTextRun(run: Run): Promise<void> {
+    // If we have GlyphRun data, use the new glyph-level rendering
+    if (run.glyphs) {
+      await this.drawTextRunWithGlyphs(run);
+      return;
+    }
+
+    // Otherwise, fall back to legacy text rendering
     const font = await this.fontResolver.ensureFontResource({ fontFamily: run.fontFamily, fontWeight: run.fontWeight, fontStyle: run.fontStyle, fontVariant: run.fontVariant, text: run.text });
     this.registerFont(font);
     const color = run.fill ?? { r: 0, g: 0, b: 0, a: 1 };
@@ -104,13 +112,13 @@ export class TextRenderer {
       font: font.baseFont
     });
 
-    log("PAINT","TRACE","drawText(content)", {
+    log("PAINT", "TRACE", "drawText(content)", {
       before: normalizedText.length > 60 ? normalizedText.slice(0, 57) + "..." : normalizedText,
       encoded: encoded.length > 60 ? encoded.slice(0, 57) + "..." : encoded,
       font: font.baseFont, size: fontSizePt
     });
 
-    log("PAINT","DEBUG","drawing text run", {
+    log("PAINT", "DEBUG", "drawing text run", {
       text: normalizedText.slice(0, 32),
       fontName: font.baseFont,
       fontSizePt,
@@ -181,6 +189,60 @@ export class TextRenderer {
     }
 
     this.commands.push(...this.decorationRenderer.render(run, color));
+  }
+
+  /**
+   * Draw a text run using GlyphRun data (new glyph-level rendering path).
+   */
+  private async drawTextRunWithGlyphs(run: Run): Promise<void> {
+    if (!run.glyphs) return;
+
+    const glyphRun = run.glyphs;
+    const color = run.fill ?? { r: 0, g: 0, b: 0, a: 1 };
+    const fontSizePt = this.coordinateTransformer.convertPxToPt(run.fontSize);
+
+    // Get font resource (for registration in PDF)
+    const font = await this.fontResolver.ensureFontResource({
+      fontFamily: run.fontFamily,
+      fontWeight: run.fontWeight,
+      fontStyle: run.fontStyle,
+      text: run.text
+    });
+    this.registerFont(font);
+
+    // Calculate PDF coordinates
+    const Tm = run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+    const localBaseline = Tm.f - this.coordinateTransformer.pageOffsetPx;
+    const y = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localBaseline);
+    const x = this.coordinateTransformer.convertPxToPt(Tm.e);
+
+    log("PAINT", "DEBUG", "drawing text run with glyphs", {
+      text: run.text.slice(0, 32),
+      glyphIds: glyphRun.glyphIds.slice(0, 10),
+      fontSizePt,
+      x, y
+    });
+
+    // For now, use a simple approach - create a mock subset
+    // In production, you'd get this from PdfFontRegistry
+    const mockSubset = {
+      name: `/${font.resourceName}`,
+      firstChar: 0,
+      lastChar: Math.max(...glyphRun.glyphIds),
+      widths: [],
+      toUnicodeCMap: "",
+      fontFile: new Uint8Array(0),
+      encodeGlyph: (gid: number) => gid, // Simple 1:1 mapping for now
+    };
+
+    // Generate PDF commands using drawGlyphRun
+    const glyphCommands = drawGlyphRun(glyphRun, mockSubset, x, y, fontSizePt, color);
+    this.commands.push(...glyphCommands);
+
+    // Handle decorations
+    if (run.decorations) {
+      this.commands.push(...this.decorationRenderer.render(run, color));
+    }
   }
 
   private registerFont(font: FontResource): void {

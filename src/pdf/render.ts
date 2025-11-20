@@ -11,6 +11,7 @@ import type { FontConfig } from "../types/fonts.js";
 import { paintLayoutPage } from "./renderer/page-paint.js";
 import { loadBuiltinFontConfig } from "./font/builtin-fonts.js";
 import { registerPageResources, type PageResources } from "./utils/page-resource-registrar.js";
+import { FontRegistryResolver } from "../fonts/font-registry-resolver.js";
 
 const DEFAULT_PAGE_SIZE: PageSize = { widthPt: 595.28, heightPt: 841.89 }; // A4 in points
 
@@ -45,6 +46,10 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
   const totalPages = pages.length;
   const tokens = computeHfTokens(layout.hf.placeholders ?? {}, totalPages, options.metadata);
   const pageBackground = resolvePageBackground(layout.root);
+
+  // Create FontResolver and enrich all textRuns with GlyphRun data
+  const fontResolver = new FontRegistryResolver(fontRegistry);
+  await enrichTreeWithGlyphRuns(layout.root, fontResolver);
 
   const headerFooterTextOptions: TextPaintOptions = { fontSizePt: 10, fontFamily: layout.hf.fontFamily };
 
@@ -125,4 +130,59 @@ function computeBaseContentBox(root: RenderBox, pageSize: PageSize, pxToPt: (px:
     width: widthPx,
     height: heightPx,
   };
+}
+
+function enrichTreeWithGlyphRuns(root: RenderBox, fontResolver: FontRegistryResolver): void {
+  // Helper function to enrich a single text run
+  function enrichRun(run: any): void {
+    console.log(`[GLYPH_RUN] Attempting to enrich: "${run.text}\", family: ${run.fontFamily}`);
+    if (run.glyphs) {
+      console.log(`[GLYPH_RUN] Already has glyphs, skipping`);
+      return;
+    }
+    try {
+      const font = fontResolver.resolveSync(run.fontFamily, run.fontWeight, run.fontStyle);
+      console.log(`[GLYPH_RUN] Font resolved:`, font ? 'YES' : 'NO');
+      if (!font) {
+        console.log(`[GLYPH_RUN] Font not found for family: ${run.fontFamily}`);
+        return;
+      }
+      const glyphIds: number[] = [];
+      const positions: { x: number; y: number }[] = [];
+      let currentX = 0;
+      for (let i = 0; i < run.text.length; i++) {
+        const codePoint = run.text.codePointAt(i) ?? 0;
+        const glyphId = font.metrics.cmap.getGlyphId(codePoint);
+        glyphIds.push(glyphId);
+        const glyphMetric = font.metrics.glyphMetrics.get(glyphId);
+        const advanceWidth = glyphMetric?.advanceWidth ?? 0;
+        const unitsPerEm = font.metrics.metrics.unitsPerEm;
+        const scaledAdvance = (advanceWidth / unitsPerEm) * run.fontSize;
+        positions.push({ x: currentX, y: 0 });
+        currentX += scaledAdvance;
+        if (codePoint > 0xFFFF) i++;
+      }
+      run.glyphs = { font, glyphIds, positions, text: run.text, fontSize: run.fontSize, width: currentX };
+      console.log(`[GLYPH_RUN] Enriched "${run.text}" with ${glyphIds.length} glyphs:`, glyphIds);
+    } catch (error) {
+      console.warn(`[GLYPH_RUN] Failed to enrich "${run.text}":`, error);
+    }
+  }
+
+  // Traverse the tree
+  function traverse(box: RenderBox): void {
+    if (box.textRuns && box.textRuns.length > 0) {
+      console.log(`[GLYPH_RUN] Found ${box.textRuns.length} text runs in box ${box.tagName || 'text'}`);
+      for (const run of box.textRuns) {
+        enrichRun(run);
+      }
+    }
+    for (const child of box.children) {
+      traverse(child);
+    }
+  }
+
+  console.log('[GLYPH_RUN] Starting enrichment of tree');
+  traverse(root);
+  console.log('[GLYPH_RUN] Finished enrichment');
 }

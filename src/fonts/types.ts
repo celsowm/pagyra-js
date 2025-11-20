@@ -77,3 +77,8 @@ export interface Woff2FontProgram extends FontProgram {
 export interface Woff2Font extends LoadedFont {
   readonly program: Woff2FontProgram;
 }
+
+export interface FontResolver {
+  resolve(family: string, weight?: number, style?: string): UnifiedFont | Promise<UnifiedFont>;
+  resolveSync?(family: string, weight?: number, style?: string): UnifiedFont | undefined;
+}

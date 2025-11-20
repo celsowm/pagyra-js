@@ -25,11 +25,13 @@ import { resolveDecorations } from "./utils/text-decoration-utils.js";
 import { resolveBackgroundLayers } from "./utils/background-layer-resolver.js";
 import { parseTransform } from "../transform/css-parser.js";
 import { buildNodeTextRuns } from "./utils/node-text-run-factory.js";
+import type { FontResolver } from "../fonts/types.js";
 
 export interface RenderTreeOptions {
   dpiAssumption?: number;
   stylesheets?: Partial<StyleSheets>;
   headerFooter?: Partial<HeaderFooterHTML>;
+  fontResolver?: FontResolver;
 }
 
 export function buildRenderTree(root: LayoutNode, options: RenderTreeOptions = {}): LayoutTree {
@@ -54,7 +56,7 @@ export function buildRenderTree(root: LayoutNode, options: RenderTreeOptions = {
     fontFamily: options.headerFooter?.fontFamily,
   };
 
-  const state = { counter: 0 };
+  const state = { counter: 0, fontResolver: options.fontResolver };
   const renderRoot = convertNode(root, state);
   return {
     root: renderRoot,
@@ -118,7 +120,7 @@ function mapOverflow(mode: OverflowMode): Overflow {
 // MAIN CONVERSION FUNCTION
 // ====================
 
-function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
+function convertNode(node: LayoutNode, state: { counter: number; fontResolver?: FontResolver }): RenderBox {
   // Use the original HTML ID if available, otherwise generate a new one
   const originalId = node.customData?.id as string | undefined;
   const id = originalId || `node-${state.counter++}`;
@@ -144,9 +146,10 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
     decorations,
     transform: transform ?? undefined,
     fallbackColor: textColor ?? DEFAULT_TEXT_COLOR,
+    fontResolver: state.fontResolver,
   });
 
-  log("RENDER_TREE","DEBUG","node converted", {
+  log("RENDER_TREE", "DEBUG", "node converted", {
     tagName: node.tagName,
     textContent: node.textContent?.slice(0, 40),
     fontFamily: node.style.fontFamily,
@@ -155,7 +158,7 @@ function convertNode(node: LayoutNode, state: { counter: number }): RenderBox {
   });
 
   const background = resolveBackgroundLayers(node, { borderBox, paddingBox, contentBox });
-  
+
   const zIndex = typeof node.style.zIndex === "number" ? node.style.zIndex : 0;
   const establishesStackingContext =
     typeof node.style.zIndex === "number" && node.style.position !== Position.Static;
