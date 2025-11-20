@@ -31,7 +31,7 @@ export function getFontForText(_requestedFamily: string, text: string, _doc: any
   return f;
 }
 
-const DEFAULT_FONT = "Roboto"; // Use embedded TTF font instead of base14
+const DEFAULT_FONT = "Times New Roman"; // Use embedded TTF font instead of base14
 
 export interface FontResource {
   readonly baseFont: string;
@@ -292,11 +292,11 @@ export function preflightFontsForPdfa(_registry: FontRegistry): void {
 
 const BASE_FONT_ALIASES = new Map<string, string>([
   ["helvetica", "Roboto"],           // Use Roboto instead of Helvetica
-  ["arial", "Roboto"],                // Use Roboto instead of Helvetica
-  ["times", "Roboto"],                // Use Roboto instead of Times-Roman
-  ["times-roman", "Roboto"],          // Use Roboto instead of Times-Roman
-  ["times new roman", "Roboto"],      // Use Roboto instead of Times-Roman
-  ["georgia", "Roboto"],              // Use Roboto instead of Times-Roman
+  ["arial", "Arimo"],                // Use Arimo instead of Helvetica
+  ["times", "Tinos"],                // Use Tinos instead of Times-Roman
+  ["times-roman", "Tinos"],          // Use Tinos instead of Times-Roman
+  ["times new roman", "Tinos"],      // Use Tinos instead of Times-Roman
+  ["georgia", "Tinos"],              // Use Tinos instead of Times-Roman
   ["courier", "DejaVu Sans"],         // Use DejaVu instead of Courier
   ["courier new", "DejaVu Sans"],     // Use DejaVu instead of Courier
   ["monaco", "DejaVu Sans"],          // Use DejaVu instead of Courier
@@ -307,11 +307,11 @@ const BASE_FONT_ALIASES = new Map<string, string>([
 ]);
 
 const GENERIC_FAMILIES = new Map<string, string>([
-  ["serif", "Roboto"],           // Use Roboto instead of Times-Roman
+  ["serif", "Tinos"],            // Use Tinos instead of Times-Roman
   ["sans-serif", "Roboto"],       // Use Roboto instead of Helvetica
   ["monospace", "DejaVu Sans"],   // Use DejaVu instead of Courier
   ["system-ui", "Roboto"],        // Use Roboto instead of Helvetica
-  ["cursive", "Roboto"],          // Use Roboto instead of Times-Roman
+  ["cursive", "Tinos"],           // Use Tinos instead of Times-Roman
   ["fantasy", "Roboto"],          // Use Roboto instead of Helvetica
 ]);
 

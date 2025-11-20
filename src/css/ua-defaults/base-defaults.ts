@@ -22,7 +22,7 @@ import { remToPx, emToPx } from "../unit-conversion.js";
  */
 export class TypographyDefaults {
   static getFontFamily(): string {
-    return "Times, 'Times New Roman', serif";
+    return "'Times New Roman', Times, serif";
   }
 
   static getFontSize(): number {
@@ -258,7 +258,7 @@ export function createBaseDefaultsObject(): any {
     breakInside: "auto",
     widows: 2,
     orphans: 2,
-    
+
     // Opacity
     opacity: 1,
   };
