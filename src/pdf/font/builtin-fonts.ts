@@ -17,6 +17,10 @@ const BUILTIN_FACES: BuiltinFace[] = [
   { name: "Tinos-Bold", family: "Tinos", weight: 700, style: "normal", file: "ttf/tinos/Tinos-Bold.ttf" },
   { name: "Tinos-Italic", family: "Tinos", weight: 400, style: "italic", file: "ttf/tinos/Tinos-Italic.ttf" },
   { name: "Tinos-BoldItalic", family: "Tinos", weight: 700, style: "italic", file: "ttf/tinos/Tinos-BoldItalic.ttf" },
+  { name: "Arimo-Regular", family: "Arimo", weight: 400, style: "normal", file: "ttf/arimo/Arimo-Regular.ttf" },
+  { name: "Arimo-Bold", family: "Arimo", weight: 700, style: "normal", file: "ttf/arimo/Arimo-Bold.ttf" },
+  { name: "Arimo-Italic", family: "Arimo", weight: 400, style: "italic", file: "ttf/arimo/Arimo-Italic.ttf" },
+  { name: "Arimo-BoldItalic", family: "Arimo", weight: 700, style: "italic", file: "ttf/arimo/Arimo-BoldItalic.ttf" },
 ];
 
 let cachedConfig: FontConfig | null | undefined;
@@ -40,19 +44,23 @@ export async function loadBuiltinFontConfig(): Promise<FontConfig | null> {
       for (const face of BUILTIN_FACES) {
         const filePath = path.join(baseDir, face.file);
         console.log("Loading font file:", filePath);
-        const buffer = await readFile(filePath);
-        faces.push({
-          name: face.name,
-          family: face.family,
-          weight: face.weight,
-          style: face.style,
-          src: filePath,
-          data: buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer,
-        });
+        try {
+          const buffer = await readFile(filePath);
+          faces.push({
+            name: face.name,
+            family: face.family,
+            weight: face.weight,
+            style: face.style,
+            src: filePath,
+            data: buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer,
+          });
+        } catch (err) {
+          console.warn(`Failed to load font file: ${filePath}`, err);
+        }
       }
       cachedConfig = {
         fontFaceDefs: faces,
-        defaultStack: ["Noto Sans", "Roboto", "Tinos", "DejaVu Sans"],
+        defaultStack: ["Noto Sans", "Roboto", "Tinos", "Arimo", "DejaVu Sans"],
       };
       return cachedConfig;
     } catch (error) {

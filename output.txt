@@ -1,0 +1,41 @@
+Rendering repro...
+Builtin font baseDir: C:\Users\celso\pagyra-js\assets\fonts
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\roboto\Roboto-Regular.ttf
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\roboto\Roboto-Bold.ttf
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\roboto\Roboto-Italic.ttf
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\roboto\Roboto-BoldItalic.ttf
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\notosans\NotoSans-Regular.ttf
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\dejavu\DejaVuSans.ttf
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\tinos\Tinos-Regular.ttf
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\tinos\Tinos-Bold.ttf
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\tinos\Tinos-Italic.ttf
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\tinos\Tinos-BoldItalic.ttf
+prepareHtmlRender - input html: <span>hello</span>
+prepareHtmlRender - parsed document body: no body
+prepareHtmlRender - document.documentElement tagName: SPAN
+prepareHtmlRender - document.documentElement innerHTML: <head></head><body></body>hello
+prepareHtmlRender - document children count: 1
+prepareHtmlRender - document child 0: 1 SPAN
+computeStyleForElement - processing element: SPAN style attribute: null
+parseInlineStyle - input: 
+parseInlineStyle - result: {}
+prepareHtmlRender - processing children of: SPAN count: 3
+prepareHtmlRender - processing child: HEAD type: 1
+prepareHtmlRender - processing child: BODY type: 1
+convertDomNode - entering function for node type: 1 tagName: BODY
+convertDomNode - processing element: body with style attr: null
+computeStyleForElement - processing element: BODY style attribute: null
+parseInlineStyle - input: 
+parseInlineStyle - result: {}
+convertDomNode - computed style backgroundLayers: []
+prepareHtmlRender - processing child: text node type: 3
+convertDomNode - entering function for node type: 3 tagName: text node
+convertDomNode - processing text node: hello
+[GLYPH_RUN] Starting enrichment of tree
+[GLYPH_RUN] Found 1 text runs in box text
+[GLYPH_RUN] Attempting to enrich: "hello", family: 'Times New Roman', Times, serif
+[GLYPH_RUN] Font resolved: NO
+[GLYPH_RUN] Font not found for family: 'Times New Roman', Times, serif
+[GLYPH_RUN] Finished enrichment
+[ENCODING] INFO encoding-path { scheme: 'Identity-H', font: 'Tinos' }
+Render finished.

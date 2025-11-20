@@ -27,17 +27,23 @@ export function drawGlyphRun(
     // Set text position
     commands.push(`${xPt.toFixed(2)} ${yPt.toFixed(2)} Td`);
 
-    // Encode glyphs as hex string
-    const encodedGlyphs: string[] = [];
-    for (const gid of run.glyphIds) {
-        const charCode = subset.encodeGlyph(gid);
-        // Convert to 2-byte hex (CID fonts use 16-bit char codes)
-        const hexCode = charCode.toString(16).padStart(4, "0").toUpperCase();
-        encodedGlyphs.push(hexCode);
+    // For Identity-H encoding, we need to write Unicode code points, not glyph IDs
+    // The font's internal cmap will map Unicode -> Glyph ID during rendering
+    const encodedChars: string[] = [];
+    for (let i = 0; i < run.text.length; i++) {
+        const codePoint = run.text.codePointAt(i);
+        if (codePoint === undefined) continue;
+
+        // Convert Unicode code point to 2-byte hex (Identity-H uses 16-bit char codes)
+        const hexCode = codePoint.toString(16).padStart(4, "0").toUpperCase();
+        encodedChars.push(hexCode);
+
+        // Skip next char if this was a surrogate pair
+        if (codePoint > 0xFFFF) i++;
     }
 
     // Emit as hex string
-    const hexString = encodedGlyphs.join("");
+    const hexString = encodedChars.join("");
     commands.push(`<${hexString}> Tj`);
 
     // End text

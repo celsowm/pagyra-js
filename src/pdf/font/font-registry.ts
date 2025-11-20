@@ -109,6 +109,35 @@ export class FontRegistry {
     if (cached) {
       return cached;
     }
+
+    if (this.embedder && this.fontConfig) {
+      const familyStack = family ? parseFamilyList(family) : this.fontConfig.defaultStack;
+
+      // Resolve aliases for each family in the stack to ensure we find the embedded font
+      // e.g. "Times New Roman" -> ["Times New Roman", "Tinos"]
+      const aliasedStack = familyStack.flatMap(f => {
+        const normalized = normalizeToken(f);
+        const alias = BASE_FONT_ALIASES.get(normalized);
+        const generic = GENERIC_FAMILIES.get(normalized);
+        return [f, alias, generic].filter((x): x is string => !!x);
+      });
+
+      // Note: embedder.ensureFont is synchronous in its implementation (it uses pre-loaded data)
+      // even though the interface might not explicitly say so, we know it returns EmbeddedFont | null immediately.
+      const embedded = this.embedder.ensureFont(aliasedStack, normalizedWeight);
+      if (embedded) {
+        const resource: FontResource = {
+          baseFont: embedded.baseFont,
+          resourceName: embedded.resourceName,
+          ref: embedded.ref,
+          isBase14: false,
+          metrics: embedded.metrics
+        };
+        this.fontsByFamilyWeight.set(familyKey, resource);
+        return resource;
+      }
+    }
+
     const resolved = this.ensureStandardFontResource(family, normalizedWeight, style);
     this.fontsByFamilyWeight.set(familyKey, resolved);
     return resolved;
@@ -291,7 +320,7 @@ export function preflightFontsForPdfa(_registry: FontRegistry): void {
 }
 
 const BASE_FONT_ALIASES = new Map<string, string>([
-  ["helvetica", "Roboto"],           // Use Roboto instead of Helvetica
+  ["helvetica", "Arimo"],            // Use Arimo instead of Helvetica
   ["arial", "Arimo"],                // Use Arimo instead of Helvetica
   ["times", "Tinos"],                // Use Tinos instead of Times-Roman
   ["times-roman", "Tinos"],          // Use Tinos instead of Times-Roman
@@ -308,11 +337,11 @@ const BASE_FONT_ALIASES = new Map<string, string>([
 
 const GENERIC_FAMILIES = new Map<string, string>([
   ["serif", "Tinos"],            // Use Tinos instead of Times-Roman
-  ["sans-serif", "Roboto"],       // Use Roboto instead of Helvetica
+  ["sans-serif", "Arimo"],       // Use Arimo instead of Helvetica
   ["monospace", "DejaVu Sans"],   // Use DejaVu instead of Courier
-  ["system-ui", "Roboto"],        // Use Roboto instead of Helvetica
+  ["system-ui", "Arimo"],        // Use Arimo instead of Helvetica
   ["cursive", "Tinos"],           // Use Tinos instead of Times-Roman
-  ["fantasy", "Roboto"],          // Use Roboto instead of Helvetica
+  ["fantasy", "Arimo"],          // Use Arimo instead of Helvetica
 ]);
 
 const BASE14_FAMILY_VARIANTS = {

@@ -1,0 +1,88 @@
+Rendering repro...
+Builtin font baseDir: C:\Users\celso\pagyra-js\assets\fonts
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\roboto\Roboto-Regular.ttf
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\roboto\Roboto-Bold.ttf
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\roboto\Roboto-Italic.ttf
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\roboto\Roboto-BoldItalic.ttf
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\notosans\NotoSans-Regular.ttf
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\dejavu\DejaVuSans.ttf
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\tinos\Tinos-Regular.ttf
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\tinos\Tinos-Bold.ttf
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\tinos\Tinos-Italic.ttf
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\tinos\Tinos-BoldItalic.ttf
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\arimo\Arimo-Regular.ttf
+Failed to load font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\arimo\Arimo-Regular.ttf Error: ENOENT: no such file or directory, open 'C:\Users\celso\pagyra-js\assets\fonts\ttf\arimo\Arimo-Regular.ttf'
+    at async open (node:internal/fs/promises:642:25)
+    at async readFile (node:internal/fs/promises:1279:14)
+    at async <anonymous> (C:\Users\celso\pagyra-js\src\pdf\font\builtin-fonts.ts:48:26)
+    at async renderHtmlToPdf (C:\Users\celso\pagyra-js\src\html-to-pdf.ts:49:53)
+    at async main (C:\Users\celso\pagyra-js\repro-glyphrun.ts:15:9) {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\celso\\pagyra-js\\assets\\fonts\\ttf\\arimo\\Arimo-Regular.ttf'
+}
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\arimo\Arimo-Bold.ttf
+Failed to load font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\arimo\Arimo-Bold.ttf Error: ENOENT: no such file or directory, open 'C:\Users\celso\pagyra-js\assets\fonts\ttf\arimo\Arimo-Bold.ttf'
+    at async open (node:internal/fs/promises:642:25)
+    at async readFile (node:internal/fs/promises:1279:14)
+    at async <anonymous> (C:\Users\celso\pagyra-js\src\pdf\font\builtin-fonts.ts:48:26)
+    at async renderHtmlToPdf (C:\Users\celso\pagyra-js\src\html-to-pdf.ts:49:53)
+    at async main (C:\Users\celso\pagyra-js\repro-glyphrun.ts:15:9) {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\celso\\pagyra-js\\assets\\fonts\\ttf\\arimo\\Arimo-Bold.ttf'
+}
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\arimo\Arimo-Italic.ttf
+Failed to load font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\arimo\Arimo-Italic.ttf Error: ENOENT: no such file or directory, open 'C:\Users\celso\pagyra-js\assets\fonts\ttf\arimo\Arimo-Italic.ttf'
+    at async open (node:internal/fs/promises:642:25)
+    at async readFile (node:internal/fs/promises:1279:14)
+    at async <anonymous> (C:\Users\celso\pagyra-js\src\pdf\font\builtin-fonts.ts:48:26)
+    at async renderHtmlToPdf (C:\Users\celso\pagyra-js\src\html-to-pdf.ts:49:53)
+    at async main (C:\Users\celso\pagyra-js\repro-glyphrun.ts:15:9) {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\celso\\pagyra-js\\assets\\fonts\\ttf\\arimo\\Arimo-Italic.ttf'
+Loading font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\arimo\Arimo-BoldItalic.ttf
+}
+Failed to load font file: C:\Users\celso\pagyra-js\assets\fonts\ttf\arimo\Arimo-BoldItalic.ttf Error: ENOENT: no such file or directory, open 'C:\Users\celso\pagyra-js\assets\fonts\ttf\arimo\Arimo-BoldItalic.ttf'
+    at async open (node:internal/fs/promises:642:25)
+    at async readFile (node:internal/fs/promises:1279:14)
+    at async <anonymous> (C:\Users\celso\pagyra-js\src\pdf\font\builtin-fonts.ts:48:26)
+    at async renderHtmlToPdf (C:\Users\celso\pagyra-js\src\html-to-pdf.ts:49:53)
+    at async main (C:\Users\celso\pagyra-js\repro-glyphrun.ts:15:9) {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\celso\\pagyra-js\\assets\\fonts\\ttf\\arimo\\Arimo-BoldItalic.ttf'
+}
+prepareHtmlRender - input html: <span>hello</span>
+prepareHtmlRender - parsed document body: no body
+prepareHtmlRender - document.documentElement tagName: SPAN
+prepareHtmlRender - document.documentElement innerHTML: <head></head><body></body>hello
+prepareHtmlRender - document children count: 1
+prepareHtmlRender - document child 0: 1 SPAN
+computeStyleForElement - processing element: SPAN style attribute: null
+parseInlineStyle - input: 
+parseInlineStyle - result: {}
+prepareHtmlRender - processing children of: SPAN count: 3
+prepareHtmlRender - processing child: HEAD type: 1
+prepareHtmlRender - processing child: BODY type: 1
+convertDomNode - entering function for node type: 1 tagName: BODY
+convertDomNode - processing element: body with style attr: null
+computeStyleForElement - processing element: BODY style attribute: null
+parseInlineStyle - input: 
+parseInlineStyle - result: {}
+convertDomNode - computed style backgroundLayers: []
+prepareHtmlRender - processing child: text node type: 3
+convertDomNode - entering function for node type: 3 tagName: text node
+convertDomNode - processing text node: hello
+[GLYPH_RUN] Starting enrichment of tree
+[GLYPH_RUN] Found 1 text runs in box text
+[GLYPH_RUN] Attempting to enrich: "hello", family: 'Times New Roman', Times, serif
+[GLYPH_RUN] Font resolved: YES
+[GLYPH_RUN] Enriched "hello" with 5 glyphs: [ 75, 72, 79, 79, 82 ]
+[GLYPH_RUN] Finished enrichment
+Render finished.
