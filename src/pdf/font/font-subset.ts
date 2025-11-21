@@ -12,6 +12,11 @@ export interface PdfFontSubset {
     toUnicodeCMap: string;
     fontFile: Uint8Array;
     encodeGlyph(gid: number): number;
+    /**
+     * Ordered glyph IDs included in this subset. The position in this array matches
+     * the width entries when using identity encoding.
+     */
+    glyphIds: number[];
 }
 
 /**
@@ -22,6 +27,12 @@ export interface PdfFontSubsetOptions {
     fontMetrics: FontMetrics;
     fontProgram: FontProgram;
     usedGlyphIds: Set<number>;
+    /**
+     * Controls how glyph IDs are mapped to PDF character codes.
+     * - "identity" keeps CIDs = glyph IDs (suitable for CIDToGIDMap /Identity).
+     * - "sequential" densely re-encodes glyphs starting at 0.
+     */
+    encoding?: "identity" | "sequential";
 }
 
 /**
@@ -29,6 +40,7 @@ export interface PdfFontSubsetOptions {
  */
 export function createPdfFontSubset(options: PdfFontSubsetOptions): PdfFontSubset {
     const { baseName, fontMetrics, fontProgram, usedGlyphIds } = options;
+    const encoding = options.encoding ?? "identity";
 
     const glyphIds = Array.from(usedGlyphIds).sort((a, b) => a - b);
     if (!glyphIds.includes(0)) {
@@ -36,20 +48,36 @@ export function createPdfFontSubset(options: PdfFontSubsetOptions): PdfFontSubse
     }
 
     const gidToCharCode = new Map<number, number>();
-    for (let i = 0; i < glyphIds.length; i++) {
-        gidToCharCode.set(glyphIds[i], i);
+
+    if (encoding === "identity") {
+        for (const gid of glyphIds) {
+            gidToCharCode.set(gid, gid);
+        }
+    } else {
+        for (let i = 0; i < glyphIds.length; i++) {
+            gidToCharCode.set(glyphIds[i], i);
+        }
     }
 
-    const firstChar = 0;
-    const lastChar = glyphIds.length - 1;
+    const firstChar = encoding === "identity" ? Math.min(...glyphIds) : 0;
+    const lastChar = encoding === "identity" ? Math.max(...glyphIds) : glyphIds.length - 1;
 
     const unitsPerEm = fontMetrics.metrics.unitsPerEm;
     const widths: number[] = [];
-    for (const gid of glyphIds) {
-        const glyphMetric = fontMetrics.glyphMetrics.get(gid);
-        const advanceWidth = glyphMetric?.advanceWidth ?? 0;
-        const pdfWidth = Math.round((advanceWidth / unitsPerEm) * 1000);
-        widths.push(pdfWidth);
+    if (encoding === "identity") {
+        for (const gid of glyphIds) {
+            const glyphMetric = fontMetrics.glyphMetrics.get(gid);
+            const advanceWidth = glyphMetric?.advanceWidth ?? 0;
+            const pdfWidth = Math.round((advanceWidth / unitsPerEm) * 1000);
+            widths.push(pdfWidth);
+        }
+    } else {
+        for (const gid of glyphIds) {
+            const glyphMetric = fontMetrics.glyphMetrics.get(gid);
+            const advanceWidth = glyphMetric?.advanceWidth ?? 0;
+            const pdfWidth = Math.round((advanceWidth / unitsPerEm) * 1000);
+            widths.push(pdfWidth);
+        }
     }
 
     const cmapEntries: { gid: number; unicode: number }[] = [];
@@ -64,7 +92,10 @@ export function createPdfFontSubset(options: PdfFontSubsetOptions): PdfFontSubse
             }
         }
         if (unicode !== undefined) {
-            cmapEntries.push({ gid, unicode });
+            const cid = gidToCharCode.get(gid);
+            if (cid !== undefined) {
+                cmapEntries.push({ gid: cid, unicode });
+            }
         }
     }
 
@@ -87,6 +118,7 @@ export function createPdfFontSubset(options: PdfFontSubsetOptions): PdfFontSubse
         toUnicodeCMap,
         fontFile,
         encodeGlyph,
+        glyphIds,
     };
 }
 

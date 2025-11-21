@@ -132,8 +132,8 @@ describe("End-to-End TTF GlyphRun Pipeline", () => {
         // Log actual commands for debugging
         console.log("Generated commands:", commands);
 
-        // Verify glyph encoding is emitted as TJ array
-        const hexCommand = commands.find(cmd => cmd.includes("TJ"));
+        // Verify glyph encoding is emitted (either TJ array or simple Tj when no adjustments)
+        const hexCommand = commands.find(cmd => cmd.includes("TJ") || cmd.includes(" Tj"));
         console.log("Hex command:", hexCommand);
         expect(hexCommand).toBeDefined();
 

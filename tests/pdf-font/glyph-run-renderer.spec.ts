@@ -50,6 +50,7 @@ describe("GlyphRun Renderer", () => {
             toUnicodeCMap: "",
             fontFile: new Uint8Array(0),
             encodeGlyph: (gid: number) => gid, // Simple 1:1 mapping
+            glyphIds: [0, 1, 2],
         };
 
         const commands = drawGlyphRun(
@@ -112,6 +113,7 @@ describe("GlyphRun Renderer", () => {
             toUnicodeCMap: "",
             fontFile: new Uint8Array(0),
             encodeGlyph: (gid) => gid,
+            glyphIds: [0],
         };
 
         const commands = drawGlyphRun(
@@ -171,6 +173,7 @@ describe("GlyphRun Renderer", () => {
             fontFile: new Uint8Array(0),
             // Remap glyphs to arbitrary codes to ensure we don't use Unicode code points
             encodeGlyph: (gid) => gid + 200,
+            glyphIds: [10, 11],
         };
 
         const commands = drawGlyphRun(

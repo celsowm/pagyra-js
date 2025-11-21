@@ -40,6 +40,7 @@ export function drawGlyphRun(
         return evenHex.length < 4 ? evenHex.padStart(4, "0") : evenHex;
     };
     const elements: (string | number)[] = [];
+    let hasAdjustments = false;
 
     for (let i = 0; i < run.glyphIds.length; i++) {
         const gid = run.glyphIds[i];
@@ -60,16 +61,23 @@ export function drawGlyphRun(
                 // TJ numbers are in thousandths of text space; positive numbers tighten spacing.
                 const adjustment = -deltaPt / fontSizePt * 1000;
                 if (Math.abs(adjustment) > 1e-6) {
+                    hasAdjustments = true;
                     elements.push(adjustment);
                 }
             }
         }
     }
 
-    const tjContent = elements
-        .map((el) => (typeof el === "number" ? formatPdfNumber(el) : el))
-        .join(" ");
-    commands.push(`[${tjContent}] TJ`);
+    if (!hasAdjustments) {
+        // Use a single hex string when there are no per-glyph adjustments; simpler and more compatible.
+        const hex = run.glyphIds.map((gid) => encodeGlyphId(gid)).join("");
+        commands.push(`<${hex}> Tj`);
+    } else {
+        const tjContent = elements
+            .map((el) => (typeof el === "number" ? formatPdfNumber(el) : el))
+            .join(" ");
+        commands.push(`[${tjContent}] TJ`);
+    }
 
     // End text
     commands.push("ET");

@@ -247,6 +247,7 @@ export class FontEmbedder {
       FontDescriptor: fontDescriptorRef,
       DW,
       W,
+      // Rely on built-in Identity CIDToGID mapping to keep font dictionaries simple/compatible.
       CIDToGIDMap: "/Identity"
     };
 

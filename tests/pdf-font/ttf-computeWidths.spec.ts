@@ -41,20 +41,24 @@ describe("computeWidths", () => {
     // DW should be 500 (most frequent)
     expect(DW).toBe(500);
 
-    // W should not include entries for glyphs equal to DW (0,1,2,3,10)
-    // Ensure all entries reference gids that are not equal to DW
-    for (const entry of W) {
-      const e: any = entry as any;
-      // W entries are either [start, end, value] or [start, [w1,w2,...]]
-      if (Array.isArray(e[1])) {
-        const [, arr] = e as [number, number[]];
-        for (const v of arr) expect(v).not.toBe(DW);
-      } else if (typeof e[2] === "number") {
-        const [, , value] = e as [number, number, number];
-        expect(value).not.toBe(DW);
+    // W entries are emitted as a flat array: start, [w1...wn] OR start, end, w
+    // None of the explicit widths should match DW.
+    let idx = 0;
+    while (idx < W.length) {
+      const start = W[idx++] as number;
+      const next = W[idx];
+      let widths: number[] = [];
+      if (Array.isArray(next)) {
+        widths = next as number[];
+        idx++;
       } else {
-        // unexpected shape; fail the test to surface issue
-        expect(false).toBeTruthy();
+        const end = next as number;
+        const widthVal = W[idx + 1] as number;
+        idx += 2;
+        widths = new Array(end - start + 1).fill(widthVal);
+      }
+      for (const v of widths) {
+        expect(v).not.toBe(DW);
       }
     }
 

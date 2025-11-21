@@ -11,6 +11,8 @@ import { TextDecorationRenderer } from "./text-decoration-renderer.js";
 import { TextFontResolver } from "./text-font-resolver.js";
 import { encodeTextPayload } from "./text-encoder.js";
 import { drawGlyphRun } from "../utils/glyph-run-renderer.js";
+import type { GlyphRun } from "../../layout/text-run.js";
+import type { UnifiedFont } from "../../fonts/types.js";
 
 export interface TextRendererResult {
   readonly commands: string[];
@@ -54,7 +56,6 @@ export class TextRenderer {
 
     const baselineAdjust = options.fontSizePt;
 
-    // === diagnóstico cirúrgico: caminho de encoding ===
     log("ENCODING", "INFO", "encoding-path", {
       scheme,
       font: font.baseFont
@@ -84,15 +85,71 @@ export class TextRenderer {
   }
 
   async drawTextRun(run: Run): Promise<void> {
-    // If we have GlyphRun data, use the new glyph-level rendering
-    if (run.glyphs) {
-      await this.drawTextRunWithGlyphs(run);
+    const font = await this.fontResolver.ensureFontResource({
+      fontFamily: run.fontFamily,
+      fontWeight: run.fontWeight,
+      fontStyle: run.fontStyle,
+      fontVariant: run.fontVariant,
+      text: run.text
+    });
+
+    if (run.glyphs || font.metrics) {
+      await this.drawTextRunWithGlyphs(run, font);
       return;
     }
 
-    // Otherwise, fall back to legacy text rendering
-    const font = await this.fontResolver.ensureFontResource({ fontFamily: run.fontFamily, fontWeight: run.fontWeight, fontStyle: run.fontStyle, fontVariant: run.fontVariant, text: run.text });
     this.registerFont(font);
+    await this.drawTextRunLegacy(run, font);
+  }
+
+  private async drawTextRunWithGlyphs(run: Run, font: FontResource): Promise<void> {
+    const color = run.fill ?? { r: 0, g: 0, b: 0, a: 1 };
+    const fontSizePt = this.coordinateTransformer.convertPxToPt(run.fontSize);
+
+    let glyphRun = run.glyphs;
+    if (!glyphRun && font.metrics) {
+      glyphRun = computeGlyphRunFromText(
+        font.metrics,
+        run.text,
+        run.fontSize,
+        run.letterSpacing ?? 0,
+        {
+          family: run.fontFamily,
+          weight: run.fontWeight ?? 400,
+          style: (run.fontStyle as "normal" | "italic") ?? "normal",
+        }
+      );
+    }
+
+    if (!glyphRun) {
+      await this.drawTextRunLegacy(run, font);
+      return;
+    }
+
+    const Tm = run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+    const localBaseline = Tm.f - this.coordinateTransformer.pageOffsetPx;
+    const y = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localBaseline);
+    const x = this.coordinateTransformer.convertPxToPt(Tm.e);
+
+    log("PAINT", "DEBUG", "drawing text run with glyphs", {
+      text: run.text.slice(0, 32),
+      glyphIds: glyphRun.glyphIds.slice(0, 10),
+      fontSizePt,
+      x, y
+    });
+
+    const subsetResource = this.fontRegistry.ensureSubsetForGlyphRun(glyphRun, font);
+    this.registerSubsetFont(subsetResource.alias, subsetResource.ref);
+
+    const glyphCommands = drawGlyphRun(glyphRun, subsetResource.subset, x, y, fontSizePt, color);
+    this.commands.push(...glyphCommands);
+
+    if (run.decorations) {
+      this.commands.push(...this.decorationRenderer.render(run, color));
+    }
+  }
+
+  private async drawTextRunLegacy(run: Run, font: FontResource): Promise<void> {
     const color = run.fill ?? { r: 0, g: 0, b: 0, a: 1 };
     let normalizedText = run.text;
     if (run.fontVariant === "small-caps") {
@@ -106,7 +163,6 @@ export class TextRenderer {
     const y = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localBaseline);
     const x = this.coordinateTransformer.convertPxToPt(Tm.e);
 
-    // === diagnóstico cirúrgico: caminho de encoding ===
     log("ENCODING", "INFO", "encoding-path", {
       scheme,
       font: font.baseFont
@@ -144,7 +200,6 @@ export class TextRenderer {
       this.commands.push(...shadowCommands);
     }
 
-    // Now draw the main text
     const sequence: string[] = [
       fillColorCommand(color, this.graphicsStateManager),
       "BT",
@@ -168,10 +223,6 @@ export class TextRenderer {
 
     this.commands.push(...sequence);
 
-    // Low-level PDF check: if the text matrix includes skew/shear components (b or c),
-    // emit a lightweight PDF comment into the content stream with the matrix values.
-    // This allows simple post-generation inspection of the produced PDF bytes to
-    // confirm transforms were applied. Comments begin with '%' and are ignored by PDF renderers.
     try {
       if (Tm && (Tm.b !== 0 || Tm.c !== 0)) {
         const vals = [
@@ -185,69 +236,21 @@ export class TextRenderer {
         this.commands.push(`%PAGYRA_TRANSFORM ${vals}`);
       }
     } catch {
-      // keep warn-and-continue: do not fail rendering for diagnostics
+      // ignore
     }
 
     this.commands.push(...this.decorationRenderer.render(run, color));
   }
 
-  /**
-   * Draw a text run using GlyphRun data (new glyph-level rendering path).
-   */
-  private async drawTextRunWithGlyphs(run: Run): Promise<void> {
-    if (!run.glyphs) return;
-
-    const glyphRun = run.glyphs;
-    const color = run.fill ?? { r: 0, g: 0, b: 0, a: 1 };
-    const fontSizePt = this.coordinateTransformer.convertPxToPt(run.fontSize);
-
-    // Get font resource (for registration in PDF)
-    const font = await this.fontResolver.ensureFontResource({
-      fontFamily: run.fontFamily,
-      fontWeight: run.fontWeight,
-      fontStyle: run.fontStyle,
-      text: run.text
-    });
-    this.registerFont(font);
-
-    // Calculate PDF coordinates
-    const Tm = run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
-    const localBaseline = Tm.f - this.coordinateTransformer.pageOffsetPx;
-    const y = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localBaseline);
-    const x = this.coordinateTransformer.convertPxToPt(Tm.e);
-
-    log("PAINT", "DEBUG", "drawing text run with glyphs", {
-      text: run.text.slice(0, 32),
-      glyphIds: glyphRun.glyphIds.slice(0, 10),
-      fontSizePt,
-      x, y
-    });
-
-    // For now, use a simple approach - create a mock subset
-    // In production, you'd get this from PdfFontRegistry
-    const mockSubset = {
-      name: `/${font.resourceName}`,
-      firstChar: 0,
-      lastChar: Math.max(...glyphRun.glyphIds),
-      widths: [],
-      toUnicodeCMap: "",
-      fontFile: new Uint8Array(0),
-      encodeGlyph: (gid: number) => gid, // Simple 1:1 mapping for now
-    };
-
-    // Generate PDF commands using drawGlyphRun
-    const glyphCommands = drawGlyphRun(glyphRun, mockSubset, x, y, fontSizePt, color);
-    this.commands.push(...glyphCommands);
-
-    // Handle decorations
-    if (run.decorations) {
-      this.commands.push(...this.decorationRenderer.render(run, color));
-    }
-  }
-
   private registerFont(font: FontResource): void {
     if (!this.fonts.has(font.resourceName)) {
       this.fonts.set(font.resourceName, font.ref);
+    }
+  }
+
+  private registerSubsetFont(alias: string, ref: PdfObjectRef): void {
+    if (!this.fonts.has(alias)) {
+      this.fonts.set(alias, ref);
     }
   }
 
@@ -257,5 +260,57 @@ export class TextRenderer {
       fonts: new Map(this.fonts),
     };
   }
+}
 
+function computeGlyphRunFromText(
+  metrics: NonNullable<FontResource["metrics"]>,
+  text: string,
+  fontSize: number,
+  letterSpacing: number,
+  css: { family?: string; weight: number; style: "normal" | "italic" },
+): GlyphRun {
+  const glyphIds: number[] = [];
+  const positions: { x: number; y: number }[] = [];
+  const unitsPerEm = metrics.metrics.unitsPerEm;
+  let x = 0;
+
+  for (let i = 0; i < text.length; i++) {
+    const cp = text.codePointAt(i)!;
+    const gid = metrics.cmap.getGlyphId(cp);
+    glyphIds.push(gid);
+    positions.push({ x, y: 0 });
+    const advanceWidth = metrics.glyphMetrics.get(gid)?.advanceWidth ?? 0;
+    const advancePx = (advanceWidth / unitsPerEm) * fontSize + letterSpacing;
+    x += advancePx;
+    if (cp > 0xffff) i++;
+  }
+
+  const unifiedFont: UnifiedFont = {
+    metrics: {
+      metrics: metrics.metrics,
+      glyphMetrics: metrics.glyphMetrics,
+      cmap: metrics.cmap,
+      headBBox: metrics.headBBox,
+    },
+    program: {
+      sourceFormat: "ttf",
+      unitsPerEm: metrics.metrics.unitsPerEm,
+      glyphCount: metrics.glyphMetrics.size,
+      getGlyphOutline: metrics.getGlyphOutline,
+    },
+    css: {
+      family: css.family ?? "",
+      weight: css.weight,
+      style: css.style,
+    },
+  };
+
+  return {
+    font: unifiedFont,
+    glyphIds,
+    positions,
+    text,
+    fontSize,
+    width: x,
+  };
 }

@@ -210,4 +210,57 @@ describe("TTF GlyphRun Path", () => {
         expect(cmap).toContain("endcmap");
         expect(cmap).toContain("0048"); // 'H' in hex
     });
+
+    it("keeps identity encoding for non-contiguous glyph ids", () => {
+        const mockFont: UnifiedFont = {
+            metrics: {
+                metrics: {
+                    unitsPerEm: 1000,
+                    ascender: 800,
+                    descender: -200,
+                    lineGap: 0,
+                    capHeight: 700,
+                    xHeight: 500,
+                },
+                glyphMetrics: new Map([
+                    [0, { advanceWidth: 400, leftSideBearing: 0 }],
+                    [5, { advanceWidth: 500, leftSideBearing: 0 }],
+                    [9, { advanceWidth: 450, leftSideBearing: 0 }],
+                ]),
+                cmap: {
+                    getGlyphId: () => 0,
+                    hasCodePoint: () => true,
+                    unicodeMap: new Map([
+                        [0x41, 5],
+                        [0x42, 9],
+                    ]),
+                },
+            },
+            program: {
+                sourceFormat: "ttf",
+                unitsPerEm: 1000,
+                glyphCount: 10,
+            },
+            css: {
+                family: "TestFont",
+                weight: 400,
+                style: "normal",
+            },
+        };
+
+        const subset = createPdfFontSubset({
+            baseName: "F10",
+            fontMetrics: mockFont.metrics,
+            fontProgram: mockFont.program,
+            usedGlyphIds: new Set([0, 5, 9]),
+        });
+
+        expect(subset.glyphIds).toEqual([0, 5, 9]);
+        expect(subset.firstChar).toBe(0);
+        expect(subset.lastChar).toBe(9);
+        expect(subset.encodeGlyph(5)).toBe(5);
+        expect(subset.encodeGlyph(9)).toBe(9);
+        expect(subset.toUnicodeCMap).toContain("<0005>");
+        expect(subset.toUnicodeCMap).toContain("<0009>");
+    });
 });
