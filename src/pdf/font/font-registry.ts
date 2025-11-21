@@ -70,7 +70,7 @@ export class FontRegistry {
     }
 
     if (this.embedder && this.fontConfig) {
-      const familyStack = family ? parseFamilyList(family) : this.fontConfig.defaultStack;
+      const familyStack = this.buildAliasedFamilyStack(family);
       const embedded = this.embedder.ensureFont(familyStack, normalizedWeight);
       if (embedded) {
         const resource: FontResource = {
@@ -111,20 +111,11 @@ export class FontRegistry {
     }
 
     if (this.embedder && this.fontConfig) {
-      const familyStack = family ? parseFamilyList(family) : this.fontConfig.defaultStack;
-
-      // Resolve aliases for each family in the stack to ensure we find the embedded font
-      // e.g. "Times New Roman" -> ["Times New Roman", "Tinos"]
-      const aliasedStack = familyStack.flatMap(f => {
-        const normalized = normalizeToken(f);
-        const alias = BASE_FONT_ALIASES.get(normalized);
-        const generic = GENERIC_FAMILIES.get(normalized);
-        return [f, alias, generic].filter((x): x is string => !!x);
-      });
+      const familyStack = this.buildAliasedFamilyStack(family);
 
       // Note: embedder.ensureFont is synchronous in its implementation (it uses pre-loaded data)
       // even though the interface might not explicitly say so, we know it returns EmbeddedFont | null immediately.
-      const embedded = this.embedder.ensureFont(aliasedStack, normalizedWeight);
+      const embedded = this.embedder.ensureFont(familyStack, normalizedWeight);
       if (embedded) {
         const resource: FontResource = {
           baseFont: embedded.baseFont,
@@ -143,6 +134,21 @@ export class FontRegistry {
     return resolved;
   }
 
+  /**
+   * Build a family stack enriched with aliases and generic fallbacks,
+   * e.g. "Times New Roman" -> ["Times New Roman", "Tinos", "serif"] so the
+   * embedder can find our built-in faces.
+   */
+  private buildAliasedFamilyStack(family: string | undefined): string[] {
+    const baseStack = family ? parseFamilyList(family) : this.fontConfig?.defaultStack ?? [];
+    return baseStack.flatMap((f) => {
+      const normalized = normalizeToken(f);
+      const alias = BASE_FONT_ALIASES.get(normalized);
+      const generic = GENERIC_FAMILIES.get(normalized);
+      return [f, alias, generic].filter((x): x is string => !!x);
+    });
+  }
+
   private ensureStandardFontResource(family: string | undefined, weight: number, style?: string): FontResource {
     const candidates = [...parseFamilyList(family), DEFAULT_FONT];
     for (const candidate of candidates) {
@@ -156,7 +162,7 @@ export class FontRegistry {
         this.fontsByFamilyWeight.set(this.makeFamilyKey(family, weight, style), existing);
         return existing;
       }
-      const baseFont = this.resolveBaseFont(normalizedCandidate, weight, style);
+      const baseFont = this.resolveBaseFont(normalizedCandidate, weight, style, this.embedder !== null);
       const resource = this.ensureBaseFontResource(baseFont);
       this.fontsByFamilyWeight.set(candidateKey, resource);
       this.fontsByFamilyWeight.set(this.makeFamilyKey(candidate, weight, style), resource);
@@ -171,7 +177,7 @@ export class FontRegistry {
     return fallback;
   }
 
-  private resolveBaseFont(family: string, weight: number, style?: string): string {
+  private resolveBaseFont(family: string, weight: number, style: string | undefined, allowEmbeddedAlias: boolean): string {
     const faces = this.facesByFamily.get(family);
     if (faces && faces.length > 0) {
       const selectedFace = selectFaceForWeight(faces, weight);
@@ -182,9 +188,19 @@ export class FontRegistry {
         }
       }
     }
+    if (!allowEmbeddedAlias) {
+      const base14Fallback = BASE14_FALLBACKS.get(family);
+      if (base14Fallback) {
+        return this.applyWeightToBaseFont(base14Fallback, weight, style);
+      }
+    }
     const alias = BASE_FONT_ALIASES.get(family);
     if (alias) {
-      return this.applyWeightToBaseFont(alias, weight, style);
+      const isAliasBase14 = BASE14_VARIANT_LOOKUP.has(alias.toLowerCase());
+      // When we can't embed fonts, avoid mapping to non-Base14 aliases (e.g. Tinos)
+      if (allowEmbeddedAlias || isAliasBase14) {
+        return this.applyWeightToBaseFont(alias, weight, style);
+      }
     }
     const generic = GENERIC_FAMILIES.get(family);
     if (generic) {
@@ -374,6 +390,21 @@ for (const [family, variants] of Object.entries(BASE14_FAMILY_VARIANTS) as Array
     BASE14_VARIANT_LOOKUP.set(name.toLowerCase(), { family, variant });
   }
 }
+
+const BASE14_FALLBACKS = new Map<string, string>([
+  ["times", "Times-Roman"],
+  ["times-roman", "Times-Roman"],
+  ["times new roman", "Times-Roman"],
+  ["georgia", "Times-Roman"],
+  ["serif", "Times-Roman"],
+  ["helvetica", "Helvetica"],
+  ["arial", "Helvetica"],
+  ["sans-serif", "Helvetica"],
+  ["system-ui", "Helvetica"],
+  ["courier", "Courier"],
+  ["courier new", "Courier"],
+  ["monospace", "Courier"],
+]);
 
 function parseFamilyList(value: string | undefined): string[] {
   if (!value) {

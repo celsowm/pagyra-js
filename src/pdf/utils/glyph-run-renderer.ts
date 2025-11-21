@@ -32,12 +32,18 @@ export function drawGlyphRun(
     const ptPerPx = fontSizePt / run.fontSize;
     const unitsPerEm = run.font.metrics.metrics.unitsPerEm;
     const glyphWidths = run.font.metrics.glyphMetrics;
-    const codePoints = Array.from(run.text, (ch) => ch.codePointAt(0) ?? 0);
+    const encodeGlyphId = (gid: number): string => {
+        const charCode = subset.encodeGlyph(gid);
+        const hex = charCode.toString(16).toUpperCase();
+        // PDF expects an even number of hex digits; use at least 2 bytes for Identity-H
+        const evenHex = hex.length % 2 === 0 ? hex : `0${hex}`;
+        return evenHex.length < 4 ? evenHex.padStart(4, "0") : evenHex;
+    };
     const elements: (string | number)[] = [];
 
     for (let i = 0; i < run.glyphIds.length; i++) {
-        const cp = codePoints[i] ?? 0;
-        const hexCode = cp.toString(16).padStart(4, "0").toUpperCase();
+        const gid = run.glyphIds[i];
+        const hexCode = encodeGlyphId(gid);
         elements.push(`<${hexCode}>`);
 
         if (i < run.glyphIds.length - 1) {
@@ -45,7 +51,6 @@ export function drawGlyphRun(
             const nextPos = run.positions[i + 1]?.x ?? currentPos;
             const desiredAdvancePx = nextPos - currentPos;
 
-            const gid = run.glyphIds[i];
             const gm = glyphWidths.get(gid);
             const defaultAdvancePx = ((gm?.advanceWidth ?? 0) / unitsPerEm) * run.fontSize;
 

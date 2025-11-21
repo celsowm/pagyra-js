@@ -5,6 +5,7 @@ import { PdfDocument } from "../src/pdf/primitives/pdf-document.js";
 import { FontRegistry } from "../src/pdf/font/font-registry.js";
 import { ComputedStyle } from "../src/css/style.js";
 import { estimateLineWidth } from "../src/layout/utils/text-metrics.js";
+import { loadBuiltinFontConfig } from "../src/pdf/font/builtin-fonts.js";
 
 function collectRuns(box: RenderBox): Run[] {
   const runs: Run[] = [...box.textRuns];
@@ -102,6 +103,21 @@ describe("bold text support", () => {
     expect(bold.baseFont).toBe("Times-Bold");
   });
 
+  it("uses embedded aliases in the async resolution path", async () => {
+    const fontConfig = await loadBuiltinFontConfig();
+    if (!fontConfig) {
+      throw new Error("Builtin font config should be available in tests");
+    }
+    const doc = new PdfDocument();
+    const registry = new FontRegistry(doc, { fontFaces: [] });
+    await registry.initializeEmbedder(fontConfig);
+
+    const resource = await registry.ensureFontResource("Times New Roman", 400);
+
+    expect(resource.isBase14).toBe(false);
+    expect(resource.baseFont.toLowerCase()).toContain("tinos");
+  });
+
   it("estimates bold text as wider than regular weight", () => {
     const normalStyle = new ComputedStyle({ fontWeight: 400, fontSize: 16 });
     const boldStyle = new ComputedStyle({ fontWeight: 700, fontSize: 16 });
@@ -119,8 +135,8 @@ describe("italic text support", () => {
     const normal = registry.ensureFontResourceSync(undefined, 400);
     const italic = registry.ensureFontResourceSync(undefined, 400, "italic");
 
-    expect(normal.baseFont).toBe("Helvetica");
-    expect(italic.baseFont).toBe("Helvetica-Oblique");
+    expect(normal.baseFont).toBe("Times-Roman");
+    expect(italic.baseFont).toBe("Times-Italic");
   });
 
   it("applies font-style from CSS rules into render runs", async () => {
