@@ -17,7 +17,7 @@ export interface EmbeddedFont {
 }
 
 interface FontDescriptor {
-  readonly Type: "FontDescriptor";
+  readonly Type: "/FontDescriptor";
   readonly FontName: string;
   readonly Flags: number;
   readonly FontBBox: readonly [number, number, number, number];
@@ -31,21 +31,21 @@ interface FontDescriptor {
 }
 
 interface FontDictionary {
-  readonly Type: "Font";
-  readonly Subtype: "Type0";
+  readonly Type: "/Font";
+  readonly Subtype: "/Type0";
   readonly BaseFont: string;
-  readonly Encoding: "Identity-H";
+  readonly Encoding: "/Identity-H";
   readonly DescendantFonts: readonly [PdfObjectRef];
   readonly ToUnicode: PdfObjectRef;
 }
 
 interface CIDFontDictionary {
-  readonly Type: "Font";
-  readonly Subtype: "CIDFontType2";
+  readonly Type: "/Font";
+  readonly Subtype: "/CIDFontType2";
   readonly BaseFont: string;
   readonly CIDSystemInfo: {
-    readonly Registry: "Adobe";
-    readonly Ordering: "Identity";
+    readonly Registry: string; // emitted as literal strings "(Adobe)"
+    readonly Ordering: string; // emitted as literal strings "(Identity)"
     readonly Supplement: 0;
   };
   readonly FontDescriptor: PdfObjectRef;
@@ -211,10 +211,11 @@ export class FontEmbedder {
     // Since we can't easily change the interface, we'll assume face.data is the source.
     // If it was converted to TTF in initialize, face.data (casted) holds the TTF buffer.
     const fullFontData = new Uint8Array(face.data!);
-    const fontFileRef = this.doc.registerStream(fullFontData, { Length1: fullFontData.length.toString() });
+    // FontFile2 streams require only /Length (PdfDocument adds it); avoid Type1-specific Length1 headers.
+    const fontFileRef = this.doc.registerStream(fullFontData, {});
 
     const fontDescriptor: FontDescriptor = {
-      Type: "FontDescriptor",
+      Type: "/FontDescriptor",
       FontName: `/${face.name}`,
       Flags: computePdfFlagsFromFace(face),
       FontBBox: fontBBox,
@@ -233,13 +234,14 @@ export class FontEmbedder {
     const { DW, W } = computeWidths(metrics);
 
     // Create CID font dictionary (include DW)
+    // CID fonts must declare string-valued CIDSystemInfo entries per PDF spec.
     const cidFontDict: CIDFontDictionary = {
-      Type: "Font",
-      Subtype: "CIDFontType2",
+      Type: "/Font",
+      Subtype: "/CIDFontType2",
       BaseFont: `/${face.name}`,
       CIDSystemInfo: {
-        Registry: "Adobe",
-        Ordering: "Identity",
+        Registry: "(Adobe)",
+        Ordering: "(Identity)",
         Supplement: 0
       },
       FontDescriptor: fontDescriptorRef,
@@ -254,11 +256,13 @@ export class FontEmbedder {
     const toUnicodeRef = this.createToUnicodeCMap(metrics);
 
     // Create Type0 font dictionary
+    // Per PDF spec, Type0 BaseFont should include the CMap suffix (e.g. "-Identity-H")
+    // to make the composite font name unambiguous for parsers/renderers.
     const type0Font: FontDictionary = {
-      Type: "Font",
-      Subtype: "Type0",
-      BaseFont: `/${face.name}`,
-      Encoding: "Identity-H",
+      Type: "/Font",
+      Subtype: "/Type0",
+      BaseFont: `/${face.name}-Identity-H`,
+      Encoding: "/Identity-H",
       DescendantFonts: [cidFontRef],
       ToUnicode: toUnicodeRef
     };
