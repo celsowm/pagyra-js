@@ -132,12 +132,11 @@ describe("End-to-End TTF GlyphRun Pipeline", () => {
         // Log actual commands for debugging
         console.log("Generated commands:", commands);
 
-        // Verify glyph encoding: H=1, e=2, l=3, l=3, o=4
+        // Verify glyph encoding: UTF-16BE for "Hello" (0048 0065 006C 006C 006F)
         const hexCommand = commands.find(cmd => cmd.includes("Tj"));
         console.log("Hex command:", hexCommand);
         expect(hexCommand).toBeDefined();
-        expect(hexCommand).toContain("<");
-        expect(hexCommand).toContain("> Tj");
+        expect(hexCommand).toContain("<00480065006C006C006F> Tj");
 
         expect(commands).toContain("ET");
 

@@ -68,10 +68,16 @@ export function computeWidths(metrics: TtfFontMetrics): { DW: number; W: CIDFont
   const computeDW = (arr: number[]) => {
     const freq = new Map<number, number>();
     for (const v of arr) {
+      // Skip zero widths; a DW of 0 breaks Identity-H rendering in some viewers.
+      if (v === 0) continue;
       freq.set(v, (freq.get(v) ?? 0) + 1);
     }
-    let best = arr[0] || 0;
-    let bestCount = 0;
+    // Fallback to 1000 if we only saw zeros.
+    if (freq.size === 0) {
+      return 1000;
+    }
+    let best = 1000;
+    let bestCount = -1;
     for (const [v, c] of freq.entries()) {
       if (c > bestCount || (c === bestCount && v < best)) {
         best = v;
@@ -230,7 +236,7 @@ export class FontEmbedder {
     const cidFontDict: CIDFontDictionary = {
       Type: "Font",
       Subtype: "CIDFontType2",
-      BaseFont: face.name,
+      BaseFont: `/${face.name}`,
       CIDSystemInfo: {
         Registry: "Adobe",
         Ordering: "Identity",
@@ -251,7 +257,7 @@ export class FontEmbedder {
     const type0Font: FontDictionary = {
       Type: "Font",
       Subtype: "Type0",
-      BaseFont: `${face.name}`,
+      BaseFont: `/${face.name}`,
       Encoding: "Identity-H",
       DescendantFonts: [cidFontRef],
       ToUnicode: toUnicodeRef

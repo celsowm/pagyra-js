@@ -51,7 +51,7 @@ export class PdfDocument {
   private readonly extGStates = new Map<string, { ref: PdfObjectRef; alpha: number }>();
   private readonly shadings = new Map<string, { ref: PdfObjectRef; dict: string }>();
   private readonly patterns = new Map<string, { ref: PdfObjectRef; dict: string }>();
-  private readonly registeredObjects: Array<{ ref: PdfObjectRef; value: string }> = [];
+  private readonly registeredObjects: Array<{ ref: PdfObjectRef; value: unknown }> = [];
   private readonly registeredStreams: Array<{ ref: PdfObjectRef; data: Uint8Array; headers: Record<string, string> }> = [];
 
   constructor(private readonly metadata: PdfMetadata = {}) {}
@@ -200,9 +200,9 @@ export class PdfDocument {
   }
 
   register(value: string | Record<string, unknown> | readonly unknown[] | object): PdfObjectRef {
-    const body = typeof value === 'string' ? value : this.serializeValue(value);
     const ref = { objectNumber: -1 };
-    this.registeredObjects.push({ ref, value: body });
+    // Store the raw value; serialize later so object numbers on referenced refs stay up to date.
+    this.registeredObjects.push({ ref, value });
     return ref;
   }
 
@@ -217,15 +217,37 @@ export class PdfDocument {
 
     const header = Buffer.from("%PDF-1.4\n", "binary");
     let currentObjectNumber = 1;
-    const pushObject = (body: string | Buffer, ref?: PdfObjectRef | null): PdfObjectRef => {
-      const objectRef = ref ?? { objectNumber: 0 };
-      if (objectRef.objectNumber <= 0) {
-        objectRef.objectNumber = currentObjectNumber++;
+    const ensureRefNumber = (ref: PdfObjectRef): PdfObjectRef => {
+      if (ref.objectNumber <= 0) {
+        ref.objectNumber = currentObjectNumber++;
+      } else if (ref.objectNumber >= currentObjectNumber) {
+        currentObjectNumber = ref.objectNumber + 1;
       }
-      const payload = typeof body === "string" ? Buffer.from(body, "binary") : body;
+      return ref;
+    };
+
+    const pushObject = (body: string | Buffer | unknown, ref?: PdfObjectRef | null): PdfObjectRef => {
+      const objectRef = ensureRefNumber(ref ?? { objectNumber: 0 });
+      let payload: Buffer;
+      if (typeof body === "string") {
+        payload = Buffer.from(body, "binary");
+      } else if (body instanceof Buffer) {
+        payload = body;
+      } else {
+        const serialized = this.serializeValue(body as Record<string, unknown> | readonly unknown[]);
+        payload = Buffer.from(serialized, "binary");
+      }
       objects.push({ ref: objectRef, body: payload });
       return objectRef;
     };
+
+    // Reserve object numbers for streams/objects that may be referenced by others
+    for (const stream of this.registeredStreams) {
+      ensureRefNumber(stream.ref);
+    }
+    for (const obj of this.registeredObjects) {
+      ensureRefNumber(obj.ref);
+    }
 
     for (const font of this.fonts.values()) {
       font.objectRef = pushObject(serializeType1Font(font.baseFont), font.objectRef);
@@ -262,14 +284,14 @@ export class PdfDocument {
       // The registerImage path already pushes the sMask grayscale image first (when provided), so the reference should be valid.
     }
 
-    for (const obj of this.registeredObjects) {
-      obj.ref = pushObject(obj.value, obj.ref);
-    }
-
     for (const stream of this.registeredStreams) {
-      const entries = Object.entries(stream.headers).map(([k, v]) => `/${k} ${v}`).concat([`/Length ${stream.data.length}`]);
+      const entries = Object.entries(stream.headers).map(([k, v]) => `/${k} ${v}`);
       const body = serializeStream(stream.data, entries);
       stream.ref = pushObject(body, stream.ref);
+    }
+
+    for (const obj of this.registeredObjects) {
+      obj.ref = pushObject(obj.value, obj.ref);
     }
 
     const pageRefs: PdfObjectRef[] = [];
