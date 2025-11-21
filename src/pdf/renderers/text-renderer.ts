@@ -14,6 +14,10 @@ import { drawGlyphRun } from "../utils/glyph-run-renderer.js";
 import type { GlyphRun } from "../../layout/text-run.js";
 import type { UnifiedFont } from "../../fonts/types.js";
 
+const PINK = "\x1b[38;5;205m";
+const ORANGE = "\x1b[38;5;208m";
+const RESET_COLOR = "\x1b[0m";
+
 export interface TextRendererResult {
   readonly commands: string[];
   readonly fonts: Map<string, PdfObjectRef>;
@@ -126,6 +130,11 @@ export class TextRenderer {
       return;
     }
 
+    log("PAINT", "INFO", `${PINK}USING GLYPH RUN${RESET_COLOR}`, {
+      text: run.text.slice(0, 64),
+      glyphCount: glyphRun.glyphIds.length,
+    });
+
     const Tm = run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
     const localBaseline = Tm.f - this.coordinateTransformer.pageOffsetPx;
     const y = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localBaseline);
@@ -150,6 +159,9 @@ export class TextRenderer {
   }
 
   private async drawTextRunLegacy(run: Run, font: FontResource): Promise<void> {
+    log("PAINT", "INFO", `${ORANGE}USING LEGACY TEXT RUN${RESET_COLOR}`, {
+      text: run.text.slice(0, 64),
+    });
     const color = run.fill ?? { r: 0, g: 0, b: 0, a: 1 };
     let normalizedText = run.text;
     if (run.fontVariant === "small-caps") {
