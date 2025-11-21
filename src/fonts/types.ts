@@ -1,4 +1,4 @@
-import type { TtfMetrics, GlyphMetrics, CmapData, GlyphOutlineCmd } from '../types/fonts.js';
+import type { TtfMetrics, GlyphMetrics, CmapData, GlyphOutlineCmd, KerningMap } from '../types/fonts.js';
 
 // Raw parsed font (low-level table data)
 export interface ParsedFont {
@@ -16,6 +16,7 @@ export interface FontMetrics {
   readonly glyphMetrics: ReadonlyMap<number, GlyphMetrics>;
   readonly cmap: CmapData;
   readonly headBBox?: readonly [number, number, number, number];
+  readonly kerning?: KerningMap;
 }
 
 /**

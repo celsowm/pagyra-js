@@ -27,23 +27,44 @@ export function drawGlyphRun(
     // Set text position
     commands.push(`${xPt.toFixed(2)} ${yPt.toFixed(2)} Td`);
 
-    // Identity-H expects UTF-16BE code units; the font's cmap maps Unicode -> glyph ID
-    const encodedChars: string[] = [];
-    for (let i = 0; i < run.text.length; i++) {
-        const codePoint = run.text.codePointAt(i);
-        if (codePoint === undefined) continue;
+    // Build TJ array with per-glyph kerning/letter-spacing adjustments.
+    // Positions are provided in layout px units; scale to PDF points.
+    const ptPerPx = fontSizePt / run.fontSize;
+    const unitsPerEm = run.font.metrics.metrics.unitsPerEm;
+    const glyphWidths = run.font.metrics.glyphMetrics;
+    const codePoints = Array.from(run.text, (ch) => ch.codePointAt(0) ?? 0);
+    const elements: (string | number)[] = [];
 
-        // Convert Unicode code point to 2-byte hex (Identity-H uses 16-bit char codes)
-        const hexCode = codePoint.toString(16).padStart(4, "0").toUpperCase();
-        encodedChars.push(hexCode);
+    for (let i = 0; i < run.glyphIds.length; i++) {
+        const cp = codePoints[i] ?? 0;
+        const hexCode = cp.toString(16).padStart(4, "0").toUpperCase();
+        elements.push(`<${hexCode}>`);
 
-        // Skip next char if this was a surrogate pair
-        if (codePoint > 0xFFFF) i++;
+        if (i < run.glyphIds.length - 1) {
+            const currentPos = run.positions[i]?.x ?? 0;
+            const nextPos = run.positions[i + 1]?.x ?? currentPos;
+            const desiredAdvancePx = nextPos - currentPos;
+
+            const gid = run.glyphIds[i];
+            const gm = glyphWidths.get(gid);
+            const defaultAdvancePx = ((gm?.advanceWidth ?? 0) / unitsPerEm) * run.fontSize;
+
+            const deltaPx = desiredAdvancePx - defaultAdvancePx;
+            if (Math.abs(deltaPx) > 1e-6) {
+                const deltaPt = deltaPx * ptPerPx;
+                // TJ numbers are in thousandths of text space; positive numbers tighten spacing.
+                const adjustment = -deltaPt / fontSizePt * 1000;
+                if (Math.abs(adjustment) > 1e-6) {
+                    elements.push(adjustment);
+                }
+            }
+        }
     }
 
-    // Emit as hex string
-    const hexString = encodedChars.join("");
-    commands.push(`<${hexString}> Tj`);
+    const tjContent = elements
+        .map((el) => (typeof el === "number" ? formatPdfNumber(el) : el))
+        .join(" ");
+    commands.push(`[${tjContent}] TJ`);
 
     // End text
     commands.push("ET");

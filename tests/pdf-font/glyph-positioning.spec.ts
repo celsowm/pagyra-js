@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { computeGlyphRun } from "../../src/pdf/utils/node-text-run-factory.js";
 import type { UnifiedFont } from "../../src/fonts/types.js";
 
-const mockFont = (advanceWidth: number): UnifiedFont => ({
+const mockFont = (advanceWidth: number, kerning?: Map<number, Map<number, number>>): UnifiedFont => ({
   metrics: {
     metrics: {
       unitsPerEm: 1000,
@@ -18,6 +18,7 @@ const mockFont = (advanceWidth: number): UnifiedFont => ({
       hasCodePoint: () => true,
       unicodeMap: new Map([[65, 1]]), // 'A'
     },
+    kerning,
   },
   program: {
     sourceFormat: "ttf",
@@ -34,5 +35,16 @@ describe("computeGlyphRun", () => {
     expect(run.glyphIds).toEqual([1, 1, 1]);
     expect(run.positions.map((p) => p.x)).toEqual([0, 7, 14]); // 5px advance + 2px spacing
     expect(run.width).toBeCloseTo(19); // 3 advances (5px each) + two spacings (2px each)
+  });
+
+  it("applies kerning adjustments between glyphs", () => {
+    const kerning = new Map<number, Map<number, number>>();
+    kerning.set(1, new Map<number, number>([[1, -50]])); // tighten pair by 50 units
+    const font = mockFont(500, kerning);
+    const run = computeGlyphRun(font, "AA", 10, 0);
+
+    // advance = 5px; kerning = -0.5px applied before second glyph
+    expect(run.positions.map((p) => p.x)).toEqual([0, 4.5]);
+    expect(run.width).toBeCloseTo(9.5);
   });
 });

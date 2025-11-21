@@ -26,6 +26,8 @@ export interface GlyphMetrics {
   readonly leftSideBearing: number;
 }
 
+export type KerningMap = Map<number, Map<number, number>>;
+
 export interface CmapData {
   readonly getGlyphId: (codePoint: number) => number;
   readonly hasCodePoint: (codePoint: number) => boolean;
@@ -51,6 +53,10 @@ export class TtfFontMetrics {
      * Present to prepare the API for future glyf / CFF parsing; placeholder
      * implementations should return null when outlines aren't available.
      */
-    public readonly getGlyphOutline?: (gid: number) => GlyphOutlineCmd[] | null
+    public readonly getGlyphOutline?: (gid: number) => GlyphOutlineCmd[] | null,
+    /**
+     * Optional kerning map (left GID -> right GID -> adjustment in font units).
+     */
+    public readonly kerning?: KerningMap
   ) {}
 }

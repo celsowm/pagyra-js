@@ -8,6 +8,7 @@ import { multiplyMatrices } from "../../geometry/matrix.js";
 import type { FontResolver } from "../../fonts/types.js";
 import type { GlyphRun } from "../../layout/text-run.js";
 import type { UnifiedFont } from "../../fonts/types.js";
+import type { KerningMap } from "../../types/fonts.js";
 
 export interface NodeTextRunContext {
   node: LayoutNode;
@@ -108,6 +109,9 @@ export function computeGlyphRun(font: UnifiedFont, text: string, fontSize: numbe
   const glyphIds: number[] = [];
   const positions: { x: number; y: number }[] = [];
   let currentX = 0;
+  const kerning = font.metrics.kerning;
+  const unitsPerEm = font.metrics.metrics.unitsPerEm;
+  let prevGid: number | null = null;
 
   for (let i = 0; i < text.length; i++) {
     const codePoint = text.codePointAt(i) ?? 0;
@@ -119,8 +123,15 @@ export function computeGlyphRun(font: UnifiedFont, text: string, fontSize: numbe
     const glyphMetric = font.metrics.glyphMetrics.get(glyphId);
     const advanceWidth = glyphMetric?.advanceWidth ?? 0;
 
+    // Apply kerning adjustment from previous glyph if present
+    if (prevGid !== null && kerning) {
+      const kernAdjust = getKerningAdjustment(kerning, prevGid, glyphId);
+      if (kernAdjust !== 0) {
+        currentX += (kernAdjust / unitsPerEm) * fontSize;
+      }
+    }
+
     // Scale advance width to font size
-    const unitsPerEm = font.metrics.metrics.unitsPerEm;
     const scaledAdvance = (advanceWidth / unitsPerEm) * fontSize;
 
     positions.push({ x: currentX, y: 0 });
@@ -135,6 +146,8 @@ export function computeGlyphRun(font: UnifiedFont, text: string, fontSize: numbe
     if (codePoint > 0xFFFF) {
       i++;
     }
+
+    prevGid = glyphId;
   }
 
   return {
@@ -145,4 +158,10 @@ export function computeGlyphRun(font: UnifiedFont, text: string, fontSize: numbe
     fontSize,
     width: currentX,
   };
+}
+
+function getKerningAdjustment(map: KerningMap, left: number, right: number): number {
+  const rightMap = map.get(left);
+  if (!rightMap) return 0;
+  return rightMap.get(right) ?? 0;
 }
