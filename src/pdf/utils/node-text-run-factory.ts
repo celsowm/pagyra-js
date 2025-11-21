@@ -7,6 +7,7 @@ import { svgMatrixToPdf } from "../transform-adapter.js";
 import { multiplyMatrices } from "../../geometry/matrix.js";
 import type { FontResolver } from "../../fonts/types.js";
 import type { GlyphRun } from "../../layout/text-run.js";
+import type { UnifiedFont } from "../../fonts/types.js";
 
 export interface NodeTextRunContext {
   node: LayoutNode;
@@ -89,42 +90,7 @@ function enrichTextRunsWithGlyphs(runs: Run[], fontResolver: FontResolver): void
       }
 
       // Map Unicode text to glyph IDs
-      const glyphIds: number[] = [];
-      const positions: { x: number; y: number }[] = [];
-      let currentX = 0;
-
-      for (let i = 0; i < run.text.length; i++) {
-        const codePoint = run.text.codePointAt(i) ?? 0;
-        const glyphId = font.metrics.cmap.getGlyphId(codePoint);
-
-        glyphIds.push(glyphId);
-
-        // Get advance width for this glyph
-        const glyphMetric = font.metrics.glyphMetrics.get(glyphId);
-        const advanceWidth = glyphMetric?.advanceWidth ?? 0;
-
-        // Scale advance width to font size
-        const unitsPerEm = font.metrics.metrics.unitsPerEm;
-        const scaledAdvance = (advanceWidth / unitsPerEm) * run.fontSize;
-
-        positions.push({ x: currentX, y: 0 });
-        currentX += scaledAdvance;
-
-        // Handle surrogate pairs (advance i if this was a surrogate pair)
-        if (codePoint > 0xFFFF) {
-          i++;
-        }
-      }
-
-      // Attach GlyphRun to the Run object
-      const glyphRun: GlyphRun = {
-        font,
-        glyphIds,
-        positions,
-        text: run.text,
-        fontSize: run.fontSize,
-        width: currentX,
-      };
+      const glyphRun = computeGlyphRun(font, run.text, run.fontSize, run.letterSpacing ?? 0);
 
       run.glyphs = glyphRun;
     } catch (error) {
@@ -132,4 +98,51 @@ function enrichTextRunsWithGlyphs(runs: Run[], fontResolver: FontResolver): void
       console.warn(`Failed to create GlyphRun for text "${run.text}": ${error}`);
     }
   }
+}
+
+/**
+ * Map text to glyph IDs and compute positions with optional letter spacing.
+ * Letter spacing is added between glyphs (not after the last glyph) in CSS px units.
+ */
+export function computeGlyphRun(font: UnifiedFont, text: string, fontSize: number, letterSpacing: number): GlyphRun {
+  const glyphIds: number[] = [];
+  const positions: { x: number; y: number }[] = [];
+  let currentX = 0;
+
+  for (let i = 0; i < text.length; i++) {
+    const codePoint = text.codePointAt(i) ?? 0;
+    const glyphId = font.metrics.cmap.getGlyphId(codePoint);
+
+    glyphIds.push(glyphId);
+
+    // Get advance width for this glyph
+    const glyphMetric = font.metrics.glyphMetrics.get(glyphId);
+    const advanceWidth = glyphMetric?.advanceWidth ?? 0;
+
+    // Scale advance width to font size
+    const unitsPerEm = font.metrics.metrics.unitsPerEm;
+    const scaledAdvance = (advanceWidth / unitsPerEm) * fontSize;
+
+    positions.push({ x: currentX, y: 0 });
+    currentX += scaledAdvance;
+
+    // Apply letter-spacing between glyphs
+    if (i < text.length - 1) {
+      currentX += letterSpacing;
+    }
+
+    // Handle surrogate pairs (advance i if this was a surrogate pair)
+    if (codePoint > 0xFFFF) {
+      i++;
+    }
+  }
+
+  return {
+    font,
+    glyphIds,
+    positions,
+    text,
+    fontSize,
+    width: currentX,
+  };
 }

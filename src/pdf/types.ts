@@ -142,6 +142,7 @@ export interface Run {
   fontVariant?: string;
   fill: RGBA;
   lineMatrix: TextMatrix;
+  letterSpacing?: number;
   glyphs?: GlyphRun;
   wordSpacing?: number;
   decorations?: Decorations;

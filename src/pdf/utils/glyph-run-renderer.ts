@@ -27,7 +27,7 @@ export function drawGlyphRun(
     // Set text position
     commands.push(`${xPt.toFixed(2)} ${yPt.toFixed(2)} Td`);
 
-    // Identity-H expects UTF-16BE code units; let the font's cmap map Unicode -> glyph ID
+    // Identity-H expects UTF-16BE code units; the font's cmap maps Unicode -> glyph ID
     const encodedChars: string[] = [];
     for (let i = 0; i < run.text.length; i++) {
         const codePoint = run.text.codePointAt(i);

@@ -18,6 +18,7 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
   const fontWeight = node.style.fontWeight;
   const fontStyle = node.style.fontStyle;
   const fontVariant = node.style.fontVariant;
+  const letterSpacing = node.style.letterSpacing;
 
 
   // Se o layout calculou caixas de linha, use-as.
@@ -67,6 +68,7 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
         fontStyle,
         fontVariant,
         fill: defaultColor,
+        letterSpacing,
         lineMatrix: baseLineMatrix,
         wordSpacing,
         decorations: decoration ? { ...decoration } : undefined,
@@ -96,6 +98,7 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
       fontWeight,
       fontStyle,
       fontVariant,
+      letterSpacing,
       fill: defaultColor,
       lineMatrix: baseLineMatrix,
       decorations: decoration ? { ...decoration } : undefined,
