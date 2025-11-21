@@ -249,9 +249,8 @@ export class TextRenderer {
   }
 
   private registerSubsetFont(alias: string, ref: PdfObjectRef): void {
-    if (!this.fonts.has(alias)) {
-      this.fonts.set(alias, ref);
-    }
+    // Always update to the latest reference so refreshed subsets are used.
+    this.fonts.set(alias, ref);
   }
 
   getResult(): TextRendererResult {

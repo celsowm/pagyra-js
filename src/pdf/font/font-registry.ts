@@ -160,11 +160,12 @@ export class FontRegistry {
     const baseAlias = handle.subset.name.startsWith("/") ? handle.subset.name.slice(1) : handle.subset.name;
     const alias = `GS${baseAlias}`;
     const existing = this.subsetResources.get(alias);
-    if (existing) {
+    const subsetForUse: PdfFontSubset = { ...handle.subset, name: `/${alias}` };
+
+    if (existing && this.subsetMatches(existing.subset, subsetForUse)) {
       return existing;
     }
 
-    const subsetForUse: PdfFontSubset = { ...handle.subset, name: `/${alias}` };
     const ref = this.materializeSubsetFont(subsetForUse, font, handle.unifiedFont);
     const resource: SubsetFontResource = { alias, subset: subsetForUse, ref, font };
     this.subsetResources.set(alias, resource);
@@ -429,6 +430,18 @@ export class FontRegistry {
     this.fontConfig = fontConfig;
     this.embedder = new FontEmbedder(fontConfig, this.doc);
     log("FONT", "DEBUG", "font config set", { fontConfig });
+  }
+
+  private subsetMatches(current: PdfFontSubset, next: PdfFontSubset): boolean {
+    if (current.glyphIds.length !== next.glyphIds.length) {
+      return false;
+    }
+    for (let i = 0; i < current.glyphIds.length; i++) {
+      if (current.glyphIds[i] !== next.glyphIds[i]) {
+        return false;
+      }
+    }
+    return true;
   }
 }
 

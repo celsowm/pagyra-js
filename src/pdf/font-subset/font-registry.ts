@@ -66,16 +66,21 @@ export class PdfFontRegistry {
     ensureSubsetFor(font: UnifiedFont): PdfFontHandle {
         const key = this.fontKey(font);
 
+        // Get the collected glyph IDs for this font
+        const usedGlyphIds = this.glyphUsage.get(key) ?? new Set<number>([0]);
+        if (!this.glyphUsage.has(key)) {
+            this.glyphUsage.set(key, usedGlyphIds);
+        }
+        usedGlyphIds.add(0);
+
         const existing = this.fonts.get(key);
-        if (existing) {
+        if (existing && this.subsetCoversGlyphs(existing.subset, usedGlyphIds)) {
             return existing;
         }
 
-        // Get the collected glyph IDs for this font
-        const usedGlyphIds = this.glyphUsage.get(key) ?? new Set([0]);
-
-        // Create the subset
-        const baseName = `F${++this.fontCounter}`;
+        // Re-use the prior base name when refreshing a subset so aliases stay stable.
+        const existingBaseName = existing?.subset.name.startsWith("/") ? existing.subset.name.slice(1) : undefined;
+        const baseName = existingBaseName ?? `F${++this.fontCounter}`;
         const subset = createPdfFontSubset({
             baseName,
             fontMetrics: font.metrics,
@@ -91,6 +96,19 @@ export class PdfFontRegistry {
 
         this.fonts.set(key, handle);
         return handle;
+    }
+
+    /**
+     * Checks whether an existing subset already contains every glyph we've seen.
+     */
+    private subsetCoversGlyphs(subset: PdfFontSubset, glyphs: Set<number>): boolean {
+        const inSubset = new Set(subset.glyphIds);
+        for (const gid of glyphs) {
+            if (!inSubset.has(gid)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

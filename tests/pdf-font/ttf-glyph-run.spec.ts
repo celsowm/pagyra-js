@@ -263,4 +263,68 @@ describe("TTF GlyphRun Path", () => {
         expect(subset.toUnicodeCMap).toContain("<0005>");
         expect(subset.toUnicodeCMap).toContain("<0009>");
     });
+
+    it("refreshes subsets when new glyphs are registered later", () => {
+        const mockFont: UnifiedFont = {
+            metrics: {
+                metrics: {
+                    unitsPerEm: 1000,
+                    ascender: 800,
+                    descender: -200,
+                    lineGap: 0,
+                    capHeight: 700,
+                    xHeight: 500,
+                },
+                glyphMetrics: new Map([
+                    [0, { advanceWidth: 400, leftSideBearing: 0 }],
+                    [5, { advanceWidth: 500, leftSideBearing: 0 }],
+                    [9, { advanceWidth: 450, leftSideBearing: 0 }],
+                ]),
+                cmap: {
+                    getGlyphId: () => 0,
+                    hasCodePoint: () => true,
+                    unicodeMap: new Map([
+                        [0x41, 5],
+                        [0x42, 9],
+                    ]),
+                },
+            },
+            program: {
+                sourceFormat: "ttf",
+                unitsPerEm: 1000,
+                glyphCount: 10,
+            },
+            css: {
+                family: "TestFont",
+                weight: 400,
+                style: "normal",
+            },
+        };
+
+        const registry = new PdfFontRegistry();
+        const firstRun: GlyphRun = {
+            font: mockFont,
+            glyphIds: [5],
+            positions: [{ x: 0, y: 0 }],
+            text: "A",
+            fontSize: 12,
+        };
+        registry.registerGlyphRun(firstRun);
+        const firstHandle = registry.ensureSubsetFor(mockFont);
+        expect(firstHandle.subset.glyphIds).toEqual([0, 5]);
+
+        const secondRun: GlyphRun = {
+            font: mockFont,
+            glyphIds: [9],
+            positions: [{ x: 0, y: 0 }],
+            text: "B",
+            fontSize: 12,
+        };
+        registry.registerGlyphRun(secondRun);
+        const refreshed = registry.ensureSubsetFor(mockFont);
+
+        expect(refreshed.subset.name).toBe(firstHandle.subset.name);
+        expect(refreshed.subset.glyphIds).toEqual([0, 5, 9]);
+        expect(() => refreshed.subset.encodeGlyph(9)).not.toThrow();
+    });
 });
