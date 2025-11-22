@@ -6,19 +6,18 @@ import {
   ComputedStyle,
   type StyleProperties,
   type StyleAccumulator,
-  type TrackDefinitionInput,
-  type TrackSizeInput,
-  type TrackDefinition,
-  type TrackSize,
 } from "./style.js";
-import { resolveLengthInput, resolveNumberLike } from "./length.js";
-import type { LengthInput, LengthLike, RelativeLength } from "./length.js";
+import { resolveNumberLike } from "./length.js";
 import { ElementSpecificDefaults, BrowserDefaults } from "./browser-defaults.js";
 import { applyDeclarationsToStyle } from "./apply-declarations.js";
 import { normalizeFontWeight } from './font-weight.js';
 import { FloatMode, Display } from "./enums.js";
 import { log } from "../debug/log.js";
 import { cloneLineHeight, lineHeightEquals, resolveLineHeightInput } from "./line-height.js";
+import { parseInlineStyle } from "./inline-style-parser.js";
+import { StyleInheritanceResolver } from "./style-inheritance.js";
+import { CssUnitResolver } from "./css-unit-resolver.js";
+import { LayoutPropertyResolver } from "./layout-property-resolver.js";
 
 function mapFloat(value: string | undefined): FloatMode | undefined {
   switch (value) {
@@ -33,23 +32,7 @@ function mapFloat(value: string | undefined): FloatMode | undefined {
   }
 }
 
-function parseInlineStyle(style: string): Record<string, string> {
-  const declarations: Record<string, string> = {};
-  for (const part of style.split(";")) {
-    const colonIndex = part.indexOf(":");
-    if (colonIndex === -1) {
-      continue;
-    }
-    const rawProperty = part.substring(0, colonIndex);
-    const rawValue = part.substring(colonIndex + 1);
-    const property = rawProperty.trim().toLowerCase();
-    const value = rawValue.trim();
-    if (property) {
-      declarations[property] = value;
-    }
-  }
-  return declarations;
-}
+// parseInlineStyle now imported from inline-style-parser.ts
 
 function defaultDisplayForTag(tag: string): Display {
   let display: Display;
@@ -129,54 +112,7 @@ const RELATIVE_FONT_SIZE_TAG_SCALE: Record<string, number> = {
   big: 1.2,
 };
 
-function resolveTrackSizeInputToAbsolute(track: TrackSizeInput, fontSize: number, rootFontSize: number): TrackSize {
-  if (track.kind === "fixed") {
-    return {
-      kind: "fixed",
-      size: resolveNumberLike(track.size, fontSize, rootFontSize) ?? 0,
-    };
-  }
-  if (track.kind === "flex") {
-    return {
-      kind: "flex",
-      flex: track.flex,
-      min: resolveNumberLike(track.min, fontSize, rootFontSize),
-      max: resolveNumberLike(track.max, fontSize, rootFontSize),
-    };
-  }
-  return {
-    kind: "auto",
-    min: resolveNumberLike(track.min, fontSize, rootFontSize),
-    max: resolveNumberLike(track.max, fontSize, rootFontSize),
-  };
-}
-
-function resolveTrackDefinitionsInput(
-  definitions: TrackDefinitionInput[] | undefined,
-  fontSize: number,
-  rootFontSize: number,
-): TrackDefinition[] | undefined {
-  if (!definitions) {
-    return undefined;
-  }
-  return definitions.map((definition) => {
-    if (definition.kind === "repeat") {
-      return {
-        kind: "repeat",
-        count: definition.count,
-        track: resolveTrackSizeInputToAbsolute(definition.track, fontSize, rootFontSize),
-      };
-    }
-    if (definition.kind === "repeat-auto") {
-      return {
-        kind: "repeat-auto",
-        mode: definition.mode,
-        track: resolveTrackSizeInputToAbsolute(definition.track, fontSize, rootFontSize),
-      };
-    }
-    return resolveTrackSizeInputToAbsolute(definition, fontSize, rootFontSize);
-  });
-}
+// resolveTrackSizeInputToAbsolute and resolveTrackDefinitionsInput now in layout-property-resolver.ts
 
 export function computeStyleForElement(
   element: DomEl,
@@ -197,21 +133,7 @@ export function computeStyleForElement(
   const mergedDefaults = BrowserDefaults.mergeElementDefaults(baseDefaults, elementDefaults);
 
   // Apply inheritance from parent
-  const inherited = {
-    color: parentStyle.color ?? mergedDefaults.color,
-    fontSize: parentStyle.fontSize,
-    lineHeight: cloneLineHeight(parentStyle.lineHeight),
-    fontFamily: parentStyle.fontFamily ?? mergedDefaults.fontFamily,
-    fontStyle: parentStyle.fontStyle ?? mergedDefaults.fontStyle,
-    fontVariant: parentStyle.fontVariant ?? mergedDefaults.fontVariant,
-    fontWeight: parentStyle.fontWeight ?? mergedDefaults.fontWeight,
-    textDecorationLine: parentStyle.textDecorationLine ?? mergedDefaults.textDecorationLine,
-    textDecorationColor: parentStyle.textDecorationColor ?? mergedDefaults.textDecorationColor,
-    overflowWrap: parentStyle.overflowWrap ?? mergedDefaults.overflowWrap,
-    textIndent: parentStyle.textIndent ?? mergedDefaults.textIndent ?? 0,
-    textTransform: parentStyle.textTransform ?? mergedDefaults.textTransform ?? "none",
-    listStyleType: parentStyle.listStyleType ?? mergedDefaults.listStyleType ?? "disc",
-  };
+  const inherited = StyleInheritanceResolver.resolveInheritedProperties(parentStyle, mergedDefaults);
 
   const styleInit: StyleAccumulator = {};
   const aggregated: Record<string, string> = {};
@@ -219,9 +141,9 @@ export function computeStyleForElement(
   // Apply CSS rules
   for (const rule of cssRules) {
     if (rule.match(element)) {
-      log("STYLE","DEBUG","CSS rule matched", { selector: rule.selector, declarations: rule.declarations });
+      log("STYLE", "DEBUG", "CSS rule matched", { selector: rule.selector, declarations: rule.declarations });
       if (rule.declarations.display) {
-        log("STYLE","DEBUG","Display declaration found", { selector: rule.selector, display: rule.declarations.display });
+        log("STYLE", "DEBUG", "Display declaration found", { selector: rule.selector, display: rule.declarations.display });
       }
       // Normalize rule declarations to lowercase keys
       const normalizedRuleDeclarations: Record<string, string> = {};
@@ -235,7 +157,7 @@ export function computeStyleForElement(
   // Apply inline styles (highest priority)
   const inlineStyle = parseInlineStyle(element.getAttribute("style") ?? "");
   if (Object.keys(inlineStyle).length > 0) {
-    log("STYLE","DEBUG","inline style applied", { declarations: inlineStyle });
+    log("STYLE", "DEBUG", "inline style applied", { declarations: inlineStyle });
   }
   Object.assign(aggregated, inlineStyle);
 
@@ -340,17 +262,13 @@ export function computeStyleForElement(
     );
   }
 
-  const assignLength = (value: LengthInput | undefined, setter: (resolved: LengthLike) => void): void => {
-    const resolved = resolveLengthInput(value, computedFontSize, rootFontReference);
-    if (resolved !== undefined) {
-      setter(resolved);
-    }
+  // Create unit resolver with computed font sizes
+  const unitResolver = new CssUnitResolver(computedFontSize, rootFontReference);
+  const assignLength = (value: any, setter: (resolved: any) => void): void => {
+    unitResolver.createLengthAssigner(setter)(value);
   };
-  const assignNumberLength = (value: number | RelativeLength | undefined, setter: (resolved: number) => void): void => {
-    const resolved = resolveNumberLike(value, computedFontSize, rootFontReference);
-    if (resolved !== undefined) {
-      setter(resolved);
-    }
+  const assignNumberLength = (value: any, setter: (resolved: any) => void): void => {
+    unitResolver.createNumberAssigner(setter)(value);
   };
 
   if (styleInit.position !== undefined) styleOptions.position = styleInit.position;
@@ -363,41 +281,21 @@ export function computeStyleForElement(
   if (styleInit.backgroundLayers !== undefined) styleOptions.backgroundLayers = styleInit.backgroundLayers;
   if (styleInit.borderColor !== undefined) styleOptions.borderColor = styleInit.borderColor;
   if (styleInit.boxShadows !== undefined) {
-    const resolveShadowLength = (value: number | RelativeLength | undefined, clamp = false): number => {
-      const resolved = resolveNumberLike(value, computedFontSize, rootFontReference);
-      if (resolved === undefined) {
-        return 0;
-      }
-      if (clamp && resolved < 0) {
-        return 0;
-      }
-      return resolved;
-    };
     styleOptions.boxShadows = styleInit.boxShadows.map((shadow) => ({
       inset: shadow.inset,
-      offsetX: resolveShadowLength(shadow.offsetX),
-      offsetY: resolveShadowLength(shadow.offsetY),
-      blurRadius: resolveShadowLength(shadow.blurRadius, true),
-      spreadRadius: resolveShadowLength(shadow.spreadRadius),
+      offsetX: unitResolver.resolveShadowLength(shadow.offsetX),
+      offsetY: unitResolver.resolveShadowLength(shadow.offsetY),
+      blurRadius: unitResolver.resolveShadowLength(shadow.blurRadius, true),
+      spreadRadius: unitResolver.resolveShadowLength(shadow.spreadRadius),
       color: shadow.color,
     }));
   }
 
   if (styleInit.textShadows !== undefined) {
-    const resolveShadowLength = (value: number | RelativeLength | undefined, clamp = false): number => {
-      const resolved = resolveNumberLike(value, computedFontSize, rootFontReference);
-      if (resolved === undefined) {
-        return 0;
-      }
-      if (clamp && resolved < 0) {
-        return 0;
-      }
-      return resolved;
-    };
     styleOptions.textShadows = styleInit.textShadows.map((shadow) => ({
-      offsetX: resolveShadowLength(shadow.offsetX),
-      offsetY: resolveShadowLength(shadow.offsetY),
-      blurRadius: resolveShadowLength(shadow.blurRadius, true),
+      offsetX: unitResolver.resolveShadowLength(shadow.offsetX),
+      offsetY: unitResolver.resolveShadowLength(shadow.offsetY),
+      blurRadius: unitResolver.resolveShadowLength(shadow.blurRadius, true),
       color: shadow.color,
     }));
   }
@@ -445,13 +343,13 @@ export function computeStyleForElement(
   if (styleInit.minHeight !== undefined) assignLength(styleInit.minHeight, (v) => (styleOptions.minHeight = v));
   if (styleInit.maxHeight !== undefined) assignLength(styleInit.maxHeight, (v) => (styleOptions.maxHeight = v));
   if (styleInit.trackListColumns !== undefined) {
-    const resolved = resolveTrackDefinitionsInput(styleInit.trackListColumns, computedFontSize, rootFontReference);
+    const resolved = LayoutPropertyResolver.resolveTrackDefinitionsInput(styleInit.trackListColumns, computedFontSize, rootFontReference);
     if (resolved) {
       styleOptions.trackListColumns = resolved;
     }
   }
   if (styleInit.trackListRows !== undefined) {
-    const resolved = resolveTrackDefinitionsInput(styleInit.trackListRows, computedFontSize, rootFontReference);
+    const resolved = LayoutPropertyResolver.resolveTrackDefinitionsInput(styleInit.trackListRows, computedFontSize, rootFontReference);
     if (resolved) {
       styleOptions.trackListRows = resolved;
     }
