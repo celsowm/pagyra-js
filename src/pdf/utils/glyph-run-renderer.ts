@@ -1,31 +1,35 @@
 import type { GlyphRun } from "../../layout/text-run.js";
 import type { PdfFontSubset } from "../font/font-subset.js";
+import type { GraphicsStateManager } from "../renderers/graphics-state-manager.js";
+import { fillColorCommand, formatNumber } from "../renderers/text-renderer-utils.js";
+import type { RGBA } from "../types.js";
 
 /**
  * Draws a GlyphRun using a PdfFontSubset.
  * Returns PDF content stream commands.
  */
 export function drawGlyphRun(
-    run: GlyphRun,
-    subset: PdfFontSubset,
-    xPt: number,
-    yPt: number,
-    fontSizePt: number,
-    color: { r: number; g: number; b: number; a: number }
+  run: GlyphRun,
+  subset: PdfFontSubset,
+  xPt: number,
+  yPt: number,
+  fontSizePt: number,
+  color: RGBA,
+  graphicsStateManager?: GraphicsStateManager,
 ): string[] {
     const commands: string[] = [];
 
-    // Set fill color
-    commands.push(`${color.r.toFixed(3)} ${color.g.toFixed(3)} ${color.b.toFixed(3)} rg`);
+    // Set fill color (handles 0-255 inputs and alpha via graphics state)
+    commands.push(fillColorCommand(color, graphicsStateManager));
 
     // Begin text
     commands.push("BT");
 
     // Set font and size
-    commands.push(`${subset.name} ${fontSizePt.toFixed(2)} Tf`);
+    commands.push(`${subset.name} ${formatNumber(fontSizePt)} Tf`);
 
     // Set text position
-    commands.push(`${xPt.toFixed(2)} ${yPt.toFixed(2)} Td`);
+    commands.push(`${formatNumber(xPt)} ${formatNumber(yPt)} Td`);
 
     // Build TJ array with per-glyph kerning/letter-spacing adjustments.
     // Positions are provided in layout px units; scale to PDF points.

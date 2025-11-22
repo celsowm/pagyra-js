@@ -3,6 +3,7 @@ import { drawGlyphRun } from "../../src/pdf/utils/glyph-run-renderer.js";
 import type { GlyphRun } from "../../src/layout/text-run.js";
 import type { PdfFontSubset } from "../../src/pdf/font/font-subset.js";
 import type { UnifiedFont } from "../../src/fonts/types.js";
+import { GraphicsStateManager } from "../../src/pdf/renderers/graphics-state-manager.js";
 
 describe("GlyphRun Renderer", () => {
     it("should generate correct PDF commands for a GlyphRun", () => {
@@ -62,14 +63,16 @@ describe("GlyphRun Renderer", () => {
             { r: 0, g: 0, b: 0, a: 1 }
         );
 
-        expect(commands).toContain("BT");
-        expect(commands).toContain("ET");
-        expect(commands).toContain("/F1 12.00 Tf");
-        expect(commands).toContain("100.00 200.00 Td");
-        expect(commands.find(c => c.includes("<0001>"))).toBeDefined();
-        expect(commands.find(c => c.includes("<0002>"))).toBeDefined();
+        const content = commands.join(" ");
+
+        expect(content).toContain("BT");
+        expect(content).toContain("ET");
+        expect(content).toMatch(/\/F1\s+12(?:\.0+)?\s+Tf/);
+        expect(content).toMatch(/100(?:\.0+)?\s+200(?:\.0+)?\s+Td/);
+        expect(content).toMatch(/<0001>/);
+        expect(content).toMatch(/<0002>/);
         // TJ array with hex glyphs
-        expect(commands.find(c => c.includes("TJ"))).toBeDefined();
+        expect(content).toMatch(/TJ/);
     });
 
     it("should handle different colors", () => {
@@ -125,7 +128,69 @@ describe("GlyphRun Renderer", () => {
             { r: 1, g: 0, b: 0, a: 1 } // Red
         );
 
-        expect(commands).toContain("1.000 0.000 0.000 rg");
+        const content = commands.join(" ");
+        expect(content).toMatch(/1(?:\.0+)?\s+0(?:\.0+)?\s+0(?:\.0+)?\s+rg/);
+    });
+
+    it("normalizes 0-255 color inputs and applies fill alpha", () => {
+        const mockFont: UnifiedFont = {
+            metrics: {
+                metrics: {
+                    unitsPerEm: 1000,
+                    ascender: 800,
+                    descender: -200,
+                    lineGap: 0,
+                    capHeight: 700,
+                    xHeight: 500,
+                },
+                glyphMetrics: new Map([[0, { advanceWidth: 500, leftSideBearing: 0 }]]),
+                cmap: {
+                    getGlyphId: () => 0,
+                    hasCodePoint: () => true,
+                    unicodeMap: new Map(),
+                },
+            },
+            program: {
+                sourceFormat: "ttf",
+                unitsPerEm: 1000,
+                glyphCount: 1,
+            },
+        };
+
+        const glyphRun: GlyphRun = {
+            font: mockFont,
+            glyphIds: [0],
+            positions: [{ x: 0, y: 0 }],
+            text: "",
+            fontSize: 12,
+        };
+
+        const mockSubset: PdfFontSubset = {
+            name: "/F1",
+            firstChar: 0,
+            lastChar: 0,
+            widths: [500],
+            toUnicodeCMap: "",
+            fontFile: new Uint8Array(0),
+            encodeGlyph: (gid) => gid,
+            glyphIds: [0],
+        };
+
+        const gsm = new GraphicsStateManager();
+
+        const commands = drawGlyphRun(
+            glyphRun,
+            mockSubset,
+            0,
+            0,
+            12,
+            { r: 51, g: 153, b: 255, a: 0.5 }, // 0-255 inputs with alpha
+            gsm
+        );
+
+        const content = commands.join(" ");
+        expect(content).toMatch(/\/GS0\s+gs/);
+        expect(content).toMatch(/0\.2\s+0\.6\s+1\s+rg/);
     });
 
     it("encodes glyph ids via subset mapping (not Unicode code points)", () => {

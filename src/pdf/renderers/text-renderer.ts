@@ -150,7 +150,7 @@ export class TextRenderer {
     const subsetResource = this.fontRegistry.ensureSubsetForGlyphRun(glyphRun, font);
     this.registerSubsetFont(subsetResource.alias, subsetResource.ref);
 
-    const glyphCommands = drawGlyphRun(glyphRun, subsetResource.subset, x, y, fontSizePt, color);
+    const glyphCommands = drawGlyphRun(glyphRun, subsetResource.subset, x, y, fontSizePt, color, this.graphicsStateManager);
     this.commands.push(...glyphCommands);
 
     if (run.decorations) {

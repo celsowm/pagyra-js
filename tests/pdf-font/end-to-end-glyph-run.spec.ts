@@ -126,8 +126,10 @@ describe("End-to-End TTF GlyphRun Pipeline", () => {
 
         // 8. Verify PDF commands
         expect(commands).toContain("BT");
-        expect(commands).toContain("/F1 12.00 Tf");
-        expect(commands).toContain("100.00 200.00 Td");
+        const content = commands.join(" ");
+
+        expect(content).toMatch(/\/F1\s+12(?:\.0+)?\s+Tf/);
+        expect(content).toMatch(/100(?:\.0+)?\s+200(?:\.0+)?\s+Td/);
 
         // Log actual commands for debugging
         console.log("Generated commands:", commands);
