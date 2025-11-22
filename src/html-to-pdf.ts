@@ -3,6 +3,7 @@
 import { parseHTML } from "linkedom";
 import path from "path";
 import { readFileSync } from "fs";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { type FontConfig } from "./types/fonts.js";
 import { configureDebug, log, type LogCat, type LogLevel } from "./debug/log.js";
 import { parseCss } from "./html/css/parse-css.js";
@@ -58,6 +59,8 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
     options;
 
   setViewportSize(viewportWidth, viewportHeight);
+  const resourceBaseDir = path.resolve(options.resourceBaseDir ?? options.assetRootDir ?? process.cwd());
+  const assetRootDir = path.resolve(options.assetRootDir ?? resourceBaseDir);
 
   if (debugLevel || debugCats) {
     configureDebug(debugLevel ?? (debug ? "DEBUG" : "INFO"), debugCats ?? []);
@@ -82,6 +85,13 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   const styleTags = Array.from(document.querySelectorAll("style"));
   for (const styleTag of styleTags) {
     if (styleTag.textContent) mergedCss += "\n" + styleTag.textContent;
+  }
+  const linkTags = Array.from(document.querySelectorAll("link")).filter((link) => (link.getAttribute("rel") || "").toLowerCase() === "stylesheet");
+  for (const linkTag of linkTags) {
+    const href = linkTag.getAttribute("href");
+    if (!href) continue;
+    const cssText = await loadStylesheetFromHref(href, resourceBaseDir, assetRootDir);
+    if (cssText) mergedCss += "\n" + cssText;
   }
   const { styleRules: cssRules, fontFaceRules } = parseCss(mergedCss);
   log("PARSE", "DEBUG", "CSS rules", { count: cssRules.length, fontFaces: fontFaceRules.length });
@@ -123,8 +133,6 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   }
   const rootLayout = new LayoutNode(rootStyle, [], { tagName: processChildrenOf?.tagName?.toLowerCase() });
 
-  const resourceBaseDir = path.resolve(options.resourceBaseDir ?? options.assetRootDir ?? process.cwd());
-  const assetRootDir = path.resolve(options.assetRootDir ?? resourceBaseDir);
   const conversionContext = { resourceBaseDir, assetRootDir, units, rootFontSize };
   
   if (processChildrenOf) {
@@ -150,33 +158,20 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
     const fontFamily = fontFace.declarations['font-family']?.replace(/['"]/g, '');
     const src = fontFace.declarations['src'];
     if (fontFamily && src) {
-      const urlMatch = /url\(['"]?(.*?)['"]?\)/.exec(src);
-      if (urlMatch) {
-        let url = urlMatch[1];
-        if (url.startsWith('file://')) {
-          url = url.substring('file://'.length);
-        }
-        const fontPath = path.resolve(resourceBaseDir, url);
-        try {
-          const fontDataBuffer = readFileSync(fontPath);
-          const fontData = fontDataBuffer.buffer.slice(
-            fontDataBuffer.byteOffset,
-            fontDataBuffer.byteOffset + fontDataBuffer.byteLength
-          );
-          if (options.fontConfig) {
-            const weightStr = fontFace.declarations['font-weight'] || '400';
-            const styleStr = fontFace.declarations['font-style'] || 'normal';
-            options.fontConfig.fontFaceDefs.push({
-              name: fontFamily,
-              family: fontFamily,
-              src: fontPath,
-              data: fontData,
-              weight: parseInt(weightStr, 10),
-              style: styleStr as 'normal' | 'italic',
-            });
-          }
-        } catch (error) {
-          console.error(`Failed to load font from ${fontPath}:`, error);
+      const targetUrl = pickFontUrlFromSrc(src);
+      if (targetUrl && options.fontConfig) {
+        const fontData = await loadFontData(targetUrl, resourceBaseDir, assetRootDir);
+        if (fontData) {
+          const weightStr = fontFace.declarations["font-weight"] || "400";
+          const styleStr = fontFace.declarations["font-style"] || "normal";
+          options.fontConfig.fontFaceDefs.push({
+            name: fontFamily,
+            family: fontFamily,
+            src: targetUrl,
+            data: fontData,
+            weight: parseFontWeight(weightStr),
+            style: normalizeFontStyle(styleStr),
+          });
         }
       }
     }
@@ -186,15 +181,9 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   if (options.fontConfig) {
     for (const face of options.fontConfig.fontFaceDefs) {
       if (!face.data && face.src) {
-        try {
-          console.log("Loading font from", face.src);
-          const fontDataBuffer = readFileSync(face.src);
-          (face as any).data = fontDataBuffer.buffer.slice(
-            fontDataBuffer.byteOffset,
-            fontDataBuffer.byteOffset + fontDataBuffer.byteLength
-          );
-        } catch (error) {
-          console.error(`Failed to load pre-defined font from ${face.src}:`, error);
+        const loaded = await loadFontData(face.src, resourceBaseDir, assetRootDir);
+        if (loaded) {
+          (face as any).data = loaded;
         }
       }
     }
@@ -213,6 +202,142 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
 
   const pageSize = { widthPt: pxToPt(pageWidth), heightPt: pxToPt(pageHeight) };
   return { layoutRoot: rootLayout, renderTree, pageSize };
+}
+
+async function loadStylesheetFromHref(href: string, resourceBaseDir: string, assetRootDir: string): Promise<string> {
+  const trimmed = href.trim();
+  if (!trimmed) return "";
+
+  try {
+    if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith("//")) {
+      const absoluteHref = trimmed.startsWith("//") ? `https:${trimmed}` : trimmed;
+      const response = await fetch(absoluteHref);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const cssText = await response.text();
+      return rewriteCssUrls(cssText, absoluteHref);
+    }
+
+    let cssPath = trimmed;
+    if (cssPath.startsWith("file://")) {
+      cssPath = fileURLToPath(cssPath);
+    } else if (cssPath.startsWith("/")) {
+      cssPath = path.resolve(assetRootDir, `.${cssPath}`);
+    } else if (!path.isAbsolute(cssPath)) {
+      cssPath = path.resolve(resourceBaseDir, cssPath);
+    }
+    const cssText = readFileSync(cssPath, "utf-8");
+    return rewriteCssUrls(cssText, pathToFileURL(cssPath).toString());
+  } catch (error) {
+    log("PARSE", "WARN", "Failed to load stylesheet", { href, error: error instanceof Error ? error.message : String(error) });
+    return "";
+  }
+}
+
+function rewriteCssUrls(cssText: string, baseHref: string): string {
+  let base: URL;
+  try {
+    base = new URL(baseHref);
+  } catch {
+    return cssText;
+  }
+
+  const urlRegex = /url\(\s*(['"]?)([^'")]+)\1\s*\)/gi;
+  return cssText.replace(urlRegex, (match, quote: string, rawUrl: string) => {
+    const candidate = (rawUrl || "").trim();
+    if (!candidate || /^data:/i.test(candidate)) return match;
+    if (/^[a-z][a-z0-9+\-.]*:/i.test(candidate)) return match;
+    try {
+      const resolved = new URL(candidate, base).toString();
+      const q = quote || "";
+      return `url(${q}${resolved}${q})`;
+    } catch {
+      return match;
+    }
+  });
+}
+
+function pickFontUrlFromSrc(src: string): string | null {
+  const urlRegex = /url\(\s*(['"]?)([^'")]+)\1\s*\)(?:\s*format\(\s*['"]?([^'")]+)['"]?\s*\))?/gi;
+  let fallback: string | null = null;
+  let preferred: string | null = null;
+  let match: RegExpExecArray | null;
+
+  while ((match = urlRegex.exec(src)) !== null) {
+    const url = match[2];
+    const format = (match[3] || "").toLowerCase();
+    if (!fallback) fallback = url;
+    if (format === "woff2") {
+      preferred = url;
+      break;
+    }
+  }
+
+  return preferred ?? fallback;
+}
+
+function parseFontWeight(weightStr: string): number {
+  const normalized = weightStr.trim().toLowerCase();
+  if (normalized === "bold") return 700;
+  if (normalized === "normal") return 400;
+  const parsed = Number.parseInt(normalized, 10);
+  return Number.isFinite(parsed) ? parsed : 400;
+}
+
+function normalizeFontStyle(styleStr: string): "normal" | "italic" {
+  const normalized = styleStr.trim().toLowerCase();
+  return normalized.includes("italic") || normalized.includes("oblique") ? "italic" : "normal";
+}
+
+async function loadFontData(src: string, resourceBaseDir: string, assetRootDir: string): Promise<ArrayBuffer | null> {
+  const trimmed = src.trim();
+  if (!trimmed) return null;
+  let target = trimmed;
+
+  try {
+    if (target.startsWith("//")) {
+      target = `https:${target}`;
+    }
+
+    if (/^data:/i.test(target)) {
+      const commaIdx = target.indexOf(",");
+      if (commaIdx === -1) {
+        throw new Error("Invalid data URI");
+      }
+      const meta = target.slice(5, commaIdx);
+      if (!/;base64/i.test(meta)) {
+        throw new Error("Only base64-encoded data URIs are supported for fonts");
+      }
+      const data = Buffer.from(target.slice(commaIdx + 1), "base64");
+      return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+    }
+
+    if (/^https?:\/\//i.test(target)) {
+      const response = await fetch(target);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return await response.arrayBuffer();
+    }
+
+    if (target.startsWith("file://")) {
+      target = fileURLToPath(target);
+    } else if (target.startsWith("/")) {
+      target = path.resolve(assetRootDir, `.${target}`);
+    } else if (!path.isAbsolute(target)) {
+      target = path.resolve(resourceBaseDir, target);
+    }
+
+    const fontDataBuffer = readFileSync(target);
+    return fontDataBuffer.buffer.slice(
+      fontDataBuffer.byteOffset,
+      fontDataBuffer.byteOffset + fontDataBuffer.byteLength
+    );
+  } catch (error) {
+    log("FONT", "WARN", "Failed to load font data", { src, error: error instanceof Error ? error.message : String(error) });
+    return null;
+  }
 }
 
 function isInlineDisplay(display: Display): boolean {
