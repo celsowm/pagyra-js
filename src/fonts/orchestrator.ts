@@ -1,7 +1,7 @@
 import { detectFontFormat } from './detector.js';
 import { TtfEngine } from './engines/ttf-engine.js';
-// import { WoffEngine } from './engines/woff-engine.js';
-// import { Woff2Engine } from './engines/woff2-engine.js';
+import { WoffEngine } from './engines/woff-engine.js';
+import { Woff2Engine } from './engines/woff2-engine.js';
 import type { FontFormat, UnifiedFont } from './types.js';
 
 export class FontOrchestrator {
@@ -9,8 +9,8 @@ export class FontOrchestrator {
 
   constructor() {
     this.engines.set('ttf', new TtfEngine());
-    // this.engines.set('woff', new WoffEngine());
-    // this.engines.set('woff2', new Woff2Engine());
+    this.engines.set('woff', new WoffEngine());
+    this.engines.set('woff2', new Woff2Engine());
     this.engines.set('otf', new TtfEngine()); // OTF uses the same engine as TTF for now
   }
 
@@ -49,10 +49,7 @@ export class FontOrchestrator {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.warn(`FONT-ORCH: Failed to parse ${format} font:`, errorMessage);
-      console.warn(`FONT-ORCH: Falling back to embedded font due to parsing error`);
-
-      // Return fallback font instead of throwing
-      return this.getFallbackFont(format);
+      throw error instanceof Error ? error : new Error(errorMessage);
     }
   }
 
