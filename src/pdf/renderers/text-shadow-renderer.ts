@@ -1,4 +1,5 @@
 import type { Run, TextMatrix } from "../types.js";
+import type { UnifiedFont } from "../../fonts/types.js";
 import type { FontRegistry, FontResource } from "../font/font-registry.js";
 import type { ImageRenderer } from "./image-renderer.js";
 import type { GraphicsStateManager } from "./graphics-state-manager.js";
@@ -16,6 +17,7 @@ export interface TextShadowRenderContext {
   fontSizePx: number;
   wordSpacingPt: number;
   appliedWordSpacing: boolean;
+  fontResourceName?: string;
 }
 
 export class TextShadowRenderer {
@@ -30,17 +32,21 @@ export class TextShadowRenderer {
 
   async render(context: TextShadowRenderContext): Promise<string[]> {
     const commands: string[] = [];
-    const { run, font, encoded, Tm, fontSizePt, fontSizePx, wordSpacingPt, appliedWordSpacing } = context;
+    const { run, font, encoded, Tm, fontSizePt, fontSizePx, wordSpacingPt, appliedWordSpacing, fontResourceName } = context;
     if (!run.textShadows || run.textShadows.length === 0) {
       return commands;
     }
 
     const needsRaster = run.textShadows.some(sh => (sh.blur ?? 0) > 0 || (sh.color && sh.color.a !== undefined && sh.color.a < 1));
+
+    // Prefer glyph-run supplied metrics (add outline hook) and fall back to embedder lookup.
+    const glyphMetrics = run.glyphs ? mergeMetricsWithOutline(run.glyphs.font) : null;
     const embedder = this.fontRegistry.getEmbedder ? this.fontRegistry.getEmbedder() : undefined;
-    const faceMetrics = embedder ? embedder.getMetrics((font as any).baseFont) : null;
+    const faceMetrics = glyphMetrics ?? (embedder ? embedder.getMetrics((font as any).baseFont) : null);
 
     const wordSpacingCmd = appliedWordSpacing ? `${formatNumber(wordSpacingPt)} Tw` : undefined;
     const resetWordSpacingCmd = appliedWordSpacing ? "0 Tw" : undefined;
+    const fontName = fontResourceName ?? font.resourceName;
 
     if (this.imageRenderer && needsRaster) {
       if (run.glyphs && faceMetrics) {
@@ -168,6 +174,11 @@ export class TextShadowRenderer {
             }
           }
         }
+
+        // If we failed to build any glyph masks (e.g., missing outlines), fall back to vector shadows.
+        if (glyphMasks.length === 0) {
+          this.appendVectorShadowLayers(commands, run, font, encoded, Tm, fontSizePt, fontName, wordSpacingCmd, resetWordSpacingCmd);
+        }
       } else {
         if (needsRaster && this.imageRenderer) {
           try {
@@ -210,7 +221,7 @@ export class TextShadowRenderer {
                 const shadowSequence: string[] = ["q", fillColorCommand(sampleColor, this.graphicsStateManager), "BT"];
                 if (wordSpacingCmd) shadowSequence.push(wordSpacingCmd);
                 shadowSequence.push(
-                  `/${font.resourceName} ${formatNumber(fontSizePt)} Tf`,
+                  `/${fontName} ${formatNumber(fontSizePt)} Tf`,
                   `${formatNumber(Tm.a)} ${formatNumber(Tm.b)} ${formatNumber(Tm.c)} ${formatNumber(Tm.d)} ${formatNumber(shadowX)} ${formatNumber(shadowYPt)} Tm`,
                   `(${encoded}) Tj`,
                 );
@@ -220,14 +231,14 @@ export class TextShadowRenderer {
               }
             }
           } catch {
-            this.appendVectorShadowLayers(commands, run, font, encoded, Tm, fontSizePt, wordSpacingCmd, resetWordSpacingCmd);
+            this.appendVectorShadowLayers(commands, run, font, encoded, Tm, fontSizePt, fontName, wordSpacingCmd, resetWordSpacingCmd);
           }
         } else {
-          this.appendVectorShadowLayers(commands, run, font, encoded, Tm, fontSizePt, wordSpacingCmd, resetWordSpacingCmd);
+          this.appendVectorShadowLayers(commands, run, font, encoded, Tm, fontSizePt, fontName, wordSpacingCmd, resetWordSpacingCmd);
         }
       }
     } else {
-      this.appendVectorShadowLayers(commands, run, font, encoded, Tm, fontSizePt, wordSpacingCmd, resetWordSpacingCmd);
+      this.appendVectorShadowLayers(commands, run, font, encoded, Tm, fontSizePt, fontName, wordSpacingCmd, resetWordSpacingCmd);
     }
 
     return commands;
@@ -240,6 +251,7 @@ export class TextShadowRenderer {
     encoded: string,
     Tm: TextMatrix,
     fontSizePt: number,
+    fontName: string,
     wordSpacingCmd?: string,
     resetWordSpacingCmd?: string,
   ): void {
@@ -255,7 +267,7 @@ export class TextShadowRenderer {
       const shadowSequence: string[] = ["q", fillColorCommand(sh.color, this.graphicsStateManager), "BT"];
       if (wordSpacingCmd) shadowSequence.push(wordSpacingCmd);
       shadowSequence.push(
-        `/${font.resourceName} ${formatNumber(fontSizePt)} Tf`,
+        `/${fontName} ${formatNumber(fontSizePt)} Tf`,
         `${formatNumber(Tm.a)} ${formatNumber(Tm.b)} ${formatNumber(Tm.c)} ${formatNumber(Tm.d)} ${formatNumber(shadowX)} ${formatNumber(shadowYPt)} Tm`,
         `(${encoded}) Tj`,
       );
@@ -264,4 +276,18 @@ export class TextShadowRenderer {
       commands.push(...shadowSequence);
     }
   }
+}
+
+// Merge UnifiedFont metrics with its outline provider so glyph rasterization can work.
+function mergeMetricsWithOutline(font: UnifiedFont | undefined | null): any | null {
+  if (!font?.metrics || !font.program?.getGlyphOutline) {
+    return null;
+  }
+  return {
+    metrics: font.metrics.metrics,
+    glyphMetrics: font.metrics.glyphMetrics,
+    cmap: font.metrics.cmap,
+    headBBox: font.metrics.headBBox,
+    getGlyphOutline: font.program.getGlyphOutline,
+  };
 }

@@ -147,6 +147,34 @@ export class TextRenderer {
       x, y
     });
 
+    // Normalize text for features like small-caps (match legacy behavior for shadows)
+    let normalizedText = run.text;
+    if (run.fontVariant === "small-caps") {
+      normalizedText = normalizedText.toUpperCase();
+    }
+
+    const { encoded } = encodeTextPayload(normalizedText, font);
+    const wordSpacingPx = run.wordSpacing ?? 0;
+    const wordSpacingPt = this.coordinateTransformer.convertPxToPt(wordSpacingPx);
+    const appliedWordSpacing = wordSpacingPx !== 0 && wordSpacingPt !== 0;
+
+    // Shadows use the base font resource (non-subset) for compatibility with Identity-H encoding
+    this.registerFont(font);
+    if (run.textShadows && run.textShadows.length > 0) {
+      const shadowCommands = await this.shadowRenderer.render({
+        run,
+        font,
+        encoded,
+        Tm,
+        fontSizePt,
+        fontSizePx: run.fontSize,
+        wordSpacingPt,
+        appliedWordSpacing,
+        fontResourceName: font.resourceName,
+      });
+      this.commands.push(...shadowCommands);
+    }
+
     const subsetResource = this.fontRegistry.ensureSubsetForGlyphRun(glyphRun, font);
     this.registerSubsetFont(subsetResource.alias, subsetResource.ref);
 
