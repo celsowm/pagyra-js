@@ -21,6 +21,7 @@ import type { HeaderFooterHTML } from "./pdf/types.js";
 import { FontEmbedder } from "./pdf/font/embedder.js";
 import { PdfDocument } from "./pdf/primitives/pdf-document.js";
 import { loadBuiltinFontConfig } from "./pdf/font/builtin-fonts.js";
+import { Display } from "./css/enums.js";
 
 export interface RenderHtmlOptions {
   html: string;
@@ -117,6 +118,9 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   } else {
     rootStyle = computeStyleForElement(processChildrenOf, cssRules, documentElementStyle, units, rootFontSize);
   }
+  if (isInlineDisplay(rootStyle.display)) {
+    rootStyle.display = Display.Block;
+  }
   const rootLayout = new LayoutNode(rootStyle, [], { tagName: processChildrenOf?.tagName?.toLowerCase() });
 
   const resourceBaseDir = path.resolve(options.resourceBaseDir ?? options.assetRootDir ?? process.cwd());
@@ -209,4 +213,14 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
 
   const pageSize = { widthPt: pxToPt(pageWidth), heightPt: pxToPt(pageHeight) };
   return { layoutRoot: rootLayout, renderTree, pageSize };
+}
+
+function isInlineDisplay(display: Display): boolean {
+  return (
+    display === Display.Inline ||
+    display === Display.InlineBlock ||
+    display === Display.InlineFlex ||
+    display === Display.InlineGrid ||
+    display === Display.InlineTable
+  );
 }

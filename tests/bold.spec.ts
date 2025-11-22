@@ -157,6 +157,20 @@ describe("italic text support", () => {
     expect(lastRun?.fontStyle).toBe("italic");
     expect(firstRun?.fontStyle ?? "normal").toBe("normal");
   });
+
+  it("picks an italic embedded face when available", async () => {
+    const fontConfig = await loadBuiltinFontConfig();
+    if (!fontConfig) {
+      throw new Error("Builtin font config should be available in tests");
+    }
+    const doc = new PdfDocument();
+    const registry = new FontRegistry(doc, { fontFaces: [] });
+    await registry.initializeEmbedder(fontConfig);
+
+    const font = registry.ensureFontResourceSync("Times New Roman", 400, "italic");
+    expect(font.isBase14).toBe(false);
+    expect(font.baseFont.toLowerCase()).toContain("italic");
+  });
 });
 
 describe("text decorations", () => {

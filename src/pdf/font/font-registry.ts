@@ -88,7 +88,7 @@ export class FontRegistry {
 
     if (this.embedder && this.fontConfig) {
       const familyStack = this.buildAliasedFamilyStack(family);
-      const embedded = this.embedder.ensureFont(familyStack, normalizedWeight);
+      const embedded = this.embedder.ensureFont(familyStack, normalizedWeight, style);
       if (embedded) {
         const resource: FontResource = {
           baseFont: embedded.baseFont,
@@ -133,7 +133,7 @@ export class FontRegistry {
 
       // Note: embedder.ensureFont is synchronous in its implementation (it uses pre-loaded data)
       // even though the interface might not explicitly say so, we know it returns EmbeddedFont | null immediately.
-      const embedded = this.embedder.ensureFont(familyStack, normalizedWeight);
+      const embedded = this.embedder.ensureFont(familyStack, normalizedWeight, style);
       if (embedded) {
         const resource: FontResource = {
           baseFont: embedded.baseFont,

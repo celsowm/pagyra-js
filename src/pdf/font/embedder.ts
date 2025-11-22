@@ -155,8 +155,9 @@ export class FontEmbedder {
     }
   }
 
-  ensureFont(familyStack: string[], fontWeight?: number): EmbeddedFont | null {
+  ensureFont(familyStack: string[], fontWeight?: number, fontStyle?: string): EmbeddedFont | null {
     const targetWeight = normalizeFontWeight(fontWeight);
+    const wantsItalic = isItalic(fontStyle);
 
     for (const family of familyStack) {
       const normalizedFamily = family.toLowerCase().trim();
@@ -168,7 +169,7 @@ export class FontEmbedder {
         continue;
       }
 
-      const face = pickFaceByWeight(candidates, targetWeight);
+      const face = pickFaceByWeight(candidates, targetWeight, wantsItalic);
       if (!face) {
         continue;
       }
@@ -419,13 +420,17 @@ export class FontEmbedder {
   }
 }
 
-function pickFaceByWeight(faces: FontFaceDef[], requestedWeight: number): FontFaceDef | null {
+function pickFaceByWeight(faces: FontFaceDef[], requestedWeight: number, wantsItalic: boolean): FontFaceDef | null {
   if (faces.length === 0) {
     return null;
   }
-  let bestFace = faces[0];
+  // Prefer faces that match the requested style; if none do, fall back to any style.
+  const styleFiltered = faces.filter((face) => isItalic(face.style) === wantsItalic);
+  const pool = styleFiltered.length > 0 ? styleFiltered : faces;
+
+  let bestFace = pool[0];
   let bestDiff = Math.abs(normalizeFontWeight(bestFace.weight) - requestedWeight);
-  for (const face of faces) {
+  for (const face of pool) {
     const normalized = normalizeFontWeight(face.weight);
     const diff = Math.abs(normalized - requestedWeight);
     if (diff < bestDiff) {
@@ -434,6 +439,12 @@ function pickFaceByWeight(faces: FontFaceDef[], requestedWeight: number): FontFa
     }
   }
   return bestFace;
+}
+
+function isItalic(style: string | undefined): boolean {
+  if (!style) return false;
+  const s = style.toLowerCase();
+  return s === "italic" || s === "oblique";
 }
 
 // Compute PDF Flags based on font family/style heuristics.
