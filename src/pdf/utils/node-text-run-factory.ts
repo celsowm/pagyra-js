@@ -92,6 +92,22 @@ function enrichTextRunsWithGlyphs(runs: Run[], fontResolver: FontResolver): void
 
       // Map Unicode text to glyph IDs
       const glyphRun = computeGlyphRun(font, run.text, run.fontSize, run.letterSpacing ?? 0);
+      // Carry through any word spacing for justified lines so glyph positioning can reflect it.
+      if (run.wordSpacing !== undefined && glyphRun.positions.length > 0) {
+        const additional = run.wordSpacing;
+        for (let idx = 0; idx < glyphRun.positions.length; idx++) {
+          const ch = run.text[idx];
+          if (ch === " " && idx < glyphRun.positions.length - 1) {
+            // Shift subsequent positions by accumulated word spacing
+            for (let j = idx + 1; j < glyphRun.positions.length; j++) {
+              glyphRun.positions[j] = {
+                x: glyphRun.positions[j].x + additional,
+                y: glyphRun.positions[j].y,
+              };
+            }
+          }
+        }
+      }
 
       run.glyphs = glyphRun;
     } catch (error) {

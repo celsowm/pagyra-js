@@ -1,5 +1,6 @@
 import { brotliDecompressSync } from "zlib";
 import type { ParsedFont } from "../types.js";
+import { Buf, readBase128, read255UShort } from "./buffer.js";
 
 // --- Constants & helpers ----------------------------------------------------
 
@@ -121,105 +122,6 @@ function computeULongSum(data: Uint8Array): number {
     checksum = (checksum + v) >>> 0;
   }
   return checksum >>> 0;
-}
-
-// --- Buffer reader ----------------------------------------------------------
-
-class Buf {
-  constructor(private readonly data: Uint8Array, public offset = 0) {}
-
-  get length(): number {
-    return this.data.length;
-  }
-
-  peekRemaining(): Uint8Array {
-    return this.data.subarray(this.offset);
-  }
-
-  readU8(): number {
-    if (this.offset + 1 > this.data.length) {
-      throw new Error("Unexpected EOF");
-    }
-    return this.data[this.offset++];
-  }
-
-  readU16(): number {
-    if (this.offset + 2 > this.data.length) {
-      throw new Error("Unexpected EOF");
-    }
-    const v =
-      (this.data[this.offset] << 8) | (this.data[this.offset + 1] & 0xff);
-    this.offset += 2;
-    return v;
-  }
-
-  readS16(): number {
-    const v = this.readU16();
-    return v & 0x8000 ? v - 0x10000 : v;
-  }
-
-  readU32(): number {
-    if (this.offset + 4 > this.data.length) {
-      throw new Error("Unexpected EOF");
-    }
-    const v =
-      (this.data[this.offset] << 24) |
-      (this.data[this.offset + 1] << 16) |
-      (this.data[this.offset + 2] << 8) |
-      this.data[this.offset + 3];
-    this.offset += 4;
-    return v >>> 0;
-  }
-
-  readBytes(n: number): Uint8Array {
-    if (this.offset + n > this.data.length) {
-      throw new Error("Unexpected EOF");
-    }
-    const slice = this.data.subarray(this.offset, this.offset + n);
-    this.offset += n;
-    return slice;
-  }
-
-  skip(n: number): void {
-    if (this.offset + n > this.data.length) {
-      throw new Error("Unexpected EOF");
-    }
-    this.offset += n;
-  }
-}
-
-// --- Variable-length readers ------------------------------------------------
-
-function readBase128(buf: Buf): number {
-  let result = 0;
-  for (let i = 0; i < 5; i++) {
-    const code = buf.readU8();
-    if (i === 0 && code === 0x80) {
-      throw new Error("Invalid Base128: leading zero");
-    }
-    if (result & 0xfe000000) {
-      throw new Error("Invalid Base128: overflow");
-    }
-    result = (result << 7) | (code & 0x7f);
-    if ((code & 0x80) === 0) {
-      return result >>> 0;
-    }
-  }
-  throw new Error("Invalid Base128: unterminated");
-}
-
-function read255UShort(buf: Buf): number {
-  const code = buf.readU8();
-  if (code === 253) {
-    return buf.readU16();
-  }
-  if (code === 254) {
-    return 506 + buf.readU8();
-  }
-  if (code === 255) {
-    return 253 + buf.readU8();
-  }
-  return code;
 }
 
 // --- Data writers -----------------------------------------------------------
@@ -740,7 +642,9 @@ function reconstructGlyfTable(
         off = store16(endPoint, glyphBuf, off);
       }
       off = store16(instructionSize, glyphBuf, off);
-      const instructions = instructionStream.readBytes(instructionSize);
+      const remaining = instructionStream.peekRemaining().length;
+      const safeSize = Math.min(instructionSize, remaining);
+      const instructions = instructionStream.readBytes(safeSize);
       glyphBuf.set(instructions, off);
 
       glyphBytes = glyphBuf;

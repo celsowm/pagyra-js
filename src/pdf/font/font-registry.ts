@@ -1,7 +1,8 @@
 import type { CSSFontFace, Run, StyleSheets } from "../types.js";
 import { PdfDocument, type PdfObjectRef } from "../primitives/pdf-document.js";
 import type { FontConfig, TtfFontMetrics } from "../../types/fonts.js";
-import { computeWidths, FontEmbedder } from "./embedder.js";
+import { FontEmbedder } from "./embedder.js";
+import { computeWidths } from "./widths.js";
 import { log } from "../../debug/log.js";
 import { needsUnicode } from "../../text/text.js";
 import { fontWeightCacheKey, normalizeFontWeight, isBoldFontWeight, parseFontWeightValue } from "../../css/font-weight.js";

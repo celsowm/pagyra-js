@@ -2,6 +2,7 @@ import type { RGBA, Rect, Radius } from "../types.js";
 import { CoordinateTransformer } from "../utils/coordinate-transformer.js";
 import { GradientService } from "../shading/gradient-service.js";
 import { parseLinearGradient, type LinearGradient, type RadialGradient } from "../../css/parsers/gradient-parser.js";
+import { fillColorCommand, formatNumber, mapLineCap, mapLineJoin, pointToPdf, rectToPdf, strokeColorCommand } from "./shape-utils.js";
 import type { GraphicsStateManager } from "./graphics-state-manager.js";
 
 export interface ShapePoint {
@@ -635,77 +636,12 @@ export class ShapeRenderer {
     return `${formatNumber(scaleX)} 0 0 ${formatNumber(-scaleY)} ${formatNumber(translateX)} ${formatNumber(translateY)} cm`;
   }
 
-  private rectToPdf(rect: Rect | null | undefined):
-    | { x: string; y: string; width: string; height: string }
-    | null {
-    if (!rect) {
-      return null;
-    }
-    const widthPx = Math.max(rect.width, 0);
-    const heightPx = Math.max(rect.height, 0);
-    if (widthPx === 0 || heightPx === 0) {
-      return null;
-    }
-    
-    // If in transform context, use relative coordinates
-    if (this.transformContext) {
-      const relX = rect.x - this.transformContext.x;
-      const relY = rect.y - this.transformContext.y;
-      const x = this.coordinateTransformer.convertPxToPt(relX);
-      const y = this.coordinateTransformer.convertPxToPt(-(relY + heightPx)); // Negative for PDF y-axis
-      const width = this.coordinateTransformer.convertPxToPt(widthPx);
-      const height = this.coordinateTransformer.convertPxToPt(heightPx);
-      return {
-        x: formatNumber(x),
-        y: formatNumber(y),
-        width: formatNumber(width),
-        height: formatNumber(height),
-      };
-    }
-    
-    // Normal absolute positioning
-    const localY = rect.y - this.coordinateTransformer.pageOffsetPx;
-    const x = this.coordinateTransformer.convertPxToPt(rect.x);
-    const y = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localY + heightPx);
-    const width = this.coordinateTransformer.convertPxToPt(widthPx);
-    const height = this.coordinateTransformer.convertPxToPt(heightPx);
-    return {
-      x: formatNumber(x),
-      y: formatNumber(y),
-      width: formatNumber(width),
-      height: formatNumber(height),
-    };
+  private rectToPdf(rect: Rect | null | undefined): { x: string; y: string; width: string; height: string } | null {
+    return rectToPdf(rect, this.coordinateTransformer, this.transformContext);
   }
 
-  private pointToPdf(point: ShapePoint):
-    | { x: string; y: string }
-    | null {
-    // If in transform context, use relative coordinates
-    if (this.transformContext) {
-      const relX = point.x - this.transformContext.x;
-      const relY = point.y - this.transformContext.y;
-      const x = this.coordinateTransformer.convertPxToPt(relX);
-      const y = this.coordinateTransformer.convertPxToPt(-relY); // Negative for PDF y-axis
-      if (!Number.isFinite(x) || !Number.isFinite(y)) {
-        return null;
-      }
-      return {
-        x: formatNumber(x),
-        y: formatNumber(y),
-      };
-    }
-    
-    // Normal absolute positioning
-    const localY = point.y - this.coordinateTransformer.pageOffsetPx;
-    const x = this.coordinateTransformer.convertPxToPt(point.x);
-    const y = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localY);
-    if (!Number.isFinite(x) || !Number.isFinite(y)) {
-      return null;
-    }
-    return {
-      x: formatNumber(x),
-      y: formatNumber(y),
-    };
+  private pointToPdf(point: ShapePoint): { x: string; y: string } | null {
+    return pointToPdf(point, this.coordinateTransformer, this.transformContext);
   }
 
   private pointsToPdf(points: ShapePoint[]): Array<{ x: string; y: string }> | null {
@@ -725,47 +661,6 @@ export class ShapeRenderer {
       commands: [...this.commands],
       shadings: this.gradientService.getShadings(),
     };
-  }
-}
-
-function fillColorCommand(color: RGBA): string {
-  const r = formatNumber(normalizeChannel(color.r));
-  const g = formatNumber(normalizeChannel(color.g));
-  const b = formatNumber(normalizeChannel(color.b));
-  // Alpha blending is handled through ExtGState assignments (see pushFillCommands).
-  return `${r} ${g} ${b} rg`;
-}
-
-function strokeColorCommand(color: RGBA): string {
-  const r = formatNumber(normalizeChannel(color.r));
-  const g = formatNumber(normalizeChannel(color.g));
-  const b = formatNumber(normalizeChannel(color.b));
-  return `${r} ${g} ${b} RG`;
-}
-
-function mapLineCap(cap: "butt" | "round" | "square" | undefined): number | undefined {
-  switch (cap) {
-    case "butt":
-      return 0;
-    case "round":
-      return 1;
-    case "square":
-      return 2;
-    default:
-      return undefined;
-  }
-}
-
-function mapLineJoin(join: "miter" | "round" | "bevel" | undefined): number | undefined {
-  switch (join) {
-    case "miter":
-      return 0;
-    case "round":
-      return 1;
-    case "bevel":
-      return 2;
-    default:
-      return undefined;
   }
 }
 
@@ -791,16 +686,3 @@ function isRadialGradientPaint(value: unknown): value is RadialGradient {
   return candidate.type === "radial" && typeof (candidate as any).r === "number";
 }
 
-function normalizeChannel(value: number): number {
-  if (value > 1) {
-    return value / 255;
-  }
- return value;
-}
-
-function formatNumber(value: number): string {
-  if (!Number.isFinite(value)) {
-    return "0";
-  }
-  return Number.isInteger(value) ? value.toString() : value.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
-}

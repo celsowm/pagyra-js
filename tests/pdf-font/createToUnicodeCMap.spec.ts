@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createToUnicodeCMapText } from "../../src/pdf/font/embedder.js";
+import { createToUnicodeCMapText } from "../../src/pdf/font/to-unicode.js";
 
 describe("createToUnicodeCMapText", () => {
   it("emits bfrange for consecutive gid->unicode runs (BMP)", () => {

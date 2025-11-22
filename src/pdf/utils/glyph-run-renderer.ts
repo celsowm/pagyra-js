@@ -16,6 +16,7 @@ export function drawGlyphRun(
   fontSizePt: number,
   color: RGBA,
   graphicsStateManager?: GraphicsStateManager,
+  wordSpacingPt = 0,
 ): string[] {
     const commands: string[] = [];
 
@@ -31,7 +32,13 @@ export function drawGlyphRun(
     // Set text position
     commands.push(`${formatNumber(xPt)} ${formatNumber(yPt)} Td`);
 
-    // Build TJ array with per-glyph kerning/letter-spacing adjustments.
+    // Apply word spacing (Tw) when requested.
+    const appliedWordSpacing = wordSpacingPt !== 0;
+    if (appliedWordSpacing) {
+      commands.push(`${formatNumber(wordSpacingPt)} Tw`);
+    }
+
+    // Build TJ array with per-glyph kerning/letter-spacing adjustments and optional word spacing.
     // Positions are provided in layout px units; scale to PDF points.
     const ptPerPx = fontSizePt / run.fontSize;
     const unitsPerEm = run.font.metrics.metrics.unitsPerEm;
@@ -54,7 +61,14 @@ export function drawGlyphRun(
         if (i < run.glyphIds.length - 1) {
             const currentPos = run.positions[i]?.x ?? 0;
             const nextPos = run.positions[i + 1]?.x ?? currentPos;
-            const desiredAdvancePx = nextPos - currentPos;
+            let desiredAdvancePx = nextPos - currentPos;
+            if (appliedWordSpacing) {
+                const nextChar = run.text[i + 1] ?? "";
+                if (nextChar === " ") {
+                    // Word spacing is added on spaces; add to desired advance.
+                    desiredAdvancePx += wordSpacingPt / ptPerPx;
+                }
+            }
 
             const gm = glyphWidths.get(gid);
             const defaultAdvancePx = ((gm?.advanceWidth ?? 0) / unitsPerEm) * run.fontSize;

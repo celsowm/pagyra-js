@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeWidths } from "../../src/pdf/font/embedder.js";
+import { computeWidths } from "../../src/pdf/font/widths.js";
 import { TtfFontMetrics } from "../../src/types/fonts.js";
 
 describe("computeWidths", () => {

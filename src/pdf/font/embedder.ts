@@ -5,6 +5,11 @@ import { log } from "../../debug/log.js";
 import { normalizeFontWeight } from "../../css/font-weight.js";
 import { detectFontFormat } from "../../fonts/detector.js";
 import { reconstructTtf } from "../../fonts/utils/ttf-reconstructor.js";
+import { computeWidths } from "./widths.js";
+import { createToUnicodeCMapText } from "./to-unicode.js";
+
+export { computeWidths } from "./widths.js";
+export { createToUnicodeCMapText } from "./to-unicode.js";
 
 const TYPICAL_STEM_V = 80;
 
@@ -52,84 +57,6 @@ interface CIDFontDictionary {
   readonly DW?: number;
   readonly W: readonly (number | readonly number[])[];
   readonly CIDToGIDMap: PdfObjectRef | string;
-}
-
-/**
- * Compute DW (default width) and compressed W array from glyph metrics.
- * Exported so it can be unit-tested.
- */
-export function computeWidths(metrics: TtfFontMetrics): { DW: number; W: CIDFontDictionary["W"] } {
-  const count = metrics.glyphMetrics.size;
-  const widths: number[] = new Array(count).fill(0);
-  for (const [gid, gm] of metrics.glyphMetrics) {
-    widths[gid] = Math.round((gm.advanceWidth / metrics.metrics.unitsPerEm) * 1000);
-  }
-
-  const computeDW = (arr: number[]) => {
-    const freq = new Map<number, number>();
-    for (const v of arr) {
-      // Skip zero widths; a DW of 0 breaks Identity-H rendering in some viewers.
-      if (v === 0) continue;
-      freq.set(v, (freq.get(v) ?? 0) + 1);
-    }
-    // Fallback to 1000 if we only saw zeros.
-    if (freq.size === 0) {
-      return 1000;
-    }
-    let best = 1000;
-    let bestCount = -1;
-    for (const [v, c] of freq.entries()) {
-      if (c > bestCount || (c === bestCount && v < best)) {
-        best = v;
-        bestCount = c;
-      }
-    }
-    return best;
-  };
-
-  const DW = computeDW(widths);
-
-  // Compress widths into W entries using ranges for repeating values and arrays for heterogenous runs
-  // The PDF spec requires a flat array of mixed types:
-  // c [w1 w2 ... wn]
-  // c_first c_last w
-  const result: (number | number[])[] = [];
-  let i = 0;
-  while (i < count) {
-    // skip DW values
-    if (widths[i] === DW) {
-      i++;
-      continue;
-    }
-
-    // try find long run of identical width (use range if length >= 4)
-    const start = i;
-    const val = widths[i];
-    let j = i + 1;
-    while (j < count && widths[j] === val) j++;
-    const runLen = j - start;
-    if (runLen >= 4) {
-      // c_first c_last w
-      result.push(start);
-      result.push(j - 1);
-      result.push(val);
-      i = j;
-      continue;
-    }
-
-    // otherwise build a heterogenous list until we hit DW or reach a reasonable chunk (32)
-    const listStart = i;
-    const list: number[] = [];
-    while (i < count && widths[i] !== DW && list.length < 32) {
-      list.push(widths[i]);
-      i++;
-    }
-    // c [w1 ... wn]
-    result.push(listStart);
-    result.push(list);
-  }
-
-  return { DW, W: result };
 }
 
 export class FontEmbedder {
@@ -333,99 +260,11 @@ export class FontEmbedder {
     }
     log("FONT", "DEBUG", "createToUnicodeCMap - gid->unicode sample", { samples: gidSamples });
 
-    const entries: { gid: number; unicode: number }[] = [];
-    for (const [gid, unicode] of gidToUni.entries()) {
-      entries.push({ gid, unicode });
-    }
-    entries.sort((a, b) => a.gid - b.gid);
+    const entries = Array.from(gidToUni.entries())
+      .map(([gid, unicode]) => ({ gid, unicode }))
+      .sort((a, b) => a.gid - b.gid);
 
-    // Helper: encode a Unicode code point to UTF-16BE hex string (handles non-BMP via surrogate pairs)
-    const uniToUtf16Hex = (cp: number): string => {
-      if (cp <= 0xffff) {
-        return cp.toString(16).padStart(4, "0").toUpperCase();
-      }
-      // surrogate pair
-      const v = cp - 0x10000;
-      const hi = 0xd800 + (v >> 10);
-      const lo = 0xdc00 + (v & 0x3ff);
-      return hi.toString(16).padStart(4, "0").toUpperCase() + lo.toString(16).padStart(4, "0").toUpperCase();
-    };
-
-    // Build mapping directives: try to form bfrange for consecutive gid->unicode sequences
-    type Mapping = { type: "range"; startG: number; endG: number; startU: number } | { type: "char"; gid: number; unicode: number };
-    const mappings: Mapping[] = [];
-    let idx = 0;
-    while (idx < entries.length) {
-      const start = entries[idx];
-      let j = idx + 1;
-      // extend consecutive runs where gid increments by 1 and unicode increments by 1
-      while (
-        j < entries.length &&
-        entries[j].gid === entries[j - 1].gid + 1 &&
-        entries[j].unicode === entries[j - 1].unicode + 1
-      ) {
-        j++;
-      }
-      const runLen = j - idx;
-      if (runLen >= 2) {
-        // use bfrange for linear runs
-        mappings.push({ type: "range", startG: start.gid, endG: entries[j - 1].gid, startU: start.unicode });
-        idx = j;
-      } else {
-        mappings.push({ type: "char", gid: start.gid, unicode: start.unicode });
-        idx++;
-      }
-    }
-
-    // Emit CMap with blocks: group same-type mappings into chunks to emit beginbfchar / beginbfrange blocks.
-    const lines: string[] = [];
-    lines.push("/CIDInit /ProcSet findresource begin");
-    lines.push("12 dict begin");
-    lines.push("begincmap");
-    lines.push("/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def");
-    lines.push("/CMapName /Adobe-Identity-UCS def");
-    lines.push("/CMapType 2 def");
-    lines.push("1 begincodespacerange");
-    // source CIDs are represented as 2-byte values here
-    lines.push("<0000> <FFFF>");
-    lines.push("endcodespacerange");
-
-    const CHUNK = 100;
-    let p = 0;
-    while (p < mappings.length) {
-      const currentType = mappings[p].type;
-      const group: Mapping[] = [];
-      while (p < mappings.length && mappings[p].type === currentType && group.length < CHUNK) {
-        group.push(mappings[p]);
-        p++;
-      }
-
-      if (currentType === "char") {
-        lines.push(`${group.length} beginbfchar`);
-        for (const m of group as { type: "char"; gid: number; unicode: number }[]) {
-          const cid = m.gid.toString(16).padStart(4, "0").toUpperCase();
-          const uniHex = uniToUtf16Hex(m.unicode);
-          lines.push(`<${cid}> <${uniHex}>`);
-        }
-        lines.push("endbfchar");
-      } else {
-        lines.push(`${group.length} beginbfrange`);
-        for (const m of group as { type: "range"; startG: number; endG: number; startU: number }[]) {
-          const startCid = m.startG.toString(16).padStart(4, "0").toUpperCase();
-          const endCid = m.endG.toString(16).padStart(4, "0").toUpperCase();
-          const startUniHex = uniToUtf16Hex(m.startU);
-          lines.push(`<${startCid}> <${endCid}> <${startUniHex}>`);
-        }
-        lines.push("endbfrange");
-      }
-    }
-
-    lines.push("endcmap");
-    lines.push("CMapName currentdict /CMap defineresource pop");
-    lines.push("end");
-    lines.push("end");
-
-    const cmapText = lines.join("\n");
+    const cmapText = createToUnicodeCMapText(entries);
     return this.doc.registerStream(new TextEncoder().encode(cmapText), {});
   }
 
@@ -502,118 +341,4 @@ export async function getEmbeddedFont(name: "NotoSans-Regular" | "DejaVuSans", d
     return embedded;
   }
   return null;
-}
-
-/**
- * Build ToUnicode CMap text from explicit gid->unicode mappings.
- * Entries must be ordered by gid for best results but ordering is not required.
- * Supports non-BMP code points by emitting UTF-16BE surrogate pairs.
- *
- * Output is a textual CMap ready to be registered as a PDF stream.
- */
-export function createToUnicodeCMapText(entries: { gid: number; unicode: number }[]): string {
-  if (!entries || entries.length === 0) {
-    return `/CIDInit /ProcSet findresource begin
-12 dict begin
-begincmap
-/CIDSystemInfo <<
-  /Registry (Adobe)
-  /Ordering (UCS)
-  /Supplement 0
->> def
-/CMapName /Adobe-Identity-UCS def
-/CMapType 2 def
-1 begincodespacerange
-<0000> <FFFF>
-endcodespacerange
-endcmap
-CMapName currentdict /CMap defineresource pop
-end
-end`;
-  }
-
-  // sort by gid
-  const es = entries.slice().sort((a, b) => a.gid - b.gid);
-
-  const uniToUtf16Hex = (cp: number): string => {
-    if (cp <= 0xffff) {
-      return cp.toString(16).padStart(4, "0").toUpperCase();
-    }
-    const v = cp - 0x10000;
-    const hi = 0xd800 + (v >> 10);
-    const lo = 0xdc00 + (v & 0x3ff);
-    return hi.toString(16).padStart(4, "0").toUpperCase() + lo.toString(16).padStart(4, "0").toUpperCase();
-  };
-
-  // Build mapping directives (group consecutive linear runs into ranges)
-  type Mapping = { type: "range"; startG: number; endG: number; startU: number } | { type: "char"; gid: number; unicode: number };
-  const mappings: Mapping[] = [];
-  let i = 0;
-  while (i < es.length) {
-    const start = es[i];
-    let j = i + 1;
-    while (
-      j < es.length &&
-      es[j].gid === es[j - 1].gid + 1 &&
-      es[j].unicode === es[j - 1].unicode + 1
-    ) {
-      j++;
-    }
-    const runLen = j - i;
-    if (runLen >= 2) {
-      mappings.push({ type: "range", startG: start.gid, endG: es[j - 1].gid, startU: start.unicode });
-      i = j;
-    } else {
-      mappings.push({ type: "char", gid: start.gid, unicode: start.unicode });
-      i++;
-    }
-  }
-
-  const lines: string[] = [];
-  lines.push("/CIDInit /ProcSet findresource begin");
-  lines.push("12 dict begin");
-  lines.push("begincmap");
-  lines.push("/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def");
-  lines.push("/CMapName /Adobe-Identity-UCS def");
-  lines.push("/CMapType 2 def");
-  lines.push("1 begincodespacerange");
-  lines.push("<0000> <FFFF>");
-  lines.push("endcodespacerange");
-
-  const CHUNK = 100;
-  let p = 0;
-  while (p < mappings.length) {
-    const currentType = mappings[p].type;
-    const group: Mapping[] = [];
-    while (p < mappings.length && mappings[p].type === currentType && group.length < CHUNK) {
-      group.push(mappings[p]);
-      p++;
-    }
-
-    if (currentType === "char") {
-      lines.push(`${group.length} beginbfchar`);
-      for (const m of group as { type: "char"; gid: number; unicode: number }[]) {
-        const cid = m.gid.toString(16).padStart(4, "0").toUpperCase();
-        const uniHex = uniToUtf16Hex(m.unicode);
-        lines.push(`<${cid}> <${uniHex}>`);
-      }
-      lines.push("endbfchar");
-    } else {
-      lines.push(`${group.length} beginbfrange`);
-      for (const m of group as { type: "range"; startG: number; endG: number; startU: number }[]) {
-        const startCid = m.startG.toString(16).padStart(4, "0").toUpperCase();
-        const endCid = m.endG.toString(16).padStart(4, "0").toUpperCase();
-        const startUniHex = uniToUtf16Hex(m.startU);
-        lines.push(`<${startCid}> <${endCid}> <${startUniHex}>`);
-      }
-      lines.push("endbfrange");
-    }
-  }
-
-  lines.push("endcmap");
-  lines.push("CMapName currentdict /CMap defineresource pop");
-  lines.push("end");
-  lines.push("end");
-
-  return lines.join("\n");
 }

@@ -1,5 +1,5 @@
 import type { FontMetrics, FontProgram } from "../../fonts/types.js";
-import { createToUnicodeCMapText } from "./embedder.js";
+import { createToUnicodeCMapText } from "./to-unicode.js";
 
 /**
  * Represents a subsetted font ready for PDF embedding.
