@@ -4,6 +4,8 @@ import { GradientService } from "../shading/gradient-service.js";
 import { parseLinearGradient, type LinearGradient, type RadialGradient } from "../../css/parsers/gradient-parser.js";
 import { fillColorCommand, formatNumber, mapLineCap, mapLineJoin, pointToPdf, rectToPdf, strokeColorCommand } from "./shape-utils.js";
 import type { GraphicsStateManager } from "./graphics-state-manager.js";
+import { normalizeRadiiForRect, isZeroRadius } from "./radius-utils.js";
+import { generateRoundedRectPath } from "./rounded-rect-path.js";
 
 export interface ShapePoint {
   x: number;
@@ -71,12 +73,12 @@ export class ShapeRenderer {
       return;
     }
 
-    const adjusted = this.normalizeRadiiForRect(width, height, radii);
-    if (this.isZeroRadius(adjusted)) {
+    const adjusted = normalizeRadiiForRect(width, height, radii);
+    if (isZeroRadius(adjusted)) {
       this.fillRect(rect, paint as RGBA);
       return;
     }
-    const path = this.roundedRectPath(width, height, adjusted, 0, 0);
+    const path = generateRoundedRectPath(width, height, adjusted, 0, 0);
     if (path.length === 0) {
       return;
     }
@@ -97,13 +99,13 @@ export class ShapeRenderer {
       return;
     }
 
-    const adjusted = this.normalizeRadiiForRect(width, height, radii);
-    if (this.isZeroRadius(adjusted)) {
+    const adjusted = normalizeRadiiForRect(width, height, radii);
+    if (isZeroRadius(adjusted)) {
       this.fillRectWithGradient(rect, gradient);
       return;
     }
 
-    const path = this.roundedRectPath(width, height, adjusted, 0, 0);
+    const path = generateRoundedRectPath(width, height, adjusted, 0, 0);
     if (path.length === 0) {
       return;
     }
@@ -140,13 +142,13 @@ export class ShapeRenderer {
       return;
     }
 
-    const adjusted = this.normalizeRadiiForRect(width, height, radii);
-    if (this.isZeroRadius(adjusted)) {
+    const adjusted = normalizeRadiiForRect(width, height, radii);
+    if (isZeroRadius(adjusted)) {
       this.fillRectWithRadialGradient(rect, gradient);
       return;
     }
 
-    const path = this.roundedRectPath(width, height, adjusted, 0, 0);
+    const path = generateRoundedRectPath(width, height, adjusted, 0, 0);
     if (path.length === 0) {
       return;
     }
@@ -182,7 +184,7 @@ export class ShapeRenderer {
     if (outerWidth === 0 || outerHeight === 0) {
       return;
     }
-    const outerAdjusted = this.normalizeRadiiForRect(outerWidth, outerHeight, outerRadii);
+    const outerAdjusted = normalizeRadiiForRect(outerWidth, outerHeight, outerRadii);
     const innerWidth = Math.max(innerRect.width, 0);
     const innerHeight = Math.max(innerRect.height, 0);
 
@@ -192,15 +194,15 @@ export class ShapeRenderer {
       return;
     }
 
-    const pathOuter = this.roundedRectPath(outerWidth, outerHeight, outerAdjusted, 0, 0);
+    const pathOuter = generateRoundedRectPath(outerWidth, outerHeight, outerAdjusted, 0, 0);
     if (pathOuter.length === 0) {
       return;
     }
 
-    const innerAdjusted = this.normalizeRadiiForRect(innerWidth, innerHeight, innerRadii);
+    const innerAdjusted = normalizeRadiiForRect(innerWidth, innerHeight, innerRadii);
     const offsetX = innerRect.x - outerRect.x;
     const offsetY = innerRect.y - outerRect.y;
-    const pathInner = this.roundedRectPath(innerWidth, innerHeight, innerAdjusted, offsetX, offsetY);
+    const pathInner = generateRoundedRectPath(innerWidth, innerHeight, innerAdjusted, offsetX, offsetY);
 
     const commands = [this.transformForRect(outerRect), ...pathOuter, ...pathInner, "f*"];
     this.pushFillCommands(color, commands, true);
@@ -243,8 +245,8 @@ export class ShapeRenderer {
     if (width === 0 || height === 0) {
       return;
     }
-    const adjusted = this.normalizeRadiiForRect(width, height, radii);
-    const path = this.roundedRectPath(width, height, adjusted, 0, 0);
+    const adjusted = normalizeRadiiForRect(width, height, radii);
+    const path = generateRoundedRectPath(width, height, adjusted, 0, 0);
     if (path.length === 0) {
       return;
     }
@@ -426,59 +428,7 @@ export class ShapeRenderer {
     }
   }
 
-  private normalizeRadiiForRect(width: number, height: number, radii: Radius): Radius {
-    const result: Radius = {
-      topLeft: { ...radii.topLeft },
-      topRight: { ...radii.topRight },
-      bottomRight: { ...radii.bottomRight },
-      bottomLeft: { ...radii.bottomLeft },
-    };
-
-    const safeWidth = Math.max(width, 0);
-    const safeHeight = Math.max(height, 0);
-
-    if (safeWidth <= 0) {
-      result.topLeft.x = 0;
-      result.topRight.x = 0;
-      result.bottomRight.x = 0;
-      result.bottomLeft.x = 0;
-    } else {
-      const topSum = result.topLeft.x + result.topRight.x;
-      if (topSum > safeWidth && topSum > 0) {
-        const scale = safeWidth / topSum;
-        result.topLeft.x *= scale;
-        result.topRight.x *= scale;
-      }
-      const bottomSum = result.bottomLeft.x + result.bottomRight.x;
-      if (bottomSum > safeWidth && bottomSum > 0) {
-        const scale = safeWidth / bottomSum;
-        result.bottomLeft.x *= scale;
-        result.bottomRight.x *= scale;
-      }
-    }
-
-    if (safeHeight <= 0) {
-      result.topLeft.y = 0;
-      result.topRight.y = 0;
-      result.bottomRight.y = 0;
-      result.bottomLeft.y = 0;
-    } else {
-      const leftSum = result.topLeft.y + result.bottomLeft.y;
-      if (leftSum > safeHeight && leftSum > 0) {
-        const scale = safeHeight / leftSum;
-        result.topLeft.y *= scale;
-        result.bottomLeft.y *= scale;
-      }
-      const rightSum = result.topRight.y + result.bottomRight.y;
-      if (rightSum > safeHeight && rightSum > 0) {
-        const scale = safeHeight / rightSum;
-        result.topRight.y *= scale;
-        result.bottomRight.y *= scale;
-      }
-    }
-
-    return result;
-  }
+  // normalizeRadiiForRect and isZeroRadius now imported from radius-utils.ts
 
   private pathCommandsToPdf(commands: PathCommand[]): string[] | null {
     const result: string[] = [];
@@ -520,100 +470,9 @@ export class ShapeRenderer {
     return result;
   }
 
-  private isZeroRadius(radii: Radius): boolean {
-    return (
-      radii.topLeft.x === 0 &&
-      radii.topLeft.y === 0 &&
-      radii.topRight.x === 0 &&
-      radii.topRight.y === 0 &&
-      radii.bottomRight.x === 0 &&
-      radii.bottomRight.y === 0 &&
-      radii.bottomLeft.x === 0 &&
-      radii.bottomLeft.y === 0
-    );
-  }
+  // isZeroRadius now imported from radius-utils.ts
 
- private roundedRectPath(width: number, height: number, radii: Radius, offsetX: number, offsetY: number): string[] {
-    const commands: string[] = [];
-    if (width <= 0 || height <= 0) {
-      return commands;
-    }
-    const tl = radii.topLeft;
-    const tr = radii.topRight;
-    const br = radii.bottomRight;
-    const bl = radii.bottomLeft;
-    const k = 0.5522847498307936;
-
-    const moveX = offsetX + tl.x;
-    const moveY = offsetY;
-    commands.push(`${formatNumber(moveX)} ${formatNumber(moveY)} m`);
-    commands.push(`${formatNumber(offsetX + width - tr.x)} ${formatNumber(offsetY)} l`);
-
-    if (tr.x > 0 || tr.y > 0) {
-      const cp1x = offsetX + width - tr.x + k * tr.x;
-      const cp1y = offsetY;
-      const cp2x = offsetX + width;
-      const cp2y = offsetY + tr.y - k * tr.y;
-      const endX = offsetX + width;
-      const endY = offsetY + tr.y;
-      commands.push(
-        `${formatNumber(cp1x)} ${formatNumber(cp1y)} ${formatNumber(cp2x)} ${formatNumber(cp2y)} ${formatNumber(endX)} ${formatNumber(endY)} c`,
-      );
-    } else {
-      commands.push(`${formatNumber(offsetX + width)} ${formatNumber(offsetY)} l`);
-    }
-
-    commands.push(`${formatNumber(offsetX + width)} ${formatNumber(offsetY + height - br.y)} l`);
-
-    if (br.x > 0 || br.y > 0) {
-      const cp1x = offsetX + width;
-      const cp1y = offsetY + height - br.y + k * br.y;
-      const cp2x = offsetX + width - br.x + k * br.x;
-      const cp2y = offsetY + height;
-      const endX = offsetX + width - br.x;
-      const endY = offsetY + height;
-      commands.push(
-        `${formatNumber(cp1x)} ${formatNumber(cp1y)} ${formatNumber(cp2x)} ${formatNumber(cp2y)} ${formatNumber(endX)} ${formatNumber(endY)} c`,
-      );
-    } else {
-      commands.push(`${formatNumber(offsetX + width)} ${formatNumber(offsetY + height)} l`);
-    }
-
-    commands.push(`${formatNumber(offsetX + bl.x)} ${formatNumber(offsetY + height)} l`);
-
-    if (bl.x > 0 || bl.y > 0) {
-      const cp1x = offsetX + bl.x - k * bl.x;
-      const cp1y = offsetY + height;
-      const cp2x = offsetX;
-      const cp2y = offsetY + height - bl.y + k * bl.y;
-      const endX = offsetX;
-      const endY = offsetY + height - bl.y;
-      commands.push(
-        `${formatNumber(cp1x)} ${formatNumber(cp1y)} ${formatNumber(cp2x)} ${formatNumber(cp2y)} ${formatNumber(endX)} ${formatNumber(endY)} c`,
-      );
-    } else {
-      commands.push(`${formatNumber(offsetX)} ${formatNumber(offsetY + height)} l`);
-    }
-
-    commands.push(`${formatNumber(offsetX)} ${formatNumber(offsetY + tl.y)} l`);
-
-    if (tl.x > 0 || tl.y > 0) {
-      const cp1x = offsetX;
-      const cp1y = offsetY + tl.y - k * tl.y;
-      const cp2x = offsetX + tl.x - k * tl.x;
-      const cp2y = offsetY;
-      const endX = offsetX + tl.x;
-      const endY = offsetY;
-      commands.push(
-        `${formatNumber(cp1x)} ${formatNumber(cp1y)} ${formatNumber(cp2x)} ${formatNumber(cp2y)} ${formatNumber(endX)} ${formatNumber(endY)} c`,
-      );
-    } else {
-      commands.push(`${formatNumber(offsetX)} ${formatNumber(offsetY)} l`);
-    }
-
-    commands.push("h");
-    return commands;
- }
+  // generateRoundedRectPath now imported from rounded-rect-path.ts
 
   private transformForRect(rect: Rect): string {
     // If we're in a transform context, use relative coordinates
@@ -626,7 +485,7 @@ export class ShapeRenderer {
       const translateY = this.coordinateTransformer.convertPxToPt(-relY); // Negative because PDF y-axis is flipped
       return `${formatNumber(scaleX)} 0 0 ${formatNumber(scaleY)} ${formatNumber(translateX)} ${formatNumber(translateY)} cm`;
     }
-    
+
     // Normal absolute positioning
     const scaleX = this.coordinateTransformer.convertPxToPt(1);
     const scaleY = this.coordinateTransformer.convertPxToPt(1);
