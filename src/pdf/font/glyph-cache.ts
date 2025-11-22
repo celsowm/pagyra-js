@@ -93,8 +93,14 @@ export function getGlyphMask(metrics: TtfFontMetrics, gid: number, fontSizePx: n
     // Cache the final mask (with blurred alpha if applied)
     // Ensure the stored buffer matches the BitmapMask type (Uint8ClampedArray)
     const clamped = alphaBuf instanceof Uint8ClampedArray ? alphaBuf : new Uint8ClampedArray(alphaBuf);
-    const finalMask: BitmapMask = { width: mask.width, height: mask.height, data: clamped };
-     glyphMaskCache.set(key, finalMask);
+    const finalMask: BitmapMask = {
+      width: mask.width,
+      height: mask.height,
+      data: clamped,
+      offsetX: mask.offsetX,
+      offsetY: mask.offsetY,
+    };
+    glyphMaskCache.set(key, finalMask);
     trimCacheIfNeeded();
     return finalMask;
   } catch {

@@ -75,21 +75,26 @@ export class TextShadowRenderer {
 
         if (glyphMasks.length > 0) {
           let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+          const maxBlurPx = run.textShadows.reduce((acc, sh) => Math.max(acc, Math.max(0, sh?.blur ?? 0)), 0);
           for (const item of glyphMasks) {
             const { mask, pos } = item;
-            const gx0 = pos.x;
-            const gy0 = pos.y - mask.height;
-            const gx1 = pos.x + mask.width;
-            const gy1 = pos.y;
+            const maskOffsetX = mask.offsetX ?? 0;
+            const maskOffsetY = mask.offsetY ?? 0;
+            const gx0 = pos.x + maskOffsetX;
+            const gy0 = pos.y + maskOffsetY;
+            const gx1 = gx0 + mask.width;
+            const gy1 = gy0 + mask.height;
             if (gx0 < minX) minX = gx0;
             if (gy0 < minY) minY = gy0;
             if (gx1 > maxX) maxX = gx1;
             if (gy1 > maxY) maxY = gy1;
           }
-          minX = Math.floor(minX);
-          minY = Math.floor(minY);
-          maxX = Math.ceil(maxX);
-          maxY = Math.ceil(maxY);
+          // Pad the bounding box to leave room for blur bleed.
+          const bleedPad = Math.ceil(maxBlurPx * 2);
+          minX = Math.floor(minX - bleedPad);
+          minY = Math.floor(minY - bleedPad);
+          maxX = Math.ceil(maxX + bleedPad);
+          maxY = Math.ceil(maxY + bleedPad);
 
           const combinedW = Math.max(0, maxX - minX);
           const combinedH = Math.max(0, maxY - minY);
@@ -97,8 +102,10 @@ export class TextShadowRenderer {
             const combinedAlpha = new Uint8Array(combinedW * combinedH);
             for (const item of glyphMasks) {
               const { mask, pos } = item;
-              const ox = Math.round(pos.x - minX);
-              const oy = Math.round(pos.y - mask.height - minY);
+              const maskOffsetX = mask.offsetX ?? 0;
+              const maskOffsetY = mask.offsetY ?? 0;
+              const ox = Math.round(pos.x + maskOffsetX - minX);
+              const oy = Math.round(pos.y + maskOffsetY - minY);
               for (let yy = 0; yy < mask.height; yy++) {
                 const dstRow = oy + yy;
                 if (dstRow < 0 || dstRow >= combinedH) continue;
@@ -158,12 +165,12 @@ export class TextShadowRenderer {
               const offsetX = sh.offsetX ?? 0;
               const offsetY = sh.offsetY ?? 0;
               const xPx = Tm.e + offsetX + minX;
-              const yPxTop = Tm.f + offsetY - combinedH;
+              const yPxTop = Tm.f + offsetY + minY;
               const widthPt = this.coordinateTransformer.convertPxToPt(combinedW);
               const heightPt = this.coordinateTransformer.convertPxToPt(combinedH);
               const xPt = this.coordinateTransformer.convertPxToPt(xPx);
-              const localY = yPxTop - this.coordinateTransformer.pageOffsetPx;
-              const yPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localY + combinedH);
+              const localYTop = yPxTop - this.coordinateTransformer.pageOffsetPx;
+              const yPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localYTop + combinedH);
 
               commands.push(
                 "q",

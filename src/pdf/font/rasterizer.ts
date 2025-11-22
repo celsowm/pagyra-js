@@ -4,6 +4,9 @@ export interface BitmapMask {
   width: number;
   height: number;
   data: Uint8ClampedArray; // alpha 0..255, length = width * height
+  // Offset (in px) from the glyph origin to the top-left of the bitmap
+  offsetX: number;
+  offsetY: number;
 }
 
 /**
@@ -104,33 +107,33 @@ export function flattenOutline(cmds: GlyphOutlineCmd[], scale: number, tolPx = 0
     switch (c.type) {
       case "moveTo": {
         const x = c.x * scale;
-        const y = c.y * scale;
+        const y = -c.y * scale; // flip Y to match layout/PDF coordinate (downward positive)
         emitMove(x, y);
         break;
       }
       case "lineTo": {
         const x = c.x * scale;
-        const y = c.y * scale;
+        const y = -c.y * scale;
         emitLine(x, y);
         break;
       }
       case "quadTo": {
         const cx = c.cx * scale;
-        const cy = c.cy * scale;
+        const cy = -c.cy * scale;
         const x = c.x * scale;
-        const y = c.y * scale;
+        const y = -c.y * scale;
         emitQuad(cx, cy, x, y);
         break;
       }
       case "cubicTo": {
-        // Not implementing cubic flattening for now — approximate by splitting into quads (simple approach)
+        // Not implementing cubic flattening for now - approximate by splitting into quads (simple approach)
         // Convert cubic to two quadratics via degree reduction (rough) or fallback: sample with small steps
         const steps = 8;
         for (let i = 1; i <= steps; i++) {
           const t = i / steps;
           // cubic bezier evaluate using standard formula
           const x = Math.pow(1 - t, 3) * (cursorX) + 3 * t * Math.pow(1 - t, 2) * (c.cx1 * scale) + 3 * t * t * (1 - t) * (c.cx2 * scale) + t * t * t * (c.x * scale);
-          const y = Math.pow(1 - t, 3) * (cursorY) + 3 * t * Math.pow(1 - t, 2) * (c.cy1 * scale) + 3 * t * t * (1 - t) * (c.cy2 * scale) + t * t * t * (c.y * scale);
+          const y = Math.pow(1 - t, 3) * (cursorY) + 3 * t * Math.pow(1 - t, 2) * (-c.cy1 * scale) + 3 * t * t * (1 - t) * (-c.cy2 * scale) + t * t * t * (-c.y * scale);
           emitLine(x, y);
         }
         break;
@@ -263,5 +266,5 @@ export function rasterizeContours(contours: { x: number; y: number }[][], supers
     }
   }
 
-  return { width: outW, height: outH, data: out };
+  return { width: outW, height: outH, data: out, offsetX: minX, offsetY: minY };
 }
