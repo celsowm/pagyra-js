@@ -1,7 +1,6 @@
 import { detectFontFormat } from './detector.js';
 import { TtfEngine } from './engines/ttf-engine.js';
-// import { WoffEngine } from './engines/woff-engine.js';
-// import { Woff2Engine } from './engines/woff2-engine.js';
+import { Woff2Engine } from './engines/woff2-engine.js';
 import type { FontFormat, UnifiedFont } from './types.js';
 
 export class FontOrchestrator {
@@ -9,8 +8,7 @@ export class FontOrchestrator {
 
   constructor() {
     this.engines.set('ttf', new TtfEngine());
-    // this.engines.set('woff', new WoffEngine());
-    // this.engines.set('woff2', new Woff2Engine());
+    this.engines.set('woff2', new Woff2Engine());
     this.engines.set('otf', new TtfEngine()); // OTF uses the same engine as TTF for now
   }
 
