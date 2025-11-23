@@ -437,7 +437,6 @@ function updateHtmlPreview() {
           body {
             margin: 0;
             padding: 20px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             line-height: 1.6;
             color: #333;
           }
