@@ -3,32 +3,40 @@ import type { Viewport } from "../../geometry/box.js";
 import { LayoutEnvironment } from "../context/layout-environment.js";
 import type { FontEmbedder } from "../../pdf/font/embedder.js";
 import type { LayoutStrategy, LayoutContext } from "./strategy.js";
-import { Position } from "../../css/enums.js";
-import { containingBlock } from "../utils/node-math.js";
-import { resolveLength, isAutoLength } from "../../css/length.js";
-import { assignIntrinsicTextMetrics } from "../utils/text-metrics.js";
+import type { LayoutContextFactory } from "./context-factory.js";
+import { DefaultLayoutContextFactory } from "./context-factory.js";
+import type { TextMetricsInitializer } from "./text-metrics-initializer.js";
+import { DefaultTextMetricsInitializer } from "./text-metrics-initializer.js";
+import type { OutOfFlowManager } from "./out-of-flow-manager.js";
+import { DefaultOutOfFlowManager } from "./out-of-flow-manager.js";
 
 export interface LayoutEngineOptions {
   strategies: readonly LayoutStrategy[];
+  contextFactory?: LayoutContextFactory;
+  textMetricsInitializer?: TextMetricsInitializer;
+  outOfFlowManager?: OutOfFlowManager;
 }
 
 export class LayoutEngine {
   private readonly strategies: readonly LayoutStrategy[];
+  private readonly contextFactory: LayoutContextFactory;
+  private readonly textMetricsInitializer: TextMetricsInitializer;
+  private readonly outOfFlowManager: OutOfFlowManager;
 
   constructor(options: LayoutEngineOptions) {
     this.strategies = options.strategies;
+    this.contextFactory = options.contextFactory ?? new DefaultLayoutContextFactory();
+    this.textMetricsInitializer = options.textMetricsInitializer ?? new DefaultTextMetricsInitializer();
+    this.outOfFlowManager = options.outOfFlowManager ?? new DefaultOutOfFlowManager();
   }
 
   layoutTree(root: LayoutNode, viewport: Viewport, fontEmbedder: FontEmbedder | null): LayoutNode {
     const environment = new LayoutEnvironment({ viewport, fontEmbedder });
-    const context: LayoutContext = {
-      env: environment,
-      layoutChild: (node: LayoutNode) => {
-        this.layoutNodeInternal(node, context);
-      },
-    };
+    const context: LayoutContext = this.contextFactory.create(environment, (node: LayoutNode) => {
+      this.layoutNodeInternal(node, context);
+    });
 
-    assignIntrinsicTextMetrics(root, fontEmbedder);
+    this.textMetricsInitializer.assign(root, fontEmbedder);
 
     root.box.x = 0;
     root.box.y = 0;
@@ -36,7 +44,7 @@ export class LayoutEngine {
     root.box.contentHeight = viewport.height;
 
     this.layoutNodeInternal(root, context);
-    this.layoutOutOfFlowNodes(root, context);
+    this.outOfFlowManager.layoutOutOfFlow(root, context, (node, ctx) => this.layoutNodeInternal(node, ctx));
     // Fragmentation is not yet implemented - placeholder for future expansion.
     return root;
   }
@@ -47,58 +55,5 @@ export class LayoutEngine {
       throw new Error(`No layout strategy available for display: ${node.style.display}`);
     }
     strategy.layout(node, context);
-  }
-
-  private layoutOutOfFlowNodes(root: LayoutNode, context: LayoutContext): void {
-    const positionedNodes: LayoutNode[] = [];
-    root.walk((node) => {
-      if (node.style.position === Position.Absolute || node.style.position === Position.Fixed) {
-        positionedNodes.push(node);
-      }
-    });
-    for (const node of positionedNodes) {
-      this.layoutNodeInternal(node, context);
-      this.layoutAbsoluteOrFixed(node, context);
-    }
-  }
-
-  private layoutAbsoluteOrFixed(node: LayoutNode, context: LayoutContext): void {
-    const cb = containingBlock(node, context.env.viewport);
-    const widthRef = cb.width;
-    const heightRef = cb.height;
-
-    const resolveInset = (value: typeof node.style.left, reference: number): number | undefined => {
-      if (value === undefined || isAutoLength(value)) {
-        return undefined;
-      }
-      return resolveLength(value, reference, { auto: "zero" });
-    };
-
-    const left = resolveInset(node.style.left, widthRef);
-    const right = resolveInset(node.style.right, widthRef);
-    const top = resolveInset(node.style.top, heightRef);
-    const bottom = resolveInset(node.style.bottom, heightRef);
-
-    const borderBoxWidth = node.box.borderBoxWidth || node.box.contentWidth;
-    const borderBoxHeight = node.box.borderBoxHeight || node.box.contentHeight;
-    const measuredWidth = node.box.marginBoxWidth || borderBoxWidth;
-    const measuredHeight = node.box.marginBoxHeight || borderBoxHeight;
-
-    let x = cb.x;
-    if (left !== undefined) {
-      x = cb.x + left;
-    } else if (right !== undefined) {
-      x = cb.x + cb.width - measuredWidth - right;
-    }
-
-    let y = cb.y;
-    if (top !== undefined) {
-      y = cb.y + top;
-    } else if (bottom !== undefined) {
-      y = cb.y + cb.height - measuredHeight - bottom;
-    }
-
-    node.box.x = x;
-    node.box.y = y;
   }
 }

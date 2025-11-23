@@ -4,7 +4,8 @@ import { log } from "../../debug/log.js";
 import { resolveLength } from "../../css/length.js";
 import { containingBlock, horizontalNonContent, resolveWidthBlock, verticalNonContent } from "../utils/node-math.js";
 import type { LayoutContext, LayoutStrategy } from "../pipeline/strategy.js";
-import { layoutTableCell, auditTableCell, debugTableCell } from "../table/cell_layout.js";
+import { layoutTableCell } from "../table/cell_layout.js";
+import { auditTableCell, debugTableCell } from "../table/diagnostics.js";
 import type { LengthLike } from "../../css/length.js";
 
 export class TableLayoutStrategy implements LayoutStrategy {

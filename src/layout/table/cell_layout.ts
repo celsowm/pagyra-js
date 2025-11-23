@@ -29,20 +29,3 @@ export function layoutTableCell(td: LayoutNode): void {
   const childHeights = Array.from(td.children).map((child) => child.box.contentHeight ?? 0);
   td.box.contentHeight = Math.max(td.box.contentHeight ?? 0, ...childHeights);
 }
-
-export function auditTableCell(td: LayoutNode): void {
-  console.log("[AUDIT] td inline", {
-    tdWidth: td.box.contentWidth,
-    lines: (td.lineBoxes ?? []).length,
-    joined: (td.lineBoxes ?? []).map((line) => line.text).join(" | "),
-  });
-}
-
-export function debugTableCell(cell: LayoutNode): void {
-  if (cell.tagName === "td" && cell.textContent?.includes("Row 3, Cell 3")) {
-    console.log("[DEBUG] before inline layout for problematic td", {
-      textContent: cell.textContent,
-      contentWidth: cell.box.contentWidth,
-    });
-  }
-}

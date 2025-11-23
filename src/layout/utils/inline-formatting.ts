@@ -45,7 +45,7 @@ interface InlineMetrics {
   outerHeight: number;
 }
 
-interface InlineLayoutResult {
+export interface InlineLayoutResult {
   newCursorY: number;
 }
 

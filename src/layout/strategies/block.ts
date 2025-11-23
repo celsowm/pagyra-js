@@ -23,7 +23,7 @@ import {
 import { finalizeOverflow } from "../utils/overflow.js";
 import { FloatContext } from "../context/float-context.js";
 import { clearForBlock, placeFloat } from "../utils/floats.js";
-import { layoutInlineFormattingContext } from "../utils/inline-formatting.js";
+import { defaultInlineFormatter } from "../utils/inline-formatter.js";
 
 const LAYOUT_DEBUG = process.env.PAGYRA_DEBUG_LAYOUT === "1";
 const layoutDebug = (...args: unknown[]): void => {
@@ -114,7 +114,7 @@ export class BlockLayoutStrategy implements LayoutStrategy {
           lookahead += 1;
         }
 
-        const result = layoutInlineFormattingContext({
+        const result = defaultInlineFormatter.layout({
           container: node,
           inlineNodes,
           context,
