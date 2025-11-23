@@ -92,6 +92,12 @@ function isHttpUrl(value: string): boolean {
   return /^https?:\/\//i.test(value);
 }
 
+function parseSpan(raw: string | null): number | undefined {
+  if (!raw) return undefined;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
 async function loadBackgroundImage(
   cssUrl: string,
   context: ConversionContext,
@@ -377,6 +383,10 @@ export async function convertDomNode(
   // Preserve the original HTML ID
   const id = element.getAttribute("id");
   const options: LayoutNodeOptions = { tagName };
+  if (tagName === "td" || tagName === "th") {
+    options.tableColSpan = parseSpan(element.getAttribute("colspan")) ?? 1;
+    options.tableRowSpan = parseSpan(element.getAttribute("rowspan")) ?? 1;
+  }
   if (id) {
     options.customData = { ...options.customData, id };
   }

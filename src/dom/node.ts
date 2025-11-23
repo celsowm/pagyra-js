@@ -13,6 +13,9 @@ export interface LayoutNodeOptions {
   tagName?: string;
   lineBoxes?: LineBox[];
   customData?: Record<string, unknown>;
+  tableColSpan?: number;
+  tableRowSpan?: number;
+  tableCellOrigin?: { row: number; col: number };
 }
 
 export class LayoutNode {
@@ -32,6 +35,9 @@ export class LayoutNode {
   tagName?: string;
   lineBoxes?: LineBox[];
   customData?: Record<string, unknown>;
+  tableColSpan?: number;
+  tableRowSpan?: number;
+  tableCellOrigin?: { row: number; col: number };
 
   constructor(public readonly style: ComputedStyle, children: Iterable<LayoutNode> = [], options?: LayoutNodeOptions) {
     this.intrinsicInlineSize = options?.intrinsicInlineSize;
@@ -40,6 +46,9 @@ export class LayoutNode {
     this.tagName = options?.tagName;
     this.lineBoxes = options?.lineBoxes;
     this.customData = options?.customData;
+    this.tableColSpan = options?.tableColSpan;
+    this.tableRowSpan = options?.tableRowSpan;
+    this.tableCellOrigin = options?.tableCellOrigin;
     for (const child of children) {
       this.appendChild(child);
     }

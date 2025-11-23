@@ -287,7 +287,7 @@ class ElementSpecificDefaultsImpl {
       lineHeight: createNormalLineHeight(),
       fontFamily: TypographyDefaults.getFontFamily(),
       color: TypographyDefaults.getColor(),
-      verticalAlign: "top",
+      verticalAlign: "middle",
     },
 
     // Form elements

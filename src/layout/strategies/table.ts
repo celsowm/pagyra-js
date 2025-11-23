@@ -44,7 +44,7 @@ export class TableLayoutStrategy implements LayoutStrategy {
       for (let r = 0; r < numRows; r++) {
         for (let c = 0; c < numCols; c++) {
           const cell = grid[r][c];
-          if (!cell) continue;
+          if (!cell || !this.isOriginCell(cell, r, c)) continue;
           const row = cell.parent;
           // Set default border width and color for table cells if not set
           const isTableCell = cell.tagName === 'td' || cell.tagName === 'th';
@@ -114,6 +114,8 @@ export class TableLayoutStrategy implements LayoutStrategy {
           const upper = grid[r][c];
           const lower = grid[r + 1][c];
           if (!upper || !lower) continue;
+          if (upper === lower) continue;
+          if (!this.isRowBoundary(upper, r)) continue;
           const upperBottom = numericBorder(upper.style.borderBottom);
           const lowerTop = numericBorder(lower.style.borderTop);
           const shared = Math.max(upperBottom, lowerTop);
@@ -130,6 +132,8 @@ export class TableLayoutStrategy implements LayoutStrategy {
           const left = grid[r][c];
           const right = grid[r][c + 1];
           if (!left || !right) continue;
+          if (left === right) continue;
+          if (!this.isColumnBoundary(left, c)) continue;
           const leftRight = numericBorder(left.style.borderRight);
           const rightLeft = numericBorder(right.style.borderLeft);
           const shared = Math.max(leftRight, rightLeft);
@@ -142,43 +146,37 @@ export class TableLayoutStrategy implements LayoutStrategy {
       }
     }
     const colWidths = this.calculateColumnWidths(grid, node.box.contentWidth);
+    const tableContentWidth = colWidths.reduce((sum, width) => sum + width, 0);
+    node.box.contentWidth = tableContentWidth;
     log("LAYOUT", "DEBUG", "Table column widths calculated", { colWidths });
 
     const rowHeights = new Array(numRows).fill(0);
+    const spanningHeightRequests: { startRow: number; span: number; height: number }[] = [];
     for (let r = 0; r < numRows; r++) {
-      let maxRowHeight = 0;
       for (let c = 0; c < numCols; c++) {
         const cell = grid[r][c];
-        if (!cell) continue;
+        if (!cell || !this.isOriginCell(cell, r, c)) continue;
 
-  // Calculate border and padding for cell, resolving to numbers
-  const borderLeft = resolveLength(cell.style.borderLeft, colWidths[c], { auto: "zero" });
-  const borderRight = resolveLength(cell.style.borderRight, colWidths[c], { auto: "zero" });
-  const borderTop = resolveLength(cell.style.borderTop, colWidths[c], { auto: "zero" });
-  const borderBottom = resolveLength(cell.style.borderBottom, colWidths[c], { auto: "zero" });
-  const paddingLeft = resolveLength(cell.style.paddingLeft, colWidths[c], { auto: "zero" });
-  const paddingRight = resolveLength(cell.style.paddingRight, colWidths[c], { auto: "zero" });
-  const paddingTop = resolveLength(cell.style.paddingTop, colWidths[c], { auto: "zero" });
-  const paddingBottom = resolveLength(cell.style.paddingBottom, colWidths[c], { auto: "zero" });
+        const colSpan = Math.min(this.cellColSpan(cell), numCols - c);
+        const rowSpan = Math.min(this.cellRowSpan(cell), numRows - r);
+        const spannedWidth = this.sumColumns(colWidths, c, colSpan);
 
-  // Available content width for cell
-  const cellAvailableWidth = colWidths[c] - borderLeft - borderRight - paddingLeft - paddingRight;
+        const boxMetrics = this.resolveCellBoxMetrics(cell, spannedWidth);
+        const cellAvailableWidth =
+          spannedWidth - boxMetrics.borderLeft - boxMetrics.borderRight - boxMetrics.paddingLeft - boxMetrics.paddingRight;
         cell.box.x = 0;
         cell.box.y = 0;
         cell.box.contentWidth = cellAvailableWidth;
 
-        // Layout child using inline layout for text
-        debugTableCell(cell); // Debug specific cell
+        debugTableCell(cell);
         layoutTableCell(cell);
-        if (cell.textContent?.includes('Row 3, Cell 3')) auditTableCell(cell); // Audit after layout
+        if (cell.textContent?.includes("Row 3, Cell 3")) auditTableCell(cell);
 
-          // Offset children by padding so text is not glued to border
-          for (const child of cell.children) {
-            child.box.x = (child.box.x ?? 0) + paddingLeft;
-            child.box.y = (child.box.y ?? 0) + paddingTop;
-          }
+        for (const child of cell.children) {
+          child.box.x = (child.box.x ?? 0) + boxMetrics.paddingLeft;
+          child.box.y = (child.box.y ?? 0) + boxMetrics.paddingTop;
+        }
 
-        // Apply textAlign and verticalAlign to children if present
         if (cell.style.textAlign || cell.style.verticalAlign) {
           for (const child of cell.children) {
             if (cell.style.textAlign) child.style.textAlign = cell.style.textAlign;
@@ -186,9 +184,7 @@ export class TableLayoutStrategy implements LayoutStrategy {
           }
         }
 
-        // Ensure cell node itself has correct contentHeight
         cell.box.contentHeight = cell.box.contentHeight || 0;
-        // If cell has children, use the max of their contentHeight
         if (cell.children && cell.children.length > 0) {
           let maxChildHeight = 0;
           for (const child of cell.children) {
@@ -197,30 +193,52 @@ export class TableLayoutStrategy implements LayoutStrategy {
           cell.box.contentHeight = Math.max(cell.box.contentHeight, maxChildHeight);
         }
 
-        // Total cell height including borders and padding
-        const cellTotalHeight = cell.box.contentHeight + borderTop + borderBottom + paddingTop + paddingBottom;
-        maxRowHeight = Math.max(maxRowHeight, cellTotalHeight);
+        const cellTotalHeight =
+          cell.box.contentHeight + boxMetrics.borderTop + boxMetrics.borderBottom + boxMetrics.paddingTop + boxMetrics.paddingBottom;
+
+        if (rowSpan === 1) {
+          rowHeights[r] = Math.max(rowHeights[r], cellTotalHeight);
+        } else {
+          spanningHeightRequests.push({ startRow: r, span: rowSpan, height: cellTotalHeight });
+        }
       }
-      rowHeights[r] = maxRowHeight;
+    }
+
+    for (const request of spanningHeightRequests) {
+      const share = request.height / request.span;
+      for (let offset = 0; offset < request.span; offset++) {
+        const targetRow = request.startRow + offset;
+        if (targetRow < rowHeights.length) {
+          rowHeights[targetRow] = Math.max(rowHeights[targetRow], share);
+        }
+      }
     }
     log("LAYOUT", "DEBUG", "Table row heights calculated", { rowHeights });
 
-    let cursorY = 0;
+    const colOffsets = this.prefixSums(colWidths);
+    const rowOffsets = this.prefixSums(rowHeights);
+
     for (let r = 0; r < numRows; r++) {
-      let cursorX = 0;
       for (let c = 0; c < numCols; c++) {
         const cell = grid[r][c];
 
-        if (cell) {
-          // Calculate border and padding for cell, resolving to numbers
-          const borderLeft = resolveLength(cell.style.borderLeft, colWidths[c], { auto: "zero" });
-          const borderTop = resolveLength(cell.style.borderTop, colWidths[c], { auto: "zero" });
-          const paddingLeft = resolveLength(cell.style.paddingLeft, colWidths[c], { auto: "zero" });
-          const paddingTop = resolveLength(cell.style.paddingTop, colWidths[c], { auto: "zero" });
+        if (cell && this.isOriginCell(cell, r, c)) {
+          const colSpan = Math.min(this.cellColSpan(cell), numCols - c);
+          const rowSpan = Math.min(this.cellRowSpan(cell), numRows - r);
+          const spanWidth = colOffsets[c + colSpan] - colOffsets[c];
+          const spanHeight = rowOffsets[r + rowSpan] - rowOffsets[r];
 
-          // Set the cell's final position (including border and padding)
-          const newX = node.box.x + cursorX + borderLeft + paddingLeft;
-          const newY = node.box.y + cursorY + borderTop + paddingTop;
+          const boxMetrics = this.resolveCellBoxMetrics(cell, spanWidth);
+          const availableContentHeight =
+            spanHeight - boxMetrics.borderTop - boxMetrics.borderBottom - boxMetrics.paddingTop - boxMetrics.paddingBottom;
+          const alignOffsetY = this.computeVerticalAlignOffset(
+            cell.style.verticalAlign,
+            availableContentHeight,
+            cell.box.contentHeight,
+          );
+
+          const newX = node.box.x + colOffsets[c] + boxMetrics.borderLeft + boxMetrics.paddingLeft;
+          const newY = node.box.y + rowOffsets[r] + boxMetrics.borderTop + boxMetrics.paddingTop;
 
           // Calculate the offset from the cell's position during layout (which was 0,0)
           const deltaX = newX - cell.box.x;
@@ -229,18 +247,18 @@ export class TableLayoutStrategy implements LayoutStrategy {
           cell.box.x = newX;
           cell.box.y = newY;
 
-          // Apply the same offset to all of the cell's descendants
+          // Apply the same offset to all of the cell's descendants, plus any vertical-align offset
           cell.walk((descendant) => {
             descendant.box.x += deltaX;
-            descendant.box.y += deltaY;
+            descendant.box.y += deltaY + alignOffsetY;
             if (descendant.box.baseline !== undefined) {
-              descendant.box.baseline += deltaY;
+              descendant.box.baseline += deltaY + alignOffsetY;
             }
           }, false);
 
           // Set border box dimensions
-          cell.box.borderBoxWidth = colWidths[c];
-          cell.box.borderBoxHeight = rowHeights[r];
+          cell.box.borderBoxWidth = spanWidth;
+          cell.box.borderBoxHeight = spanHeight;
 
           // Debug log for cell position and size
           log("LAYOUT", "TRACE", "Positioning table cell", {
@@ -254,12 +272,10 @@ export class TableLayoutStrategy implements LayoutStrategy {
             contentHeight: cell.box.contentHeight,
           });
         }
-        cursorX += colWidths[c];
       }
-      cursorY += rowHeights[r];
     }
 
-    node.box.contentHeight = cursorY;
+    node.box.contentHeight = rowOffsets[numRows];
     node.box.borderBoxWidth = node.box.contentWidth + horizontalNonContent(node, cb.width);
     node.box.borderBoxHeight = node.box.contentHeight + verticalNonContent(node, cb.width);
     node.box.scrollWidth = node.box.contentWidth;
@@ -268,18 +284,55 @@ export class TableLayoutStrategy implements LayoutStrategy {
 
   private buildTableGrid(tableNode: LayoutNode): (LayoutNode | null)[][] {
     const grid: (LayoutNode | null)[][] = [];
+    const activeRowSpans: { colStart: number; colSpan: number; remainingRows: number; cell: LayoutNode }[] = [];
     let currentRowIndex = -1;
 
     const processRow = (rowNode: LayoutNode) => {
-      grid.push([]);
       currentRowIndex++;
+      const row: (LayoutNode | null)[] = [];
+
+      for (const span of activeRowSpans) {
+        if (span.remainingRows <= 0) continue;
+        while (row.length < span.colStart + span.colSpan) row.push(null);
+        for (let i = 0; i < span.colSpan; i++) {
+          row[span.colStart + i] = span.cell;
+        }
+        span.remainingRows--;
+      }
+
       let currentColIndex = 0;
       for (const cellNode of rowNode.children) {
         if (cellNode.style.display === Display.TableCell) {
-          if (grid[currentRowIndex]) {
-            grid[currentRowIndex][currentColIndex] = cellNode;
+          while (row[currentColIndex]) currentColIndex++;
+
+          const colSpan = Math.max(1, cellNode.tableColSpan ?? 1);
+          const rowSpan = Math.max(1, cellNode.tableRowSpan ?? 1);
+          cellNode.tableColSpan = colSpan;
+          cellNode.tableRowSpan = rowSpan;
+          cellNode.tableCellOrigin = { row: currentRowIndex, col: currentColIndex };
+
+          while (row.length < currentColIndex + colSpan) row.push(null);
+          for (let i = 0; i < colSpan; i++) {
+            row[currentColIndex + i] = cellNode;
           }
-          currentColIndex++;
+
+          if (rowSpan > 1) {
+            activeRowSpans.push({
+              colStart: currentColIndex,
+              colSpan,
+              remainingRows: rowSpan - 1,
+              cell: cellNode,
+            });
+          }
+
+          currentColIndex += colSpan;
+        }
+      }
+
+      grid.push(row);
+      for (let i = activeRowSpans.length - 1; i >= 0; i--) {
+        if (activeRowSpans[i].remainingRows <= 0) {
+          activeRowSpans.splice(i, 1);
         }
       }
     };
@@ -312,10 +365,10 @@ export class TableLayoutStrategy implements LayoutStrategy {
 
     const minContentWidths = new Array(numCols).fill(0);
 
-    for (let c = 0; c < numCols; c++) {
-      for (let r = 0; r < grid.length; r++) {
+    for (let r = 0; r < grid.length; r++) {
+      for (let c = 0; c < numCols; c++) {
         const cell = grid[r][c];
-        if (!cell) continue;
+        if (!cell || !this.isOriginCell(cell, r, c)) continue;
 
         let maxIntrinsicWidth = 0;
         if (cell.intrinsicInlineSize) {
@@ -327,9 +380,18 @@ export class TableLayoutStrategy implements LayoutStrategy {
           }
         });
 
-        const horizontalExtras = horizontalNonContent(cell, 0);
+        const horizontalExtras = horizontalNonContent(cell, tableWidth);
         const cellMinWidth = maxIntrinsicWidth + horizontalExtras;
-        minContentWidths[c] = Math.max(minContentWidths[c], cellMinWidth);
+        const colSpan = Math.min(this.cellColSpan(cell), numCols - c);
+
+        if (colSpan === 1) {
+          minContentWidths[c] = Math.max(minContentWidths[c], cellMinWidth);
+        } else {
+          const share = cellMinWidth / colSpan;
+          for (let offset = 0; offset < colSpan; offset++) {
+            minContentWidths[c + offset] = Math.max(minContentWidths[c + offset], share);
+          }
+        }
       }
     }
 
@@ -352,5 +414,87 @@ export class TableLayoutStrategy implements LayoutStrategy {
     } else {
       return new Array(numCols).fill(tableWidth / numCols);
     }
+  }
+
+  private isOriginCell(cell: LayoutNode, row: number, col: number): boolean {
+    const origin = cell.tableCellOrigin;
+    return !!origin && origin.row === row && origin.col === col;
+  }
+
+  private cellColSpan(cell: LayoutNode): number {
+    return Math.max(1, cell.tableColSpan ?? 1);
+  }
+
+  private cellRowSpan(cell: LayoutNode): number {
+    return Math.max(1, cell.tableRowSpan ?? 1);
+  }
+
+  private isColumnBoundary(cell: LayoutNode, column: number): boolean {
+    const origin = cell.tableCellOrigin;
+    if (!origin) return false;
+    return origin.col + this.cellColSpan(cell) - 1 === column;
+  }
+
+  private isRowBoundary(cell: LayoutNode, row: number): boolean {
+    const origin = cell.tableCellOrigin;
+    if (!origin) return false;
+    return origin.row + this.cellRowSpan(cell) - 1 === row;
+  }
+
+  private sumColumns(colWidths: number[], start: number, span: number): number {
+    let total = 0;
+    for (let i = 0; i < span; i++) {
+      total += colWidths[start + i] ?? 0;
+    }
+    return total;
+  }
+
+  private prefixSums(values: number[]): number[] {
+    const offsets = [0];
+    for (const value of values) {
+      offsets.push(offsets[offsets.length - 1] + value);
+    }
+    return offsets;
+  }
+
+  private resolveCellBoxMetrics(
+    cell: LayoutNode,
+    referenceWidth: number,
+  ): {
+    borderLeft: number;
+    borderRight: number;
+    borderTop: number;
+    borderBottom: number;
+    paddingLeft: number;
+    paddingRight: number;
+    paddingTop: number;
+    paddingBottom: number;
+  } {
+    const resolve = (value: LengthLike | undefined) => resolveLength(value, referenceWidth, { auto: "zero" });
+    return {
+      borderLeft: resolve(cell.style.borderLeft),
+      borderRight: resolve(cell.style.borderRight),
+      borderTop: resolve(cell.style.borderTop),
+      borderBottom: resolve(cell.style.borderBottom),
+      paddingLeft: resolve(cell.style.paddingLeft),
+      paddingRight: resolve(cell.style.paddingRight),
+      paddingTop: resolve(cell.style.paddingTop),
+      paddingBottom: resolve(cell.style.paddingBottom),
+    };
+  }
+
+  private computeVerticalAlignOffset(verticalAlign: string | undefined, available: number, content: number): number {
+    const usedContent = Math.max(0, content ?? 0);
+    const free = available - usedContent;
+    if (!Number.isFinite(free) || free <= 0) return 0;
+
+    const keyword = (verticalAlign ?? "top").toLowerCase();
+    if (keyword === "middle" || keyword === "center") {
+      return free / 2;
+    }
+    if (keyword === "bottom" || keyword === "text-bottom") {
+      return free;
+    }
+    return 0;
   }
 }
