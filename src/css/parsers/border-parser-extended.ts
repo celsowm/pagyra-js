@@ -37,6 +37,13 @@ export function parseBorder(value: string, target: StyleAccumulator): void {
     target.borderLeft = width;
   }, (color) => {
     target.borderColor = color ?? target.borderColor;
+  }, (style) => {
+    if (!style) return;
+    const keyword = style.toLowerCase();
+    target.borderStyleTop = keyword;
+    target.borderStyleRight = keyword;
+    target.borderStyleBottom = keyword;
+    target.borderStyleLeft = keyword;
   });
 }
 
@@ -45,6 +52,9 @@ export function parseBorderTop(value: string, target: StyleAccumulator): void {
     target.borderTop = width;
   }, (color) => {
     target.borderColor = color ?? target.borderColor;
+  }, (style) => {
+    if (!style) return;
+    target.borderStyleTop = style.toLowerCase();
   });
 }
 
@@ -53,6 +63,9 @@ export function parseBorderRight(value: string, target: StyleAccumulator): void 
     target.borderRight = width;
   }, (color) => {
     target.borderColor = color ?? target.borderColor;
+  }, (style) => {
+    if (!style) return;
+    target.borderStyleRight = style.toLowerCase();
   });
 }
 
@@ -61,6 +74,9 @@ export function parseBorderBottom(value: string, target: StyleAccumulator): void
     target.borderBottom = width;
   }, (color) => {
     target.borderColor = color ?? target.borderColor;
+  }, (style) => {
+    if (!style) return;
+    target.borderStyleBottom = style.toLowerCase();
   });
 }
 
@@ -69,6 +85,9 @@ export function parseBorderLeft(value: string, target: StyleAccumulator): void {
     target.borderLeft = width;
   }, (color) => {
     target.borderColor = color ?? target.borderColor;
+  }, (style) => {
+    if (!style) return;
+    target.borderStyleLeft = style.toLowerCase();
   });
 }
 
@@ -178,7 +197,15 @@ export function parseBorderLeftColor(value: string, target: StyleAccumulator): v
 
 export function parseBorderStyle(value: string, target: StyleAccumulator): void {
   applyBorderStyleShorthand(value, (style) => {
-    if (style === "none" || style === "hidden") {
+    if (!style) {
+      return;
+    }
+    const keyword = style.toLowerCase();
+    target.borderStyleTop = keyword;
+    target.borderStyleRight = keyword;
+    target.borderStyleBottom = keyword;
+    target.borderStyleLeft = keyword;
+    if (keyword === "none" || keyword === "hidden") {
       target.borderTop = 0;
       target.borderRight = 0;
       target.borderBottom = 0;
@@ -188,24 +215,36 @@ export function parseBorderStyle(value: string, target: StyleAccumulator): void 
 }
 
 export function parseBorderTopStyle(value: string, target: StyleAccumulator): void {
+  const parts = value.trim().toLowerCase();
+  if (!parts) return;
+  target.borderStyleTop = parts;
   if (isNoneBorderStyle(value)) {
     target.borderTop = 0;
   }
 }
 
 export function parseBorderRightStyle(value: string, target: StyleAccumulator): void {
+  const parts = value.trim().toLowerCase();
+  if (!parts) return;
+  target.borderStyleRight = parts;
   if (isNoneBorderStyle(value)) {
     target.borderRight = 0;
   }
 }
 
 export function parseBorderBottomStyle(value: string, target: StyleAccumulator): void {
+  const parts = value.trim().toLowerCase();
+  if (!parts) return;
+  target.borderStyleBottom = parts;
   if (isNoneBorderStyle(value)) {
     target.borderBottom = 0;
   }
 }
 
 export function parseBorderLeftStyle(value: string, target: StyleAccumulator): void {
+  const parts = value.trim().toLowerCase();
+  if (!parts) return;
+  target.borderStyleLeft = parts;
   if (isNoneBorderStyle(value)) {
     target.borderLeft = 0;
   }

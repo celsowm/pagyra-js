@@ -280,6 +280,10 @@ export function computeStyleForElement(
   if (styleInit.color !== undefined) styleOptions.color = styleInit.color;
   if (styleInit.backgroundLayers !== undefined) styleOptions.backgroundLayers = styleInit.backgroundLayers;
   if (styleInit.borderColor !== undefined) styleOptions.borderColor = styleInit.borderColor;
+  if (styleInit.borderStyleTop !== undefined) styleOptions.borderStyleTop = styleInit.borderStyleTop;
+  if (styleInit.borderStyleRight !== undefined) styleOptions.borderStyleRight = styleInit.borderStyleRight;
+  if (styleInit.borderStyleBottom !== undefined) styleOptions.borderStyleBottom = styleInit.borderStyleBottom;
+  if (styleInit.borderStyleLeft !== undefined) styleOptions.borderStyleLeft = styleInit.borderStyleLeft;
   if (styleInit.boxShadows !== undefined) {
     styleOptions.boxShadows = styleInit.boxShadows.map((shadow) => ({
       inset: shadow.inset,

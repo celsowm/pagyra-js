@@ -8,6 +8,9 @@ export function parseBorderBlockStart(value: string, target: StyleAccumulator): 
     target.borderTop = width;
   }, (color) => {
     target.borderColor = color ?? target.borderColor;
+  }, (style) => {
+    if (!style) return;
+    target.borderStyleTop = style.toLowerCase();
   });
 }
 
@@ -16,5 +19,8 @@ export function parseBorderBlockEnd(value: string, target: StyleAccumulator): vo
     target.borderBottom = width;
   }, (color) => {
     target.borderColor = color ?? target.borderColor;
+  }, (style) => {
+    if (!style) return;
+    target.borderStyleBottom = style.toLowerCase();
   });
 }

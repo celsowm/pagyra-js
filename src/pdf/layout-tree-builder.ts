@@ -12,6 +12,7 @@ import {
   type Positioning,
   type RGBA,
   type ImageRef,
+  type BorderStyles,
   NodeKind,
   Overflow,
   LayerMode,
@@ -163,6 +164,13 @@ function convertNode(node: LayoutNode, state: { counter: number; fontResolver?: 
   const establishesStackingContext =
     typeof node.style.zIndex === "number" && node.style.position !== Position.Static;
 
+  const borderStyle: BorderStyles = {
+    top: normalizeBorderStyle(node.style.borderStyleTop),
+    right: normalizeBorderStyle(node.style.borderStyleRight),
+    bottom: normalizeBorderStyle(node.style.borderStyleBottom),
+    left: normalizeBorderStyle(node.style.borderStyleLeft),
+  };
+
   return {
     id,
     tagName: node.tagName,
@@ -197,10 +205,25 @@ function convertNode(node: LayoutNode, state: { counter: number; fontResolver?: 
     children,
     links: [],
     borderColor: parseColor(node.style.borderColor),
+    borderStyle,
     color: textColor,
     background,
     image: imageRef,
     customData: node.customData ? { ...node.customData } : undefined,
     transform,
   };
+}
+
+function normalizeBorderStyle(value: string | undefined): "none" | "solid" | "dashed" | "dotted" | "double" {
+  if (!value) {
+    return "solid";
+  }
+  const keyword = value.toLowerCase();
+  if (keyword === "dashed" || keyword === "dotted" || keyword === "double") {
+    return keyword;
+  }
+  if (keyword === "none" || keyword === "hidden") {
+    return "none";
+  }
+  return "solid";
 }

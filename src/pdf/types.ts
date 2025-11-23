@@ -35,6 +35,15 @@ export interface Edges {
   left: number;
 }
 
+export type BorderStyle = "none" | "solid" | "dashed" | "dotted" | "double";
+
+export interface BorderStyles {
+  top: BorderStyle;
+  right: BorderStyle;
+  bottom: BorderStyle;
+  left: BorderStyle;
+}
+
 export interface CornerRadius {
   x: number;
   y: number;
@@ -150,6 +159,11 @@ export interface Run {
   textShadows?: TextShadowLayer[];
 }
 
+export interface StrokeDash {
+  pattern: number[];
+  phase?: number;
+}
+
 export interface TextMatrix {
   a: number;
   b: number;
@@ -247,6 +261,7 @@ export interface RenderBox {
   links: Link[];
   customData?: Record<string, unknown>;
   borderColor?: RGBA;
+  borderStyle?: BorderStyles;
   color?: RGBA;
   transform?: TextMatrix;
 }
@@ -304,6 +319,13 @@ export interface TextPaintOptions {
   readonly fontWeight?: number;
   readonly fontStyle?: string;
   readonly absolute?: boolean;
+}
+
+export interface StrokeOptions {
+  lineWidth?: number;
+  lineCap?: "butt" | "round" | "square";
+  lineJoin?: "miter" | "round" | "bevel";
+  dash?: StrokeDash;
 }
 
 export interface PageSize {

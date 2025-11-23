@@ -1,4 +1,13 @@
-import type { Rect, Run, RGBA, ImageRef, Radius, TextPaintOptions, TextMatrix } from "./types.js";
+import type {
+  Rect,
+  Run,
+  RGBA,
+  ImageRef,
+  Radius,
+  TextPaintOptions,
+  TextMatrix,
+  StrokeOptions,
+} from "./types.js";
 import type { LinearGradient, RadialGradient } from "../css/parsers/gradient-parser.js";
 import type { FontRegistry } from "./font/font-registry.js";
 import type { PdfObjectRef } from "./primitives/pdf-document.js";
@@ -159,19 +168,11 @@ export class PagePainter {
     this.shapeRenderer.fillPathWithGradient(commands, gradient, options);
   }
 
-  strokePolyline(
-    points: ShapePoint[],
-    color: RGBA,
-    options: { lineWidth?: number; lineCap?: "butt" | "round" | "square"; lineJoin?: "miter" | "round" | "bevel"; close?: boolean } = {},
-  ): void {
+  strokePolyline(points: ShapePoint[], color: RGBA, options: StrokeOptions & { close?: boolean } = {}): void {
     this.shapeRenderer.strokePolyline(points, color, options);
   }
 
-  strokePath(
-    commands: PathCommand[],
-    color: RGBA,
-    options: { lineWidth?: number; lineCap?: "butt" | "round" | "square"; lineJoin?: "miter" | "round" | "bevel" } = {},
-  ): void {
+  strokePath(commands: PathCommand[], color: RGBA, options: StrokeOptions = {}): void {
     this.shapeRenderer.strokePath(commands, color, options);
   }
 

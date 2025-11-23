@@ -1,4 +1,4 @@
-import type { RGBA, Rect, Radius } from "../types.js";
+import type { RGBA, Rect, Radius, StrokeDash, StrokeOptions } from "../types.js";
 import { CoordinateTransformer } from "../utils/coordinate-transformer.js";
 import { GradientService } from "../shading/gradient-service.js";
 import { parseLinearGradient, type LinearGradient, type RadialGradient } from "../../css/parsers/gradient-parser.js";
@@ -281,11 +281,7 @@ export class ShapeRenderer {
     this.pushFillCommands(color, commands, true);
   }
 
-  strokePolyline(
-    points: ShapePoint[],
-    color: RGBA,
-    options: { lineWidth?: number; lineCap?: "butt" | "round" | "square"; lineJoin?: "miter" | "round" | "bevel"; close?: boolean } = {},
-  ): void {
+  strokePolyline(points: ShapePoint[], color: RGBA, options: StrokeOptions & { close?: boolean } = {}): void {
     if (points.length < 2) {
       return;
     }
@@ -304,20 +300,7 @@ export class ShapeRenderer {
     }
     commands.push("S");
     this.commands.push("q", strokeColorCommand(color));
-    if (options.lineWidth !== undefined) {
-      const widthPt = this.coordinateTransformer.convertPxToPt(Math.max(options.lineWidth, 0));
-      if (widthPt > 0) {
-        this.commands.push(`${formatNumber(widthPt)} w`);
-      }
-    }
-    const cap = mapLineCap(options.lineCap);
-    if (cap !== undefined) {
-      this.commands.push(`${cap} J`);
-    }
-    const join = mapLineJoin(options.lineJoin);
-    if (join !== undefined) {
-      this.commands.push(`${join} j`);
-    }
+    this.applyStrokeOptions(options);
     this.commands.push(...commands, "Q");
   }
 
@@ -379,11 +362,7 @@ export class ShapeRenderer {
     this.commands.push("Q");
   }
 
-  strokePath(
-    commands: PathCommand[],
-    color: RGBA,
-    options: { lineWidth?: number; lineCap?: "butt" | "round" | "square"; lineJoin?: "miter" | "round" | "bevel" } = {},
-  ): void {
+  strokePath(commands: PathCommand[], color: RGBA, options: StrokeOptions = {}): void {
     if (commands.length === 0) {
       return;
     }
@@ -392,6 +371,17 @@ export class ShapeRenderer {
       return;
     }
     this.commands.push("q", strokeColorCommand(color));
+    this.applyStrokeOptions(options);
+    this.commands.push(...pdfCommands, "S");
+
+    if (options.dash && Array.isArray(options.dash.pattern) && options.dash.pattern.length > 0) {
+      this.commands.push("[] 0 d");
+    }
+
+    this.commands.push("Q");
+  }
+
+  private applyStrokeOptions(options: StrokeOptions): void {
     if (options.lineWidth !== undefined) {
       const widthPt = this.coordinateTransformer.convertPxToPt(Math.max(options.lineWidth, 0));
       if (widthPt > 0) {
@@ -406,7 +396,16 @@ export class ShapeRenderer {
     if (join !== undefined) {
       this.commands.push(`${join} j`);
     }
-    this.commands.push(...pdfCommands, "S", "Q");
+    const dash = options.dash;
+    if (dash && Array.isArray(dash.pattern) && dash.pattern.length > 0) {
+      const patternPt = dash.pattern
+        .map((v) => this.coordinateTransformer.convertPxToPt(Math.max(v, 0)))
+        .map(formatNumber);
+      const phasePt = formatNumber(
+        this.coordinateTransformer.convertPxToPt(Math.max(dash.phase ?? 0, 0)),
+      );
+      this.commands.push(`[${patternPt.join(" ")}] ${phasePt} d`);
+    }
   }
 
   private pushFillCommands(color: RGBA, commands: string[], wrapWithQ: boolean): void {

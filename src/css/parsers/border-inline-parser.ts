@@ -8,6 +8,9 @@ export function parseBorderInlineStart(value: string, target: StyleAccumulator):
     target.borderLeft = width;
   }, (color) => {
     target.borderColor = color ?? target.borderColor;
+  }, (style) => {
+    if (!style) return;
+    target.borderStyleLeft = style.toLowerCase();
   });
 }
 
@@ -16,5 +19,8 @@ export function parseBorderInlineEnd(value: string, target: StyleAccumulator): v
     target.borderRight = width;
   }, (color) => {
     target.borderColor = color ?? target.borderColor;
+  }, (style) => {
+    if (!style) return;
+    target.borderStyleRight = style.toLowerCase();
   });
 }

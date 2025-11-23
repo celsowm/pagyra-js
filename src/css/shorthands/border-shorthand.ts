@@ -8,10 +8,15 @@ export function applyBorderShorthand(
   value: string,
   applyWidth: (width: NumericLength) => void,
   applyColor: (color: string | undefined) => void,
+  applyStyle?: (style: string | undefined) => void,
 ): void {
   const parsed = parseBorderShorthand(value);
   if (!parsed) {
     return;
+  }
+
+  if (applyStyle) {
+    applyStyle(parsed.style);
   }
 
   if (parsed.style === "none" || parsed.style === "hidden") {

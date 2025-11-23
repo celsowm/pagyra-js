@@ -156,6 +156,10 @@ export interface StyleAccumulator {
   borderBottomRightRadiusY?: NumericLength;
   borderBottomLeftRadiusX?: NumericLength;
   borderBottomLeftRadiusY?: NumericLength;
+  borderStyleTop?: string;
+  borderStyleRight?: string;
+  borderStyleBottom?: string;
+  borderStyleLeft?: string;
   marginTop?: LengthInput;
   marginRight?: LengthInput;
   marginBottom?: LengthInput;
@@ -249,6 +253,10 @@ export interface StyleProperties {
   borderBottomRightRadiusY: number;
   borderBottomLeftRadiusX: number;
   borderBottomLeftRadiusY: number;
+  borderStyleTop?: string;
+  borderStyleRight?: string;
+  borderStyleBottom?: string;
+  borderStyleLeft?: string;
   backgroundLayers?: BackgroundLayer[];  // fonte da verdade
   borderColor?: string;
   boxShadows: BoxShadow[];
@@ -343,6 +351,10 @@ export class ComputedStyle implements StyleProperties {
   borderBottomRightRadiusY: number;
   borderBottomLeftRadiusX: number;
   borderBottomLeftRadiusY: number;
+  borderStyleTop?: string;
+  borderStyleRight?: string;
+  borderStyleBottom?: string;
+  borderStyleLeft?: string;
   backgroundLayers?: BackgroundLayer[];
   borderColor?: string;
   boxShadows: BoxShadow[];
@@ -437,6 +449,10 @@ export class ComputedStyle implements StyleProperties {
     this.borderBottomRightRadiusY = data.borderBottomRightRadiusY;
     this.borderBottomLeftRadiusX = data.borderBottomLeftRadiusX;
     this.borderBottomLeftRadiusY = data.borderBottomLeftRadiusY;
+    this.borderStyleTop = data.borderStyleTop;
+    this.borderStyleRight = data.borderStyleRight;
+    this.borderStyleBottom = data.borderStyleBottom;
+    this.borderStyleLeft = data.borderStyleLeft;
     this.backgroundLayers = data.backgroundLayers;
     this.borderColor = data.borderColor;
     this.boxShadows = [...data.boxShadows];

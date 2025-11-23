@@ -2,9 +2,10 @@ import { log } from "../../debug/log.js";
 import { paintBoxShadows } from "./paint-box-shadows.js";
 import { shrinkRadius } from "./radius.js";
 import { renderSvgBox } from "../svg/render-svg.js";
-import { NodeKind, type RenderBox, type RGBA, type Rect, type Radius } from "../types.js";
+import { NodeKind, type RenderBox, type RGBA, type Rect, type Radius, type BorderStyles } from "../types.js";
 import type { PagePainter } from "../page-painter.js";
 import { computeBackgroundTileRects, intersectRects, rectEquals } from "../utils/background-tiles.js";
+import { computeBorderSideStrokes } from "../utils/border-dashes.js";
 
 export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Promise<void> {
   log("PAINT", "DEBUG", `paintBoxAtomic: ${box.tagName} id:${box.id} opacity:${box.opacity}`, { id: box.id, opacity: box.opacity });
@@ -148,18 +149,44 @@ function paintBorder(painter: PagePainter, box: RenderBox): void {
   if (!hasVisibleBorder(border)) {
     return;
   }
-  const outerRect = box.borderBox;
-  const innerRect = {
-    x: outerRect.x + border.left,
-    y: outerRect.y + border.top,
-    width: Math.max(outerRect.width - border.left - border.right, 0),
-    height: Math.max(outerRect.height - border.top - border.bottom, 0),
+
+  const styles: BorderStyles | undefined = box.borderStyle;
+  const allSolid =
+    !styles ||
+    (styles.top === "solid" && styles.right === "solid" && styles.bottom === "solid" && styles.left === "solid");
+
+  if (allSolid) {
+    const outerRect = box.borderBox;
+    const innerRect = {
+      x: outerRect.x + border.left,
+      y: outerRect.y + border.top,
+      width: Math.max(outerRect.width - border.left - border.right, 0),
+      height: Math.max(outerRect.height - border.top - border.bottom, 0),
+    };
+    const innerRadius = shrinkRadius(box.borderRadius, border.top, border.right, border.bottom, border.left);
+    if (innerRect.width <= 0 || innerRect.height <= 0) {
+      painter.fillRoundedRect(outerRect, box.borderRadius, color);
+    } else {
+      painter.fillRoundedRectDifference(outerRect, box.borderRadius, innerRect, innerRadius, color);
+    }
+    return;
+  }
+
+  const effectiveStyles: BorderStyles = styles ?? {
+    top: "solid",
+    right: "solid",
+    bottom: "solid",
+    left: "solid",
   };
-  const innerRadius = shrinkRadius(box.borderRadius, border.top, border.right, border.bottom, border.left);
-  if (innerRect.width <= 0 || innerRect.height <= 0) {
-    painter.fillRoundedRect(outerRect, box.borderRadius, color);
-  } else {
-    painter.fillRoundedRectDifference(outerRect, box.borderRadius, innerRect, innerRadius, color);
+
+  const strokes = computeBorderSideStrokes(box.borderBox, border, effectiveStyles, color, box.borderRadius);
+  for (const stroke of strokes) {
+    painter.strokePolyline(stroke.points, stroke.color, {
+      lineWidth: stroke.lineWidth,
+      lineCap: "butt",
+      lineJoin: "miter",
+      dash: stroke.dash,
+    });
   }
 }
 
