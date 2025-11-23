@@ -190,8 +190,10 @@ export async function convertDomNode(
         letterSpacing: parentStyle.letterSpacing,
         wordSpacing: parentStyle.wordSpacing,
         textDecorationLine: parentStyle.textDecorationLine,
+        textDecorationColor: parentStyle.textDecorationColor,
+        textDecorationStyle: parentStyle.textDecorationStyle,
         textTransform: parentStyle.textTransform,
-        transform: (parentStyle as any).transform,
+        transform: parentStyle.transform as any,
         textShadows: parentStyle.textShadows,
       });
       return new LayoutNode(textStyle, [], {
@@ -226,8 +228,10 @@ export async function convertDomNode(
       letterSpacing: parentStyle.letterSpacing,
       wordSpacing: parentStyle.wordSpacing,
       textDecorationLine: parentStyle.textDecorationLine,
+      textDecorationColor: parentStyle.textDecorationColor,
+      textDecorationStyle: parentStyle.textDecorationStyle,
       textTransform: parentStyle.textTransform,
-      transform: (parentStyle as any).transform,
+      transform: parentStyle.transform as any,
       textShadows: parentStyle.textShadows,
     });
     return new LayoutNode(textStyle, [], {
@@ -329,8 +333,9 @@ export async function convertDomNode(
           whiteSpace: ownStyle.whiteSpace,
           textDecorationLine: ownStyle.textDecorationLine,
           textDecorationColor: ownStyle.textDecorationColor,
+          textDecorationStyle: ownStyle.textDecorationStyle,
           textTransform: ownStyle.textTransform,
-          transform: (ownStyle as any).transform,
+          transform: ownStyle.transform as any,
           textShadows: ownStyle.textShadows,
         }), [], {
           textContent: normalized,
@@ -367,8 +372,9 @@ export async function convertDomNode(
         whiteSpace: ownStyle.whiteSpace,
         textDecorationLine: ownStyle.textDecorationLine,
         textDecorationColor: ownStyle.textDecorationColor,
+        textDecorationStyle: ownStyle.textDecorationStyle,
         textTransform: ownStyle.textTransform,
-        transform: (ownStyle as any).transform,
+        transform: ownStyle.transform as any,
         textShadows: ownStyle.textShadows,
       }), [], {
         textContent: normalized,

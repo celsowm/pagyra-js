@@ -390,6 +390,7 @@ export function computeStyleForElement(
   if (styleInit.opacity !== undefined) {
     styleOptions.opacity = styleInit.opacity;
   }
+
   const defaultDecoration = mergedDefaults.textDecorationLine ?? "none";
   let decoration = inherited.textDecorationLine ?? defaultDecoration;
   if (elementDefaults.textDecorationLine !== undefined) {
@@ -416,6 +417,16 @@ export function computeStyleForElement(
   if (decorationColor !== undefined) {
     styleOptions.textDecorationColor = decorationColor;
   }
+
+  const defaultDecorationStyle = mergedDefaults.textDecorationStyle ?? "solid";
+  let decorationStyle = inherited.textDecorationStyle ?? defaultDecorationStyle;
+  if ((elementDefaults as any).textDecorationStyle !== undefined) {
+    decorationStyle = (elementDefaults as any).textDecorationStyle as string;
+  }
+  if ((styleInit as any).textDecorationStyle !== undefined) {
+    decorationStyle = (styleInit as any).textDecorationStyle as string;
+  }
+  styleOptions.textDecorationStyle = decorationStyle;
 
   // Debug fontStyle for em and strong elements
   if (tagName === 'em' || tagName === 'strong') {

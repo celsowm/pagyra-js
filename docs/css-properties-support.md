@@ -96,7 +96,7 @@ text-align-last | Alignment of the last line of a block. | ✅ Yes | ❌ No
 text-decoration | Shorthand for underline, overline, line-through. | ✅ Yes | ✅ Yes
 text-decoration-color | Color of text decoration. | ✅ Yes | ✅ Yes
 text-decoration-line | Type of decoration (underline, etc.). | ✅ Yes | ✅ Yes
-text-decoration-style | Style of decoration (solid, wavy, dotted). | ✅ Yes | ❌ No
+text-decoration-style | Style of decoration (solid, wavy, dotted). | ✅ Yes | ✅ Yes
 text-indent | Indentation of the first line of text. | ✅ Yes | ✅ Yes
 text-justify | Justification method for text. | ✅ Yes | ❌ No
 text-orientation | Orientation of text characters in a line. | ✅ Yes | ❌ No

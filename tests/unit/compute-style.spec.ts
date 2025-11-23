@@ -86,3 +86,38 @@ describe("computeStyleForElement margin auto preservation", () => {
     expect(style.marginRight).toBe("auto");
   });
 });
+
+describe("computeStyleForElement text-decoration-style", () => {
+  it("applies text-decoration-style from CSS rules", () => {
+    const parentStyle = makeParentStyle(16);
+    const cssRules: CssRuleEntry[] = [
+      {
+        selector: ".decorated",
+        declarations: {
+          "text-decoration-line": "underline",
+          "text-decoration-style": "dotted",
+        },
+        match: () => true,
+      },
+    ];
+    const style = computeStyleForElement(makeElement("span"), cssRules, parentStyle, units, 16);
+    expect(style.textDecorationLine).toBe("underline");
+    expect(style.textDecorationStyle).toBe("dotted");
+  });
+
+  it("parses text-decoration shorthand with style token", () => {
+    const parentStyle = makeParentStyle(16);
+    const cssRules: CssRuleEntry[] = [
+      {
+        selector: ".decorated",
+        declarations: {
+          "text-decoration": "underline dashed",
+        },
+        match: () => true,
+      },
+    ];
+    const style = computeStyleForElement(makeElement("span"), cssRules, parentStyle, units, 16);
+    expect(style.textDecorationLine).toBe("underline");
+    expect(style.textDecorationStyle).toBe("dashed");
+  });
+});

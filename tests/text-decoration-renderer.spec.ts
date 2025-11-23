@@ -37,4 +37,30 @@ describe("TextDecorationRenderer", () => {
 
     expect(commands[0]).toBe("0 0 1 rg");
   });
+
+  it("renders double underlines when style is double", () => {
+    const renderer = new TextDecorationRenderer(transformer);
+    const run = createRun({ decorations: { underline: true, style: "double" } });
+    const commands = renderer.render(run, run.fill);
+
+    expect(commands.filter((cmd) => / re$/.test(cmd))).toHaveLength(2);
+  });
+
+  it("renders dashed underline when style is dashed", () => {
+    const renderer = new TextDecorationRenderer(transformer);
+    const run = createRun({ decorations: { underline: true, style: "dashed" } });
+    const commands = renderer.render(run, run.fill);
+
+    expect(commands.join(" ")).toContain("] 0 d");
+    expect(commands.some((cmd) => / m$/.test(cmd))).toBe(true);
+  });
+
+  it("renders wavy underline when style is wavy", () => {
+    const renderer = new TextDecorationRenderer(transformer);
+    const run = createRun({ decorations: { underline: true, style: "wavy" } });
+    const commands = renderer.render(run, run.fill);
+
+    expect(commands.some((cmd) => / m$/.test(cmd))).toBe(true);
+    expect(commands.some((cmd) => / l$/.test(cmd))).toBe(true);
+  });
 });

@@ -120,6 +120,7 @@ import {
   parseTextDecoration,
   parseTextDecorationLine,
   parseTextDecorationColor,
+  parseTextDecorationStyle,
   parseFloat,
   parseTextIndent,
   parseTextTransform,
@@ -259,6 +260,7 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("text-decoration", parseTextDecoration);
   registerPropertyParser("text-decoration-line", parseTextDecorationLine);
   registerPropertyParser("text-decoration-color", parseTextDecorationColor);
+  registerPropertyParser("text-decoration-style", parseTextDecorationStyle);
   registerPropertyParser("letter-spacing", parseLetterSpacing);
   registerPropertyParser("text-indent", parseTextIndent);
   registerPropertyParser("text-transform", parseTextTransform);

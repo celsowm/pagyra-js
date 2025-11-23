@@ -23,6 +23,7 @@ export class StyleInheritanceResolver {
         letterSpacing?: number;
         textDecorationLine?: string;
         textDecorationColor?: string;
+        textDecorationStyle?: string;
         overflowWrap?: string;
         textIndent: any; // Using any to match the flexible type system
         textTransform: string;
@@ -39,6 +40,7 @@ export class StyleInheritanceResolver {
             letterSpacing: parentStyle.letterSpacing ?? mergedDefaults.letterSpacing,
             textDecorationLine: parentStyle.textDecorationLine ?? mergedDefaults.textDecorationLine,
             textDecorationColor: parentStyle.textDecorationColor ?? mergedDefaults.textDecorationColor,
+            textDecorationStyle: parentStyle.textDecorationStyle ?? mergedDefaults.textDecorationStyle,
             overflowWrap: parentStyle.overflowWrap ?? mergedDefaults.overflowWrap,
             textIndent: parentStyle.textIndent ?? mergedDefaults.textIndent ?? 0,
             textTransform: parentStyle.textTransform ?? mergedDefaults.textTransform ?? "none",

@@ -27,6 +27,21 @@ export function resolveDecorations(style: ComputedStyle): Decorations | undefine
   if (!(decoration.underline || decoration.overline || decoration.lineThrough)) {
     return undefined;
   }
+
+  const styleKeyword = style.textDecorationStyle?.trim().toLowerCase();
+  switch (styleKeyword) {
+    case "solid":
+    case "double":
+    case "dotted":
+    case "dashed":
+    case "wavy":
+      decoration.style = styleKeyword;
+      break;
+    default:
+      decoration.style = "solid";
+      break;
+  }
+
   const color = resolveDecorationColor(style);
   if (color) {
     decoration.color = color;

@@ -134,6 +134,7 @@ export interface Decorations {
   underline?: boolean;
   overline?: boolean;
   lineThrough?: boolean;
+  style?: "solid" | "double" | "dotted" | "dashed" | "wavy";
   color?: RGBA;
 }
 

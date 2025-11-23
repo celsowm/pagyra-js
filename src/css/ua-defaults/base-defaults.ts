@@ -181,6 +181,7 @@ export function createBaseDefaultsObject(): any {
     wordSpacing: TypographyDefaults.getWordSpacing(),
     textDecorationLine: "none",
     textDecorationColor: "currentcolor",
+    textDecorationStyle: "solid",
     listStyleType: "disc",
 
     // Box model

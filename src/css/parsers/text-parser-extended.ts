@@ -14,6 +14,10 @@ export function parseTextDecoration(value: string, target: StyleAccumulator): vo
   if (parsed !== undefined) {
     target.textDecorationLine = parsed;
   }
+  const style = extractTextDecorationStyle(value);
+  if (style) {
+    target.textDecorationStyle = style;
+  }
   const color = extractTextDecorationColor(value);
   if (color) {
     target.textDecorationColor = color;
@@ -33,6 +37,13 @@ export function parseTextDecorationColor(value: string, target: StyleAccumulator
     return;
   }
   target.textDecorationColor = trimmed;
+}
+
+export function parseTextDecorationStyle(value: string, target: StyleAccumulator): void {
+  const style = extractTextDecorationStyle(value);
+  if (style) {
+    target.textDecorationStyle = style;
+  }
 }
 
 export function parseFloat(value: string, target: StyleAccumulator): void {
@@ -92,6 +103,20 @@ const COLOR_KEYWORDS = new Set(Object.keys(NAMED_COLORS).map((name) => name.toLo
 COLOR_KEYWORDS.add("transparent");
 COLOR_KEYWORDS.add("currentcolor");
 const DECORATION_LINE_KEYWORDS = new Set(["underline", "overline", "line-through", "none"]);
+const DECORATION_STYLE_KEYWORDS = new Set(["solid", "double", "dotted", "dashed", "wavy"]);
+
+function extractTextDecorationStyle(value: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const tokens = value.trim().toLowerCase().split(/\s+/);
+  for (const token of tokens) {
+    if (DECORATION_STYLE_KEYWORDS.has(token)) {
+      return token;
+    }
+  }
+  return undefined;
+}
 
 function extractTextDecorationColor(value: string): string | undefined {
   if (!value) {
