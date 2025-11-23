@@ -10,6 +10,8 @@ export class Box {
   marginBoxWidth = 0;
   marginBoxHeight = 0;
   baseline = 0;
+  usedMarginLeft?: number;
+  usedMarginRight?: number;
 
   clone(): Box {
     const box = new Box();
@@ -24,6 +26,8 @@ export class Box {
     box.marginBoxWidth = this.marginBoxWidth;
     box.marginBoxHeight = this.marginBoxHeight;
     box.baseline = this.baseline;
+    box.usedMarginLeft = this.usedMarginLeft;
+    box.usedMarginRight = this.usedMarginRight;
     return box;
   }
 }

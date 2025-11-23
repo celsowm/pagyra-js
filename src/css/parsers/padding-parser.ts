@@ -10,7 +10,7 @@ export function parsePadding(value: string, target: StyleAccumulator): void {
     target.paddingRight = right;
     target.paddingBottom = bottom;
     target.paddingLeft = left;
-  });
+  }, parseLength);
 }
 
 export function parsePaddingTop(value: string, target: StyleAccumulator): void {

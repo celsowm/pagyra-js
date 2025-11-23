@@ -1,18 +1,20 @@
 // src/css/shorthands/box-shorthand.ts
 
-import { parseLength } from "../parsers/length-parser.js";
+import { parseLength, parseLengthOrAuto } from "../parsers/length-parser.js";
 import { splitCssList } from "../utils.js";
 import type { RelativeLength } from "../length.js";
+
+type BoxLength = number | RelativeLength | "auto" | undefined;
 
 export function applyBoxShorthand(
   value: string,
   apply: (
-    top: number | RelativeLength | undefined,
-    right: number | RelativeLength | undefined,
-    bottom: number | RelativeLength | undefined,
-    left: number | RelativeLength | undefined,
+    top: BoxLength,
+    right: BoxLength,
+    bottom: BoxLength,
+    left: BoxLength,
   ) => void,
-  parser: (input: string) => number | RelativeLength | undefined = parseLength,
+  parser: (input: string) => BoxLength = parseLengthOrAuto,
 ): void {
   const parts = splitCssList(value);
   if (parts.length === 0) {

@@ -7,6 +7,7 @@ import {
   horizontalNonContent,
   horizontalMargin,
   inFlow,
+  resolveBlockAutoMargins,
   resolveWidthBlock,
   verticalNonContent,
 } from "../utils/node-math.js";
@@ -130,7 +131,6 @@ export class BlockLayoutStrategy implements LayoutStrategy {
       }
 
       const childMarginTopRaw = resolveLength(child.style.marginTop, contentWidth, { auto: "zero" });
-      const childMarginLeft = resolveLength(child.style.marginLeft, contentWidth, { auto: "zero" });
       const childMarginBottomRaw = resolveLength(child.style.marginBottom, contentWidth, { auto: "zero" });
       const collapsedMarginTop = effectiveMarginTop(child, contentWidth);
       const collapsedMarginBottom = effectiveMarginBottom(child, contentWidth);
@@ -139,17 +139,33 @@ export class BlockLayoutStrategy implements LayoutStrategy {
       if (collapseTopWithChildren && child === firstCollapsibleChild) {
         gap -= topCollapseAmount;
       }
-      
-      const originX = contentX + childMarginLeft;
-      child.box.x = originX;
+
+      child.box.x = contentX;
       child.box.y = cursorY + gap;
 
       context.layoutChild(child);
 
+      const { marginLeft: usedMarginLeft, marginRight: usedMarginRight } = resolveBlockAutoMargins(
+        contentWidth,
+        child.box.borderBoxWidth,
+        child.style.marginLeft,
+        child.style.marginRight,
+      );
+      child.box.usedMarginLeft = usedMarginLeft;
+      child.box.usedMarginRight = usedMarginRight;
+      const deltaX = usedMarginLeft;
+      if (deltaX !== 0) {
+        child.walk((desc) => {
+          desc.box.x += deltaX;
+        });
+      }
+      child.box.x = contentX + usedMarginLeft;
+
+      child.box.marginBoxWidth = child.box.borderBoxWidth + usedMarginLeft + usedMarginRight;
       child.box.marginBoxHeight = child.box.borderBoxHeight + childMarginTopRaw + childMarginBottomRaw;
-      
+
       previousBottomMargin = collapsedMarginBottom;
-      
+
       cursorY = child.box.y + child.box.borderBoxHeight;
       
       if (collapseBottomWithChildren && child === lastCollapsibleChild) {
@@ -253,8 +269,14 @@ function measureInFlowContentWidth(
       continue;
     }
 
-    const marginLeft = resolveLength(child.style.marginLeft, referenceWidth, { auto: "zero" });
-    const marginRight = resolveLength(child.style.marginRight, referenceWidth, { auto: "zero" });
+    const marginLeft =
+      child.box.usedMarginLeft !== undefined
+        ? child.box.usedMarginLeft
+        : resolveLength(child.style.marginLeft, referenceWidth, { auto: "zero" });
+    const marginRight =
+      child.box.usedMarginRight !== undefined
+        ? child.box.usedMarginRight
+        : resolveLength(child.style.marginRight, referenceWidth, { auto: "zero" });
     const borderLeft = resolveLength(child.style.borderLeft, referenceWidth, { auto: "zero" });
     const borderRight = resolveLength(child.style.borderRight, referenceWidth, { auto: "zero" });
     const paddingLeft = resolveLength(child.style.paddingLeft, referenceWidth, { auto: "zero" });

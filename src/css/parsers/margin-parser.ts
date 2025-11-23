@@ -1,7 +1,7 @@
 // src/css/parsers/margin-parser.ts
 
 import { applyBoxShorthand } from "../shorthands/box-shorthand.js";
-import { parseLength } from "./length-parser.js";
+import { parseLength, parseLengthOrAuto } from "./length-parser.js";
 import type { StyleAccumulator } from "../style.js";
 
 export function parseMargin(value: string, target: StyleAccumulator): void {
@@ -18,7 +18,7 @@ export function parseMarginTop(value: string, target: StyleAccumulator): void {
 }
 
 export function parseMarginRight(value: string, target: StyleAccumulator): void {
-  target.marginRight = parseLength(value) ?? target.marginRight;
+  target.marginRight = parseLengthOrAuto(value) ?? target.marginRight;
 }
 
 export function parseMarginBottom(value: string, target: StyleAccumulator): void {
@@ -26,5 +26,5 @@ export function parseMarginBottom(value: string, target: StyleAccumulator): void
 }
 
 export function parseMarginLeft(value: string, target: StyleAccumulator): void {
-  target.marginLeft = parseLength(value) ?? target.marginLeft;
+  target.marginLeft = parseLengthOrAuto(value) ?? target.marginLeft;
 }

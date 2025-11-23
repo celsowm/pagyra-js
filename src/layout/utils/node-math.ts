@@ -1,6 +1,6 @@
 import { LayoutNode } from "../../dom/node.js";
 import { Display, FloatMode, OverflowMode, Position } from "../../css/enums.js";
-import { clampMinMax, resolveLength } from "../../css/length.js";
+import { clampMinMax, resolveLength, isAutoLength, type LengthLike } from "../../css/length.js";
 import type { ContainingBlock, Viewport } from "../../geometry/box.js";
 
 export function horizontalNonContent(node: LayoutNode, reference: number): number {
@@ -129,7 +129,16 @@ export function containingBlock(node: LayoutNode, viewport: Viewport): Containin
 
 export function resolveWidthBlock(node: LayoutNode, containingBlockWidth: number): number {
   const style = node.style;
-  const available = Math.max(0, containingBlockWidth - horizontalNonContent(node, containingBlockWidth) - horizontalMargin(node, containingBlockWidth));
+  const marginLeft = isAutoLength(style.marginLeft)
+    ? 0
+    : resolveLength(style.marginLeft, containingBlockWidth, { auto: "zero" });
+  const marginRight = isAutoLength(style.marginRight)
+    ? 0
+    : resolveLength(style.marginRight, containingBlockWidth, { auto: "zero" });
+  const available = Math.max(
+    0,
+    containingBlockWidth - horizontalNonContent(node, containingBlockWidth) - marginLeft - marginRight,
+  );
   const width =
     style.width === "auto"
       ? available
@@ -139,4 +148,52 @@ export function resolveWidthBlock(node: LayoutNode, containingBlockWidth: number
   const minWidth = style.minWidth ? resolveLength(style.minWidth, containingBlockWidth, { auto: "zero" }) : Number.NEGATIVE_INFINITY;
   const maxWidth = style.maxWidth ? resolveLength(style.maxWidth, containingBlockWidth, { auto: "reference" }) : Number.POSITIVE_INFINITY;
   return clampMinMax(width, minWidth, maxWidth);
+}
+
+export function resolveBlockAutoMargins(
+  containingBlockWidth: number,
+  borderBoxWidth: number,
+  marginLeft: LengthLike,
+  marginRight: LengthLike,
+): { marginLeft: number; marginRight: number } {
+  const marginLeftAuto = isAutoLength(marginLeft);
+  const marginRightAuto = isAutoLength(marginRight);
+
+  const resolvedMarginLeft = marginLeftAuto ? 0 : resolveLength(marginLeft, containingBlockWidth, { auto: "zero" });
+  const resolvedMarginRight = marginRightAuto ? 0 : resolveLength(marginRight, containingBlockWidth, { auto: "zero" });
+
+  let usedMarginLeft = resolvedMarginLeft;
+  let usedMarginRight = resolvedMarginRight;
+
+  const remainingSpace = containingBlockWidth - (borderBoxWidth + resolvedMarginLeft + resolvedMarginRight);
+
+  if (!Number.isFinite(remainingSpace)) {
+    return { marginLeft: usedMarginLeft, marginRight: usedMarginRight };
+  }
+
+  if (remainingSpace < 0) {
+    if (marginLeftAuto && marginRightAuto) {
+      usedMarginLeft = 0;
+      usedMarginRight = 0;
+    } else if (marginLeftAuto) {
+      usedMarginLeft = 0;
+    } else if (marginRightAuto) {
+      usedMarginRight = 0;
+    } else {
+      usedMarginRight = resolvedMarginRight + remainingSpace;
+    }
+  } else {
+    if (marginLeftAuto && marginRightAuto) {
+      usedMarginLeft = remainingSpace / 2;
+      usedMarginRight = remainingSpace / 2;
+    } else if (marginLeftAuto) {
+      usedMarginLeft = remainingSpace;
+    } else if (marginRightAuto) {
+      usedMarginRight = remainingSpace;
+    } else {
+      usedMarginRight = resolvedMarginRight + remainingSpace;
+    }
+  }
+
+  return { marginLeft: usedMarginLeft, marginRight: usedMarginRight };
 }

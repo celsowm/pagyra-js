@@ -72,3 +72,14 @@ export function parseLengthOrPercent(value: string): number | RelativeLength | R
   }
   return percent(numeric / 100);
 }
+
+export function parseLengthOrAuto(value: string): number | RelativeLength | "auto" | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "auto") {
+    return "auto";
+  }
+  return parseLength(normalized);
+}

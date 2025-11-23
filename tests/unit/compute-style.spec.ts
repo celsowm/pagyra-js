@@ -75,3 +75,14 @@ describe("computeStyleForElement list-style-type", () => {
     expect(style.listStyleType).toBe("none");
   });
 });
+
+describe("computeStyleForElement margin auto preservation", () => {
+  it("keeps horizontal auto margins from inline styles", () => {
+    const parentStyle = makeParentStyle(16);
+    const style = computeStyleForElement(makeElement("div", "margin: 40px auto; width: 200px"), [], parentStyle, units, 16);
+    expect(style.marginTop).toBeCloseTo(40);
+    expect(style.marginBottom).toBeCloseTo(40);
+    expect(style.marginLeft).toBe("auto");
+    expect(style.marginRight).toBe("auto");
+  });
+});
