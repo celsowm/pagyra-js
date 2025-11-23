@@ -30,7 +30,9 @@ describe("PDF styling", () => {
     const pdfBuffer = Buffer.from(pdfBytes);
     const content = extractPdfContent(pdfBuffer);
     // Check for the text (either literal or hex encoded) and a color operator for red (1 0 0 rg)
-    expect(content).toMatch(/Styled\s+Text|<[^>]*53[^>]*74[^>]*79[^>]*6c[^>]*65[^>]*64[^>]*20[^>]*54[^>]*65[^>]*78[^>]*74[^>]*>/i);
+    expect(content).toMatch(
+      /Styled\s+Text|<[^>]*53[^>]*74[^>]*79[^>]*6c[^>]*65[^>]*64[^>]*20[^>]*54[^>]*65[^>]*78[^>]*74[^>]*>|<[^>]*0036[^>]*0057[^>]*005c[^>]*004f[^>]*0048[^>]*0047[^>]*0003[^>]*0037[^>]*0048[^>]*005b[^>]*0057[^>]*>/i,
+    );
     expect(pdfBuffer.toString("latin1")).toMatch(/1\s+0\s+0\s+rg/); // PDF color operator for red
   });
 

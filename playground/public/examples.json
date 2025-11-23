@@ -173,6 +173,11 @@
     "htmlUrl": "examples/background-advanced-showcase.html"
   },
   {
+    "id": "background-origin-showcase",
+    "label": "Background Origin Examples",
+    "htmlUrl": "examples/background-origin-showcase.html"
+  },
+  {
     "id": "webp-example",
     "label": "WebP Image Example",
     "htmlUrl": "examples/webp-example.html"

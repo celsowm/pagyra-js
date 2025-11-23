@@ -132,6 +132,7 @@ import { parseListStyleType } from "./list-style-parser.js";
 import {
   applyBackgroundSizeDecl,
   applyBackgroundPositionDecl,
+  applyBackgroundOriginDecl,
   parseBackgroundImage,
   parseBackground,
   parseObjectFit,
@@ -273,6 +274,7 @@ export function registerAllPropertyParsers(): void {
   // Background
   registerPropertyParser("background-size", applyBackgroundSizeDecl);
   registerPropertyParser("background-position", applyBackgroundPositionDecl);
+  registerPropertyParser("background-origin", applyBackgroundOriginDecl);
   registerPropertyParser("background-image", parseBackgroundImage);
   registerPropertyParser("background", parseBackground);
   registerPropertyParser("object-fit", parseObjectFit);

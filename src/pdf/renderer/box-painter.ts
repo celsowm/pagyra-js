@@ -4,6 +4,7 @@ import { shrinkRadius } from "./radius.js";
 import { renderSvgBox } from "../svg/render-svg.js";
 import { NodeKind, type RenderBox, type RGBA, type Rect, type Radius } from "../types.js";
 import type { PagePainter } from "../page-painter.js";
+import { computeBackgroundTileRects, intersectRects, rectEquals } from "../utils/background-tiles.js";
 
 export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Promise<void> {
   log("PAINT", "DEBUG", `paintBoxAtomic: ${box.tagName} id:${box.id} opacity:${box.opacity}`, { id: box.id, opacity: box.opacity });
@@ -87,25 +88,29 @@ function paintBackground(painter: PagePainter, box: RenderBox): void {
   }
 
   if (background.gradient) {
+    const gradient = background.gradient;
     const clipRect = paintArea.rect;
-    const patternRect = background.gradient.rect ?? clipRect;
-    const offsetX = patternRect.x - clipRect.x;
-    const offsetY = patternRect.y - clipRect.y;
-    const scaleX = clipRect.width !== 0 ? patternRect.width / clipRect.width : 1;
-    const scaleY = clipRect.height !== 0 ? patternRect.height / clipRect.height : 1;
-    const needsOffset = Math.abs(offsetX) > 0.01 || Math.abs(offsetY) > 0.01;
-    const needsScale = Math.abs(scaleX - 1) > 0.01 || Math.abs(scaleY - 1) > 0.01;
-    let gradientPaint: any = background.gradient.gradient;
-    if (needsOffset || needsScale) {
-      gradientPaint = { ...background.gradient.gradient };
-      if (needsOffset) {
-        gradientPaint.renderOffset = { x: offsetX, y: offsetY };
-      }
-      if (needsScale) {
-        gradientPaint.renderScale = { x: scaleX, y: scaleY };
-      }
+
+    if (gradient.repeat === "space" || gradient.repeat === "round") {
+      log(
+        "PAINT",
+        "WARN",
+        `Gradient background repeat mode "${gradient.repeat}" is not fully supported. Treating as "repeat".`,
+      );
     }
-    painter.fillRoundedRect(clipRect, paintArea.radius, gradientPaint as any);
+
+    const gradientRect = gradient.rect ?? clipRect;
+    const repeatMode = gradient.repeat ?? "no-repeat";
+    const tiles = computeBackgroundTileRects(gradientRect, clipRect, repeatMode);
+
+    for (const tile of tiles) {
+      const radius =
+        rectEquals(tile, clipRect) || rectEquals(tile, gradient.originRect)
+          ? paintArea.radius
+          : zeroRadius();
+
+      painter.fillRoundedRect(tile, radius, gradient.gradient as any);
+    }
   }
 
   if (background.image) {
@@ -119,13 +124,19 @@ function paintBackgroundImageLayer(
   clipRect: Rect,
   clipRadius: Radius,
 ): void {
-  if (!layer) {
+  if (!layer || !layer.rect) {
     return;
   }
-  if (layer.repeat && layer.repeat !== "no-repeat") {
-    log("PAINT", "WARN", `Background repeat mode "${layer.repeat}" is not fully supported yet. Rendering first tile only.`);
+  if (layer.repeat === "space" || layer.repeat === "round") {
+    log("PAINT", "WARN", `Background repeat mode "${layer.repeat}" is not fully supported. Treating as "repeat".`);
   }
-  painter.drawBackgroundImage(layer.image, layer.rect, clipRect, clipRadius);
+
+  const repeatMode = layer.repeat ?? "repeat";
+  const tiles = computeBackgroundTileRects(layer.rect, clipRect, repeatMode);
+
+  for (const tile of tiles) {
+    painter.drawBackgroundImage(layer.image, tile, clipRect, clipRadius);
+  }
 }
 
 function paintBorder(painter: PagePainter, box: RenderBox): void {
@@ -172,4 +183,13 @@ function determineBackgroundPaintArea(box: RenderBox): { rect: Rect; radius: Rad
 
 function hasVisibleBorder(border: RenderBox["border"]): boolean {
   return border.top > 0 || border.right > 0 || border.bottom > 0 || border.left > 0;
+}
+
+function zeroRadius(): Radius {
+  return {
+    topLeft: { x: 0, y: 0 },
+    topRight: { x: 0, y: 0 },
+    bottomRight: { x: 0, y: 0 },
+    bottomLeft: { x: 0, y: 0 },
+  };
 }

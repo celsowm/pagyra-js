@@ -1,5 +1,6 @@
 import type {
   BackgroundLayer,
+  BackgroundOrigin,
   BackgroundPosition,
   BackgroundRepeat,
   BackgroundSize,
@@ -153,13 +154,11 @@ function splitBackgroundLayers(value: string): string[] {
  */
 function parseSingleBackgroundLayer(value: string): BackgroundLayer | null {
   const trimmed = value.trim();
-  console.log("parseSingleBackgroundLayer - input:", trimmed);
   if (!trimmed) return null;
 
   // Handle gradients
   const gradientSlice = extractFunctionCall(trimmed, "linear-gradient");
   if (gradientSlice) {
-    console.log("parseSingleBackgroundLayer - detected gradient:", trimmed);
     const gradientLayer = parseGradientLayer(gradientSlice.text);
     if (gradientLayer) {
       const before = trimmed.slice(0, gradientSlice.start).trim();
@@ -168,24 +167,24 @@ function parseSingleBackgroundLayer(value: string): BackgroundLayer | null {
       if (remainder && gradientLayer.kind === "gradient") {
         const tokens = remainder.split(/\s+/).filter(Boolean);
         for (const token of tokens) {
-          if (isRepeatKeyword(token)) {
-            gradientLayer.repeat = token as BackgroundRepeat;
+          const lower = token.toLowerCase();
+          if (isRepeatKeyword(lower)) {
+            gradientLayer.repeat = lower as BackgroundRepeat;
+          } else if (isBoxKeyword(lower)) {
+            gradientLayer.origin = lower as BackgroundOrigin;
           }
         }
       }
-      console.log("parseSingleBackgroundLayer - gradient result:", gradientLayer);
       return gradientLayer;
     }
   }
 
   // Handle colors
   if (isColorValue(trimmed)) {
-    console.log("parseSingleBackgroundLayer - detected color:", trimmed);
     return { kind: "color", color: trimmed };
   }
 
   // Handle images with properties
-  console.log("parseSingleBackgroundLayer - parsing as image:", trimmed);
   return parseImageLayer(trimmed);
 }
 
@@ -218,6 +217,7 @@ function parseImageLayer(value: string): BackgroundLayer | null {
   let position: { x: string; y: string } = { x: "left", y: "top" };
   let size: BackgroundSize = "auto";
   let repeat = "repeat";
+  let origin: BackgroundOrigin | undefined;
   let currentIndex = 0;
 
   // Find URL first
@@ -233,11 +233,12 @@ function parseImageLayer(value: string): BackgroundLayer | null {
 
   // Parse remaining properties
   while (currentIndex < parts.length) {
-    const part = parts[currentIndex];
+    const partRaw = parts[currentIndex];
+    const part = partRaw.toLowerCase();
 
     // Check for size (contains /)
-    if (part.includes('/')) {
-      size = parseBackgroundSizeValue(part);
+    if (part.includes("/")) {
+      size = parseBackgroundSizeValue(partRaw);
       currentIndex++;
     }
     // Check for position keywords
@@ -247,7 +248,12 @@ function parseImageLayer(value: string): BackgroundLayer | null {
     }
     // Check for repeat keywords
     else if (isRepeatKeyword(part)) {
-      repeat = part;
+      repeat = part as BackgroundRepeat;
+      currentIndex++;
+    }
+    // Check for background-origin keywords (box)
+    else if (isBoxKeyword(part) && origin === undefined) {
+      origin = part as BackgroundOrigin;
       currentIndex++;
     }
     else {
@@ -260,7 +266,8 @@ function parseImageLayer(value: string): BackgroundLayer | null {
     url,
     position,
     size,
-    repeat: repeat as any
+    repeat: repeat as any,
+    origin,
   };
 }
 
@@ -338,6 +345,14 @@ function isRepeatKeyword(value: string): boolean {
 }
 
 /**
+ * Checks if value is a background box keyword used by background-origin/background-clip
+ */
+function isBoxKeyword(value: string): value is BackgroundOrigin {
+  const lower = value.toLowerCase();
+  return lower === "border-box" || lower === "padding-box" || lower === "content-box";
+}
+
+/**
  * Applies background-size longhand property
  */
 export function applyBackgroundSize(style: any, value: string): void {
@@ -403,5 +418,17 @@ export function applyBackgroundPosition(style: any, value: string): void {
   const position = parseBackgroundPositionValue(value);
   if (layer.kind === "image" || layer.kind === "gradient") {
     layer.position = position;
+  }
+}
+
+export function applyBackgroundOrigin(style: any, value: string): void {
+  ensureLayers(style);
+  const token = value.trim().toLowerCase();
+  if (!isBoxKeyword(token)) {
+    return;
+  }
+  const layer = getOrCreateTopRenderableLayer(style);
+  if (layer.kind === "image" || layer.kind === "gradient") {
+    layer.origin = token;
   }
 }

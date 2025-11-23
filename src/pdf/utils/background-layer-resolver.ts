@@ -94,6 +94,8 @@ function selectBackgroundOriginRect(
   boxes: BackgroundBoxes,
 ): Rect {
   switch (layer.origin) {
+    case "border-box":
+      return boxes.borderBox;
     case "padding-box":
       return boxes.paddingBox;
     case "content-box":

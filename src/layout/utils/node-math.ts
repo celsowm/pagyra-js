@@ -97,7 +97,19 @@ export function containingBlock(node: LayoutNode, viewport: Viewport): Containin
   }
 
   const widthRef = Math.max(parent.box.contentWidth, 0);
-  const heightRef = Math.max(parent.box.contentHeight, 0);
+  let heightRef = Math.max(parent.box.contentHeight, 0);
+
+  // If the parent has an explicit height but its content height has not
+  // been resolved yet (common when laying out flex/grid children before
+  // the block container finalizes), fall back to the specified height.
+  // This allows percentage heights like `height: 100%` on flex children
+  // to resolve against a definite containing block height instead of 0.
+  if (heightRef === 0 && parent.style.height !== "auto") {
+    const explicitHeight = resolveLength(parent.style.height, viewport.height, { auto: "reference" });
+    if (Number.isFinite(explicitHeight) && explicitHeight > 0) {
+      heightRef = explicitHeight;
+    }
+  }
   const xOffset =
     parent.box.x +
     resolveLength(parent.style.paddingLeft, widthRef, { auto: "zero" }) +
@@ -111,7 +123,7 @@ export function containingBlock(node: LayoutNode, viewport: Viewport): Containin
     x: xOffset,
     y: yOffset,
     width: parent.box.contentWidth,
-    height: parent.box.contentHeight,
+    height: heightRef,
   };
 }
 

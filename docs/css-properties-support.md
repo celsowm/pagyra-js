@@ -118,9 +118,9 @@ background-blend-mode | Blending mode of background layers. | ✅ Yes | ❌ No
 background-clip | Painting area of the background. | ✅ Yes | ❌ No
 background-color | Background color of element. | ✅ Yes | ✅ Yes
 background-image | Background image(s). | ✅ Yes | ✅ Yes
-background-origin | Positioning area of background images. | ✅ Yes | ❌ No
+background-origin | Positioning area of background images. | ✅ Yes | ✅ Yes
 background-position | Initial position of background image. | ✅ Yes | ✅ Yes
-background-repeat | How background image is repeated. | ✅ Yes | ❌ No
+background-repeat | How background image is repeated. | ✅ Yes | ✅ Yes (repeat / repeat-x / repeat-y; space/round treated as repeat)
 background-size | Size of background image. | ✅ Yes | ✅ Yes
 border | Shorthand for width, style, and color. | ✅ Yes | ✅ Yes
 border-collapse | Whether table borders are separated or collapsed. | ✅ Yes | ✅ Yes
