@@ -6,15 +6,15 @@ import type { RelativeLength } from "../length.js";
 
 type BoxLength = number | RelativeLength | "auto" | undefined;
 
-export function applyBoxShorthand(
+export function applyBoxShorthand<T extends BoxLength = BoxLength>(
   value: string,
   apply: (
-    top: BoxLength,
-    right: BoxLength,
-    bottom: BoxLength,
-    left: BoxLength,
+    top: T,
+    right: T,
+    bottom: T,
+    left: T,
   ) => void,
-  parser: (input: string) => BoxLength = parseLengthOrAuto,
+  parser: (input: string) => T = parseLengthOrAuto as unknown as (input: string) => T,
 ): void {
   const parts = splitCssList(value);
   if (parts.length === 0) {
@@ -29,5 +29,5 @@ export function applyBoxShorthand(
         : resolved.length === 3
           ? [resolved[0], resolved[1], resolved[2], resolved[1]]
           : [resolved[0], resolved[1], resolved[2], resolved[3]];
-  apply(top, right, bottom, left);
+  apply(top as T, right as T, bottom as T, left as T);
 }
