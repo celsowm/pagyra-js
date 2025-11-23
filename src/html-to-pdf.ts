@@ -57,6 +57,7 @@ export async function renderHtmlToPdf(options: RenderHtmlOptions): Promise<Uint8
 export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<PreparedRender> {
   const { html, css, viewportWidth, viewportHeight, pageWidth, pageHeight, margins, debug = false, debugLevel, debugCats, headerFooter } =
     options;
+  const normalizedHtml = normalizeHtmlInput(html);
 
   setViewportSize(viewportWidth, viewportHeight);
   const resourceBaseDir = path.resolve(options.resourceBaseDir ?? options.assetRootDir ?? process.cwd());
@@ -70,7 +71,10 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   const units = makeUnitParsers(unitCtx);
 
   console.log("prepareHtmlRender - input html:", html);
-  const { document } = parseHTML(html);
+  let { document } = parseHTML(normalizedHtml);
+  if (needsReparse(document)) {
+    document = parseHTML(wrapHtml(html)).document;
+  }
   console.log("prepareHtmlRender - parsed document body:", document.body?.innerHTML || 'no body');
   console.log("prepareHtmlRender - document.documentElement tagName:", document.documentElement?.tagName);
   console.log("prepareHtmlRender - document.documentElement innerHTML:", document.documentElement?.innerHTML);
@@ -348,4 +352,24 @@ function isInlineDisplay(display: Display): boolean {
     display === Display.InlineGrid ||
     display === Display.InlineTable
   );
+}
+
+function normalizeHtmlInput(html: string): string {
+  const hasHtmlTag = /<\s*html[\s>]/i.test(html);
+  if (hasHtmlTag) {
+    return html;
+  }
+  return wrapHtml(html);
+}
+
+function wrapHtml(html: string): string {
+  return `<!doctype html><html><head></head><body>${html}</body></html>`;
+}
+
+function needsReparse(document: Document): boolean {
+  const docEl = document.documentElement?.tagName;
+  const docIsHtml = docEl?.toUpperCase() === "HTML";
+  if (!docIsHtml) return true;
+  if (!document.body) return true;
+  return false;
 }
