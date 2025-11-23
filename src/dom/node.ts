@@ -2,6 +2,16 @@ import { ComputedStyle } from "../css/style.js";
 import { Box } from "../geometry/box.js";
 import type { LineBox } from "../text/line-breaker.js";
 
+export interface InlineRun {
+  lineIndex: number;
+  startX: number;
+  baseline: number;
+  text: string;
+  width: number;
+  spaceCount: number;
+  targetWidth: number;
+}
+
 export interface NodeVisitor {
   (node: LayoutNode): void;
 }
@@ -12,6 +22,7 @@ export interface LayoutNodeOptions {
   textContent?: string;
   tagName?: string;
   lineBoxes?: LineBox[];
+  inlineRuns?: InlineRun[];
   customData?: Record<string, unknown>;
   tableColSpan?: number;
   tableRowSpan?: number;
@@ -34,6 +45,7 @@ export class LayoutNode {
   textContent?: string;
   tagName?: string;
   lineBoxes?: LineBox[];
+  inlineRuns?: InlineRun[];
   customData?: Record<string, unknown>;
   tableColSpan?: number;
   tableRowSpan?: number;
@@ -45,6 +57,7 @@ export class LayoutNode {
     this.textContent = options?.textContent;
     this.tagName = options?.tagName;
     this.lineBoxes = options?.lineBoxes;
+    this.inlineRuns = options?.inlineRuns;
     this.customData = options?.customData;
     this.tableColSpan = options?.tableColSpan;
     this.tableRowSpan = options?.tableRowSpan;

@@ -1,11 +1,13 @@
-import { LayoutNode } from "../../dom/node.js";
+import { LayoutNode, type InlineRun } from "../../dom/node.js";
 import { Display, FloatMode } from "../../css/enums.js";
 import { resolvedLineHeight } from "../../css/style.js";
 import { clampMinMax, resolveLength } from "../../css/length.js";
 import { FloatContext } from "../context/float-context.js";
 import type { LayoutContext } from "../pipeline/strategy.js";
-import { breakTextIntoLines } from "../../text/line-breaker.js";
-import { estimateLineWidth } from "./text-metrics.js";
+import { estimateLineWidth, measureTextWithGlyphs } from "./text-metrics.js";
+import { applyTextTransform } from "../../text/text-transform.js";
+import { WhiteSpace } from "../../css/enums.js";
+import type { FontEmbedder } from "../../pdf/font/embedder.js";
 
 const LAYOUT_DEBUG = process.env.PAGYRA_DEBUG_LAYOUT === "1";
 const layoutDebug = (...args: unknown[]): void => {
@@ -24,7 +26,41 @@ interface InlineLayoutOptions {
   startY: number;
 }
 
-interface InlineMetrics {
+type InlineFragment =
+  | {
+      kind: "text";
+      node: LayoutNode;
+      style: LayoutNode["style"];
+      text: string;
+      preserveLeading?: boolean;
+      preserveTrailing?: boolean;
+    }
+  | {
+      kind: "box";
+      metrics: InlineMetrics;
+    };
+
+type LayoutItemKind = "word" | "space" | "box" | "newline";
+
+interface LayoutItemBase {
+  kind: LayoutItemKind;
+  width: number;
+  height: number;
+  lineHeight: number;
+  node?: LayoutNode;
+  style?: LayoutNode["style"];
+  text?: string;
+  spaceCount?: number;
+}
+
+interface BoxLayoutItem extends LayoutItemBase {
+  kind: "box";
+  metrics: InlineMetrics;
+}
+
+type LayoutItem = LayoutItemBase | BoxLayoutItem;
+
+export interface InlineMetrics {
   node: LayoutNode;
   contentWidth: number;
   contentHeight: number;
@@ -66,138 +102,419 @@ function resolveInlineTextAlign(node: LayoutNode): string | undefined {
 
 export function layoutInlineFormattingContext(options: InlineLayoutOptions): InlineLayoutResult {
   const { container, inlineNodes, context, floatContext, contentX, contentWidth } = options;
-  let cursorX = 0;
-  let lineTop = options.startY;
-  let lineHeight = Math.max(resolvedLineHeight(container.style), 0);
-  const lineItems: InlineMetrics[] = [];
-
-  const offsets = () => floatContext.inlineOffsets(lineTop, lineTop + lineHeight, contentWidth);
-  let inlineOffset = offsets();
-  let availableWidth = Math.max(0, inlineOffset.end - inlineOffset.start);
-  layoutDebug(
-    `[layoutIFC] start container=${container.tagName ?? "(anonymous)"} display=${container.style.display} contentWidth=${contentWidth} inlineOffset.start=${inlineOffset.start} inlineOffset.end=${inlineOffset.end}`,
-  );
-
   container.establishesIFC = true;
-  const textAlign =
-    container.style.display === Display.Inline ? undefined : resolveInlineTextAlign(container);
-  layoutDebug(
-    `[layoutIFC] container=${container.tagName ?? "(anonymous)"} effectiveTextAlign=${textAlign}`,
-  );
+
+  const textAlign = container.style.display === Display.Inline
+    ? undefined
+    : resolveInlineTextAlign(container);
   const shouldApplyTextIndent = container.style.display !== Display.Inline;
   const resolvedTextIndent = shouldApplyTextIndent
     ? resolveLength(container.style.textIndent, contentWidth, { auto: "zero" })
     : 0;
   let firstLineTextIndentPending = shouldApplyTextIndent && resolvedTextIndent !== 0;
-  const applyFirstLineTextIndent = () => {
-    if (!firstLineTextIndentPending) {
-      return;
+
+  const fragments = collectInlineFragments(inlineNodes, contentWidth, context);
+  const items = tokenizeFragments(fragments, context.env.fontEmbedder);
+
+  let lineTop = options.startY;
+  let lineHeight = Math.max(resolvedLineHeight(container.style), 0);
+  let inlineOffset = floatContext.inlineOffsets(lineTop, lineTop + lineHeight, contentWidth);
+  let availableWidth = Math.max(0, inlineOffset.end - inlineOffset.start);
+  let cursorX = 0;
+  let lineIndex = 0;
+  const lineParts: { item: LayoutItem; offset: number }[] = [];
+  const nodeRuns = new Map<LayoutNode, InlineRun[]>();
+
+  let maxInlineEnd = 0;
+
+  const pushRun = (
+    node: LayoutNode,
+    run: InlineRun,
+  ) => {
+    const existing = nodeRuns.get(node);
+    if (existing) {
+      existing.push(run);
+    } else {
+      nodeRuns.set(node, [run]);
     }
-    cursorX += resolvedTextIndent;
-    firstLineTextIndentPending = false;
   };
 
-  const commitLine = () => {
-    if (lineItems.length === 0) {
+  const placeRunsForLine = (parts: { item: LayoutItem; offset: number }[], isLastLine: boolean) => {
+    const trimmed = parts;
+    if (trimmed.length === 0) {
       return;
     }
 
+    const lineWidth = trimmed.reduce((max, part) => Math.max(max, part.offset + part.item.width), 0);
     const currentAvailableWidth = Math.max(availableWidth, 0);
-    if (textAlign && currentAvailableWidth > 0) {
-      const lineWidth = lineItems.reduce(
-        (max, item) => Math.max(max, item.lineOffset + item.outerWidth),
-        0
-      );
-      const slack = Math.max(currentAvailableWidth - lineWidth, 0);
-      let offset = 0;
-      if (textAlign === "center") {
-        offset = slack / 2;
-      } else if (textAlign === "right" || textAlign === "end") {
-        offset = slack;
-      }
-      if (offset !== 0) {
-        for (const item of lineItems) {
-          item.lineOffset += offset;
-        }
-      }
+    const slack = Math.max(currentAvailableWidth - lineWidth, 0);
+    let offsetShift = 0;
+    if (textAlign === "center") {
+      offsetShift = slack / 2;
+    } else if (textAlign === "right" || textAlign === "end") {
+      offsetShift = slack;
     }
 
-    for (const item of lineItems) {
-      placeInlineItem(item, contentX + inlineOffset.start, lineTop);
+    const lineStartX = contentX + inlineOffset.start + offsetShift;
+    const lineBaseline = lineTop + lineHeight;
+    const spaceCount = trimmed.reduce((count, part) => {
+      if (part.item.kind === "space") {
+        return count + (part.item.spaceCount ?? 1);
+      }
+      return count;
+    }, 0);
+    maxInlineEnd = Math.max(maxInlineEnd, lineStartX + lineWidth - contentX);
+
+    for (const part of trimmed) {
+      if (isBoxItem(part.item)) {
+        const metrics = part.item.metrics;
+        metrics.lineOffset = part.offset + offsetShift;
+        placeInlineItem(metrics, contentX + inlineOffset.start, lineTop);
+        continue;
+      }
+
+      const node = part.item.node;
+      if (!node || !part.item.text) {
+        continue;
+      }
+      const startX = lineStartX + part.offset;
+      const run: InlineRun = {
+        lineIndex,
+        startX,
+        baseline: lineBaseline,
+        text: part.item.text,
+        width: part.item.width,
+        targetWidth: currentAvailableWidth,
+        spaceCount: spaceCount,
+      };
+      node.box.x = startX;
+      node.box.y = lineTop;
+      node.box.baseline = lineBaseline;
+      pushRun(node, run);
     }
-    lineTop += lineHeight;
+  };
+
+  const commitLine = (isLastLine: boolean) => {
+    if (lineParts.length === 0) {
+      lineTop += lineHeight;
+    } else {
+      placeRunsForLine(lineParts, isLastLine);
+      lineTop += lineHeight;
+    }
     cursorX = 0;
     lineHeight = Math.max(resolvedLineHeight(container.style), 0);
-    lineItems.length = 0;
+    lineParts.length = 0;
     inlineOffset = floatContext.inlineOffsets(lineTop, lineTop + lineHeight, contentWidth);
     availableWidth = Math.max(0, inlineOffset.end - inlineOffset.start);
+    lineIndex += 1;
   };
 
-  for (const node of inlineNodes) {
-    const metrics = measureInlineNode(node, contentWidth, context);
-    layoutDebug(
-      `[layoutIFC] node=${node.tagName ?? "(anonymous)"} display=${node.style.display} cursorX=${cursorX} available=${availableWidth} outerWidth=${metrics.outerWidth} contentWidth=${metrics.contentWidth}`,
-    );
+  for (let index = 0; index < items.length; index++) {
+    const item = items[index];
 
-    while (true) {
+    if (item.kind === "newline") {
+      commitLine(false);
+      continue;
+    }
+
+    let workingItem: LayoutItem | null = item;
+
+    while (workingItem) {
       if (availableWidth <= 0) {
         const nextLineTop = floatContext.nextUnblockedY(lineTop, lineTop + lineHeight);
         if (nextLineTop === null) {
-          // No floats to skip; force the content onto this line and allow it to overflow.
-          metrics.lineOffset = cursorX;
-          lineItems.push(metrics);
-        cursorX += metrics.outerWidth;
-        lineHeight = Math.max(lineHeight, metrics.outerHeight, resolvedLineHeight(container.style));
+          // No floats to skip; allow overflow on this line.
+          availableWidth = Math.max(0, contentWidth);
+          inlineOffset = { start: 0, end: contentWidth };
+        } else {
+          lineTop = nextLineTop;
+          inlineOffset = floatContext.inlineOffsets(lineTop, lineTop + lineHeight, contentWidth);
+          availableWidth = Math.max(0, inlineOffset.end - inlineOffset.start);
+          cursorX = 0;
+          lineParts.length = 0;
+          continue;
+        }
+      }
+
+      if (lineParts.length === 0 && firstLineTextIndentPending) {
+        cursorX += resolvedTextIndent;
+        firstLineTextIndentPending = false;
+      }
+
+      const remaining = Math.max(availableWidth - cursorX, 0);
+
+      if (workingItem.kind === "box") {
+        if (lineParts.length > 0 && cursorX + workingItem.width > availableWidth) {
+          commitLine(false);
+          continue;
+        }
+        if (lineParts.length === 0 && workingItem.width > availableWidth) {
+          const nextLineTop = floatContext.nextUnblockedY(lineTop, lineTop + lineHeight);
+          if (nextLineTop === null) {
+            lineParts.push({ item: workingItem, offset: cursorX });
+            cursorX += workingItem.width;
+            lineHeight = Math.max(lineHeight, workingItem.lineHeight);
+            break;
+          }
+          lineTop = nextLineTop;
+          inlineOffset = floatContext.inlineOffsets(lineTop, lineTop + lineHeight, contentWidth);
+          availableWidth = Math.max(0, inlineOffset.end - inlineOffset.start);
+          cursorX = 0;
+          lineParts.length = 0;
+          continue;
+        }
+
+        lineParts.push({ item: workingItem, offset: cursorX });
+        cursorX += workingItem.width;
+        lineHeight = Math.max(lineHeight, workingItem.lineHeight);
         break;
       }
-        lineTop = nextLineTop;
-        inlineOffset = floatContext.inlineOffsets(lineTop, lineTop + lineHeight, contentWidth);
-        availableWidth = Math.max(0, inlineOffset.end - inlineOffset.start);
-        cursorX = 0;
+
+      // Text items
+      if (workingItem.kind === "word" && workingItem.width > remaining) {
+        const mode = workingItem.style?.overflowWrap ?? "normal";
+        if (mode !== "normal" && remaining > 0) {
+          const [head, tail] = splitWordItemToken(workingItem, remaining);
+          if (head) {
+            lineParts.push({ item: head, offset: cursorX });
+            cursorX += head.width;
+            lineHeight = Math.max(lineHeight, head.lineHeight);
+          }
+          if (tail) {
+            items.splice(index + 1, 0, tail);
+          }
+          workingItem = null;
+          break;
+        }
+      }
+
+      if (lineParts.length > 0 && cursorX + workingItem.width > availableWidth) {
+        commitLine(false);
         continue;
       }
 
-      if (lineItems.length === 0) {
-        applyFirstLineTextIndent();
-      }
-
-      if (lineItems.length > 0 && cursorX + metrics.outerWidth > availableWidth) {
-        commitLine();
-        inlineOffset = floatContext.inlineOffsets(lineTop, lineTop + lineHeight, contentWidth);
-        availableWidth = Math.max(0, inlineOffset.end - inlineOffset.start);
-        continue;
-      }
-
-      if (lineItems.length === 0 && metrics.outerWidth > availableWidth) {
+      if (lineParts.length === 0 && workingItem.width > availableWidth && workingItem.kind === "word") {
         const nextLineTop = floatContext.nextUnblockedY(lineTop, lineTop + lineHeight);
         if (nextLineTop === null) {
-          // No alternate vertical position: lay out the item anyway and let it overflow.
-          metrics.lineOffset = cursorX;
-          lineItems.push(metrics);
-          cursorX += metrics.outerWidth;
-          lineHeight = Math.max(lineHeight, metrics.outerHeight, resolvedLineHeight(container.style));
+          lineParts.push({ item: workingItem, offset: cursorX });
+          cursorX += workingItem.width;
+          lineHeight = Math.max(lineHeight, workingItem.lineHeight);
+          workingItem = null;
           break;
         }
         lineTop = nextLineTop;
         inlineOffset = floatContext.inlineOffsets(lineTop, lineTop + lineHeight, contentWidth);
         availableWidth = Math.max(0, inlineOffset.end - inlineOffset.start);
         cursorX = 0;
+        lineParts.length = 0;
         continue;
       }
 
-      metrics.lineOffset = cursorX;
-      lineItems.push(metrics);
-      cursorX += metrics.outerWidth;
-      lineHeight = Math.max(lineHeight, metrics.outerHeight, resolvedLineHeight(container.style));
-      break;
+      lineParts.push({ item: workingItem, offset: cursorX });
+      cursorX += workingItem.width;
+      lineHeight = Math.max(lineHeight, workingItem.lineHeight);
+      workingItem = null;
     }
   }
 
-  if (lineItems.length > 0) {
-    commitLine();
+  if (lineParts.length > 0) {
+    commitLine(true);
+  }
+
+  // Assign runs back to nodes and compute per-node sizes for text.
+  for (const [node, runs] of nodeRuns.entries()) {
+    node.inlineRuns = runs;
+    node.lineBoxes = undefined;
+    const lineCount = runs.reduce((max, run) => Math.max(max, run.lineIndex + 1), 0);
+    const lh = resolvedLineHeight(node.style);
+    node.box.contentHeight = lineCount * lh;
+    const maxWidth = runs.reduce((max, run) => Math.max(max, run.width), 0);
+    node.box.contentWidth = maxWidth;
+    node.box.borderBoxWidth = maxWidth;
+    node.box.borderBoxHeight = node.box.contentHeight;
+    node.box.marginBoxWidth = node.box.borderBoxWidth;
+    node.box.marginBoxHeight = node.box.borderBoxHeight;
+    node.box.scrollWidth = Math.max(node.box.scrollWidth, node.box.contentWidth);
+    node.box.scrollHeight = Math.max(node.box.scrollHeight, node.box.contentHeight);
   }
 
   return { newCursorY: lineTop };
+}
+
+function collectInlineFragments(
+  nodes: LayoutNode[],
+  containerWidth: number,
+  context: LayoutContext,
+): InlineFragment[] {
+  const fragments: InlineFragment[] = [];
+
+  const recurse = (node: LayoutNode) => {
+    if (node.style.display === Display.None) {
+      return;
+    }
+    if (node.style.float !== FloatMode.None) {
+      return;
+    }
+
+    if (isAtomicInline(node.style.display)) {
+      const metrics = measureInlineNode(node, containerWidth, context);
+      fragments.push({ kind: "box", metrics });
+      return;
+    }
+
+    if (node.textContent && node.style.display === Display.Inline) {
+      fragments.push({
+        kind: "text",
+        node,
+        style: node.style,
+        text: node.textContent,
+        preserveLeading: !!node.customData?.preserveLeadingSpace,
+        preserveTrailing: !!node.customData?.preserveTrailingSpace,
+      });
+      return;
+    }
+
+    for (const child of node.children) {
+      if (!isInlineDisplay(child.style.display)) {
+        continue;
+      }
+      recurse(child);
+    }
+  };
+
+  for (const node of nodes) {
+    recurse(node);
+  }
+
+  return fragments;
+}
+
+function tokenizeFragments(
+  fragments: InlineFragment[],
+  fontEmbedder: FontEmbedder | null,
+): LayoutItem[] {
+  const items: LayoutItem[] = [];
+  for (const fragment of fragments) {
+    if (fragment.kind === "box") {
+      items.push({
+        kind: "box",
+        width: fragment.metrics.outerWidth,
+        height: fragment.metrics.outerHeight,
+        lineHeight: fragment.metrics.outerHeight,
+        metrics: fragment.metrics,
+      });
+      continue;
+    }
+
+    const style = fragment.style;
+    const raw = fragment.text ?? "";
+    if (!raw) {
+      continue;
+    }
+    const effectiveText = applyTextTransform(raw, style.textTransform);
+    const lineHeight = resolvedLineHeight(style);
+    const segments = segmentTextWithWhitespace(effectiveText, style.whiteSpace);
+    for (const segment of segments) {
+      if (segment.kind === "newline") {
+        items.push({
+          kind: "newline",
+          width: 0,
+          height: lineHeight,
+          lineHeight,
+        });
+        continue;
+      }
+      const width = measureSegment(segment.text, style, fontEmbedder);
+      items.push({
+        kind: segment.kind,
+        width,
+        height: lineHeight,
+        lineHeight,
+        node: fragment.node,
+        style,
+        text: segment.text,
+        spaceCount: segment.kind === "space" ? countSpaces(segment.text) : 0,
+      });
+    }
+  }
+  return items;
+}
+
+function measureSegment(text: string, style: LayoutNode["style"], fontEmbedder: FontEmbedder | null): number {
+  const metrics = fontEmbedder?.getMetrics(style.fontFamily ?? "");
+  const glyphWidth = measureTextWithGlyphs(text, style, metrics ?? null);
+  return glyphWidth ?? estimateLineWidth(text, style);
+}
+
+function segmentTextWithWhitespace(
+  text: string,
+  mode: WhiteSpace,
+): { kind: "word" | "space" | "newline"; text: string }[] {
+  const segments: { kind: "word" | "space" | "newline"; text: string }[] = [];
+  const regex = /(\n)|(\s+)|([^\s]+)/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
+    if (match[1]) {
+      if (mode === WhiteSpace.Pre || mode === WhiteSpace.PreWrap || mode === WhiteSpace.PreLine) {
+        segments.push({ kind: "newline", text: "\n" });
+      } else {
+        segments.push({ kind: "space", text: " " });
+      }
+    } else if (match[2]) {
+      segments.push({ kind: "space", text: match[2] });
+    } else if (match[3]) {
+      segments.push({ kind: "word", text: match[3] });
+    }
+  }
+  return segments;
+}
+
+function splitWordItemToken(item: LayoutItem, availableWidth: number): [LayoutItem | null, LayoutItem | null] {
+  if (item.kind !== "word" || !item.text || !item.style) {
+    return [item, null];
+  }
+
+  let buffer = "";
+  let bufferWidth = 0;
+  for (const char of Array.from(item.text)) {
+    const candidate = buffer + char;
+    const candidateWidth = estimateLineWidth(candidate, item.style);
+    if (buffer && candidateWidth > availableWidth) {
+      break;
+    }
+    buffer = candidate;
+    bufferWidth = candidateWidth;
+  }
+
+  if (!buffer) {
+    return [item, null];
+  }
+
+  const head: LayoutItem = {
+    ...item,
+    text: buffer,
+    width: bufferWidth,
+  };
+  const tailText = item.text.slice(buffer.length);
+  if (!tailText) {
+    return [head, null];
+  }
+  const tail: LayoutItem = {
+    ...item,
+    text: tailText,
+    width: estimateLineWidth(tailText, item.style),
+  };
+  return [head, tail];
+}
+
+function countSpaces(value: string): number {
+  let count = 0;
+  for (const char of value) {
+    if (char === " ") {
+      count += 1;
+    }
+  }
+  return count;
 }
 
 function measureInlineNode(node: LayoutNode, containerWidth: number, context: LayoutContext): InlineMetrics {
@@ -215,57 +532,7 @@ function measureInlineNode(node: LayoutNode, containerWidth: number, context: La
   let contentWidth = node.box.contentWidth;
   let contentHeight = node.box.contentHeight;
 
-  if (node.textContent && node.style.display === Display.Inline) {
-    const availableWidth = containerWidth;
-    const lines = breakTextIntoLines(
-      node.textContent,
-      node.style,
-      availableWidth,
-      context.env.fontEmbedder
-    );
-    const preserveLeading = !!node.customData?.preserveLeadingSpace;
-    const preserveTrailing = !!node.customData?.preserveTrailingSpace;
-
-    if (lines.length > 0) {
-      const singleLine = lines.length === 1;
-      const spaceWidth = estimateLineWidth(" ", node.style);
-      const firstChar = lines[0].text[0] ?? "";
-      const allowLeadingSpace = firstChar.length > 0 && /[\p{L}\p{N}]/u.test(firstChar);
-      if (singleLine && preserveLeading && allowLeadingSpace && !lines[0].text.startsWith(" ")) {
-        const first = lines[0];
-        lines[0] = {
-          ...first,
-          text: ` ${first.text}`,
-          width: first.width + spaceWidth,
-          spaceCount: first.spaceCount + 1,
-        };
-      }
-      if (singleLine && preserveTrailing) {
-        const lastIndex = lines.length - 1;
-        const last = lines[lastIndex];
-        if (!last.text.endsWith(" ")) {
-          lines[lastIndex] = {
-            ...last,
-            text: `${last.text} `,
-            width: last.width + spaceWidth,
-            spaceCount: last.spaceCount + 1,
-          };
-        }
-      }
-    }
-
-    node.lineBoxes = lines;
-
-    if (lines.length > 0) {
-      const lineHeight = resolvedLineHeight(node.style);
-      contentHeight = lines.length * lineHeight;
-      contentWidth = Math.max(...lines.map(l => l.width));
-    } else {
-      contentHeight = 0;
-      contentWidth = 0;
-    }
-  } 
-  else if (inlineChildrenResult) {
+  if (inlineChildrenResult) {
     contentWidth = Math.max(contentWidth, inlineChildrenResult.contentWidth);
     contentHeight = Math.max(contentHeight, inlineChildrenResult.contentHeight);
   }
@@ -456,6 +723,22 @@ function isInlineDisplay(display: Display): boolean {
     default:
       return false;
   }
+}
+
+function isAtomicInline(display: Display): boolean {
+  switch (display) {
+    case Display.InlineBlock:
+    case Display.InlineFlex:
+    case Display.InlineGrid:
+    case Display.InlineTable:
+      return true;
+    default:
+      return false;
+  }
+}
+
+function isBoxItem(item: LayoutItem): item is BoxLayoutItem {
+  return item.kind === "box";
 }
 
 function inlineExtentWithinContainer(node: LayoutNode, referenceWidth: number): { start: number; end: number } {

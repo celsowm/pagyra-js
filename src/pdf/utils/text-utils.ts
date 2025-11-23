@@ -21,7 +21,45 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
   const letterSpacing = node.style.letterSpacing;
 
 
-  // Se o layout calculou caixas de linha, use-as.
+  // Se o layout calculou inlineRuns (novo builder), use-os.
+  if (node.inlineRuns && node.inlineRuns.length > 0) {
+    const maxLineIndex = node.inlineRuns.reduce((max, r) => Math.max(max, r.lineIndex), 0);
+    for (const inlineRun of node.inlineRuns) {
+      const justify = effectiveTextAlign === "justify" && inlineRun.lineIndex < maxLineIndex;
+      let wordSpacing: number | undefined;
+      if (justify && inlineRun.spaceCount > 0) {
+        const slack = Math.max(inlineRun.targetWidth - inlineRun.width, 0);
+        if (slack > 0) {
+          wordSpacing = slack / inlineRun.spaceCount;
+        }
+      }
+      const advanceWidth =
+        wordSpacing !== undefined && inlineRun.spaceCount && inlineRun.targetWidth > 0
+          ? Math.max(inlineRun.targetWidth, inlineRun.width)
+          : inlineRun.width;
+
+      const resolvedShadows = resolveTextShadows(node, defaultColor);
+      const baseLineMatrix = { a: 1, b: 0, c: 0, d: 1, e: inlineRun.startX, f: inlineRun.baseline };
+      runs.push({
+        text: inlineRun.text.normalize("NFC"),
+        fontFamily,
+        fontSize,
+        fontWeight,
+        fontStyle,
+        fontVariant,
+        fill: defaultColor,
+        letterSpacing,
+        lineMatrix: baseLineMatrix,
+        wordSpacing,
+        decorations: decoration ? { ...decoration } : undefined,
+        advanceWidth,
+        textShadows: resolvedShadows,
+      });
+    }
+    return runs;
+  }
+
+  // Se o layout calculou caixas de linha, use-as (caminho leg legado).
   if (node.lineBoxes && node.lineBoxes.length > 0) {
     const lineHeight = resolvedLineHeight(node.style);
     // For table cells, we need the parent cell's contentWidth, not the text node's width
