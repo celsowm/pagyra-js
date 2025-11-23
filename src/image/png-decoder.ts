@@ -1,6 +1,11 @@
 import type { ImageInfo } from "./types.js";
 import { BaseDecoder, type DecodeOptions } from "./base-decoder.js";
 
+export interface PngDecompressionStrategy {
+  inflateRaw(data: Uint8Array): Promise<Uint8Array>;
+  inflateZlib(data: Uint8Array): Promise<Uint8Array>;
+}
+
 type FilterType = 0 | 1 | 2 | 3 | 4;
 type ColorType = 0 | 2 | 3 | 4 | 6;
 type BitDepth = 1 | 2 | 4 | 8 | 16;
@@ -15,7 +20,7 @@ interface PngMetadata {
   transparency: Uint8Array | null;
 }
 
-async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
+async function defaultInflateRaw(data: Uint8Array): Promise<Uint8Array> {
   if (typeof DecompressionStream !== "undefined") {
     const ds = new DecompressionStream('deflate-raw');
     const stream = new Blob([data as any]).stream().pipeThrough(ds);
@@ -27,7 +32,7 @@ async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
   }
 }
 
-async function inflateZlib(data: Uint8Array): Promise<Uint8Array> {
+async function defaultInflateZlib(data: Uint8Array): Promise<Uint8Array> {
   if (typeof DecompressionStream !== "undefined") {
     const ds = new DecompressionStream('deflate');
     const stream = new Blob([data as any]).stream().pipeThrough(ds);
@@ -69,6 +74,15 @@ function paethPredictor(a: number, b: number, c: number): number {
  */
 export class PngDecoder extends BaseDecoder {
   private static readonly PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  private readonly decompression: PngDecompressionStrategy;
+
+  constructor(decompression: Partial<PngDecompressionStrategy> = {}) {
+    super();
+    this.decompression = {
+      inflateRaw: decompression.inflateRaw ?? defaultInflateRaw,
+      inflateZlib: decompression.inflateZlib ?? defaultInflateZlib,
+    };
+  }
 
   public async decode(
     buffer: ArrayBuffer,
@@ -86,7 +100,7 @@ export class PngDecoder extends BaseDecoder {
     PngDecoder.validateMetadata(metadata);
 
     // Decompress image data
-    const decompressed = await PngDecoder.decompressImageData(idatChunks);
+    const decompressed = await this.decompressImageData(idatChunks);
 
     // Decode scanlines
     const pixelData = PngDecoder.decodeScanlines(decompressed, metadata);
@@ -254,7 +268,7 @@ export class PngDecoder extends BaseDecoder {
     }
   }
 
-  private static async decompressImageData(chunks: Uint8Array[]): Promise<Uint8Array> {
+  private async decompressImageData(chunks: Uint8Array[]): Promise<Uint8Array> {
     // Concatenate all IDAT chunks
     const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
     const compressed = new Uint8Array(totalLength);
@@ -270,8 +284,8 @@ export class PngDecoder extends BaseDecoder {
 
     try {
       return isZlib
-        ? await inflateZlib(compressed)
-        : await inflateRaw(compressed.slice(2, -4));
+        ? await this.decompression.inflateZlib(compressed)
+        : await this.decompression.inflateRaw(compressed.slice(2, -4));
     } catch (error) {
       throw new Error(`Decompression failed: ${error}`);
     }

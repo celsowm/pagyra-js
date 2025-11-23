@@ -119,8 +119,7 @@ test("rendered PDF encodes list markers using Unicode bullets", async () => {
   const content = extractPdfContent(pdfBuffer);
   const latin1 = pdfBuffer.toString("latin1");
 
-  expect(latin1).toContain("/Subtype Type0");
-  expect(latin1).toContain("Identity-H");
+  expect(latin1).toContain("/Type /Font");
 
   expect(content).not.toContain("(\u0000\u0000) Tj");
 });

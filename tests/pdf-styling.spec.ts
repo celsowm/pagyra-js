@@ -5,6 +5,7 @@ import { Display } from "../src/css/enums.js";
 import { layoutTree } from "../src/layout/pipeline/layout-tree.js";
 import { buildRenderTree } from "../src/pdf/layout-tree-builder.js";
 import { renderPdf } from "../src/pdf/render.js";
+import { extractPdfContent } from "./helpers/pdf.js";
 
 describe("PDF styling", () => {
   it("applies CSS from <style> tags in HTML", async () => {
@@ -26,10 +27,11 @@ describe("PDF styling", () => {
       pageHeight: 200,
       margins: { top: 0, right: 0, bottom: 0, left: 0 },
     });
-    const content = Buffer.from(pdfBytes).toString("ascii");
-    // Check for the text and a color operator for red (1 0 0 rg)
-    expect(content).toContain("(Styled Text)");
-    expect(content).toMatch(/1\s+0\s+0\s+rg/); // PDF color operator for red
+    const pdfBuffer = Buffer.from(pdfBytes);
+    const content = extractPdfContent(pdfBuffer);
+    // Check for the text (either literal or hex encoded) and a color operator for red (1 0 0 rg)
+    expect(content).toMatch(/Styled\s+Text|<[^>]*53[^>]*74[^>]*79[^>]*6c[^>]*65[^>]*64[^>]*20[^>]*54[^>]*65[^>]*78[^>]*74[^>]*>/i);
+    expect(pdfBuffer.toString("latin1")).toMatch(/1\s+0\s+0\s+rg/); // PDF color operator for red
   });
 
   it("paints backgrounds and borders based on computed style", async () => {

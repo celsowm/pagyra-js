@@ -1,5 +1,4 @@
 import type { GlyphOutlineCmd } from "../../types/fonts.js";
-import { TtfTableParser } from "./ttf-table-parser.js";
 
 // Table tags
 const LOCA = 0x6c6f6361; // 'loca'
@@ -18,7 +17,13 @@ const HEAD = 0x68656164; // 'head'
 
 type Point = { x: number; y: number; onCurve: boolean };
 
-export function createGlyfOutlineProvider(parser: TtfTableParser): (gid: number) => GlyphOutlineCmd[] | null {
+export interface GlyphTableProvider {
+  getTable(tag: number): DataView | null;
+  getUint16(table: DataView, offset: number): number;
+  getUint32(table: DataView, offset: number): number;
+}
+
+export function createGlyfOutlineProvider(parser: GlyphTableProvider): (gid: number) => GlyphOutlineCmd[] | null {
   const headTable = parser.getTable(HEAD);
   if (!headTable) {
     // If head missing we cannot tell indexToLocFormat; return provider that always null

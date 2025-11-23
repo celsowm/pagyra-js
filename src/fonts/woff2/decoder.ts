@@ -2,6 +2,18 @@ import { brotliDecompressSync } from "zlib";
 import type { ParsedFont } from "../types.js";
 import { Buf, readBase128, read255UShort } from "./buffer.js";
 
+type BrotliDecompress = (data: Uint8Array) => Uint8Array;
+
+export interface Woff2Dependencies {
+  decompress: BrotliDecompress;
+  transformers?: Map<number, Woff2Transform>;
+}
+
+interface ResolvedWoff2Dependencies {
+  decompress: BrotliDecompress;
+  transformers: Map<number, Woff2Transform>;
+}
+
 // --- Constants & helpers ----------------------------------------------------
 
 const WOFF2_SIGNATURE = 0x774f4632; // "wOF2"
@@ -102,6 +114,13 @@ function tagToString(tag: number): string {
 
 const round4 = (v: number) => (v + 3) & ~3;
 
+function resolveDependencies(deps?: Partial<Woff2Dependencies>): ResolvedWoff2Dependencies {
+  return {
+    decompress: deps?.decompress ?? ((data: Uint8Array) => brotliDecompressSync(data)),
+    transformers: deps?.transformers ?? createDefaultTransformers(),
+  };
+}
+
 function computeULongSum(data: Uint8Array): number {
   let checksum = 0 >>> 0;
   const aligned = data.length & ~3;
@@ -170,6 +189,20 @@ interface GlyfReconstruction {
   indexFormat: number;
   xMins: Int16Array;
 }
+
+interface TransformState {
+  glyfInfo: GlyfReconstruction | null;
+  numHMetrics: number;
+}
+
+interface TransformContext {
+  header: Woff2Header;
+  tableMap: Map<number, Uint8Array>;
+  tablesByTag: Map<number, Woff2Table>;
+  state: TransformState;
+}
+
+type Woff2Transform = (table: Woff2Table, srcData: Uint8Array, context: TransformContext) => void;
 
 // --- Table directory parsing ------------------------------------------------
 
@@ -750,6 +783,59 @@ function reconstructTransformedHmtx(
   return { data: out, checksum: computeULongSum(out) };
 }
 
+// --- Transform registry ----------------------------------------------------
+
+function transformGlyfTable(
+  _table: Woff2Table,
+  srcData: Uint8Array,
+  context: TransformContext,
+): void {
+  const locaTable = context.tablesByTag.get(TAG_LOCA);
+  if (!locaTable) {
+    throw new Error("Invalid WOFF2: missing loca for glyf");
+  }
+  const glyfInfo = reconstructGlyfTable(srcData, locaTable.dstLength);
+  context.state.glyfInfo = glyfInfo;
+  context.tableMap.set(TAG_GLYF, glyfInfo.glyfData);
+  context.tableMap.set(TAG_LOCA, glyfInfo.locaData);
+}
+
+function transformLocaTable(
+  _table: Woff2Table,
+  _srcData: Uint8Array,
+  context: TransformContext,
+): void {
+  if (!context.tableMap.has(TAG_LOCA)) {
+    throw new Error("Invalid WOFF2: loca transformed without glyf");
+  }
+}
+
+function transformHmtxTable(
+  _table: Woff2Table,
+  srcData: Uint8Array,
+  context: TransformContext,
+): void {
+  const glyfInfo = context.state.glyfInfo;
+  if (!glyfInfo) {
+    throw new Error("Invalid WOFF2: hmtx transform before glyf");
+  }
+  const hmtx = reconstructTransformedHmtx(
+    srcData,
+    glyfInfo.numGlyphs,
+    context.state.numHMetrics,
+    glyfInfo.xMins
+  );
+  context.tableMap.set(TAG_HMTX, hmtx.data);
+}
+
+function createDefaultTransformers(): Map<number, Woff2Transform> {
+  return new Map<number, Woff2Transform>([
+    [TAG_GLYF, transformGlyfTable],
+    [TAG_LOCA, transformLocaTable],
+    [TAG_HMTX, transformHmtxTable],
+  ]);
+}
+
 // --- Font rebuild -----------------------------------------------------------
 
 function buildSfnt(
@@ -820,11 +906,16 @@ function buildSfnt(
   return { ttf, tables };
 }
 
-function rebuildFont(header: Woff2Header, transformed: Uint8Array): { ttf: Uint8Array; tables: Record<string, Uint8Array> } {
+function rebuildFont(
+  header: Woff2Header,
+  transformed: Uint8Array,
+  deps: ResolvedWoff2Dependencies
+): { ttf: Uint8Array; tables: Record<string, Uint8Array> } {
   const tableMap = new Map<number, Uint8Array>();
   const tablesByTag = new Map(header.tables.map((t) => [t.tag, t]));
-  let glyfInfo: GlyfReconstruction | null = null;
-  let numHMetrics = 0;
+  const state: TransformState = { glyfInfo: null, numHMetrics: 0 };
+  const context: TransformContext = { header, tableMap, tablesByTag, state };
+  const transformers = deps.transformers;
 
   const sortedTables = header.tables.slice().sort((a, b) => a.tag - b.tag);
 
@@ -847,43 +938,16 @@ function rebuildFont(header: Woff2Header, transformed: Uint8Array): { ttf: Uint8
       }
       tableMap.set(table.tag, data);
       if (table.tag === TAG_HHEA) {
-        numHMetrics = readNumHMetrics(data);
+        state.numHMetrics = readNumHMetrics(data);
       }
       continue;
     }
 
-    if (table.tag === TAG_GLYF) {
-      const locaTable = tablesByTag.get(TAG_LOCA);
-      if (!locaTable) throw new Error("Invalid WOFF2: missing loca for glyf");
-      glyfInfo = reconstructGlyfTable(srcData, locaTable.dstLength);
-      tableMap.set(TAG_GLYF, glyfInfo.glyfData);
-      tableMap.set(TAG_LOCA, glyfInfo.locaData);
-      continue;
+    const transformer = transformers.get(table.tag);
+    if (!transformer) {
+      throw new Error(`Unsupported WOFF2 transform for ${tagToString(table.tag)}`);
     }
-
-    if (table.tag === TAG_LOCA) {
-      // handled alongside glyf
-      if (!tableMap.has(TAG_LOCA)) {
-        throw new Error("Invalid WOFF2: loca transformed without glyf");
-      }
-      continue;
-    }
-
-    if (table.tag === TAG_HMTX) {
-      if (!glyfInfo) {
-        throw new Error("Invalid WOFF2: hmtx transform before glyf");
-      }
-      const hmtx = reconstructTransformedHmtx(
-        srcData,
-        glyfInfo.numGlyphs,
-        numHMetrics,
-        glyfInfo.xMins
-      );
-      tableMap.set(TAG_HMTX, hmtx.data);
-      continue;
-    }
-
-    throw new Error(`Unsupported WOFF2 transform for ${tagToString(table.tag)}`);
+    transformer(table, srcData, context);
   }
 
   return buildSfnt(header.flavor, tableMap);
@@ -891,19 +955,23 @@ function rebuildFont(header: Woff2Header, transformed: Uint8Array): { ttf: Uint8
 
 // --- Public API -------------------------------------------------------------
 
-export function decodeWoff2(fontData: Uint8Array): { parsed: ParsedFont; ttfBuffer: Uint8Array } {
+export function decodeWoff2(
+  fontData: Uint8Array,
+  deps?: Partial<Woff2Dependencies>
+): { parsed: ParsedFont; ttfBuffer: Uint8Array } {
+  const resolvedDeps = resolveDependencies(deps);
   const header = parseHeader(fontData);
   const compressed = fontData.subarray(
     header.compressedOffset,
     header.compressedOffset + header.compressedLength
   );
 
-  const decompressed = brotliDecompressSync(compressed);
+  const decompressed = resolvedDeps.decompress(compressed);
   if (decompressed.byteLength !== header.uncompressedSize) {
     throw new Error("Invalid WOFF2: brotli size mismatch");
   }
 
-  const rebuilt = rebuildFont(header, decompressed);
+  const rebuilt = rebuildFont(header, decompressed, resolvedDeps);
 
   const parsed: ParsedFont = {
     flavor: header.flavor,
