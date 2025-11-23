@@ -307,7 +307,13 @@ export function measureTextWithGlyphs(
   }
 
   const scale = style.fontSize / fontMetrics.metrics.unitsPerEm;
-  return totalWidth * scale;
+  const baseWidthPx = totalWidth * scale;
+  const letterSpacing = style.letterSpacing ?? 0;
+  const wordSpacing = style.wordSpacing ?? 0;
+  const spacingContribution =
+    Math.max(text.length - 1, 0) * letterSpacing + countSpaces(text) * wordSpacing;
+
+  return baseWidthPx + spacingContribution;
 }
 
 function fontWeightWidthMultiplier(weight: number): number {

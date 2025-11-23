@@ -123,6 +123,7 @@ import {
   parseFloat,
   parseTextIndent,
   parseTextTransform,
+  parseLetterSpacing,
 } from "./text-parser-extended.js";
 import { parseOverflowWrap, parseWordWrap } from "./overflow-wrap-parser.js";
 import { parseTextShadow } from "./text-shadow-parser.js";
@@ -258,6 +259,7 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("text-decoration", parseTextDecoration);
   registerPropertyParser("text-decoration-line", parseTextDecorationLine);
   registerPropertyParser("text-decoration-color", parseTextDecorationColor);
+  registerPropertyParser("letter-spacing", parseLetterSpacing);
   registerPropertyParser("text-indent", parseTextIndent);
   registerPropertyParser("text-transform", parseTextTransform);
   registerPropertyParser("float", parseFloat);

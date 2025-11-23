@@ -179,6 +179,7 @@ export interface StyleAccumulator {
   fontStyle?: string;
   fontVariant?: string;
   fontWeight?: number;
+  letterSpacing?: number | RelativeLength;
   borderModel?: BorderModel;
   maxWidth?: LengthInput;
   textAlign?: string;

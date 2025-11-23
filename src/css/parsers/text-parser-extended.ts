@@ -1,7 +1,7 @@
 // src/css/parsers/text-parser-extended.ts
 
 import { parseTextDecorationLine as parseTextDecorationLineValue } from "./text-parser.js";
-import { parseLengthOrPercent } from "./length-parser.js";
+import { parseLengthOrPercent, parseNumeric } from "./length-parser.js";
 import type { StyleAccumulator, TextTransform } from "../style.js";
 import { NAMED_COLORS } from "../named-colors.js";
 
@@ -46,15 +46,6 @@ export function parseTextIndent(value: string, target: StyleAccumulator): void {
   }
 }
 
-const TEXT_TRANSFORM_KEYWORDS: Record<string, TextTransform> = {
-  none: "none",
-  uppercase: "uppercase",
-  lowercase: "lowercase",
-  capitalize: "capitalize",
-};
-
-const INHERITABLE_KEYWORDS = new Set(["inherit", "unset", "revert", "revert-layer"]);
-
 export function parseTextTransform(value: string, target: StyleAccumulator): void {
   const normalized = value.trim().toLowerCase();
   if (normalized === "initial") {
@@ -69,6 +60,33 @@ export function parseTextTransform(value: string, target: StyleAccumulator): voi
     target.textTransform = resolved;
   }
 }
+
+export function parseLetterSpacing(value: string, target: StyleAccumulator): void {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return;
+  }
+  if (normalized === "normal") {
+    target.letterSpacing = 0;
+    return;
+  }
+  if (INHERITABLE_KEYWORDS.has(normalized)) {
+    return;
+  }
+  const parsed = parseNumeric(value);
+  if (parsed !== undefined) {
+    target.letterSpacing = parsed;
+  }
+}
+
+const TEXT_TRANSFORM_KEYWORDS: Record<string, TextTransform> = {
+  none: "none",
+  uppercase: "uppercase",
+  lowercase: "lowercase",
+  capitalize: "capitalize",
+};
+
+const INHERITABLE_KEYWORDS = new Set(["inherit", "unset", "revert", "revert-layer"]);
 
 const COLOR_KEYWORDS = new Set(Object.keys(NAMED_COLORS).map((name) => name.toLowerCase()));
 COLOR_KEYWORDS.add("transparent");

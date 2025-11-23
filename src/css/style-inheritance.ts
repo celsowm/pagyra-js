@@ -20,6 +20,7 @@ export class StyleInheritanceResolver {
         fontStyle?: string;
         fontVariant?: string;
         fontWeight?: number;
+        letterSpacing?: number;
         textDecorationLine?: string;
         textDecorationColor?: string;
         overflowWrap?: string;
@@ -35,6 +36,7 @@ export class StyleInheritanceResolver {
             fontStyle: parentStyle.fontStyle ?? mergedDefaults.fontStyle,
             fontVariant: parentStyle.fontVariant ?? mergedDefaults.fontVariant,
             fontWeight: parentStyle.fontWeight ?? mergedDefaults.fontWeight,
+            letterSpacing: parentStyle.letterSpacing ?? mergedDefaults.letterSpacing,
             textDecorationLine: parentStyle.textDecorationLine ?? mergedDefaults.textDecorationLine,
             textDecorationColor: parentStyle.textDecorationColor ?? mergedDefaults.textDecorationColor,
             overflowWrap: parentStyle.overflowWrap ?? mergedDefaults.overflowWrap,

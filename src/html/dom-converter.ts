@@ -181,6 +181,8 @@ export async function convertDomNode(
         fontFamily: parentStyle.fontFamily,
         fontWeight: parentStyle.fontWeight,
         fontStyle: parentStyle.fontStyle,
+        letterSpacing: parentStyle.letterSpacing,
+        wordSpacing: parentStyle.wordSpacing,
         textDecorationLine: parentStyle.textDecorationLine,
         textTransform: parentStyle.textTransform,
         transform: (parentStyle as any).transform,
@@ -215,6 +217,8 @@ export async function convertDomNode(
       fontFamily: parentStyle.fontFamily,
       fontWeight: parentStyle.fontWeight,
       fontStyle: parentStyle.fontStyle,
+      letterSpacing: parentStyle.letterSpacing,
+      wordSpacing: parentStyle.wordSpacing,
       textDecorationLine: parentStyle.textDecorationLine,
       textTransform: parentStyle.textTransform,
       transform: (parentStyle as any).transform,
@@ -302,7 +306,7 @@ export async function convertDomNode(
       if (normalized.trim().length === 0) {
         normalized = shouldPreserveCollapsedWhitespace(layoutChildren, ownStyle) ? " " : "";
       }
-        if (normalized) {
+      if (normalized) {
         const preserveLeading = normalized.startsWith(" ");
         const preserveTrailing = normalized.endsWith(" ");
         layoutChildren.push(new LayoutNode(new ComputedStyle({
@@ -313,6 +317,8 @@ export async function convertDomNode(
           fontFamily: ownStyle.fontFamily,
           fontWeight: ownStyle.fontWeight,
           fontStyle: ownStyle.fontStyle,
+          letterSpacing: ownStyle.letterSpacing,
+          wordSpacing: ownStyle.wordSpacing,
           overflowWrap: ownStyle.overflowWrap,
           whiteSpace: ownStyle.whiteSpace,
           textDecorationLine: ownStyle.textDecorationLine,
@@ -338,32 +344,34 @@ export async function convertDomNode(
     if (normalized.trim().length === 0) {
       normalized = shouldPreserveCollapsedWhitespace(layoutChildren, ownStyle) ? " " : "";
     }
-      if (normalized) {
-        const preserveLeading = normalized.startsWith(" ");
-        const preserveTrailing = normalized.endsWith(" ");
-        layoutChildren.push(new LayoutNode(new ComputedStyle({
-          display: Display.Inline,
-          color: ownStyle.color,
-          fontSize: ownStyle.fontSize,
-          lineHeight: cloneLineHeight(ownStyle.lineHeight),
-          fontFamily: ownStyle.fontFamily,
-          fontWeight: ownStyle.fontWeight,
-          fontStyle: ownStyle.fontStyle,
-          overflowWrap: ownStyle.overflowWrap,
-          whiteSpace: ownStyle.whiteSpace,
-          textDecorationLine: ownStyle.textDecorationLine,
-          textDecorationColor: ownStyle.textDecorationColor,
-          textTransform: ownStyle.textTransform,
-          transform: (ownStyle as any).transform,
-          textShadows: ownStyle.textShadows,
-        }), [], {
-          textContent: normalized,
-          customData: {
-            preserveLeadingSpace: preserveLeading,
-            preserveTrailingSpace: preserveTrailing,
-          },
-        }));
-      }
+    if (normalized) {
+      const preserveLeading = normalized.startsWith(" ");
+      const preserveTrailing = normalized.endsWith(" ");
+      layoutChildren.push(new LayoutNode(new ComputedStyle({
+        display: Display.Inline,
+        color: ownStyle.color,
+        fontSize: ownStyle.fontSize,
+        lineHeight: cloneLineHeight(ownStyle.lineHeight),
+        fontFamily: ownStyle.fontFamily,
+        fontWeight: ownStyle.fontWeight,
+        fontStyle: ownStyle.fontStyle,
+        letterSpacing: ownStyle.letterSpacing,
+        wordSpacing: ownStyle.wordSpacing,
+        overflowWrap: ownStyle.overflowWrap,
+        whiteSpace: ownStyle.whiteSpace,
+        textDecorationLine: ownStyle.textDecorationLine,
+        textDecorationColor: ownStyle.textDecorationColor,
+        textTransform: ownStyle.textTransform,
+        transform: (ownStyle as any).transform,
+        textShadows: ownStyle.textShadows,
+      }), [], {
+        textContent: normalized,
+        customData: {
+          preserveLeadingSpace: preserveLeading,
+          preserveTrailingSpace: preserveTrailing,
+        },
+      }));
+    }
   }
 
   // Preserve the original HTML ID

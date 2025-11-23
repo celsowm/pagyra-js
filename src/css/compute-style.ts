@@ -226,6 +226,7 @@ export function computeStyleForElement(
     overflowWrap: inherited.overflowWrap,
     textIndent: inherited.textIndent ?? mergedDefaults.textIndent ?? 0,
     textTransform: inherited.textTransform ?? "none",
+    letterSpacing: inherited.letterSpacing ?? mergedDefaults.letterSpacing,
     listStyleType: inherited.listStyleType ?? mergedDefaults.listStyleType ?? "disc",
     // Apply computed values
     display,
@@ -376,6 +377,7 @@ export function computeStyleForElement(
   if (styleInit.textAlign !== undefined) styleOptions.textAlign = styleInit.textAlign;
   if (styleInit.textIndent !== undefined) assignLength(styleInit.textIndent, (v) => (styleOptions.textIndent = v));
   if (styleInit.textTransform !== undefined) styleOptions.textTransform = styleInit.textTransform;
+  if (styleInit.letterSpacing !== undefined) assignNumberLength(styleInit.letterSpacing, (v) => (styleOptions.letterSpacing = v));
   if (styleInit.listStyleType !== undefined) styleOptions.listStyleType = styleInit.listStyleType;
   // If a raw transform string was parsed, preserve it on the computed style so downstream
   // consumers (e.g. text run builders / renderers) can apply mapping for text.

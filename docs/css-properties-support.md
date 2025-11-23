@@ -85,7 +85,7 @@ font-synthesis | Controls synthesis of missing font weights/styles. | ✅ Yes | 
 font-variant | Controls small-caps and other variants. | ✅ Yes | ✅ Yes
 font-weight | Thickness of characters (bold, 100-900). | ✅ Yes | ✅ Yes
 hyphens | Controls hyphenation of words at line breaks. | ✅ Yes | ❌ No
-letter-spacing | Spacing between characters (tracking). | ✅ Yes | ❌ No
+letter-spacing | Spacing between characters (tracking). | ✅ Yes | ✅ Yes
 line-break | Strictness of line-breaking rules. | ✅ Yes | ❌ No
 line-height | Height of a line box (leading). | ✅ Yes | ✅ Yes
 overflow-wrap | Specifies if browser can break lines within words. | ✅ Yes | ✅ Yes

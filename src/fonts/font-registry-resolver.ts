@@ -66,6 +66,7 @@ export class FontRegistryResolver implements FontResolver {
                 glyphMetrics: metrics.glyphMetrics,
                 cmap: metrics.cmap,
                 headBBox: metrics.headBBox,
+                kerning: metrics.kerning,
             },
             program: {
                 sourceFormat: "ttf",
