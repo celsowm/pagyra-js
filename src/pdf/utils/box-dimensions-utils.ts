@@ -29,14 +29,14 @@ export function calculateBoxDimensions(node: LayoutNode): { borderBox: Rect, pad
   const paddingBox: Rect = {
     x: borderBox.x + border.left,
     y: borderBox.y + border.top,
-    width: node.box.contentWidth + padding.left + padding.right,
-    height: node.box.contentHeight + padding.top + padding.bottom,
+    width: borderBox.width - border.left - border.right,
+    height: borderBox.height - border.top - border.bottom,
   };
   const contentBox: Rect = {
     x: paddingBox.x + padding.left,
     y: paddingBox.y + padding.top,
-    width: node.box.contentWidth,
-    height: node.box.contentHeight,
+    width: paddingBox.width - padding.left - padding.right,
+    height: paddingBox.height - padding.top - padding.bottom,
   };
 
   return { borderBox, paddingBox, contentBox };

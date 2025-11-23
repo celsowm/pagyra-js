@@ -24,7 +24,11 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
   // Se o layout calculou caixas de linha, use-as.
   if (node.lineBoxes && node.lineBoxes.length > 0) {
     const lineHeight = resolvedLineHeight(node.style);
-    const contentWidth = Math.max(node.box.contentWidth, 0);
+    // For table cells, we need the parent cell's contentWidth, not the text node's width
+    const parentIsTableCell = node.parent && (node.parent.tagName === 'td' || node.parent.tagName === 'th');
+    const contentWidth = parentIsTableCell
+      ? Math.max(node.parent!.box.contentWidth, 0)
+      : Math.max(node.box.contentWidth, 0);
     // Alignment logic
     let alignY = node.box.y;
     // Vertical alignment
@@ -41,7 +45,6 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
       const baseWidth = line.width ?? estimateLineWidth(normalizedText, node.style);
       const lineYOffset = i * lineHeight;
       const baseline = alignY + lineYOffset + fontSize;
-      const startX = node.box.x;
       let wordSpacing: number | undefined;
       if (justify && i < node.lineBoxes.length - 1) {
         const gapCount = line.spaceCount ?? 0;
@@ -58,6 +61,18 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
         wordSpacing !== undefined && wordSpacing !== 0 && targetWidth > 0
           ? Math.max(targetWidth, baseWidth)
           : Math.max(baseWidth, 0);
+
+      // Apply horizontal text alignment
+      let startX = node.box.x;
+      if (advanceWidth > 0 && Number.isFinite(contentWidth) && contentWidth > 0) {
+        const slack = Math.max(contentWidth - advanceWidth, 0);
+        if (effectiveTextAlign === "center") {
+          startX = node.box.x + slack / 2;
+        } else if (effectiveTextAlign === "right" || effectiveTextAlign === "end") {
+          startX = node.box.x + slack;
+        }
+      }
+
       const resolvedShadows = resolveTextShadows(node, defaultColor);
       const baseLineMatrix = { a: 1, b: 0, c: 0, d: 1, e: startX, f: baseline };
       runs.push({
@@ -78,16 +93,16 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
     }
     return runs;
   }
-  
+
   // Fallback para o comportamento original se não houver quebra de linha calculada
   if (node.textContent) {
     const raw = node.textContent;
     const transformed = applyTextTransform(raw, node.style.textTransform);
     const normalized = transformed.normalize("NFC");
     // Se não houver lineBoxes, a baseline é a calculada para a caixa inteira.
-  const baseline = node.box.baseline > 0 ? node.box.baseline : node.box.y + node.box.contentHeight;
-  const advanceWidth = Math.max(estimateLineWidth(normalized, node.style), 0);
-  const startX = resolveFallbackStartX(node, advanceWidth, effectiveTextAlign);
+    const baseline = node.box.baseline > 0 ? node.box.baseline : node.box.y + node.box.contentHeight;
+    const advanceWidth = Math.max(estimateLineWidth(normalized, node.style), 0);
+    const startX = resolveFallbackStartX(node, advanceWidth, effectiveTextAlign);
 
     const resolvedShadows = resolveTextShadows(node, defaultColor);
     const baseLineMatrix = { a: 1, b: 0, c: 0, d: 1, e: startX, f: baseline };

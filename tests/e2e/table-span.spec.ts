@@ -105,3 +105,60 @@ test("table layout honours colspan and rowspan", async () => {
   // We do not currently enforce perfect vertical centering of the text
   // within a rowspan cell, but the cell spanning geometry must hold.
 });
+
+test("rowspan cell contentBox height matches spanned area", async () => {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          table { border-collapse: collapse; width: 300px; }
+          td, th { border: 1px solid #333; padding: 8px; }
+        </style>
+      </head>
+      <body>
+        <table>
+          <tr>
+            <td rowspan="2">Mescla vertical</td>
+            <td>Linha 1</td>
+          </tr>
+          <tr>
+            <td>Linha 2</td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `;
+
+  const prepared = await prepareHtmlRender({
+    html,
+    css: "",
+    viewportWidth: 600,
+    viewportHeight: 800,
+    pageWidth: 600,
+    pageHeight: 800,
+    margins: { top: 0, right: 0, bottom: 0, left: 0 },
+  });
+
+  const vertical = findCellByText(prepared.renderTree.root, "td", "Mescla vertical");
+
+  // contentBox height should equal borderBox height minus borders and padding
+  const expectedContentHeight =
+    vertical.borderBox.height -
+    vertical.border.top -
+    vertical.border.bottom -
+    vertical.padding.top -
+    vertical.padding.bottom;
+
+  expect(vertical.contentBox.height).toBeCloseTo(expectedContentHeight, 1);
+
+  // contentBox width should equal borderBox width minus borders and padding
+  const expectedContentWidth =
+    vertical.borderBox.width -
+    vertical.border.left -
+    vertical.border.right -
+    vertical.padding.left -
+    vertical.padding.right;
+
+  expect(vertical.contentBox.width).toBeCloseTo(expectedContentWidth, 1);
+});
