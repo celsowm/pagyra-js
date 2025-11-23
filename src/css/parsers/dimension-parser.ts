@@ -46,15 +46,24 @@ export function parseMaxWidth(value: string, target: StyleAccumulator): void {
 }
 
 export function parseHeight(value: string, target: StyleAccumulator): void {
-  target.height = parseLength(value) ?? target.height;
+  const parsed = parseLengthOrPercent(value);
+  if (parsed !== undefined) {
+    target.height = parsed;
+  }
 }
 
 export function parseMinHeight(value: string, target: StyleAccumulator): void {
-  target.minHeight = parseLength(value) ?? target.minHeight;
+  const parsed = parseLengthOrPercent(value);
+  if (parsed !== undefined) {
+    target.minHeight = parsed;
+  }
 }
 
 export function parseMaxHeight(value: string, target: StyleAccumulator): void {
-  target.maxHeight = parseLength(value) ?? target.maxHeight;
+  const parsed = parseLengthOrPercent(value);
+  if (parsed !== undefined) {
+    target.maxHeight = parsed;
+  }
 }
 
 export function parseFontSize(value: string, target: StyleAccumulator): void {
