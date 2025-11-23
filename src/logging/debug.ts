@@ -14,3 +14,5 @@ export function log(cat: string, level: LogLevel, msg: string, obj?: unknown) {
   // keep your preferred output
   obj ? console.log(`[${level}] ${cat} ${msg}`, obj) : console.log(`[${level}] ${cat} ${msg}`);
 }
+// Note: This is the core logging function for pagyra-js, so it uses console.log directly.
+// All other console.log statements should be replaced with calls to this log function.

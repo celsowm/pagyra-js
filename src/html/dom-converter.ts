@@ -11,6 +11,7 @@ import { parseSvg } from "../svg/parser.js";
 import type { SvgRootNode } from "../svg/types.js";
 import { ImageService } from "../image/image-service.js";
 import type { ImageInfo } from "../image/types.js";
+import { log } from "../logging/debug.js";
 
 function findMeaningfulSibling(start: Node | null, direction: "previous" | "next"): Node | null {
   let current = start;
@@ -106,7 +107,7 @@ async function loadBackgroundImage(
   const resolvedSrc = resolveImageSource(cssUrl, context);
 
   if (isHttpUrl(resolvedSrc)) {
-    console.warn(`Skipping remote background image (${resolvedSrc}); remote assets are not supported.`);
+    log('dom-converter', 'warn', `Skipping remote background image (${resolvedSrc}); remote assets are not supported.`);
     return null;
   }
 
@@ -115,7 +116,7 @@ async function loadBackgroundImage(
     if (isDataUri(resolvedSrc)) {
       const match = resolvedSrc.match(/^data:image\/(.+);base64,(.+)$/);
       if (!match) {
-        console.warn(`Unsupported data URI format for background image: ${cssUrl}`);
+        log('dom-converter', 'warn', `Unsupported data URI format for background image: ${cssUrl}`);
         return null;
       }
       const buffer = Buffer.from(match[2], "base64");
@@ -126,7 +127,7 @@ async function loadBackgroundImage(
     }
     return { info: imageInfo, resolvedSrc };
   } catch (error) {
-    console.warn(`Failed to load background image ${cssUrl}:`, error instanceof Error ? error.message : String(error));
+    log('dom-converter', 'warn', `Failed to load background image ${cssUrl}:`, error instanceof Error ? error.message : String(error));
     return null;
   }
 }
@@ -164,7 +165,7 @@ export async function convertDomNode(
   parentStyle: ComputedStyle,
   context: ConversionContext,
 ): Promise<LayoutNode | null> {
-  console.log("convertDomNode - entering function for node type:", node.nodeType, "tagName:", (node as any).tagName || 'text node');
+  log('dom-converter', 'debug', `convertDomNode - entering function for node type: ${node.nodeType}, tagName: ${(node as any).tagName || 'text node'}`);
   if (node.nodeType === node.TEXT_NODE) {
     const raw = node.textContent ?? "";
     const collapsed = raw.replace(/\s+/g, " ").normalize("NFC");
@@ -178,7 +179,7 @@ export async function convertDomNode(
       if (!keepSpace) {
         return null;
       }
-      console.log("convertDomNode - processing text node: (single space)");
+      log('dom-converter', 'debug', "convertDomNode - processing text node: (single space)");
       const textStyle = new ComputedStyle({
         display: Display.Inline,
         color: parentStyle.color,
@@ -216,7 +217,7 @@ export async function convertDomNode(
       text = text + " ";
     }
 
-    console.log("convertDomNode - processing text node:", text.substring(0, 50) + (text.length > 50 ? '...' : ''));
+    log('dom-converter', 'debug', "convertDomNode - processing text node:", text.substring(0, 50) + (text.length > 50 ? '...' : ''));
     const textStyle = new ComputedStyle({
       display: Display.Inline,
       color: parentStyle.color,
@@ -247,7 +248,7 @@ export async function convertDomNode(
 
   const element = node as DomEl;
   const tagName = element.tagName.toLowerCase();
-  console.log("convertDomNode - processing element:", tagName, "with style attr:", element.getAttribute("style"));
+  log('dom-converter', 'debug', `convertDomNode - processing element: ${tagName}, with style attr: ${element.getAttribute("style")}`);
   if (tagName === "script" || tagName === "style") return null;
 
   // Handle image elements
@@ -257,8 +258,8 @@ export async function convertDomNode(
 
   if (tagName === "svg") {
     const ownStyle = computeStyleForElement(element, cssRules, parentStyle, context.units, context.rootFontSize);
-    console.log("convertDomNode - computed style backgroundLayers:", ownStyle.backgroundLayers);
-    const svgRoot = parseSvg(element, { warn: (message) => console.warn(`[svg-parser] ${message}`) });
+    log('dom-converter', 'debug', "convertDomNode - computed style backgroundLayers:", ownStyle.backgroundLayers);
+    const svgRoot = parseSvg(element, { warn: (message) => log('svg-parser', 'warn', message) });
     if (!svgRoot) {
       return new LayoutNode(ownStyle, [], { tagName });
     }
@@ -297,11 +298,11 @@ export async function convertDomNode(
   // ✅ Coalescing de #text
   const ownStyle = computeStyleForElement(element, cssRules, parentStyle, context.units, context.rootFontSize);
   await hydrateBackgroundImages(ownStyle, context);
-  console.log("convertDomNode - computed style backgroundLayers:", ownStyle.backgroundLayers);
+  log('dom-converter', 'debug', "convertDomNode - computed style backgroundLayers:", ownStyle.backgroundLayers);
   
   // Log if this is the div element that should have the gradient
   if (element.tagName.toLowerCase() === 'div' && element.getAttribute("style")?.includes('linear-gradient')) {
-    console.log("Found div with gradient style!");
+    log('dom-converter', 'debug', "Found div with gradient style!");
   }
   const layoutChildren: LayoutNode[] = [];
   let textBuf = "";

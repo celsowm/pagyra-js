@@ -12,7 +12,7 @@ import type { FontEmbedder } from "../../pdf/font/embedder.js";
 const LAYOUT_DEBUG = process.env.PAGYRA_DEBUG_LAYOUT === "1";
 const layoutDebug = (...args: unknown[]): void => {
   if (LAYOUT_DEBUG) {
-    console.log(...args);
+    // console.log(...args); // Removed as per task to remove non-recommended console.log
   }
 };
 

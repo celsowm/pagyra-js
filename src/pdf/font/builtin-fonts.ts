@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { log } from "../../debug/log.js";
+import { log, type LogLevel } from "../../logging/debug.js";
 import type { FontConfig, FontFaceDef } from "../../types/fonts.js";
 
 type BuiltinFace = Omit<FontFaceDef, "src" | "data"> & { file: string };
@@ -39,11 +39,11 @@ export async function loadBuiltinFontConfig(): Promise<FontConfig | null> {
   loading = (async () => {
     try {
       const baseDir = resolveFontsDir();
-      console.log("Builtin font baseDir:", baseDir);
+      log('FONT', 'debug', "Builtin font baseDir:", baseDir);
       const faces: FontFaceDef[] = [];
       for (const face of BUILTIN_FACES) {
         const filePath = path.join(baseDir, face.file);
-        console.log("Loading font file:", filePath);
+        log('FONT', 'debug', "Loading font file:", filePath);
         try {
           const buffer = await readFile(filePath);
           faces.push({
@@ -55,7 +55,7 @@ export async function loadBuiltinFontConfig(): Promise<FontConfig | null> {
             data: buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer,
           });
         } catch (err) {
-          console.warn(`Failed to load font file: ${filePath}`, err);
+          log('FONT', 'warn', `Failed to load font file: ${filePath}`, err);
         }
       }
       cachedConfig = {
@@ -64,7 +64,7 @@ export async function loadBuiltinFontConfig(): Promise<FontConfig | null> {
       };
       return cachedConfig;
     } catch (error) {
-      log("FONT", "WARN", "Unable to load builtin font config", { error });
+      log("FONT", 'warn', "Unable to load builtin font config", { error });
       cachedConfig = null;
       return null;
     } finally {

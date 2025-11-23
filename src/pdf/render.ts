@@ -13,6 +13,7 @@ import { loadBuiltinFontConfig } from "./font/builtin-fonts.js";
 import { registerPageResources, type PageResources } from "./utils/page-resource-registrar.js";
 import { FontRegistryResolver } from "../fonts/font-registry-resolver.js";
 import { computeGlyphRun } from "./utils/node-text-run-factory.js";
+import { log } from "../logging/debug.js";
 
 const DEFAULT_PAGE_SIZE: PageSize = { widthPt: 595.28, heightPt: 841.89 }; // A4 in points
 
@@ -135,16 +136,16 @@ function computeBaseContentBox(root: RenderBox, pageSize: PageSize, pxToPt: (px:
 
 function enrichTreeWithGlyphRuns(root: RenderBox, fontResolver: FontRegistryResolver): void {
   function enrichRun(run: any): void {
-    console.log(`[GLYPH_RUN] Attempting to enrich: "${run.text}", family: ${run.fontFamily}`);
+    log('GLYPH_RUN', 'debug', `Attempting to enrich: "${run.text}", family: ${run.fontFamily}`);
     if (run.glyphs) {
-      console.log("[GLYPH_RUN] Already has glyphs, skipping");
+      log('GLYPH_RUN', 'debug', "Already has glyphs, skipping");
       return;
     }
     try {
       const font = fontResolver.resolveSync(run.fontFamily, run.fontWeight, run.fontStyle);
-      console.log("[GLYPH_RUN] Font resolved:", font ? "YES" : "NO");
+      log('GLYPH_RUN', 'debug', "Font resolved:", font ? "YES" : "NO");
       if (!font) {
-        console.log(`[GLYPH_RUN] Font not found for family: ${run.fontFamily}`);
+        log('GLYPH_RUN', 'debug', `Font not found for family: ${run.fontFamily}`);
         return;
       }
       const letterSpacing = run.letterSpacing ?? 0;
@@ -167,15 +168,15 @@ function enrichTreeWithGlyphRuns(root: RenderBox, fontResolver: FontRegistryReso
       }
 
       run.glyphs = glyphRun;
-      console.log(`[GLYPH_RUN] Enriched "${run.text}" with ${glyphRun.glyphIds.length} glyphs:`, glyphRun.glyphIds);
+      log('GLYPH_RUN', 'debug', `Enriched "${run.text}" with ${glyphRun.glyphIds.length} glyphs:`, glyphRun.glyphIds);
     } catch (error) {
-      console.warn(`[GLYPH_RUN] Failed to enrich "${run.text}":`, error);
+      log('GLYPH_RUN', 'warn', `Failed to enrich "${run.text}":`, error);
     }
   }
 
   function traverse(box: RenderBox): void {
     if (box.textRuns && box.textRuns.length > 0) {
-      console.log(`[GLYPH_RUN] Found ${box.textRuns.length} text runs in box ${box.tagName || "text"}`);
+      log('GLYPH_RUN', 'debug', `Found ${box.textRuns.length} text runs in box ${box.tagName || "text"}`);
       for (const run of box.textRuns) {
         enrichRun(run);
       }
@@ -185,7 +186,7 @@ function enrichTreeWithGlyphRuns(root: RenderBox, fontResolver: FontRegistryReso
     }
   }
 
-  console.log("[GLYPH_RUN] Starting enrichment of tree");
+  log('GLYPH_RUN', 'debug', "Starting enrichment of tree");
   traverse(root);
-  console.log("[GLYPH_RUN] Finished enrichment");
+  log('GLYPH_RUN', 'debug', "Finished enrichment");
 }

@@ -5,7 +5,7 @@ import path from "path";
 import { readFileSync } from "fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { type FontConfig } from "./types/fonts.js";
-import { configureDebug, log, type LogCat, type LogLevel } from "./debug/log.js";
+import { configureDebug, log, type LogLevel } from "./logging/debug.js";
 import { parseCss } from "./html/css/parse-css.js";
 import { makeUnitParsers, type UnitCtx, pxToPt } from "./units/units.js";
 import { LayoutNode } from "./dom/node.js";
@@ -34,7 +34,7 @@ export interface RenderHtmlOptions {
   margins: PageMarginsPx;
   debug?: boolean;
   debugLevel?: LogLevel;
-  debugCats?: LogCat[];
+  debugCats?: string[];
   fontConfig?: FontConfig;
   resourceBaseDir?: string;
   assetRootDir?: string;
@@ -64,26 +64,26 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   const assetRootDir = path.resolve(options.assetRootDir ?? resourceBaseDir);
 
   if (debugLevel || debugCats) {
-    configureDebug(debugLevel ?? (debug ? "DEBUG" : "INFO"), debugCats ?? []);
+    configureDebug({ level: debugLevel ?? (debug ? "debug" : "info"), cats: debugCats });
   }
 
   const unitCtx: UnitCtx = { viewport: { width: viewportWidth, height: viewportHeight } };
   const units = makeUnitParsers(unitCtx);
 
-  console.log("prepareHtmlRender - input html:", html);
+  log('html-to-pdf', 'debug', `prepareHtmlRender - input html: ${html}`);
   let { document } = parseHTML(normalizedHtml);
   if (needsReparse(document)) {
     document = parseHTML(wrapHtml(html)).document;
   }
-  console.log("prepareHtmlRender - parsed document body:", document.body?.innerHTML || 'no body');
-  console.log("prepareHtmlRender - document.documentElement tagName:", document.documentElement?.tagName);
-  console.log("prepareHtmlRender - document.documentElement innerHTML:", document.documentElement?.innerHTML);
-  console.log("prepareHtmlRender - document children count:", document.childNodes.length);
+  log('html-to-pdf', 'debug', `prepareHtmlRender - parsed document body: ${document.body?.innerHTML || 'no body'}`);
+  log('html-to-pdf', 'debug', `prepareHtmlRender - document.documentElement tagName: ${document.documentElement?.tagName}`);
+  log('html-to-pdf', 'debug', `prepareHtmlRender - document.documentElement innerHTML: ${document.documentElement?.innerHTML}`);
+  log('html-to-pdf', 'debug', `prepareHtmlRender - document children count: ${document.childNodes.length}`);
   for (let i = 0; i < document.childNodes.length; i++) {
     const child = document.childNodes[i];
-    console.log(`prepareHtmlRender - document child ${i}:`, child.nodeType, (child as any).tagName || 'text node');
+    log('html-to-pdf', 'debug', `prepareHtmlRender - document child ${i}: ${child.nodeType}, ${(child as any).tagName || 'text node'}`);
   }
-  log("PARSE", "DEBUG", "DOM parsed", { hasBody: !!document.body });
+  log("parse", "debug", "DOM parsed", { hasBody: !!document.body });
 
   let mergedCss = css || "";
   const styleTags = Array.from(document.querySelectorAll("style"));
@@ -98,7 +98,7 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
     if (cssText) mergedCss += "\n" + cssText;
   }
   const { styleRules: cssRules, fontFaceRules } = parseCss(mergedCss);
-  log("PARSE", "DEBUG", "CSS rules", { count: cssRules.length, fontFaces: fontFaceRules.length });
+  log("parse", "debug", "CSS rules", { count: cssRules.length, fontFaces: fontFaceRules.length });
 
   // Determine the root element to process - prefer body, but fall back to documentElement if body is empty
   let rootElement = document.body;
@@ -140,9 +140,9 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   const conversionContext = { resourceBaseDir, assetRootDir, units, rootFontSize };
   
   if (processChildrenOf) {
-    console.log("prepareHtmlRender - processing children of:", processChildrenOf.tagName, "count:", processChildrenOf.childNodes.length);
+    log('html-to-pdf', 'debug', `prepareHtmlRender - processing children of: ${processChildrenOf.tagName}, count: ${processChildrenOf.childNodes.length}`);
     for (const child of Array.from(processChildrenOf.childNodes)) {
-      console.log("prepareHtmlRender - processing child:", (child as any).tagName || 'text node', "type:", child.nodeType);
+      log('html-to-pdf', 'debug', `prepareHtmlRender - processing child: ${(child as any).tagName || 'text node'}, type: ${child.nodeType}`);
       // Skip head and other non-content elements
       if (child.nodeType === child.ELEMENT_NODE) {
         const tagName = (child as HTMLElement).tagName.toLowerCase();
@@ -198,7 +198,7 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   }
 
   layoutTree(rootLayout, { width: viewportWidth, height: viewportHeight }, fontEmbedder);
-  log("LAYOUT", "DEBUG", "Layout complete");
+  log("layout", "debug", "Layout complete");
 
   const renderTree = buildRenderTree(rootLayout, { headerFooter });
   applyPageVerticalMargins(renderTree.root, pageHeight, margins);
@@ -234,7 +234,7 @@ async function loadStylesheetFromHref(href: string, resourceBaseDir: string, ass
     const cssText = readFileSync(cssPath, "utf-8");
     return rewriteCssUrls(cssText, pathToFileURL(cssPath).toString());
   } catch (error) {
-    log("PARSE", "WARN", "Failed to load stylesheet", { href, error: error instanceof Error ? error.message : String(error) });
+  log("parse", "warn", "Failed to load stylesheet", { href, error: error instanceof Error ? error.message : String(error) });
     return "";
   }
 }
@@ -339,7 +339,7 @@ async function loadFontData(src: string, resourceBaseDir: string, assetRootDir: 
       fontDataBuffer.byteOffset + fontDataBuffer.byteLength
     );
   } catch (error) {
-    log("FONT", "WARN", "Failed to load font data", { src, error: error instanceof Error ? error.message : String(error) });
+  log("font", "warn", "Failed to load font data", { src, error: error instanceof Error ? error.message : String(error) });
     return null;
   }
 }

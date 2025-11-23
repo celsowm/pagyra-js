@@ -6,6 +6,8 @@
  * implementation minimal and focused on DataView/table-directory logic.
  */
 
+import { log } from "../../logging/debug.js";
+
 export interface TableDirectoryEntry {
   tag: number;
   checksum: number;
@@ -52,7 +54,7 @@ export class TtfTableParser {
 
       // CAVEAT SPECIFIC FIX: Force skip ONLY the exact problematic table
       if (tagString === 'gloc') {
-        console.log(`🚫 CAVEAT TTF PARSER: FORCE SKIPPING problematic table 'gloc' (0x${tag.toString(16)})`);
+        log('TTF_PARSER', 'warn', `🚫 CAVEAT TTF PARSER: FORCE SKIPPING problematic table 'gloc' (0x${tag.toString(16)})`);
         continue;
       }
 
@@ -62,7 +64,7 @@ export class TtfTableParser {
       // Bounds validation - allow graceful skip for non-essential tables
       if (tableOffset + length > this.dataView.byteLength) {
         if (essentialTables.includes(tagString)) {
-          console.warn(`WOFF2 TTF: ESSENTIAL table ${tagString} has bounds issues - attempting to proceed with clamped length`);
+          log('TTF_PARSER', 'warn', `WOFF2 TTF: ESSENTIAL table ${tagString} has bounds issues - attempting to proceed with clamped length`);
           // For essential tables, clamp the length to fit within file bounds
           const clampedLength = Math.min(length, this.dataView.byteLength - tableOffset);
           if (clampedLength > 0) {
@@ -72,12 +74,12 @@ export class TtfTableParser {
               offset: tableOffset,
               length: clampedLength
             });
-            console.log(`✅ CAVEAT TTF PARSER: KEPT essential table ${tagString} with clamped length ${clampedLength}`);
+            log('TTF_PARSER', 'debug', `✅ CAVEAT TTF PARSER: KEPT essential table ${tagString} with clamped length ${clampedLength}`);
           } else {
-            console.warn(`WOFF2 TTF: Essential table ${tagString} completely out of bounds - skipping`);
+            log('TTF_PARSER', 'warn', `WOFF2 TTF: Essential table ${tagString} completely out of bounds - skipping`);
           }
         } else {
-          console.warn(`WOFF2 TTF: Skipping optional table ${tagString} due to bounds issues`);
+          log('TTF_PARSER', 'warn', `WOFF2 TTF: Skipping optional table ${tagString} due to bounds issues`);
           continue;
         }
       } else {

@@ -9,7 +9,7 @@ import { ImageService } from "../image/image-service.js";
 import { ImageStrategy } from "../layout/strategies/image.js";
 import type { ImageInfo } from "../image/types.js";
 import type { UnitParsers } from "../units/units.js";
-import { log } from "../debug/log.js";
+import { log } from "../logging/debug.js";
 
 // The ConversionContext should be defined where it's used
 export interface ConversionContext {
@@ -38,7 +38,7 @@ export function resolveImageSource(src: string, context: ConversionContext): str
   }
   if (trimmed.startsWith("/")) {
     const resolved = path.resolve(context.assetRootDir, `.${trimmed}`);
-    console.log("resolveImageSource - resolving absolute path:", { src, trimmed, assetRootDir: context.assetRootDir, resolved });
+    log('image-converter', 'debug', "resolveImageSource - resolving absolute path:", { src, trimmed, assetRootDir: context.assetRootDir, resolved });
     return resolved;
   }
   if (path.isAbsolute(trimmed)) {
@@ -99,7 +99,7 @@ export async function convertImageElement(
       });
     }
 
-    log("RENDER_TREE", "DEBUG", "Image loaded successfully", {
+    log("render-tree", "debug", "Image loaded successfully", {
       src: srcAttr,
       resolvedSrc,
       width: imageInfo.width,
@@ -107,7 +107,7 @@ export async function convertImageElement(
       format: imageInfo.format,
     });
   } catch (error) {
-    log("RENDER_TREE", "WARN", `Failed to load image: ${srcAttr}. Using placeholder.`, {
+    log("render-tree", "warn", `Failed to load image: ${srcAttr}. Using placeholder.`, {
       resolvedSrc,
       error: error instanceof Error ? error.message : String(error),
     });
