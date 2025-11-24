@@ -187,6 +187,7 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
         lineWidth,
         targetWidth: currentAvailableWidth,
         spaceCount: spaceCount,
+        isLastLine,
       };
       node.box.x = startX;
       node.box.y = lineTop;

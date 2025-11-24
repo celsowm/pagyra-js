@@ -11,6 +11,7 @@ export interface InlineRun {
   lineWidth: number;
   spaceCount: number;
   targetWidth: number;
+  isLastLine: boolean;
 }
 
 export interface NodeVisitor {

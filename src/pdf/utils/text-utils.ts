@@ -23,9 +23,8 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
 
   // Se o layout calculou inlineRuns (novo builder), use-os.
   if (node.inlineRuns && node.inlineRuns.length > 0) {
-    const maxLineIndex = node.inlineRuns.reduce((max, r) => Math.max(max, r.lineIndex), 0);
     for (const inlineRun of node.inlineRuns) {
-      const justify = effectiveTextAlign === "justify" && inlineRun.lineIndex < maxLineIndex;
+      const justify = effectiveTextAlign === "justify" && !inlineRun.isLastLine;
       let wordSpacing: number | undefined;
       const targetWidth = inlineRun.targetWidth ?? inlineRun.lineWidth ?? inlineRun.width;
       const lineWidth = inlineRun.lineWidth ?? inlineRun.width;
