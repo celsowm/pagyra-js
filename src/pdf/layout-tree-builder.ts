@@ -18,6 +18,7 @@ import {
   LayerMode,
 } from "./types.js";
 import { parseColor } from "./utils/color-utils.js";
+import { resolveTextAlign } from "./utils/text-alignment-resolver.js";
 import { resolveBorderRadius } from "./utils/border-radius-utils.js";
 import { resolveBoxShadows, resolveTextShadows, calculateVisualOverflow } from "./utils/shadow-utils.js";
 import { extractImageRef } from "./utils/image-utils.js";
@@ -171,6 +172,15 @@ function convertNode(node: LayoutNode, state: { counter: number; fontResolver?: 
     left: normalizeBorderStyle(node.style.borderStyleLeft),
   };
 
+  const rawTextAlign = resolveTextAlign(node);
+  const textAlign =
+    rawTextAlign === "left" ||
+      rawTextAlign === "center" ||
+      rawTextAlign === "right" ||
+      rawTextAlign === "justify"
+      ? (rawTextAlign as "left" | "center" | "right" | "justify")
+      : undefined;
+
   return {
     id,
     tagName: node.tagName,
@@ -210,6 +220,7 @@ function convertNode(node: LayoutNode, state: { counter: number; fontResolver?: 
     background,
     image: imageRef,
     customData: node.customData ? { ...node.customData } : undefined,
+    textAlign,
     transform,
   };
 }

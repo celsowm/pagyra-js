@@ -15,6 +15,7 @@ import { buildRenderTree } from "./pdf/layout-tree-builder.js";
 import { renderPdf } from "./pdf/render.js";
 import { convertDomNode } from "./html/dom-converter.js";
 import { applyPageVerticalMargins, offsetRenderTree } from "./render/offset.js";
+import { applyTextLayoutAdjustments } from "./pdf/utils/text-layout-adjuster.js";
 import { setViewportSize } from "./css/apply-declarations.js";
 import { type PageMarginsPx } from "./units/page-utils.js";
 import { computeStyleForElement } from "./css/compute-style.js";
@@ -103,7 +104,7 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   // Determine the root element to process - prefer body, but fall back to documentElement if body is empty
   let rootElement = document.body;
   let processChildrenOf = rootElement;
-  
+
   // If body is empty but documentElement has children (like when HTML is just a fragment),
   // process the documentElement's children instead
   if (rootElement && rootElement.childNodes.length === 0) {
@@ -138,7 +139,7 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   const rootLayout = new LayoutNode(rootStyle, [], { tagName: processChildrenOf?.tagName?.toLowerCase() });
 
   const conversionContext = { resourceBaseDir, assetRootDir, units, rootFontSize };
-  
+
   if (processChildrenOf) {
     log('html-to-pdf', 'debug', `prepareHtmlRender - processing children of: ${processChildrenOf.tagName}, count: ${processChildrenOf.childNodes.length}`);
     for (const child of Array.from(processChildrenOf.childNodes)) {
@@ -201,6 +202,10 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   log("layout", "debug", "Layout complete");
 
   const renderTree = buildRenderTree(rootLayout, { headerFooter });
+
+  // Global justification pass: fix inline run positions for text-align: justify
+  applyTextLayoutAdjustments(renderTree.root);
+
   applyPageVerticalMargins(renderTree.root, pageHeight, margins);
   offsetRenderTree(renderTree.root, margins.left, 0, debug);
 
@@ -234,7 +239,7 @@ async function loadStylesheetFromHref(href: string, resourceBaseDir: string, ass
     const cssText = readFileSync(cssPath, "utf-8");
     return rewriteCssUrls(cssText, pathToFileURL(cssPath).toString());
   } catch (error) {
-  log("parse", "warn", "Failed to load stylesheet", { href, error: error instanceof Error ? error.message : String(error) });
+    log("parse", "warn", "Failed to load stylesheet", { href, error: error instanceof Error ? error.message : String(error) });
     return "";
   }
 }
@@ -339,7 +344,7 @@ async function loadFontData(src: string, resourceBaseDir: string, assetRootDir: 
       fontDataBuffer.byteOffset + fontDataBuffer.byteLength
     );
   } catch (error) {
-  log("font", "warn", "Failed to load font data", { src, error: error instanceof Error ? error.message : String(error) });
+    log("font", "warn", "Failed to load font data", { src, error: error instanceof Error ? error.message : String(error) });
     return null;
   }
 }

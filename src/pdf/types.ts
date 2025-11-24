@@ -158,6 +158,26 @@ export interface Run {
   decorations?: Decorations;
   advanceWidth?: number;
   textShadows?: TextShadowLayer[];
+
+  // --- Justification metadata (inlineRuns path only) ---
+
+  /**
+   * Line index in the block (0-based).
+   * Only set for runs coming from LayoutNode.inlineRuns.
+   */
+  lineIndex?: number;
+
+  /**
+   * True if this run is on the last visual line of its block.
+   */
+  isLastLine?: boolean;
+
+  /**
+   * Number of spaces *inside this run* that participate in justification.
+   * This is used to compute how much extra width this run contributes
+   * when wordSpacing is applied.
+   */
+  spacesInRun?: number;
 }
 
 export interface StrokeDash {
@@ -265,6 +285,12 @@ export interface RenderBox {
   borderStyle?: BorderStyles;
   color?: RGBA;
   transform?: TextMatrix;
+
+  /**
+   * Normalized text alignment of this box (from CSS text-align).
+   * Only the visual modes are captured here.
+   */
+  textAlign?: "left" | "center" | "right" | "justify";
 }
 
 export interface LayoutTree {

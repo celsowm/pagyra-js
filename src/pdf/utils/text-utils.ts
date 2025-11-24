@@ -24,23 +24,46 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
   // Se o layout calculou inlineRuns (novo builder), use-os.
   if (node.inlineRuns && node.inlineRuns.length > 0) {
     for (const inlineRun of node.inlineRuns) {
-      const justify = effectiveTextAlign === "justify" && !inlineRun.isLastLine;
+      const justifyLine =
+        effectiveTextAlign === "justify" && !inlineRun.isLastLine;
+
       let wordSpacing: number | undefined;
-      const targetWidth = inlineRun.targetWidth ?? inlineRun.lineWidth ?? inlineRun.width;
+      const targetWidth =
+        inlineRun.targetWidth ?? inlineRun.lineWidth ?? inlineRun.width;
       const lineWidth = inlineRun.lineWidth ?? inlineRun.width;
-      if (justify && inlineRun.spaceCount > 0) {
+
+      if (justifyLine && inlineRun.spaceCount > 0) {
         const slack = Math.max(targetWidth - lineWidth, 0);
         if (slack > 0) {
           wordSpacing = slack / inlineRun.spaceCount;
         }
       }
-      const advanceWidth =
-        wordSpacing !== undefined && inlineRun.spaceCount && targetWidth > 0
-          ? Math.max(targetWidth, lineWidth, inlineRun.width)
-          : inlineRun.width;
+
+      // Count spaces *inside this run's text*
+      const spacesInRun =
+        inlineRun.text.split("").reduce(
+          (count, ch) => (ch === " " ? count + 1 : count),
+          0,
+        );
+
+      const extraWidth =
+        spacesInRun > 0 && wordSpacing !== undefined
+          ? spacesInRun * wordSpacing
+          : 0;
+
+      // Run-local visual width (base width + justified expansion)
+      const advanceWidth = inlineRun.width + extraWidth;
 
       const resolvedShadows = resolveTextShadows(node, defaultColor);
-      const baseLineMatrix = { a: 1, b: 0, c: 0, d: 1, e: inlineRun.startX, f: inlineRun.baseline };
+      const baseLineMatrix = {
+        a: 1,
+        b: 0,
+        c: 0,
+        d: 1,
+        e: inlineRun.startX,
+        f: inlineRun.baseline,
+      };
+
       runs.push({
         text: inlineRun.text.normalize("NFC"),
         fontFamily,
@@ -55,6 +78,11 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
         decorations: decoration ? { ...decoration } : undefined,
         advanceWidth,
         textShadows: resolvedShadows,
+
+        // New metadata
+        lineIndex: inlineRun.lineIndex,
+        isLastLine: inlineRun.isLastLine,
+        spacesInRun,
       });
     }
     return runs;
