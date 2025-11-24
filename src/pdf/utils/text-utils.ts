@@ -23,19 +23,20 @@ export function createTextRuns(node: LayoutNode, color: RGBA | undefined, inheri
 
   // Se o layout calculou inlineRuns (novo builder), use-os.
   if (node.inlineRuns && node.inlineRuns.length > 0) {
-    const maxLineIndex = node.inlineRuns.reduce((max, r) => Math.max(max, r.lineIndex), 0);
     for (const inlineRun of node.inlineRuns) {
-      const justify = effectiveTextAlign === "justify" && inlineRun.lineIndex < maxLineIndex;
+      const justify = effectiveTextAlign === "justify" && !inlineRun.isLastLine;
       let wordSpacing: number | undefined;
+      const targetWidth = inlineRun.targetWidth ?? inlineRun.lineWidth ?? inlineRun.width;
+      const lineWidth = inlineRun.lineWidth ?? inlineRun.width;
       if (justify && inlineRun.spaceCount > 0) {
-        const slack = Math.max(inlineRun.targetWidth - inlineRun.width, 0);
+        const slack = Math.max(targetWidth - lineWidth, 0);
         if (slack > 0) {
           wordSpacing = slack / inlineRun.spaceCount;
         }
       }
       const advanceWidth =
-        wordSpacing !== undefined && inlineRun.spaceCount && inlineRun.targetWidth > 0
-          ? Math.max(inlineRun.targetWidth, inlineRun.width)
+        wordSpacing !== undefined && inlineRun.spaceCount && targetWidth > 0
+          ? Math.max(targetWidth, lineWidth, inlineRun.width)
           : inlineRun.width;
 
       const resolvedShadows = resolveTextShadows(node, defaultColor);
