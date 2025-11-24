@@ -10,7 +10,7 @@ import {
   maxContentDimension,
 } from "../src/units/page-utils.js";
 import type { HeaderFooterHTML } from "../src/pdf/types.js";
-import type { LogLevel } from "../src/logging/debug.js";
+import { type LogLevel, LOG_CATEGORIES } from "../src/logging/debug.js";
 
 interface RenderRequestBody {
   html?: string;
@@ -40,6 +40,10 @@ app.use((req: express.Request, _res: express.Response, next: express.NextFunctio
 });
 
 app.use(express.static(PUBLIC_DIR));
+
+app.get("/debug-categories", (_req, res) => {
+  res.json(LOG_CATEGORIES);
+});
 
 app.post("/render", async (req: express.Request, res: express.Response) => {
   try {
@@ -73,7 +77,7 @@ app.post("/render", async (req: express.Request, res: express.Response) => {
     const footerHtml = typeof body.footerHtml === "string" ? body.footerHtml.trim() : "";
     const levelCandidate = typeof body.debugLevel === "string" ? (body.debugLevel.toLowerCase() as LogLevel) : undefined;
     const allowedLevels: LogLevel[] = ["trace", "debug", "info", "warn", "error"];
-    const debugLevel: LogLevel = levelCandidate && allowedLevels.includes(levelCandidate) ? levelCandidate : "info";
+    let debugLevel: LogLevel = levelCandidate && allowedLevels.includes(levelCandidate) ? levelCandidate : "info";
     const debugCats = Array.isArray(body.debugCats) ? body.debugCats.map(String).filter(Boolean) : undefined;
 
     const headerFooter: Partial<HeaderFooterHTML> = {};
@@ -84,6 +88,12 @@ app.post("/render", async (req: express.Request, res: express.Response) => {
     if (footerHtml) {
       headerFooter.footerHtml = footerHtml;
       headerFooter.maxFooterHeightPx = headerFooter.maxFooterHeightPx ?? 64;
+    }
+
+    // If categories are selected, the user likely wants to see debug output for them.
+    // If the level is at the default 'info', we lower it to 'debug' to ensure they see something.
+    if (debugCats?.length && debugLevel === "info") {
+      debugLevel = "debug";
     }
 
     const pdfBytes = await renderHtmlToPdf({

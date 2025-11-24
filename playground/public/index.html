@@ -102,14 +102,8 @@
               <div class="control-column">
                 <div class="control-group">
                   <label>Categories:</label>
-                  <div class="checkbox-grid">
-                    <label><input type="checkbox" value="parse" class="log-cat" /> Parse</label>
-                    <label><input type="checkbox" value="style" class="log-cat" /> Style</label>
-                    <label><input type="checkbox" value="layout" class="log-cat" /> Layout</label>
-                    <label><input type="checkbox" value="paint" class="log-cat" /> Paint</label>
-                    <label><input type="checkbox" value="font" class="log-cat" /> Font</label>
-                    <label><input type="checkbox" value="encoding" class="log-cat" /> Encoding</label>
-                    <label><input type="checkbox" value="pdf" class="log-cat" /> PDF</label>
+                  <div class="checkbox-grid" id="debug-categories-container">
+                    <!-- Categories will be loaded dynamically -->
                   </div>
                   <div class="debug-button-group">
                     <button id="log-select-all" type="button">All</button>

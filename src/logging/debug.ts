@@ -1,4 +1,4 @@
-export type LogLevel = 'trace'|'debug'|'info'|'warn'|'error';
+export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error';
 type DebugConfig = { level: LogLevel; cats: Set<string> };
 
 const LEVEL_COLORS: Record<LogLevel, string> = {
@@ -19,9 +19,11 @@ const CATEGORY_COLORS: Record<string, string> = {
   pdf: '\x1b[91m',
 };
 
+export const LOG_CATEGORIES = Object.keys(CATEGORY_COLORS);
+
 const RESET = '\x1b[0m';
 const DEFAULT_CAT_COLOR = '\x1b[37m';
-const order: LogLevel[] = ['trace','debug','info','warn','error'];
+const order: LogLevel[] = ['trace', 'debug', 'info', 'warn', 'error'];
 
 let current: DebugConfig = { level: 'warn', cats: new Set() };
 

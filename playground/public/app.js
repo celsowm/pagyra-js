@@ -18,7 +18,7 @@ const DOM = {
   ckeditorCss: /** @type {HTMLLinkElement} */ (document.getElementById("ckeditor-css")),
   ckeditorScript: /** @type {HTMLScriptElement} */ (document.getElementById("ckeditor-script")),
   logLevel: /** @type {HTMLSelectElement | null} */ (document.getElementById("log-level")),
-  logCats: /** @type {NodeListOf<HTMLInputElement>} */ (document.querySelectorAll(".log-cat")),
+  debugCategoriesContainer: /** @type {HTMLDivElement | null} */ (document.getElementById("debug-categories-container")),
   logSelectAll: /** @type {HTMLButtonElement | null} */ (document.getElementById("log-select-all")),
   logSelectNone: /** @type {HTMLButtonElement | null} */ (document.getElementById("log-select-none")),
 };
@@ -248,9 +248,10 @@ function computePageSize(viewport) {
 
 function getDebugConfig() {
   const level = DOM.logLevel?.value || "info";
-  const cats = Array.from(DOM.logCats || [])
-    .filter(cb => cb.checked)
-    .map(cb => cb.value);
+  const checkboxes = document.querySelectorAll(".log-cat");
+  const cats = Array.from(checkboxes)
+    .filter(cb => /** @type {HTMLInputElement} */(cb).checked)
+    .map(cb => /** @type {HTMLInputElement} */(cb).value);
   return { level, cats };
 }
 
@@ -303,6 +304,30 @@ async function renderPdf() {
     handleRenderFailure(message);
   } finally {
     DOM.renderButton.disabled = false;
+  }
+}
+
+async function fetchAndRenderDebugCategories() {
+  if (!DOM.debugCategoriesContainer) return;
+
+  try {
+    const response = await fetch("/debug-categories");
+    if (!response.ok) throw new Error("Failed to fetch debug categories");
+    const categories = await response.json();
+
+    DOM.debugCategoriesContainer.innerHTML = "";
+    for (const cat of categories) {
+      const label = document.createElement("label");
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.value = cat;
+      input.className = "log-cat";
+      label.append(input, ` ${cat.charAt(0).toUpperCase() + cat.slice(1)}`);
+      DOM.debugCategoriesContainer.append(label);
+    }
+  } catch (error) {
+    console.error("Failed to load debug categories:", error);
+    DOM.debugCategoriesContainer.textContent = "Failed to load categories.";
   }
 }
 
@@ -631,18 +656,22 @@ async function init() {
 
   if (DOM.logSelectAll) {
     DOM.logSelectAll.addEventListener("click", () => {
-      DOM.logCats.forEach(cb => {
-        cb.checked = true;
+      const checkboxes = document.querySelectorAll(".log-cat");
+      checkboxes.forEach(cb => {
+        /** @type {HTMLInputElement} */ (cb).checked = true;
       });
     });
   }
   if (DOM.logSelectNone) {
     DOM.logSelectNone.addEventListener("click", () => {
-      DOM.logCats.forEach(cb => {
-        cb.checked = false;
+      const checkboxes = document.querySelectorAll(".log-cat");
+      checkboxes.forEach(cb => {
+        /** @type {HTMLInputElement} */ (cb).checked = false;
       });
     });
   }
+
+  await fetchAndRenderDebugCategories();
 
   try {
     const response = await fetch("examples.json");
