@@ -94,19 +94,7 @@ function enrichTextRunsWithGlyphs(runs: Run[], fontResolver: FontResolver): void
       const glyphRun = computeGlyphRun(font, run.text, run.fontSize, run.letterSpacing ?? 0);
       // Carry through any word spacing for justified lines so glyph positioning can reflect it.
       if (run.wordSpacing !== undefined && glyphRun.positions.length > 0) {
-        const additional = run.wordSpacing;
-        for (let idx = 0; idx < glyphRun.positions.length; idx++) {
-          const ch = run.text[idx];
-          if (ch === " " && idx < glyphRun.positions.length - 1) {
-            // Shift subsequent positions by accumulated word spacing
-            for (let j = idx + 1; j < glyphRun.positions.length; j++) {
-              glyphRun.positions[j] = {
-                x: glyphRun.positions[j].x + additional,
-                y: glyphRun.positions[j].y,
-              };
-            }
-          }
-        }
+        applyWordSpacingToGlyphRun(glyphRun, run.text, run.wordSpacing);
       }
 
       run.glyphs = glyphRun;
@@ -174,6 +162,24 @@ export function computeGlyphRun(font: UnifiedFont, text: string, fontSize: numbe
     fontSize,
     width: currentX,
   };
+}
+
+export function applyWordSpacingToGlyphRun(glyphRun: GlyphRun, text: string, wordSpacing: number | undefined): void {
+  if (!wordSpacing) {
+    return;
+  }
+  const additional = wordSpacing;
+  for (let idx = 0; idx < glyphRun.positions.length; idx++) {
+    const ch = text[idx];
+    if (ch === " " && idx < glyphRun.positions.length - 1) {
+      for (let j = idx + 1; j < glyphRun.positions.length; j++) {
+        glyphRun.positions[j] = {
+          x: glyphRun.positions[j].x + additional,
+          y: glyphRun.positions[j].y,
+        };
+      }
+    }
+  }
 }
 
 function getKerningAdjustment(map: KerningMap, left: number, right: number): number {

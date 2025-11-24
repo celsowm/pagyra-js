@@ -1,5 +1,5 @@
 import { PdfDocument } from "./primitives/pdf-document.js";
-import type { LayoutTree, PageSize, PdfMetadata, RenderBox, RGBA, TextPaintOptions } from "./types.js";
+import type { LayoutTree, PageSize, PdfMetadata, RenderBox, RGBA, TextPaintOptions, Run } from "./types.js";
 import {
   initHeaderFooterContext,
   layoutHeaderFooterTrees,
@@ -12,7 +12,7 @@ import { paintLayoutPage } from "./renderer/page-paint.js";
 import { loadBuiltinFontConfig } from "./font/builtin-fonts.js";
 import { registerPageResources, type PageResources } from "./utils/page-resource-registrar.js";
 import { FontRegistryResolver } from "../fonts/font-registry-resolver.js";
-import { computeGlyphRun } from "./utils/node-text-run-factory.js";
+import { applyWordSpacingToGlyphRun, computeGlyphRun } from "./utils/node-text-run-factory.js";
 import { log } from "../logging/debug.js";
 
 const DEFAULT_PAGE_SIZE: PageSize = { widthPt: 595.28, heightPt: 841.89 }; // A4 in points
@@ -134,38 +134,19 @@ function computeBaseContentBox(root: RenderBox, pageSize: PageSize, pxToPt: (px:
   };
 }
 
-function enrichTreeWithGlyphRuns(root: RenderBox, fontResolver: FontRegistryResolver): void {
-  function enrichRun(run: any): void {
+async function enrichTreeWithGlyphRuns(root: RenderBox, fontResolver: FontRegistryResolver): Promise<void> {
+  async function enrichRun(run: Run): Promise<void> {
     log('GLYPH_RUN', 'debug', `Attempting to enrich: "${run.text}", family: ${run.fontFamily}`);
     if (run.glyphs) {
       log('GLYPH_RUN', 'debug', "Already has glyphs, skipping");
       return;
     }
     try {
-      const font = fontResolver.resolveSync(run.fontFamily, run.fontWeight, run.fontStyle);
-      log('GLYPH_RUN', 'debug', "Font resolved:", font ? "YES" : "NO");
-      if (!font) {
-        log('GLYPH_RUN', 'debug', `Font not found for family: ${run.fontFamily}`);
-        return;
-      }
+      const font = await fontResolver.resolve(run.fontFamily, run.fontWeight, run.fontStyle);
+      log('GLYPH_RUN', 'debug', "Font resolved for glyph enrichment");
       const letterSpacing = run.letterSpacing ?? 0;
       const glyphRun = computeGlyphRun(font, run.text, run.fontSize, letterSpacing);
-
-      // Carry through any word spacing so glyph positions match layout assumptions.
-      if (run.wordSpacing !== undefined && glyphRun.positions.length > 0) {
-        const additional = run.wordSpacing;
-        for (let idx = 0; idx < glyphRun.positions.length; idx++) {
-          const ch = run.text[idx];
-          if (ch === " " && idx < glyphRun.positions.length - 1) {
-            for (let j = idx + 1; j < glyphRun.positions.length; j++) {
-              glyphRun.positions[j] = {
-                x: glyphRun.positions[j].x + additional,
-                y: glyphRun.positions[j].y,
-              };
-            }
-          }
-        }
-      }
+      applyWordSpacingToGlyphRun(glyphRun, run.text, run.wordSpacing);
 
       run.glyphs = glyphRun;
       log('GLYPH_RUN', 'debug', `Enriched "${run.text}" with ${glyphRun.glyphIds.length} glyphs:`, glyphRun.glyphIds);
@@ -174,19 +155,19 @@ function enrichTreeWithGlyphRuns(root: RenderBox, fontResolver: FontRegistryReso
     }
   }
 
-  function traverse(box: RenderBox): void {
+  async function traverse(box: RenderBox): Promise<void> {
     if (box.textRuns && box.textRuns.length > 0) {
       log('GLYPH_RUN', 'debug', `Found ${box.textRuns.length} text runs in box ${box.tagName || "text"}`);
       for (const run of box.textRuns) {
-        enrichRun(run);
+        await enrichRun(run);
       }
     }
     for (const child of box.children) {
-      traverse(child);
+      await traverse(child);
     }
   }
 
   log('GLYPH_RUN', 'debug', "Starting enrichment of tree");
-  traverse(root);
+  await traverse(root);
   log('GLYPH_RUN', 'debug', "Finished enrichment");
 }

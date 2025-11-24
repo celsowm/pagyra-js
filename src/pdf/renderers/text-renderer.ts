@@ -15,7 +15,6 @@ import type { GlyphRun } from "../../layout/text-run.js";
 import type { UnifiedFont } from "../../fonts/types.js";
 
 const PINK = "\x1b[38;5;205m";
-const ORANGE = "\x1b[38;5;208m";
 const RESET_COLOR = "\x1b[0m";
 
 export interface TextRendererResult {
@@ -97,13 +96,7 @@ export class TextRenderer {
       text: run.text
     });
 
-    if (run.glyphs || font.metrics) {
-      await this.drawTextRunWithGlyphs(run, font);
-      return;
-    }
-
-    this.registerFont(font);
-    await this.drawTextRunLegacy(run, font);
+    await this.drawTextRunWithGlyphs(run, font);
   }
 
   private async drawTextRunWithGlyphs(run: Run, font: FontResource): Promise<void> {
@@ -126,7 +119,11 @@ export class TextRenderer {
     }
 
     if (!glyphRun) {
-      await this.drawTextRunLegacy(run, font);
+      log("PAINT", "WARN", "Skipping run without glyph data", {
+        text: run.text.slice(0, 32),
+        fontFamily: run.fontFamily,
+        fontSize: run.fontSize,
+      });
       return;
     }
 
@@ -193,102 +190,6 @@ export class TextRenderer {
     if (run.decorations) {
       this.commands.push(...this.decorationRenderer.render(run, color));
     }
-  }
-
-  private async drawTextRunLegacy(run: Run, font: FontResource): Promise<void> {
-    log("PAINT", "INFO", `${ORANGE}USING LEGACY TEXT RUN${RESET_COLOR}`, {
-      text: run.text.slice(0, 64),
-    });
-    const color = run.fill ?? { r: 0, g: 0, b: 0, a: 1 };
-    let normalizedText = run.text;
-    if (run.fontVariant === "small-caps") {
-      normalizedText = normalizedText.toUpperCase();
-    }
-    const { scheme, encoded } = encodeTextPayload(normalizedText, font);
-
-    const Tm = run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
-    const fontSizePt = this.coordinateTransformer.convertPxToPt(run.fontSize);
-    const localBaseline = Tm.f - this.coordinateTransformer.pageOffsetPx;
-    const y = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localBaseline);
-    const x = this.coordinateTransformer.convertPxToPt(Tm.e);
-
-    log("ENCODING", "INFO", "encoding-path", {
-      scheme,
-      font: font.baseFont
-    });
-
-    log("PAINT", "TRACE", "drawText(content)", {
-      before: normalizedText.length > 60 ? normalizedText.slice(0, 57) + "..." : normalizedText,
-      encoded: encoded.length > 60 ? encoded.slice(0, 57) + "..." : encoded,
-      font: font.baseFont, size: fontSizePt
-    });
-
-    log("PAINT", "DEBUG", "drawing text run", {
-      text: normalizedText.slice(0, 32),
-      fontName: font.baseFont,
-      fontSizePt,
-      Tm,
-      x, y
-    });
-
-    const wordSpacingPx = run.wordSpacing ?? 0;
-    const wordSpacingPt = this.coordinateTransformer.convertPxToPt(wordSpacingPx);
-    const appliedWordSpacing = wordSpacingPx !== 0 && wordSpacingPt !== 0;
-
-    if (run.textShadows && run.textShadows.length > 0) {
-      const shadowCommands = await this.shadowRenderer.render({
-        run,
-        font,
-        encoded,
-        Tm,
-        fontSizePt,
-        fontSizePx: run.fontSize,
-        wordSpacingPt,
-        appliedWordSpacing,
-      });
-      this.commands.push(...shadowCommands);
-    }
-
-    const sequence: string[] = [
-      fillColorCommand(color, this.graphicsStateManager),
-      "BT",
-    ];
-
-    if (appliedWordSpacing) {
-      sequence.push(`${formatNumber(wordSpacingPt)} Tw`);
-    }
-
-    sequence.push(
-      `/${font.resourceName} ${formatNumber(fontSizePt)} Tf`,
-      `${formatNumber(Tm.a)} ${formatNumber(Tm.b)} ${formatNumber(Tm.c)} ${formatNumber(Tm.d)} ${formatNumber(x)} ${formatNumber(y)} Tm`,
-      `(${encoded}) Tj`,
-    );
-
-    if (appliedWordSpacing) {
-      sequence.push("0 Tw");
-    }
-
-    sequence.push("ET");
-
-    this.commands.push(...sequence);
-
-    try {
-      if (Tm && (Tm.b !== 0 || Tm.c !== 0)) {
-        const vals = [
-          formatNumber(Tm.a),
-          formatNumber(Tm.b),
-          formatNumber(Tm.c),
-          formatNumber(Tm.d),
-          formatNumber(Tm.e),
-          formatNumber(Tm.f),
-        ].join(" ");
-        this.commands.push(`%PAGYRA_TRANSFORM ${vals}`);
-      }
-    } catch {
-      // ignore
-    }
-
-    this.commands.push(...this.decorationRenderer.render(run, color));
   }
 
   private registerFont(font: FontResource): void {
