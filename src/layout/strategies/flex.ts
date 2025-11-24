@@ -390,7 +390,10 @@ function computePreferredInlineWidth(node: LayoutNode): number | undefined {
   let maxWidth = 0;
   node.walk((desc) => {
     if (desc.inlineRuns && desc.inlineRuns.length > 0) {
-      const localMax = desc.inlineRuns.reduce((max, run) => Math.max(max, run.width), 0);
+      const localMax = desc.inlineRuns.reduce(
+        (max, run) => Math.max(max, run.lineWidth ?? run.width),
+        0,
+      );
       if (localMax > maxWidth) {
         maxWidth = localMax;
       }

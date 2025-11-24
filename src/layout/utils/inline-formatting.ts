@@ -184,6 +184,7 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
         baseline: lineBaseline,
         text: part.item.text,
         width: part.item.width,
+        lineWidth,
         targetWidth: currentAvailableWidth,
         spaceCount: spaceCount,
       };
@@ -328,7 +329,7 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
     const lineCount = runs.reduce((max, run) => Math.max(max, run.lineIndex + 1), 0);
     const lh = resolvedLineHeight(node.style);
     node.box.contentHeight = lineCount * lh;
-    const maxWidth = runs.reduce((max, run) => Math.max(max, run.width), 0);
+    const maxWidth = runs.reduce((max, run) => Math.max(max, run.lineWidth ?? run.width), 0);
     node.box.contentWidth = maxWidth;
     node.box.borderBoxWidth = maxWidth;
     node.box.borderBoxHeight = node.box.contentHeight;

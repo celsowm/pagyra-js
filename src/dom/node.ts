@@ -8,6 +8,7 @@ export interface InlineRun {
   baseline: number;
   text: string;
   width: number;
+  lineWidth: number;
   spaceCount: number;
   targetWidth: number;
 }
