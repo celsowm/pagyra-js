@@ -1,6 +1,6 @@
 import { ensureId, DomIds } from "./ids.js";
 import type { UID } from "./ids.js";
-import { log } from "./log.js";
+import { log } from "../logging/debug.js";
 
 export interface TreeMeta {
   id: UID; depth: number; parentId?: UID;
@@ -24,7 +24,7 @@ export function analyzeDomNode(node: Node, parent?: Node, depth = 0): TreeMeta {
   const path = computeDomPath(node as Element);
   const meta: TreeMeta = { id, depth, parentId, prevSiblingId, nextSiblingId, siblingIndex: idx, siblingCount, path };
 
-  log("PARSE","TRACE","DOM node", {
+  log("parse","trace","DOM node", {
     ...meta,
     tag: (node as Element).nodeType === 1 ? (node as Element).tagName.toLowerCase() : "#text",
     textPreview: node.nodeType === 3 ? (node.textContent ?? "").slice(0,60) : undefined

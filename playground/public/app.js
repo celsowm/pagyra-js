@@ -17,6 +17,10 @@ const DOM = {
   ckeditorToggle: /** @type {HTMLInputElement} */ (document.getElementById("ckeditor-toggle")),
   ckeditorCss: /** @type {HTMLLinkElement} */ (document.getElementById("ckeditor-css")),
   ckeditorScript: /** @type {HTMLScriptElement} */ (document.getElementById("ckeditor-script")),
+  logLevel: /** @type {HTMLSelectElement | null} */ (document.getElementById("log-level")),
+  logCats: /** @type {NodeListOf<HTMLInputElement>} */ (document.querySelectorAll(".log-cat")),
+  logSelectAll: /** @type {HTMLButtonElement | null} */ (document.getElementById("log-select-all")),
+  logSelectNone: /** @type {HTMLButtonElement | null} */ (document.getElementById("log-select-none")),
 };
 
 const PAGE_DEFAULTS = {
@@ -242,6 +246,14 @@ function computePageSize(viewport) {
   };
 }
 
+function getDebugConfig() {
+  const level = DOM.logLevel?.value || "info";
+  const cats = Array.from(DOM.logCats || [])
+    .filter(cb => cb.checked)
+    .map(cb => cb.value);
+  return { level, cats };
+}
+
 async function renderPdf() {
   const html = getHtmlValue();
   const css = getCssValue();
@@ -251,6 +263,7 @@ async function renderPdf() {
   const page = computePageSize(viewport);
   const selectedExample = activeExampleId ? exampleLookup.get(activeExampleId) : undefined;
   const documentPath = selectedExample?.htmlUrl;
+  const debug = getDebugConfig();
 
   setStatus("Rendering...", "neutral");
   DOM.renderButton.disabled = true;
@@ -271,6 +284,8 @@ async function renderPdf() {
         pageWidth: page.width,
         pageHeight: page.height,
         documentPath,
+        debugLevel: debug.level,
+        debugCats: debug.cats.length > 0 ? debug.cats : undefined,
       }),
     });
 
@@ -612,6 +627,21 @@ async function init() {
   // CKEditor toggle
   if (DOM.ckeditorToggle) {
     DOM.ckeditorToggle.addEventListener("change", handleCKEditorToggle);
+  }
+
+  if (DOM.logSelectAll) {
+    DOM.logSelectAll.addEventListener("click", () => {
+      DOM.logCats.forEach(cb => {
+        cb.checked = true;
+      });
+    });
+  }
+  if (DOM.logSelectNone) {
+    DOM.logSelectNone.addEventListener("click", () => {
+      DOM.logCats.forEach(cb => {
+        cb.checked = false;
+      });
+    });
   }
 
   try {

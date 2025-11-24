@@ -1,4 +1,4 @@
-import { log } from "../../debug/log.js";
+import { log } from "../../logging/debug.js";
 
 const WIN_ANSI_UNICODE = (() => {
   const table: number[] = new Array(256);
@@ -78,7 +78,7 @@ export function encodeToWinAnsi(text: string): string {
     result += String.fromCharCode(byte);
   }
   if (misses) {
-    log("ENCODING", "DEBUG", "WinAnsi misses", {
+    log("encoding", "debug", "WinAnsi misses", {
       misses,
       codepoints: details.slice(0, 20),
     });
@@ -93,6 +93,6 @@ export function escapePdfLiteral(text: string): string {
 export function encodeAndEscapePdfText(text: string, scheme: PdfEncodingScheme = "WinAnsi"): string {
   const before = text;
   const payload = scheme === "WinAnsi" ? encodeToWinAnsi(text) : text;
-  log("ENCODING", "TRACE", "PdfText transformation", { scheme, before, after: payload });
+  log("encoding", "trace", "PdfText transformation", { scheme, before, after: payload });
   return escapePdfLiteral(payload);
 }

@@ -39,11 +39,11 @@ export async function loadBuiltinFontConfig(): Promise<FontConfig | null> {
   loading = (async () => {
     try {
       const baseDir = resolveFontsDir();
-      log('FONT', 'debug', "Builtin font baseDir:", baseDir);
+      log('font', 'debug', "Builtin font baseDir:", baseDir);
       const faces: FontFaceDef[] = [];
       for (const face of BUILTIN_FACES) {
         const filePath = path.join(baseDir, face.file);
-        log('FONT', 'debug', "Loading font file:", filePath);
+        log('font', 'debug', "Loading font file:", filePath);
         try {
           const buffer = await readFile(filePath);
           faces.push({
@@ -55,7 +55,7 @@ export async function loadBuiltinFontConfig(): Promise<FontConfig | null> {
             data: buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer,
           });
         } catch (err) {
-          log('FONT', 'warn', `Failed to load font file: ${filePath}`, err);
+          log('font', 'warn', `Failed to load font file: ${filePath}`, err);
         }
       }
       cachedConfig = {
@@ -64,7 +64,7 @@ export async function loadBuiltinFontConfig(): Promise<FontConfig | null> {
       };
       return cachedConfig;
     } catch (error) {
-      log("FONT", 'warn', "Unable to load builtin font config", { error });
+      log("font", 'warn', "Unable to load builtin font config", { error });
       cachedConfig = null;
       return null;
     } finally {

@@ -1,6 +1,6 @@
 import { BorderModel, Display } from "../../css/enums.js";
 import { LayoutNode } from "../../dom/node.js";
-import { log } from "../../debug/log.js";
+import { log } from "../../logging/debug.js";
 import { resolveLength } from "../../css/length.js";
 import { containingBlock, horizontalNonContent, resolveWidthBlock, verticalNonContent } from "../utils/node-math.js";
 import type { LayoutContext, LayoutStrategy } from "../pipeline/strategy.js";
@@ -16,7 +16,7 @@ export class TableLayoutStrategy implements LayoutStrategy {
   }
 
   layout(node: LayoutNode, context: LayoutContext): void {
-    log("LAYOUT", "DEBUG", "TableLayoutStrategy invoked", {
+    log("layout", "debug", "TableLayoutStrategy invoked", {
       tagName: node.tagName,
       display: node.style.display,
       children: node.children.length
@@ -24,7 +24,7 @@ export class TableLayoutStrategy implements LayoutStrategy {
 
     const cb = containingBlock(node, context.env.viewport);
     node.box.contentWidth = resolveWidthBlock(node, cb.width);
-    log("LAYOUT", "DEBUG", "Table layout start", {
+    log("layout", "debug", "Table layout start", {
       table: node.tagName,
       availableWidth: cb.width,
       resolvedWidth: node.box.contentWidth,
@@ -37,7 +37,7 @@ export class TableLayoutStrategy implements LayoutStrategy {
     }
     const numRows = grid.length;
     const numCols = grid[0].length;
-    log("LAYOUT", "DEBUG", "Table grid created", { rows: numRows, cols: numCols });
+    log("layout", "debug", "Table grid created", { rows: numRows, cols: numCols });
     const collapsedBorders = node.style.borderModel === BorderModel.Collapse;
 
       // Mimic browser border behavior: resolve border styles for each cell
@@ -92,7 +92,7 @@ export class TableLayoutStrategy implements LayoutStrategy {
             }
           }
           // Debug log border properties
-          log("LAYOUT", "TRACE", "Cell border properties", {
+          log("layout", "trace", "Cell border properties", {
             row: r,
             col: c,
             borderTop: cell.style.borderTop,
@@ -148,7 +148,7 @@ export class TableLayoutStrategy implements LayoutStrategy {
     const colWidths = this.calculateColumnWidths(grid, node.box.contentWidth);
     const tableContentWidth = colWidths.reduce((sum, width) => sum + width, 0);
     node.box.contentWidth = tableContentWidth;
-    log("LAYOUT", "DEBUG", "Table column widths calculated", { colWidths });
+    log("layout", "debug", "Table column widths calculated", { colWidths });
 
     const rowHeights = new Array(numRows).fill(0);
     const spanningHeightRequests: { startRow: number; span: number; height: number }[] = [];
@@ -213,7 +213,7 @@ export class TableLayoutStrategy implements LayoutStrategy {
         }
       }
     }
-    log("LAYOUT", "DEBUG", "Table row heights calculated", { rowHeights });
+    log("layout", "debug", "Table row heights calculated", { rowHeights });
 
     const colOffsets = this.prefixSums(colWidths);
     const rowOffsets = this.prefixSums(rowHeights);
@@ -261,7 +261,7 @@ export class TableLayoutStrategy implements LayoutStrategy {
           cell.box.borderBoxHeight = spanHeight;
 
           // Debug log for cell position and size
-          log("LAYOUT", "TRACE", "Positioning table cell", {
+          log("layout", "trace", "Positioning table cell", {
             row: r,
             col: c,
             x: cell.box.x,

@@ -1,7 +1,7 @@
 import type { Run, TextPaintOptions } from "../types.js";
 import type { FontRegistry, FontResource } from "../font/font-registry.js";
 import type { PdfObjectRef } from "../primitives/pdf-document.js";
-import { log } from "../../debug/log.js";
+import { log } from "../../logging/debug.js";
 import { CoordinateTransformer } from "../utils/coordinate-transformer.js";
 import type { ImageRenderer } from "./image-renderer.js";
 import type { GraphicsStateManager } from "./graphics-state-manager.js";
@@ -59,18 +59,18 @@ export class TextRenderer {
 
     const baselineAdjust = options.fontSizePt;
 
-    log("ENCODING", "INFO", "encoding-path", {
+    log("encoding", "info", "encoding-path", {
       scheme,
       font: font.baseFont
     });
 
-    log("PAINT", "TRACE", "drawText(content)", {
+    log("paint", "trace", "drawText(content)", {
       before: before.length > 60 ? before.slice(0, 57) + "..." : before,
       encoded: encoded.length > 60 ? encoded.slice(0, 57) + "..." : encoded,
       font: font.baseFont, size: options.fontSizePt
     });
 
-    log("PAINT", "DEBUG", "drawing text", {
+    log("paint", "debug", "drawing text", {
       text: text.slice(0, 32),
       fontName: font.baseFont,
       fontSizePt: options.fontSizePt,
@@ -119,7 +119,7 @@ export class TextRenderer {
     }
 
     if (!glyphRun) {
-      log("PAINT", "WARN", "Skipping run without glyph data", {
+      log("paint", "warn", "Skipping run without glyph data", {
         text: run.text.slice(0, 32),
         fontFamily: run.fontFamily,
         fontSize: run.fontSize,
@@ -127,7 +127,7 @@ export class TextRenderer {
       return;
     }
 
-    log("PAINT", "INFO", `${PINK}USING GLYPH RUN${RESET_COLOR}`, {
+    log("paint", "info", `${PINK}USING GLYPH RUN${RESET_COLOR}`, {
       text: run.text.slice(0, 64),
       glyphCount: glyphRun.glyphIds.length,
     });
@@ -137,7 +137,7 @@ export class TextRenderer {
     const y = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localBaseline);
     const x = this.coordinateTransformer.convertPxToPt(Tm.e);
 
-    log("PAINT", "DEBUG", "drawing text run with glyphs", {
+    log("paint", "debug", "drawing text run with glyphs", {
       text: run.text.slice(0, 32),
       glyphIds: glyphRun.glyphIds.slice(0, 10),
       fontSizePt,

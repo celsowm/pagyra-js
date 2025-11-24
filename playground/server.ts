@@ -10,6 +10,7 @@ import {
   maxContentDimension,
 } from "../src/units/page-utils.js";
 import type { HeaderFooterHTML } from "../src/pdf/types.js";
+import type { LogLevel } from "../src/logging/debug.js";
 
 interface RenderRequestBody {
   html?: string;
@@ -21,6 +22,8 @@ interface RenderRequestBody {
   documentPath?: string;
   headerHtml?: string;
   footerHtml?: string;
+  debugLevel?: LogLevel;
+  debugCats?: string[];
 }
 
 const __filename = fileURLToPath(import.meta.url);
@@ -68,6 +71,10 @@ app.post("/render", async (req: express.Request, res: express.Response) => {
 
     const headerHtml = typeof body.headerHtml === "string" ? body.headerHtml.trim() : "";
     const footerHtml = typeof body.footerHtml === "string" ? body.footerHtml.trim() : "";
+    const levelCandidate = typeof body.debugLevel === "string" ? (body.debugLevel.toLowerCase() as LogLevel) : undefined;
+    const allowedLevels: LogLevel[] = ["trace", "debug", "info", "warn", "error"];
+    const debugLevel: LogLevel = levelCandidate && allowedLevels.includes(levelCandidate) ? levelCandidate : "info";
+    const debugCats = Array.isArray(body.debugCats) ? body.debugCats.map(String).filter(Boolean) : undefined;
 
     const headerFooter: Partial<HeaderFooterHTML> = {};
     if (headerHtml) {
@@ -87,8 +94,8 @@ app.post("/render", async (req: express.Request, res: express.Response) => {
       pageWidth,
       pageHeight,
       margins: marginsPx,
-      debugLevel: "trace",
-      debugCats: ["parse", "style", "render-tree", "encoding", "font", "paint"],
+      debugLevel,
+      debugCats: debugCats?.length ? debugCats : undefined,
       resourceBaseDir,
       assetRootDir: PUBLIC_DIR,
       headerFooter: Object.keys(headerFooter).length > 0 ? headerFooter : undefined,

@@ -1,24 +1,49 @@
+import { configureDebug as configureNewDebug, log as newLog, type LogLevel as NewLogLevel } from "../logging/debug.js";
+
+/**
+ * @deprecated Use src/logging/debug.ts instead. This shim forwards to the new logger.
+ */
 export type LogLevel = "ERROR" | "WARN" | "INFO" | "DEBUG" | "TRACE";
 
 export type LogCat = "PARSE" | "STYLE" | "LAYOUT" | "RENDER_TREE" | "PAINT" | "ENCODING" | "FONT" | "SHADING" | "PDF" | "PAINT_TRACE";
 
-let CURRENT_LEVEL: LogLevel = "INFO";
-let ENABLED: Set<LogCat> = new Set();
+const LEVEL_MAP: Record<LogLevel, NewLogLevel> = {
+  ERROR: "error",
+  WARN: "warn",
+  INFO: "info",
+  DEBUG: "debug",
+  TRACE: "trace",
+};
 
-export function configureDebug(level: LogLevel, cats: LogCat[] = []) {
-  CURRENT_LEVEL = level;
-  ENABLED = new Set(cats);
+let warned = false;
+function warnDeprecated(): void {
+  if (!warned) {
+    console.warn("[pagyra] src/debug/log.ts is deprecated; import from src/logging/debug.ts instead.");
+    warned = true;
+  }
 }
 
-const order: LogLevel[] = ["ERROR", "WARN", "INFO", "DEBUG", "TRACE"];
-function allowed(level: LogLevel, cat: LogCat) {
-  return order.indexOf(level) <= order.indexOf(CURRENT_LEVEL) && (ENABLED.size === 0 || ENABLED.has(cat));
+function normalizeCategory(cat: LogCat): string {
+  switch (cat) {
+    case "RENDER_TREE":
+      return "layout";
+    case "PAINT_TRACE":
+    case "SHADING":
+      return "paint";
+    default:
+      return cat.toLowerCase();
+  }
 }
 
-export function log(cat: LogCat, level: LogLevel, msg: string, extra?: unknown) {
-  if (!allowed(level, cat)) return;
-  const prefix = `[${cat}] ${level}`;
-  extra ? console.log(prefix, msg, extra) : console.log(prefix, msg);
+export function configureDebug(level: LogLevel, cats: LogCat[] = []): void {
+  warnDeprecated();
+  const normalizedCats = cats.map(normalizeCategory);
+  configureNewDebug({ level: LEVEL_MAP[level], cats: normalizedCats });
+}
+
+export function log(cat: LogCat, level: LogLevel, msg: string, extra?: unknown): void {
+  warnDeprecated();
+  newLog(normalizeCategory(cat), LEVEL_MAP[level], msg, extra);
 }
 
 export function preview(s: string, n = 60) {

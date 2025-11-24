@@ -12,7 +12,7 @@ import { ElementSpecificDefaults, BrowserDefaults } from "./browser-defaults.js"
 import { applyDeclarationsToStyle } from "./apply-declarations.js";
 import { normalizeFontWeight } from './font-weight.js';
 import { FloatMode, Display } from "./enums.js";
-import { log } from "../debug/log.js";
+import { log } from "../logging/debug.js";
 import { cloneLineHeight, lineHeightEquals, resolveLineHeightInput } from "./line-height.js";
 import { parseInlineStyle } from "./inline-style-parser.js";
 import { StyleInheritanceResolver } from "./style-inheritance.js";
@@ -103,7 +103,7 @@ function defaultDisplayForTag(tag: string): Display {
       display = Display.Block;
       break;
   }
-  log("STYLE", "TRACE", "defaultDisplayForTag", { tag, display });
+  log("style", "trace", "defaultDisplayForTag", { tag, display });
   return display;
 }
 
@@ -141,9 +141,9 @@ export function computeStyleForElement(
   // Apply CSS rules
   for (const rule of cssRules) {
     if (rule.match(element)) {
-      log("STYLE", "DEBUG", "CSS rule matched", { selector: rule.selector, declarations: rule.declarations });
+      log("style", "debug", "CSS rule matched", { selector: rule.selector, declarations: rule.declarations });
       if (rule.declarations.display) {
-        log("STYLE", "DEBUG", "Display declaration found", { selector: rule.selector, display: rule.declarations.display });
+        log("style", "debug", "Display declaration found", { selector: rule.selector, display: rule.declarations.display });
       }
       // Normalize rule declarations to lowercase keys
       const normalizedRuleDeclarations: Record<string, string> = {};
@@ -157,7 +157,7 @@ export function computeStyleForElement(
   // Apply inline styles (highest priority)
   const inlineStyle = parseInlineStyle(element.getAttribute("style") ?? "");
   if (Object.keys(inlineStyle).length > 0) {
-    log("STYLE", "DEBUG", "inline style applied", { declarations: inlineStyle });
+    log("style", "debug", "inline style applied", { declarations: inlineStyle });
   }
   Object.assign(aggregated, inlineStyle);
 
@@ -168,7 +168,7 @@ export function computeStyleForElement(
   const defaultDisplay = mergedDefaults.display ?? defaultDisplayForTag(tagName);
   let display = styleInit.display ?? defaultDisplay;
 
-  log("STYLE", "DEBUG", "computeStyleForElement display", {
+  log("style", "debug", "computeStyleForElement display", {
     tagName,
     styleInitDisplay: styleInit.display,
     defaultDisplay,
@@ -178,22 +178,22 @@ export function computeStyleForElement(
   // Force correct display for table elements if they're not set correctly
   if (tagName === 'table') {
     if (display !== Display.Table) {
-      log("STYLE", "DEBUG", "Forcing table display", { tagName, originalDisplay: display });
+      log("style", "debug", "Forcing table display", { tagName, originalDisplay: display });
       display = Display.Table;
     }
   } else if (tagName === 'thead' || tagName === 'tbody' || tagName === 'tfoot') {
     if (display !== Display.TableRowGroup) {
-      log("STYLE", "DEBUG", "Forcing table-row-group display", { tagName, originalDisplay: display });
+      log("style", "debug", "Forcing table-row-group display", { tagName, originalDisplay: display });
       display = Display.TableRowGroup;
     }
   } else if (tagName === 'tr') {
     if (display !== Display.TableRow) {
-      log("STYLE", "DEBUG", "Forcing table-row display", { tagName, originalDisplay: display });
+      log("style", "debug", "Forcing table-row display", { tagName, originalDisplay: display });
       display = Display.TableRow;
     }
   } else if (tagName === 'td' || tagName === 'th') {
     if (display !== Display.TableCell) {
-      log("STYLE", "DEBUG", "Forcing table-cell display", { tagName, originalDisplay: display });
+      log("style", "debug", "Forcing table-cell display", { tagName, originalDisplay: display });
       display = Display.TableCell;
     }
   }
@@ -436,7 +436,7 @@ export function computeStyleForElement(
       mergedFontStyle: mergedDefaults.fontStyle,
       finalFontStyle: styleOptions.fontStyle
     };
-    log("STYLE", "DEBUG", "element fontStyle", debugInfo);
+    log("style", "debug", "element fontStyle", debugInfo);
   }
 
   return new ComputedStyle(styleOptions);

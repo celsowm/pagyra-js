@@ -1,7 +1,7 @@
 // src/render/offset.ts
 
 import { type Rect, type RenderBox, type Background } from "../pdf/types.js";
-import { log } from "../debug/log.js";
+import { log } from "../logging/debug.js";
 import type { PageMarginsPx } from "../units/page-utils.js";
 
 export function offsetRect(rect: Rect | null | undefined, dx: number, dy: number): void {
@@ -28,7 +28,7 @@ export function offsetRenderTree(root: RenderBox, dx: number, dy: number, _debug
   const stack: RenderBox[] = [root];
   while (stack.length > 0) {
     const box = stack.pop()!;
-    log("RENDER_TREE","TRACE",'offset render tree box', {
+    log("layout","trace",'offset render tree box', {
       tagName: box.tagName,
       textContent: box.textContent,
       x: box.contentBox.x,

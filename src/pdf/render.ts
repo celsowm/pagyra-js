@@ -136,28 +136,28 @@ function computeBaseContentBox(root: RenderBox, pageSize: PageSize, pxToPt: (px:
 
 async function enrichTreeWithGlyphRuns(root: RenderBox, fontResolver: FontRegistryResolver): Promise<void> {
   async function enrichRun(run: Run): Promise<void> {
-    log('GLYPH_RUN', 'debug', `Attempting to enrich: "${run.text}", family: ${run.fontFamily}`);
+    log('font', 'debug', `Attempting to enrich: "${run.text}", family: ${run.fontFamily}`);
     if (run.glyphs) {
-      log('GLYPH_RUN', 'debug', "Already has glyphs, skipping");
+      log('font', 'debug', "Already has glyphs, skipping");
       return;
     }
     try {
       const font = await fontResolver.resolve(run.fontFamily, run.fontWeight, run.fontStyle);
-      log('GLYPH_RUN', 'debug', "Font resolved for glyph enrichment");
+      log('font', 'debug', "Font resolved for glyph enrichment");
       const letterSpacing = run.letterSpacing ?? 0;
       const glyphRun = computeGlyphRun(font, run.text, run.fontSize, letterSpacing);
       applyWordSpacingToGlyphRun(glyphRun, run.text, run.wordSpacing);
 
       run.glyphs = glyphRun;
-      log('GLYPH_RUN', 'debug', `Enriched "${run.text}" with ${glyphRun.glyphIds.length} glyphs:`, glyphRun.glyphIds);
+      log('font', 'debug', `Enriched "${run.text}" with ${glyphRun.glyphIds.length} glyphs:`, glyphRun.glyphIds);
     } catch (error) {
-      log('GLYPH_RUN', 'warn', `Failed to enrich "${run.text}":`, error);
+      log('font', 'warn', `Failed to enrich "${run.text}":`, error);
     }
   }
 
   async function traverse(box: RenderBox): Promise<void> {
     if (box.textRuns && box.textRuns.length > 0) {
-      log('GLYPH_RUN', 'debug', `Found ${box.textRuns.length} text runs in box ${box.tagName || "text"}`);
+      log('font', 'debug', `Found ${box.textRuns.length} text runs in box ${box.tagName || "text"}`);
       for (const run of box.textRuns) {
         await enrichRun(run);
       }
@@ -167,7 +167,7 @@ async function enrichTreeWithGlyphRuns(root: RenderBox, fontResolver: FontRegist
     }
   }
 
-  log('GLYPH_RUN', 'debug', "Starting enrichment of tree");
+  log('font', 'debug', "Starting enrichment of tree");
   await traverse(root);
-  log('GLYPH_RUN', 'debug', "Finished enrichment");
+  log('font', 'debug', "Finished enrichment");
 }

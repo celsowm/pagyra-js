@@ -1,4 +1,4 @@
-import { log } from "./log.js";
+import { log } from "../logging/debug.js";
 
 export function auditRuns(lineRuns: { text: string, face: string }[]) {
   const recon = lineRuns.map(r => r.text).join("");
@@ -7,7 +7,7 @@ export function auditRuns(lineRuns: { text: string, face: string }[]) {
     .filter(x => [...x.r.text].length === 1 && /[^\u0000-\u007f]/.test(x.r.text));
   const switches = lineRuns.reduce((acc, r, i, arr) => i > 0 && arr[i - 1].face !== r.face ? acc + 1 : acc, 0);
 
-  log("RENDER_TREE", "INFO", "Line audit", {
+  log("layout", "info", "Line audit", {
     recon: recon.length > 80 ? recon.slice(0, 77) + "..." : recon,
     isolates: isolates.map(x => ({
       idx: x.i,

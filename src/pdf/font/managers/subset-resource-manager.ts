@@ -16,7 +16,7 @@ import type { UnifiedFont } from "../../../fonts/types.js";
 import type { TtfFontMetrics } from "../../../types/fonts.js";
 import type { FontResource } from "../font-registry.js";
 import { computeWidths } from "../widths.js";
-import { log } from "../../../debug/log.js";
+import { log } from "../../../logging/debug.js";
 
 const DEFAULT_STEM_V = 80;
 
@@ -87,7 +87,7 @@ export class SubsetResourceManager {
 
         const fontFile = font.embedded?.subset ?? subset.fontFile;
         if (!fontFile || fontFile.length === 0) {
-            log("FONT", "WARN", "missing-font-file-for-subset", { baseFont: font.baseFont, alias: subset.name });
+            log("font", "warn", "missing-font-file-for-subset", { baseFont: font.baseFont, alias: subset.name });
             return font.ref;
         }
 

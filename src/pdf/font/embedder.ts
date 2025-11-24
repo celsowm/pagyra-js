@@ -1,7 +1,7 @@
 import type { PdfObjectRef, PdfDocument } from "../primitives/pdf-document.js";
 import { parseTtfBuffer } from "./ttf-lite.js";
 import type { FontFaceDef, FontConfig, TtfFontMetrics } from "../../types/fonts.js";
-import { log } from "../../debug/log.js";
+import { log } from "../../logging/debug.js";
 import { normalizeFontWeight } from "../../css/font-weight.js";
 import { detectFontFormat } from "../../fonts/detector.js";
 import { reconstructTtf } from "../../fonts/utils/ttf-reconstructor.js";
@@ -68,7 +68,7 @@ export class FontEmbedder {
   async initialize(): Promise<void> {
     for (const face of this.config.fontFaceDefs) {
       if (!face.data) {
-        log("FONT", "ERROR", `Missing data for font ${face.name}`);
+        log("font", "error", `Missing data for font ${face.name}`);
         continue;
       }
       try {
@@ -96,7 +96,7 @@ export class FontEmbedder {
         const metrics = parseTtfBuffer(ttfBuffer);
         this.faceMetrics.set(face.name, metrics);
       } catch (error) {
-        log("FONT", "ERROR", `Failed to load font ${face.name}`, { error: error instanceof Error ? error.message : String(error) });
+        log("font", "error", `Failed to load font ${face.name}`, { error: error instanceof Error ? error.message : String(error) });
       }
     }
   }
@@ -231,7 +231,7 @@ export class FontEmbedder {
   private createToUnicodeCMap(metrics: TtfFontMetrics, _uniqueUnicodes: number[] = []): PdfObjectRef {
     // Build inverse mapping gid -> unicode (pick first unicode when multiple map to same gid)
     const unicodeMap = metrics.cmap["unicodeMap"] as Map<number, number>;
-    log("FONT", "DEBUG", "createToUnicodeCMap - unicodeMap size", { size: unicodeMap.size });
+    log("font", "debug", "createToUnicodeCMap - unicodeMap size", { size: unicodeMap.size });
 
     // Sample first few entries for debugging
     const samples: Array<{ unicode: number, char: string, gid: number }> = [];
@@ -242,7 +242,7 @@ export class FontEmbedder {
       }
       count++;
     }
-    log("FONT", "DEBUG", "createToUnicodeCMap - sample entries", { samples });
+    log("font", "debug", "createToUnicodeCMap - sample entries", { samples });
 
     const gidToUni = new Map<number, number>();
     for (const [unicode, gid] of unicodeMap.entries()) {
@@ -258,7 +258,7 @@ export class FontEmbedder {
       }
       gidCount++;
     }
-    log("FONT", "DEBUG", "createToUnicodeCMap - gid->unicode sample", { samples: gidSamples });
+    log("font", "debug", "createToUnicodeCMap - gid->unicode sample", { samples: gidSamples });
 
     const entries = Array.from(gidToUni.entries())
       .map(([gid, unicode]) => ({ gid, unicode }))

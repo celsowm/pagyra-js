@@ -73,6 +73,36 @@
               <input id="viewport-height" type="number" min="200" value="1120" />
             </label>
           </div>
+          <details class="debug-panel">
+            <summary>🔧 Debug Logging</summary>
+            <div class="debug-controls">
+              <div class="control-group">
+                <label>Log Level:
+                  <select id="log-level">
+                    <option value="trace">Trace</option>
+                    <option value="debug">Debug</option>
+                    <option value="info" selected>Info</option>
+                    <option value="warn">Warning</option>
+                    <option value="error">Error</option>
+                  </select>
+                </label>
+              </div>
+              <div class="control-group">
+                <label>Categories:</label>
+                <div class="checkbox-grid">
+                  <label><input type="checkbox" value="parse" class="log-cat" /> Parse</label>
+                  <label><input type="checkbox" value="style" class="log-cat" /> Style</label>
+                  <label><input type="checkbox" value="layout" class="log-cat" /> Layout</label>
+                  <label><input type="checkbox" value="paint" class="log-cat" /> Paint</label>
+                  <label><input type="checkbox" value="font" class="log-cat" /> Font</label>
+                  <label><input type="checkbox" value="encoding" class="log-cat" /> Encoding</label>
+                  <label><input type="checkbox" value="pdf" class="log-cat" /> PDF</label>
+                </div>
+                <button id="log-select-all" type="button">All</button>
+                <button id="log-select-none" type="button">None</button>
+              </div>
+            </div>
+          </details>
           <button id="render-btn">Convert to PDF</button>
           <p id="status" role="status"></p>
         </div>

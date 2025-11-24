@@ -3,7 +3,7 @@ import { PdfDocument, type PdfObjectRef } from "../primitives/pdf-document.js";
 import type { FontConfig, TtfFontMetrics } from "../../types/fonts.js";
 import { FontEmbedder } from "./embedder.js";
 import { computeWidths } from "./widths.js";
-import { log } from "../../debug/log.js";
+import { log } from "../../logging/debug.js";
 import { needsUnicode } from "../../text/text.js";
 import { fontWeightCacheKey, normalizeFontWeight, isBoldFontWeight } from "../../css/font-weight.js";
 import { PdfFontRegistry as GlyphSubsetRegistry } from "../font-subset/font-registry.js";
@@ -55,11 +55,11 @@ export function getFontForText(_requestedFamily: string, text: string, _doc: any
     // For now, use a simplified approach - we'll assume NotoSans-Regular is available
     // In a full implementation, you'd initialize the embedder properly
     const fontName = "NotoSans-Regular";
-    log("FONT", "INFO", "font-path", { base14: false, family: fontName, encoding: "Identity-H" });
+    log("font", "info", "font-path", { base14: false, family: fontName, encoding: "Identity-H" });
     return { isBase14: false, name: fontName };
   }
   const f = getBase14("Helvetica"); // fallback
-  log("FONT", "INFO", "font-path", { base14: true, family: f.baseName, encoding: "WinAnsi" });
+  log("font", "info", "font-path", { base14: true, family: f.baseName, encoding: "WinAnsi" });
   return f;
 }
 
@@ -218,13 +218,13 @@ export class FontRegistry {
     this.fontConfig = fontConfig;
     this.embedder = new FontEmbedder(fontConfig, this.doc);
     await this.embedder.initialize();
-    log("FONT", "DEBUG", "embedder initialized", { fontConfig });
+    log("font", "debug", "embedder initialized", { fontConfig });
   }
 
   setFontConfig(fontConfig: FontConfig): void {
     this.fontConfig = fontConfig;
     this.embedder = new FontEmbedder(fontConfig, this.doc);
-    log("FONT", "DEBUG", "font config set", { fontConfig });
+    log("font", "debug", "font config set", { fontConfig });
   }
 }
 
@@ -235,7 +235,7 @@ export function initFontSystem(doc: PdfDocument, stylesheets: StyleSheets): Font
 export async function ensureFontSubset(registry: FontRegistry, run: Run): Promise<FontResource> {
   const font = await registry.ensureFontResource(run.fontFamily, run.fontWeight, run.fontStyle);
   // === diagnóstico cirúrgico: caminho de fonte ===
-  log("FONT", "INFO", "font-path", {
+  log("font", "info", "font-path", {
     base14: font.isBase14 === true,
     family: font.baseFont,
     encoding: font.isBase14 ? "WinAnsi" : "Identity-H"
@@ -246,7 +246,7 @@ export async function ensureFontSubset(registry: FontRegistry, run: Run): Promis
 export function ensureFontSubsetSync(registry: FontRegistry, run: Run): FontResource {
   const font = registry.ensureFontResourceSync(run.fontFamily, run.fontWeight, run.fontStyle);
   // === diagnóstico cirúrgico: caminho de fonte ===
-  log("FONT", "INFO", "font-path", {
+  log("font", "info", "font-path", {
     base14: font.isBase14 === true,
     family: font.baseFont,
     encoding: font.isBase14 ? "WinAnsi" : "Identity-H"

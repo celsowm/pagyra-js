@@ -2,7 +2,7 @@ import { FloatMode, OverflowMode, Position } from "../css/enums.js";
 import type { ComputedStyle } from "../css/style.js";
 import { LayoutNode } from "../dom/node.js";
 import { resolveLength } from "../css/length.js";
-import { log } from "../debug/log.js";
+import { log } from "../logging/debug.js";
 import {
   type LayoutTree,
   type RenderBox,
@@ -150,7 +150,7 @@ function convertNode(node: LayoutNode, state: { counter: number; fontResolver?: 
     fontResolver: state.fontResolver,
   });
 
-  log("RENDER_TREE", "DEBUG", "node converted", {
+  log("layout", "debug", "node converted", {
     tagName: node.tagName,
     textContent: node.textContent?.slice(0, 40),
     fontFamily: node.style.fontFamily,

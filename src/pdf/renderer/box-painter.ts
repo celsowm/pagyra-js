@@ -1,4 +1,4 @@
-import { log } from "../../debug/log.js";
+import { log } from "../../logging/debug.js";
 import { paintBoxShadows } from "./paint-box-shadows.js";
 import { shrinkRadius } from "./radius.js";
 import { renderSvgBox } from "../svg/render-svg.js";
@@ -8,7 +8,7 @@ import { computeBackgroundTileRects, intersectRects, rectEquals } from "../utils
 import { computeBorderSideStrokes } from "../utils/border-dashes.js";
 
 export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Promise<void> {
-  log("PAINT", "DEBUG", `paintBoxAtomic: ${box.tagName} id:${box.id} opacity:${box.opacity}`, { id: box.id, opacity: box.opacity });
+  log("paint", "debug", `paintBoxAtomic: ${box.tagName} id:${box.id} opacity:${box.opacity}`, { id: box.id, opacity: box.opacity });
 
   const hasTransform = box.transform && (box.transform.b !== 0 || box.transform.c !== 0);
   const hasOpacity = box.opacity < 1;
@@ -77,7 +77,7 @@ function paintBackground(painter: PagePainter, box: RenderBox): void {
     return;
   }
 
-  log("PAINT", "DEBUG", `painting background z:${box.zIndexComputed ?? 0}`, {
+  log("paint", "debug", `painting background z:${box.zIndexComputed ?? 0}`, {
     tagName: box.tagName,
     zIndex: box.zIndexComputed ?? 0,
     id: box.id,
@@ -94,8 +94,8 @@ function paintBackground(painter: PagePainter, box: RenderBox): void {
 
     if (gradient.repeat === "space" || gradient.repeat === "round") {
       log(
-        "PAINT",
-        "WARN",
+        "paint",
+        "warn",
         `Gradient background repeat mode "${gradient.repeat}" is not fully supported. Treating as "repeat".`,
       );
     }
@@ -129,7 +129,7 @@ function paintBackgroundImageLayer(
     return;
   }
   if (layer.repeat === "space" || layer.repeat === "round") {
-    log("PAINT", "WARN", `Background repeat mode "${layer.repeat}" is not fully supported. Treating as "repeat".`);
+    log("paint", "warn", `Background repeat mode "${layer.repeat}" is not fully supported. Treating as "repeat".`);
   }
 
   const repeatMode = layer.repeat ?? "repeat";

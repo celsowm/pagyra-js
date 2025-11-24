@@ -1,6 +1,6 @@
 import type { FontResource } from "../font/font-registry.js";
 import { encodeAndEscapePdfText, escapePdfLiteral, type PdfEncodingScheme } from "../utils/encoding.js";
-import { log } from "../../debug/log.js";
+import { log } from "../../logging/debug.js";
 
 export interface TextEncodedPayload {
   readonly encoded: string;
@@ -35,7 +35,7 @@ function encodeIdentityText(text: string, font: FontResource): string {
     encoded += String.fromCharCode((codePoint >> 8) & 0xff, codePoint & 0xff);
   }
   if (samples.length > 0) {
-    log("ENCODING", "DEBUG", "Identity-H encoding samples", { font: font.baseFont, samples });
+    log("encoding", "debug", "Identity-H encoding samples", { font: font.baseFont, samples });
   }
   return escapePdfLiteral(encoded);
 }
