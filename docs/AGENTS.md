@@ -25,11 +25,16 @@ Use and keep these boundaries stable:
 /src/layout/          # formatting contexts, block/inline layout, pagination
 /src/paint/           # display list builder (backgrounds, borders, text, images, shadows)
 /src/pdf/             # PDF objects, fonts, images, xref, writer (ISO 32000-2 alignment)
+/src/fonts/           # Font subsetting, embedding, metrics
+/src/image/           # Image decoding (PNG, JPEG), scaling, object-fit
+/src/svg/             # SVG parsing and rendering support
 /src/assets/          # UA styles, built-in fonts/base14/fallbacks
-/src/viewport.ts      # viewport helpers
-/tests/unit/          # small, focused specs
+/src/logging/         # Structured logging utilities
+/tests/unit/          # small, focused unit specs
 /tests/e2e/           # end-to-end (HTML → PDF) contract tests
-/tools/               # CLIs and dev scripts
+/scripts/             # CLIs and dev scripts
+/playground/          # Development server for interactive testing
+/examples/            # Example HTML files and outputs
 ```
 
 Do **not** restructure without updating this file and the README.
@@ -121,16 +126,19 @@ Do **not** restructure without updating this file and the README.
 ```jsonc
 {
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "lint": "eslint . --max-warnings=0",
-    "type-check": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc",
+    "start": "node ./dist/index.js",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "lint": "eslint src tests --ext .ts,.js",
     "test": "vitest run",
-    "test:e2e": "vitest run tests/e2e",
-    "validate": "npm run lint && npm run type-check && npm run test",
-    "pdf:from-html": "node tools/render-html-to-pdf.cjs"
+    "playground": "tsx playground/server.ts",
+    "playground:render": "tsx scripts/render-playground-example.ts",
+    "validate": "npm run lint && npm test"
   }
 }
 ```
+
+**Note:** Run `npm run build` before testing to ensure TypeScript compilation succeeds.
 
 ---
 
@@ -140,6 +148,26 @@ Do **not** restructure without updating this file and the README.
 - Lint/format: **ESLint + Prettier**; zero warnings on CI.
 - Logging: use the provided logger; avoid raw `console.log` in src.
 - Keep modules **SRP** (Single Responsibility Principle). Split big functions.
+
+---
+
+## 10.5) Development Workflow
+
+- **Playground:** Use `npm run playground` to start interactive development server
+  - Access at `http://localhost:3000` (or configured port) for visual testing
+  - Hot reload for rapid iteration on HTML/CSS inputs
+  - Render specific examples with `npm run playground:render`
+  
+- **Scripts:** Development utilities in `/scripts/` directory
+  - TypeScript scripts run with `tsx` for direct execution without compilation
+  - May write output files for debugging/validation purposes
+
+- **Build & Test Cycle:**
+  1. Make changes in `/src/`
+  2. Run `npm run build` to compile TypeScript
+  3. Run `npm test` for unit and e2e tests
+  4. Use playground for visual/manual verification
+  5. Run `npm run validate` before committing (lint + test)
 
 ---
 
@@ -179,13 +207,13 @@ A PR **must** add/adjust tests that reproduce any bug or validate a new feature.
 
 - **Inputs:** HTML string/URL/stream + optional baseUrl + render options (page size, margins, fonts, seed).
 - **Artifacts:** PDF bytes (`Uint8Array`) + metrics (timings, page count) + warnings.
-- Never write files in library code; CLIs/tools may write to disk.
+- Never write files in library code; CLIs in `/scripts/` may write to disk.
 
 ---
 
 ## 15) Agent Checklists (must pass)
 
-- [ ] `npm run validate` (lint + types + unit + e2e) succeeded.
+- [ ] `npm run validate` (lint + test) succeeded.
 - [ ] Coverage ≥ 80% for changed modules.
 - [ ] Deterministic snapshots unchanged (or re-baselined with reason).
 - [ ] Added/updated e2e demonstrating the change.
@@ -204,6 +232,7 @@ A PR **must** add/adjust tests that reproduce any bug or validate a new feature.
 
 ## 17) Document Maintenance
 
-- Version: `1.0.0`
-- Last updated: 2025-11-05
+- Version: `1.1.0`
+- Last updated: 2025-11-23
 - Editors: maintainers of this repo. Update alongside code changes that alter behavior.
+- Keep synchronized with `package.json` scripts and actual repository structure.
