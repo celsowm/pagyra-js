@@ -8,11 +8,30 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function main() {
+  // Parse command line arguments
+  const args = process.argv.slice(2);
+  let debugLevel: string | undefined;
+  let debugCats: string[] | undefined;
+  let examplePathArg: string | undefined;
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--debug-level' && i + 1 < args.length) {
+      debugLevel = args[i + 1] as any; // will validate later
+      i++;
+    } else if (arg === '--debug-cats' && i + 1 < args.length) {
+      debugCats = args[i + 1].split(',').map(cat => cat.trim()).filter(Boolean);
+      i++;
+    } else if (!arg.startsWith('--')) {
+      examplePathArg = arg;
+    }
+  }
+
   const repoRoot = path.resolve(__dirname, '..');
   const examplesDir = path.join(repoRoot, 'playground', 'public', 'examples');
   // Allow passing an example path or filename as the first argument. If it's a filename,
   // resolve it under playground/public/examples. Otherwise use the default demo.
-  const arg = process.argv[2];
+  const arg = examplePathArg;
   let examplePath: string;
   if (arg) {
     // Try a few sensible resolutions for the provided argument.
@@ -59,6 +78,8 @@ async function main() {
     pageHeight: 600,
     margins: { top: 0, right: 0, bottom: 0, left: 0 },
     debug: false,
+    debugLevel: debugLevel as any,
+    debugCats,
     resourceBaseDir,
     assetRootDir,
   });
