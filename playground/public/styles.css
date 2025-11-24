@@ -140,6 +140,18 @@ textarea:focus {
   margin-top: auto;
 }
 
+.controls-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.control-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
 .debug-panel {
   margin: 0.5rem 0;
   padding: 0.75rem;
@@ -157,6 +169,28 @@ textarea:focus {
 
 .debug-controls {
   margin-top: 0.75rem;
+}
+
+.debug-button-group {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.debug-button-group button {
+  padding: 0.35rem 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 0.5rem;
+  background: rgba(15, 23, 42, 0.8);
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.debug-button-group button:hover {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: #38bdf8;
 }
 
 .checkbox-grid {
@@ -184,11 +218,12 @@ textarea:focus {
   gap: 0.35rem;
   font-size: 0.85rem;
   color: #cbd5f5;
+  flex: 1;
 }
 
 .control-group input,
 .control-group select {
-  width: 120px;
+  width: 100%;
   padding: 0.4rem 0.6rem;
   border-radius: 0.5rem;
   border: 1px solid rgba(148, 163, 184, 0.3);
@@ -198,7 +233,6 @@ textarea:focus {
 }
 
 .control-group select {
-  width: 240px;
   cursor: pointer;
 }
 

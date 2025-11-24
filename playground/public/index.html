@@ -1,136 +1,154 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>Pagyra HTML to PDF Playground</title>
-    <link rel="stylesheet" href="/vendor/codemirror/codemirror.min.css" />
-    <link rel="stylesheet" href="/vendor/codemirror/darcula.min.css" />
-    <link rel="stylesheet" href="/styles.css" />
-    <!-- CKEditor 5 CSS (loaded conditionally) -->
-    <link id="ckeditor-css" rel="stylesheet" href="https://cdn.ckeditor.com/ckeditor5/41.4.2/ckeditor5.css" media="none" />
-  </head>
-  <body>
-    <header class="header">
-      <h1>Pagyra HTML to PDF Playground</h1>
-      <p>Type HTML/CSS on the left, click convert, and preview the generated A4 PDF on the right.</p>
-    </header>
-    <main class="container">
-      <section class="editor-panel">
-        <div class="tab-container">
-          <div class="tab-buttons">
-            <button class="tab-button active" data-tab="html">HTML</button>
-            <button class="tab-button" data-tab="css">CSS</button>
-            <button class="tab-button" data-tab="header">Header</button>
-            <button class="tab-button" data-tab="footer">Footer</button>
+
+<head>
+  <meta charset="utf-8" />
+  <title>Pagyra HTML to PDF Playground</title>
+  <link rel="stylesheet" href="/vendor/codemirror/codemirror.min.css" />
+  <link rel="stylesheet" href="/vendor/codemirror/darcula.min.css" />
+  <link rel="stylesheet" href="/styles.css" />
+  <!-- CKEditor 5 CSS (loaded conditionally) -->
+  <link id="ckeditor-css" rel="stylesheet" href="https://cdn.ckeditor.com/ckeditor5/41.4.2/ckeditor5.css"
+    media="none" />
+</head>
+
+<body>
+  <header class="header">
+    <h1>Pagyra HTML to PDF Playground</h1>
+    <p>Type HTML/CSS on the left, click convert, and preview the generated A4 PDF on the right.</p>
+  </header>
+  <main class="container">
+    <section class="editor-panel">
+      <div class="tab-container">
+        <div class="tab-buttons">
+          <button class="tab-button active" data-tab="html">HTML</button>
+          <button class="tab-button" data-tab="css">CSS</button>
+          <button class="tab-button" data-tab="header">Header</button>
+          <button class="tab-button" data-tab="footer">Footer</button>
+        </div>
+        <div class="tab-content">
+          <div class="tab-pane active" id="editor-html-tab">
+            <div class="editor-section">
+              <label for="html-input">HTML</label>
+              <textarea id="html-input" spellcheck="false"></textarea>
+            </div>
           </div>
-          <div class="tab-content">
-            <div class="tab-pane active" id="editor-html-tab">
-              <div class="editor-section">
-                <label for="html-input">HTML</label>
-                <textarea id="html-input" spellcheck="false"></textarea>
-              </div>
+          <div class="tab-pane" id="editor-css-tab">
+            <div class="editor-section">
+              <label for="css-input">CSS</label>
+              <textarea id="css-input" spellcheck="false"></textarea>
             </div>
-            <div class="tab-pane" id="editor-css-tab">
-              <div class="editor-section">
-                <label for="css-input">CSS</label>
-                <textarea id="css-input" spellcheck="false"></textarea>
-              </div>
+          </div>
+          <div class="tab-pane" id="editor-header-tab">
+            <div class="editor-section">
+              <label for="header-input">Header HTML</label>
+              <textarea id="header-input" spellcheck="false" placeholder="Enter header HTML (optional)"></textarea>
             </div>
-            <div class="tab-pane" id="editor-header-tab">
-              <div class="editor-section">
-                <label for="header-input">Header HTML</label>
-                <textarea id="header-input" spellcheck="false" placeholder="Enter header HTML (optional)"></textarea>
-              </div>
-            </div>
-            <div class="tab-pane" id="editor-footer-tab">
-              <div class="editor-section">
-                <label for="footer-input">Footer HTML</label>
-                <textarea id="footer-input" spellcheck="false" placeholder="Enter footer HTML (optional)"></textarea>
-              </div>
+          </div>
+          <div class="tab-pane" id="editor-footer-tab">
+            <div class="editor-section">
+              <label for="footer-input">Footer HTML</label>
+              <textarea id="footer-input" spellcheck="false" placeholder="Enter footer HTML (optional)"></textarea>
             </div>
           </div>
         </div>
-        <div class="controls">
-          <div class="control-group">
-            <label for="example-select">
-              Starter Templates
-              <select id="example-select"></select>
-            </label>
+      </div>
+      <div class="controls">
+        <div class="controls-grid">
+          <div class="control-column">
+            <div class="control-group">
+              <label for="example-select">
+                Starter Templates
+                <select id="example-select"></select>
+              </label>
+            </div>
           </div>
-          <div class="control-group">
-            <label>
-              <input type="checkbox" id="ckeditor-toggle" />
-              Use CKEditor 5 for HTML editing
-            </label>
+          <div class="control-column">
+            <div class="control-group">
+              <label>
+                Viewport Width (px)
+                <input id="viewport-width" type="number" min="200" value="800" />
+              </label>
+              <label>
+                Viewport Height (px)
+                <input id="viewport-height" type="number" min="200" value="1120" />
+              </label>
+            </div>
           </div>
-          <div class="control-group">
-            <label>
-              Viewport Width (px)
-              <input id="viewport-width" type="number" min="200" value="800" />
-            </label>
-            <label>
-              Viewport Height (px)
-              <input id="viewport-height" type="number" min="200" value="1120" />
-            </label>
-          </div>
-          <details class="debug-panel">
-            <summary>🔧 Debug Logging</summary>
-            <div class="debug-controls">
-              <div class="control-group">
-                <label>Log Level:
-                  <select id="log-level">
-                    <option value="trace">Trace</option>
-                    <option value="debug">Debug</option>
-                    <option value="info" selected>Info</option>
-                    <option value="warn">Warning</option>
-                    <option value="error">Error</option>
-                  </select>
-                </label>
-              </div>
-              <div class="control-group">
-                <label>Categories:</label>
-                <div class="checkbox-grid">
-                  <label><input type="checkbox" value="parse" class="log-cat" /> Parse</label>
-                  <label><input type="checkbox" value="style" class="log-cat" /> Style</label>
-                  <label><input type="checkbox" value="layout" class="log-cat" /> Layout</label>
-                  <label><input type="checkbox" value="paint" class="log-cat" /> Paint</label>
-                  <label><input type="checkbox" value="font" class="log-cat" /> Font</label>
-                  <label><input type="checkbox" value="encoding" class="log-cat" /> Encoding</label>
-                  <label><input type="checkbox" value="pdf" class="log-cat" /> PDF</label>
+        </div>
+        <div class="control-group">
+          <label>
+            <input type="checkbox" id="ckeditor-toggle" />
+            Use CKEditor 5 for HTML editing
+          </label>
+        </div>
+        <details class="debug-panel">
+          <summary>🔧 Debug Logging</summary>
+          <div class="debug-controls">
+            <div class="controls-grid">
+              <div class="control-column">
+                <div class="control-group">
+                  <label>Log Level:
+                    <select id="log-level">
+                      <option value="trace">Trace</option>
+                      <option value="debug">Debug</option>
+                      <option value="info" selected>Info</option>
+                      <option value="warn">Warning</option>
+                      <option value="error">Error</option>
+                    </select>
+                  </label>
                 </div>
-                <button id="log-select-all" type="button">All</button>
-                <button id="log-select-none" type="button">None</button>
+              </div>
+              <div class="control-column">
+                <div class="control-group">
+                  <label>Categories:</label>
+                  <div class="checkbox-grid">
+                    <label><input type="checkbox" value="parse" class="log-cat" /> Parse</label>
+                    <label><input type="checkbox" value="style" class="log-cat" /> Style</label>
+                    <label><input type="checkbox" value="layout" class="log-cat" /> Layout</label>
+                    <label><input type="checkbox" value="paint" class="log-cat" /> Paint</label>
+                    <label><input type="checkbox" value="font" class="log-cat" /> Font</label>
+                    <label><input type="checkbox" value="encoding" class="log-cat" /> Encoding</label>
+                    <label><input type="checkbox" value="pdf" class="log-cat" /> PDF</label>
+                  </div>
+                  <div class="debug-button-group">
+                    <button id="log-select-all" type="button">All</button>
+                    <button id="log-select-none" type="button">None</button>
+                  </div>
+                </div>
               </div>
             </div>
-          </details>
-          <button id="render-btn">Convert to PDF</button>
-          <p id="status" role="status"></p>
-        </div>
-      </section>
-      <section class="preview-panel">
-        <div class="tab-container">
-          <div class="tab-buttons">
-            <button class="tab-button active" data-tab="pdf">PDF Preview</button>
-            <button class="tab-button" data-tab="html">HTML Preview</button>
           </div>
-          <div class="tab-content">
-            <div class="tab-pane active" id="preview-pdf-tab">
-              <object id="pdf-viewer" data="" type="application/pdf" aria-label="PDF preview"></object>
-            </div>
-            <div class="tab-pane" id="preview-html-tab">
-              <iframe id="html-viewer" sandbox="allow-same-origin" aria-label="HTML preview"></iframe>
-            </div>
+        </details>
+        <button id="render-btn">Convert to PDF</button>
+        <p id="status" role="status"></p>
+      </div>
+    </section>
+    <section class="preview-panel">
+      <div class="tab-container">
+        <div class="tab-buttons">
+          <button class="tab-button active" data-tab="pdf">PDF Preview</button>
+          <button class="tab-button" data-tab="html">HTML Preview</button>
+        </div>
+        <div class="tab-content">
+          <div class="tab-pane active" id="preview-pdf-tab">
+            <object id="pdf-viewer" data="" type="application/pdf" aria-label="PDF preview"></object>
+          </div>
+          <div class="tab-pane" id="preview-html-tab">
+            <iframe id="html-viewer" sandbox="allow-same-origin" aria-label="HTML preview"></iframe>
           </div>
         </div>
-      </section>
-    </main>
-    <script src="/vendor/codemirror/codemirror.min.js"></script>
-    <script src="/vendor/codemirror/xml.min.js"></script>
-    <script src="/vendor/codemirror/javascript.min.js"></script>
-    <script src="/vendor/codemirror/css.min.js"></script>
-    <script src="/vendor/codemirror/htmlmixed.min.js"></script>
-    <!-- CKEditor 5 script (loaded conditionally) -->
-    <script id="ckeditor-script" src="https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/ckeditor.js"></script>
-    <script type="module" src="/app.js"></script>
-  </body>
+      </div>
+    </section>
+  </main>
+  <script src="/vendor/codemirror/codemirror.min.js"></script>
+  <script src="/vendor/codemirror/xml.min.js"></script>
+  <script src="/vendor/codemirror/javascript.min.js"></script>
+  <script src="/vendor/codemirror/css.min.js"></script>
+  <script src="/vendor/codemirror/htmlmixed.min.js"></script>
+  <!-- CKEditor 5 script (loaded conditionally) -->
+  <script id="ckeditor-script" src="https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/ckeditor.js"></script>
+  <script type="module" src="/app.js"></script>
+</body>
+
 </html>
