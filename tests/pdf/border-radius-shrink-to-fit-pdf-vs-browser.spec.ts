@@ -135,7 +135,7 @@ fontFactor: ${fontFactor}
     }
 
     createDiagnosticsContext(
-      "border-radius-test",
+      "border-radius-shrink-to-fit-pdf-vs-browser",
       CSS,
       BROWSER_REF,
       parentRect,
