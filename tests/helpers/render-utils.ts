@@ -42,3 +42,11 @@ export function collectRuns(box: RenderBox): Run[] {
     }
     return runs;
 }
+
+export function collectBoxes(box: RenderBox): RenderBox[] {
+    const boxes: RenderBox[] = [box];
+    for (const child of box.children) {
+        boxes.push(...collectBoxes(child));
+    }
+    return boxes;
+}
