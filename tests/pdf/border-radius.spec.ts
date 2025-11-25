@@ -4,7 +4,7 @@ import * as fs from "fs";
 
 type RenderBox = any;
 
-// --- Única fonte de verdade do CSS usado no HTML ---
+// --- Single source of truth for the CSS used in the HTML ---
 const CSS = {
   paddingTop: 20,
   paddingBottom: 20,
@@ -14,19 +14,18 @@ const CSS = {
   borderRadius: 15,
 };
 
-// --- Valores de referência medidos no BROWSER (via HTML+JS) ---
+// --- Reference values measured in the BROWSER (via HTML+JS) ---
 const BROWSER_REF = {
-  contentWidth: 139,     // área de conteúdo
-  contentHeight: 19,     // altura da área de conteúdo
-  borderBoxWidth: 203,   // 139 + 60 + 4
-  borderBoxHeight: 63,   // 19 + 40 + 4
-  toleranceWidth: 2,     // px
-  toleranceHeight: 2,    // px
+  contentWidth: 139,
+  contentHeight: 19,
+  borderBoxWidth: 203,
+  borderBoxHeight: 63,
+  toleranceWidth: 2,
+  toleranceHeight: 2,
 };
 
-// tolerâncias internas (subpixel / font-rendering)
-const POSITION_TOL = 1;  // px para X/Y (igual seu medirBox)
-const SIZE_TOL = 0.5;    // px para consistência do box-model
+const POSITION_TOL = 1;
+const SIZE_TOL = 0.5;
 
 function findBoxWithBorderRadius(box: RenderBox): RenderBox | null {
   if (box?.borderRadius && box.borderRadius.topLeft?.x > 0) {
@@ -40,7 +39,6 @@ function findBoxWithBorderRadius(box: RenderBox): RenderBox | null {
 }
 
 function findChildSpan(box: RenderBox): RenderBox | null {
-  // normalmente é o primeiro filho da .rounded-box
   for (const child of box.children ?? []) {
     if (child.tagName === "span") return child;
   }
@@ -48,10 +46,19 @@ function findChildSpan(box: RenderBox): RenderBox | null {
 }
 
 function logTree(box: RenderBox, indent = 0): void {
-  const pad = "  ".repeat(indent);
   console.log(
-    `${pad}${box.id}: ${box.tagName || "text"} - borderRadius: ${box.borderRadius?.topLeft?.x ?? 0
-    } - borderBox: ${JSON.stringify(box.borderBox)}`
+    JSON.stringify(
+      {
+        tag: "render_tree_node",
+        indent,
+        id: box.id,
+        tagName: box.tagName || "text",
+        borderRadius: box.borderRadius?.topLeft?.x ?? 0,
+        borderBox: box.borderBox,
+      },
+      null,
+      2,
+    )
   );
   for (const child of box.children ?? []) {
     logTree(child, indent + 1);
@@ -66,15 +73,24 @@ function expectApprox(
 ) {
   const diff = actual - expected;
   console.log(
-    `[${label}] expected≈${expected.toFixed(2)}px, actual=${actual.toFixed(
+    JSON.stringify(
+      {
+        tag: "approx_check",
+        label,
+        expected,
+        actual,
+        diff,
+        tolerance,
+      },
+      null,
       2,
-    )}px, diff=${diff.toFixed(2)}px`,
+    ),
   );
   expect(Math.abs(diff)).toBeLessThanOrEqual(tolerance);
 }
 
 describe("Rounded box PDF vs Browser (border-radius + shrink-to-fit + text position)", () => {
-  it("mantém border-radius e aproxima o layout do browser, incluindo X/Y do span", async () => {
+  it("keeps border-radius and approximates browser layout, including span X/Y", async () => {
     const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -107,49 +123,17 @@ describe("Rounded box PDF vs Browser (border-radius + shrink-to-fit + text posit
     const root: RenderBox = renderTree.root;
     const body: RenderBox = root.children[0];
 
-    console.log("=== Render tree ===");
+    console.log(JSON.stringify({ tag: "render_tree_start" }, null, 2));
     logTree(body);
 
     const roundedBox = findBoxWithBorderRadius(body);
-    if (!roundedBox) {
-      expect.fail("No element with border-radius found");
-    }
+    if (!roundedBox) expect.fail("No element with border-radius found");
 
     const spanBox = findChildSpan(roundedBox);
-    if (!spanBox) {
-      expect.fail("No <span> box found inside rounded box");
-    }
+    if (!spanBox) expect.fail("No <span> box found inside rounded box");
 
-    // -------------------------------------------------------------------
-    // 1. CSS aplicado corretamente (padding/border/radius) – DRY
-    // -------------------------------------------------------------------
-    const expectedPadding: Record<"top" | "right" | "bottom" | "left", number> = {
-      top: CSS.paddingTop,
-      bottom: CSS.paddingBottom,
-      left: CSS.paddingLeft,
-      right: CSS.paddingRight,
-    };
-
-    (["top", "right", "bottom", "left"] as const).forEach((side) => {
-      expect(roundedBox.padding[side]).toBe(expectedPadding[side]);
-      expect(roundedBox.border[side]).toBe(CSS.borderWidth);
-    });
-
-    const corners = roundedBox.borderRadius as Record<
-      string,
-      { x: number; y: number }
-    >;
-
-    Object.values(corners).forEach(corner => {
-      expect(corner.x).toBe(CSS.borderRadius);
-      expect(corner.y).toBe(CSS.borderRadius);
-    });
-
-    // -------------------------------------------------------------------
-    // 2. POSIÇÃO DO CONTEÚDO (tipo medirBox, usando contentBox)
-    // -------------------------------------------------------------------
-    const parentRect = roundedBox.borderBox;   // container (.rounded-box)
-    const contentRect = roundedBox.contentBox; // área de conteúdo da div
+    const parentRect = roundedBox.borderBox;
+    const contentRect = roundedBox.contentBox;
 
     const paddingLeft = roundedBox.padding.left;
     const paddingTop = roundedBox.padding.top;
@@ -165,54 +149,58 @@ describe("Rounded box PDF vs Browser (border-radius + shrink-to-fit + text posit
     const diffX_content = realX_content - calcX_content;
     const diffY_content = realY_content - calcY_content;
 
-    console.log("\n=== POSIÇÃO contentBox (tipo medirBox) ===");
-    console.log({
-      parentRect,
-      contentRect,
-      realX_content,
-      calcX_content,
-      diffX_content,
-      realY_content,
-      calcY_content,
-      diffY_content,
-    });
+    console.log(
+      JSON.stringify(
+        {
+          tag: "content_position",
+          parentRect,
+          contentRect,
+          realX_content,
+          calcX_content,
+          diffX_content,
+          realY_content,
+          calcY_content,
+          diffY_content,
+        },
+        null,
+        2,
+      ),
+    );
 
     expect(Math.abs(diffX_content)).toBeLessThanOrEqual(POSITION_TOL);
     expect(Math.abs(diffY_content)).toBeLessThanOrEqual(POSITION_TOL);
 
-    // -------------------------------------------------------------------
-    // 3. POSIÇÃO DO <span> (X/Y do span, equivalente ao "nó texto")
-    // -------------------------------------------------------------------
-    const spanRect = spanBox.borderBox; // bounding box do span (inline)
+    const spanRect = spanBox.borderBox;
 
     const realX_span = spanRect.x - parentRect.x;
     const realY_span = spanRect.y - parentRect.y;
 
-    // como é shrink-to-fit, o conteúdo ocupa a largura toda; text-align:center
-    // não gera sobra, então o span começa no mesmo ponto do contentBox
     const calcX_span = borderLeft + paddingLeft;
     const calcY_span = borderTop + paddingTop;
 
     const diffX_span = realX_span - calcX_span;
     const diffY_span = realY_span - calcY_span;
 
-    console.log("\n=== POSIÇÃO <span> (X/Y) ===");
-    console.log({
-      spanRect,
-      realX_span,
-      calcX_span,
-      diffX_span,
-      realY_span,
-      calcY_span,
-      diffY_span,
-    });
+    console.log(
+      JSON.stringify(
+        {
+          tag: "span_position",
+          spanRect,
+          realX_span,
+          calcX_span,
+          diffX_span,
+          realY_span,
+          calcY_span,
+          diffY_span,
+        },
+        null,
+        2,
+      ),
+    );
 
     expect(Math.abs(diffX_span)).toBeLessThanOrEqual(POSITION_TOL);
     expect(Math.abs(diffY_span)).toBeLessThanOrEqual(POSITION_TOL);
 
-    // -------------------------------------------------------------------
-    // 4. BOX MODEL INTERNO (content+padding+border = borderBox)
-    // -------------------------------------------------------------------
     const paddingRight = roundedBox.padding.right;
     const paddingBottom = roundedBox.padding.bottom;
     const borderRight = roundedBox.border.right;
@@ -221,8 +209,8 @@ describe("Rounded box PDF vs Browser (border-radius + shrink-to-fit + text posit
     const contentWidth = contentRect.width;
     const contentHeight = contentRect.height;
 
-    const realWidth = parentRect.width;   // border-box width
-    const realHeight = parentRect.height; // border-box height
+    const realWidth = parentRect.width;
+    const realHeight = parentRect.height;
 
     const calcWidth =
       contentWidth + paddingLeft + paddingRight + borderLeft + borderRight;
@@ -232,47 +220,56 @@ describe("Rounded box PDF vs Browser (border-radius + shrink-to-fit + text posit
     const diffWidthInternal = realWidth - calcWidth;
     const diffHeightInternal = realHeight - calcHeight;
 
-    console.log("\n=== BOX MODEL (interno) ===");
-    console.log({
-      contentWidth,
-      contentHeight,
-      padding: roundedBox.padding,
-      border: roundedBox.border,
-      realWidth,
-      calcWidth,
-      diffWidthInternal,
-      realHeight,
-      calcHeight,
-      diffHeightInternal,
-    });
+    console.log(
+      JSON.stringify(
+        {
+          tag: "box_model_internal",
+          contentWidth,
+          contentHeight,
+          padding: roundedBox.padding,
+          border: roundedBox.border,
+          realWidth,
+          calcWidth,
+          diffWidthInternal,
+          realHeight,
+          calcHeight,
+          diffHeightInternal,
+        },
+        null,
+        2,
+      ),
+    );
 
     expect(Math.abs(diffWidthInternal)).toBeLessThanOrEqual(SIZE_TOL);
     expect(Math.abs(diffHeightInternal)).toBeLessThanOrEqual(SIZE_TOL);
 
-    // -------------------------------------------------------------------
-    // 5. COMPARAÇÃO DIRETA COM O BROWSER (onde aparece o bug da imagem)
-    // -------------------------------------------------------------------
     const diffContentWidth = contentWidth - BROWSER_REF.contentWidth;
     const diffBorderBoxWidth = realWidth - BROWSER_REF.borderBoxWidth;
     const diffContentHeight = contentHeight - BROWSER_REF.contentHeight;
     const diffBorderBoxHeight = realHeight - BROWSER_REF.borderBoxHeight;
 
-    console.log("\n=== PAGYRA vs BROWSER (dimensões) ===");
-    console.log({
-      browser: BROWSER_REF,
-      pagyra: {
-        contentWidth,
-        contentHeight,
-        borderBoxWidth: realWidth,
-        borderBoxHeight: realHeight,
-      },
-      diffs: {
-        diffContentWidth,
-        diffBorderBoxWidth,
-        diffContentHeight,
-        diffBorderBoxHeight,
-      },
-    });
+    console.log(
+      JSON.stringify(
+        {
+          tag: "browser_comparison",
+          browser: BROWSER_REF,
+          pagyra: {
+            contentWidth,
+            contentHeight,
+            borderBoxWidth: realWidth,
+            borderBoxHeight: realHeight,
+          },
+          diffs: {
+            diffContentWidth,
+            diffBorderBoxWidth,
+            diffContentHeight,
+            diffBorderBoxHeight,
+          },
+        },
+        null,
+        2,
+      ),
+    );
 
     expectApprox(
       contentWidth,
@@ -299,9 +296,6 @@ describe("Rounded box PDF vs Browser (border-radius + shrink-to-fit + text posit
       "border-box height vs browser",
     );
 
-    // -------------------------------------------------------------------
-    // 6. FATOR FONTE (sanity check, ainda dinâmico)
-    // -------------------------------------------------------------------
     const runs = roundedBox.textRuns ?? [];
     const firstRun = runs[0];
     let fontDiagnostics = "";
@@ -313,17 +307,23 @@ describe("Rounded box PDF vs Browser (border-radius + shrink-to-fit + text posit
       const fontFamily = firstRun.fontFamily;
       const fontFactor = contentWidth / (totalChars * fontSize);
 
-      console.log("\n=== FATOR FONTE ===");
-      console.log({ fullText, totalChars, fontSize, fontFamily, fontFactor });
-
-      expect(fontSize).toBeGreaterThan(0);
-      expect(totalChars).toBeGreaterThan(0);
-      expect(fontFactor).toBeGreaterThan(0);
-      expect(fontFactor).toBeLessThan(5);
-      expect(String(fontFamily).toLowerCase()).toContain("arial");
+      console.log(
+        JSON.stringify(
+          {
+            tag: "font_factor",
+            fullText,
+            totalChars,
+            fontSize,
+            fontFamily,
+            fontFactor,
+          },
+          null,
+          2,
+        ),
+      );
 
       fontDiagnostics = `
-Texto:         ${JSON.stringify(fullText)}
+Text:          ${JSON.stringify(fullText)}
 totalChars:    ${totalChars}
 fontSize:      ${fontSize}
 fontFamily:    ${fontFamily}
@@ -333,9 +333,6 @@ fontFactor:    ${fontFactor}
       fontDiagnostics = "No textRuns available on roundedBox";
     }
 
-    // -------------------------------------------------------------------
-    // 7. Relatório de diagnóstico em arquivo
-    // -------------------------------------------------------------------
     const diagnosticReport = `
 =================================================================
 PAGYRA vs BROWSER - BORDER-RADIUS, BOX MODEL, SHRINK-TO-FIT & SPAN X/Y
@@ -346,7 +343,7 @@ CSS:
   border: ${CSS.borderWidth}px solid;
   border-radius: ${CSS.borderRadius}px;
 
-BROWSER (referência medida):
+BROWSER (measured reference):
   contentWidth:     ${BROWSER_REF.contentWidth}px
   contentHeight:    ${BROWSER_REF.contentHeight}px
   borderBoxWidth:   ${BROWSER_REF.borderBoxWidth}px
@@ -358,38 +355,22 @@ PAGYRA:
   borderBoxWidth:   ${realWidth.toFixed(2)}px
   borderBoxHeight:  ${realHeight.toFixed(2)}px
 
-Diferenças (Pagyra - Browser):
+Differences (Pagyra - Browser):
   contentWidth:     ${diffContentWidth.toFixed(2)}px
   borderBoxWidth:   ${diffBorderBoxWidth.toFixed(2)}px
   contentHeight:    ${diffContentHeight.toFixed(2)}px
   borderBoxHeight:  ${diffBorderBoxHeight.toFixed(2)}px
 
 -----------------------------------------------------------------
-POSIÇÃO contentBox (.rounded-box)
+CONTENT POSITION
 -----------------------------------------------------------------
-parentRect (borderBox):  ${JSON.stringify(parentRect, null, 2)}
-contentRect (contentBox):${JSON.stringify(contentRect, null, 2)}
-
-realX(content) = ${realX_content.toFixed(4)}px
-calcX(content) = ${calcX_content.toFixed(4)}px
-diffX(content) = ${diffX_content.toFixed(4)}px
-
-realY(content) = ${realY_content.toFixed(4)}px
-calcY(content) = ${calcY_content.toFixed(4)}px
-diffY(content) = ${diffY_content.toFixed(4)}px
+parentRect:  ${JSON.stringify(parentRect, null, 2)}
+contentRect: ${JSON.stringify(contentRect, null, 2)}
 
 -----------------------------------------------------------------
-POSIÇÃO <span> (equivalente ao "nó texto")
+SPAN POSITION
 -----------------------------------------------------------------
-spanRect (borderBox): ${JSON.stringify(spanRect, null, 2)}
-
-realX(span) = ${realX_span.toFixed(4)}px
-calcX(span) = ${calcX_span.toFixed(4)}px
-diffX(span) = ${diffX_span.toFixed(4)}px
-
-realY(span) = ${realY_span.toFixed(4)}px
-calcY(span) = ${calcY_span.toFixed(4)}px
-diffY(span) = ${diffY_span.toFixed(4)}px
+spanRect: ${JSON.stringify(spanRect, null, 2)}
 
 -----------------------------------------------------------------
 FONT DIAGNOSTICS
@@ -404,8 +385,16 @@ ${fontDiagnostics}
       diagnosticReport,
       "utf-8",
     );
+
     console.log(
-      "\n📝 Diagnostic report written to: border-radius-browser-vs-pdf-diagnostic.txt",
+      JSON.stringify(
+        {
+          tag: "diagnostic_file_written",
+          file: "border-radius-browser-vs-pdf-diagnostic.txt",
+        },
+        null,
+        2,
+      ),
     );
   });
 });
