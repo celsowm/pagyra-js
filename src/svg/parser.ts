@@ -24,23 +24,27 @@ import {
   type SvgViewBox,
 } from "./types.js";
 import { parseTransform } from "../transform/css-parser.js";
+import { ParserRegistry, type SvgParseContext as ImportedSvgParseContext } from "./parser-registry.js";
 
 export interface ParseSvgOptions {
   warn?: (message: string) => void;
+  /** Optional custom parser registry. If not provided, uses the default registry. */
+  registry?: ParserRegistry;
 }
 
-interface SvgParseContext {
-  warn: (message: string) => void;
-}
+/** @deprecated Use SvgParseContext from parser-registry.ts */
+interface SvgParseContext extends ImportedSvgParseContext { }
+export type { SvgParseContext as SvgParseContext };
 
 export function parseSvg(element: Element, options: ParseSvgOptions = {}): SvgRootNode | null {
-  const warn = options.warn ?? (() => {});
+  const warn = options.warn ?? (() => { });
   if (element.tagName.toLowerCase() !== "svg") {
     warn("Expected <svg> root element.");
     return null;
   }
   const context: SvgParseContext = { warn };
-  const parsed = parseElement(element, context);
+  const registry = options.registry ?? defaultParserRegistry;
+  const parsed = registry.parse(element, context);
   if (!parsed || parsed.type !== "svg") {
     warn("Unable to parse <svg> element.");
     return null;
@@ -48,45 +52,21 @@ export function parseSvg(element: Element, options: ParseSvgOptions = {}): SvgRo
   return parsed;
 }
 
-export function parseElement(element: Element, context: SvgParseContext): SvgNode | null {
-  const tag = element.tagName.toLowerCase() as SvgNodeType;
-  switch (tag) {
-    case "svg":
-      return parseSvgRoot(element, context);
-    case "g":
-      return parseGroup(element, context);
-    case "defs":
-      return parseDefs(element, context);
-    case "rect":
-      return parseRect(element);
-    case "circle":
-      return parseCircle(element);
-    case "ellipse":
-      return parseEllipse(element);
-    case "line":
-      return parseLine(element);
-    case "path":
-      return parsePath(element);
-    case "polyline":
-      return parsePolyline(element);
-    case "polygon":
-      return parsePolygon(element);
-    case "text":
-      return parseText(element);
-    case "image":
-      return parseImage(element);
-    case "use":
-      return parseUse(element);
-    case "clippath":
-      return parseClipPath(element, context);
-    case "lineargradient":
-      return parseLinearGradient(element, context);
-    case "radialgradient":
-      return parseRadialGradient(element, context);
-    default:
-      context.warn(`Unsupported <${tag}> element ignored.`);
-      return null;
-  }
+/**
+ * Parses a generic SVG element into a typed node structure.
+ * 
+ * @param element - The DOM element to parse
+ * @param context - Parsing context
+ * @param registry - Optional parser registry (uses default if not provided)
+ * @returns Parsed SVG node or null if unsupported
+ */
+export function parseElement(
+  element: Element,
+  context: SvgParseContext,
+  registry?: ParserRegistry
+): SvgNode | null {
+  const reg = registry ?? defaultParserRegistry;
+  return reg.parse(element, context);
 }
 
 function parseSvgRoot(element: Element, context: SvgParseContext): SvgRootNode | null {
@@ -477,3 +457,30 @@ function parsePointList(raw: string | null): readonly SvgPoint[] | undefined {
   }
   return points;
 }
+
+/**
+ * Default registry with all standard SVG element parsers pre-registered.
+ * 
+ * Users can create their own custom registry or extend this one
+ * to add support for non-standard elements.
+ */
+export const defaultParserRegistry = new ParserRegistry();
+
+// Register all standard SVG element parsers
+defaultParserRegistry.register("svg", parseSvgRoot);
+defaultParserRegistry.register("g", parseGroup);
+defaultParserRegistry.register("defs", parseDefs);
+defaultParserRegistry.register("rect", parseRect);
+defaultParserRegistry.register("circle", parseCircle);
+defaultParserRegistry.register("ellipse", parseEllipse);
+defaultParserRegistry.register("line", parseLine);
+defaultParserRegistry.register("path", parsePath);
+defaultParserRegistry.register("polyline", parsePolyline);
+defaultParserRegistry.register("polygon", parsePolygon);
+defaultParserRegistry.register("text", parseText);
+defaultParserRegistry.register("image", parseImage);
+defaultParserRegistry.register("use", parseUse);
+defaultParserRegistry.register("clippath", parseClipPath);
+defaultParserRegistry.register("lineargradient", parseLinearGradient);
+defaultParserRegistry.register("radialgradient", parseRadialGradient);
+

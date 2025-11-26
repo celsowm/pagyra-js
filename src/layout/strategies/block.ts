@@ -25,6 +25,8 @@ import { finalizeOverflow } from "../utils/overflow.js";
 import { FloatContext } from "../context/float-context.js";
 import { clearForBlock, placeFloat } from "../utils/floats.js";
 import { defaultInlineFormatter } from "../utils/inline-formatter.js";
+import { isInlineLevel } from "../utils/display-utils.js";
+import { ContentMeasurer } from "../utils/content-measurer.js";
 
 const LAYOUT_DEBUG = process.env.PAGYRA_DEBUG_LAYOUT === "1";
 const layoutDebug = (...args: unknown[]): void => {
@@ -35,6 +37,7 @@ const layoutDebug = (...args: unknown[]): void => {
 
 export class BlockLayoutStrategy implements LayoutStrategy {
   private readonly supportedDisplays = new Set<Display>([Display.Block, Display.FlowRoot, Display.InlineBlock, Display.TableCell]);
+  private readonly contentMeasurer = new ContentMeasurer();
 
   canLayout(node: LayoutNode): boolean {
     return this.supportedDisplays.has(node.style.display);
@@ -172,7 +175,7 @@ export class BlockLayoutStrategy implements LayoutStrategy {
       }
     }
 
-    const measurement = measureInFlowContentWidth(node, contentWidth, contentX);
+    const measurement = this.contentMeasurer.measureInFlowWidth(node, contentWidth, contentX);
     if (Number.isFinite(measurement.width)) {
       const intrinsicWidth = Math.max(0, measurement.width);
       node.box.scrollWidth = Math.max(node.box.scrollWidth, intrinsicWidth);
@@ -204,7 +207,7 @@ export class BlockLayoutStrategy implements LayoutStrategy {
           layoutDebug(
             `[BlockLayout] shifting inline-block children tag=${debugTag} offset=${measurement.leftOffset}`,
           );
-          shiftInFlowChildrenX(node, measurement.leftOffset);
+          this.contentMeasurer.shiftInFlowChildrenX(node, measurement.leftOffset);
         }
         if (targetContentWidth !== node.box.contentWidth) {
           node.box.contentWidth = targetContentWidth;
@@ -238,95 +241,3 @@ export class BlockLayoutStrategy implements LayoutStrategy {
 }
 
 
-function isInlineLevel(node: LayoutNode): boolean {
-  switch (node.style.display) {
-    case Display.Inline:
-    case Display.InlineBlock:
-    case Display.InlineFlex:
-    case Display.InlineGrid:
-    case Display.InlineTable:
-      return true;
-    default:
-      return false;
-  }
-}
-
-function measureInFlowContentWidth(
-  node: LayoutNode,
-  referenceWidth: number,
-  contentStartX: number,
-): { width: number; leftOffset: number } {
-  let minStart = Number.POSITIVE_INFINITY;
-  let maxEnd = Number.NEGATIVE_INFINITY;
-  let hasContent = false;
-
-  for (const child of node.children) {
-    if (!inFlow(child)) {
-      continue;
-    }
-    if (child.style.display === Display.None) {
-      continue;
-    }
-
-    const marginLeft =
-      child.box.usedMarginLeft !== undefined
-        ? child.box.usedMarginLeft
-        : resolveLength(child.style.marginLeft, referenceWidth, { auto: "zero" });
-    const marginRight =
-      child.box.usedMarginRight !== undefined
-        ? child.box.usedMarginRight
-        : resolveLength(child.style.marginRight, referenceWidth, { auto: "zero" });
-    const borderLeft = resolveLength(child.style.borderLeft, referenceWidth, { auto: "zero" });
-    const borderRight = resolveLength(child.style.borderRight, referenceWidth, { auto: "zero" });
-    const paddingLeft = resolveLength(child.style.paddingLeft, referenceWidth, { auto: "zero" });
-    const paddingRight = resolveLength(child.style.paddingRight, referenceWidth, { auto: "zero" });
-
-    const borderBoxWidth = child.box.borderBoxWidth || Math.max(0, child.box.contentWidth + paddingLeft + paddingRight + borderLeft + borderRight);
-    const marginBoxWidth = borderBoxWidth + marginLeft + marginRight;
-    const marginStart = child.box.x - paddingLeft - borderLeft - marginLeft;
-    const relativeStart = marginStart - contentStartX;
-    const relativeEnd = relativeStart + marginBoxWidth;
-    layoutDebug(
-      `[measureInFlowContentWidth] parent=${node.tagName ?? "(anonymous)"} child=${child.tagName ?? "(anonymous)"} marginStart=${marginStart} relativeStart=${relativeStart} marginBoxWidth=${marginBoxWidth} borderBoxWidth=${borderBoxWidth} child.box.x=${child.box.x} contentStartX=${contentStartX}`,
-    );
-
-    minStart = Math.min(minStart, relativeStart);
-    maxEnd = Math.max(maxEnd, relativeEnd);
-    hasContent = true;
-  }
-
-  if (!hasContent) {
-    return { width: 0, leftOffset: 0 };
-  }
-
-  if (!Number.isFinite(minStart)) {
-    minStart = 0;
-  }
-  if (!Number.isFinite(maxEnd)) {
-    maxEnd = minStart;
-  }
-
-  const width = Math.max(0, maxEnd - minStart);
-  const leftOffset = minStart > 0 ? minStart : 0;
-  return { width, leftOffset };
-}
-
-function shiftInFlowChildrenX(node: LayoutNode, deltaX: number): void {
-  if (deltaX === 0) {
-    return;
-  }
-  for (const child of node.children) {
-    if (!inFlow(child)) {
-      continue;
-    }
-    if (child.style.display === Display.None) {
-      continue;
-    }
-    child.walk((desc) => {
-      if (desc === node) {
-        return;
-      }
-      desc.shift(-deltaX, 0);
-    });
-  }
-}
