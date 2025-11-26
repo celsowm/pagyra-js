@@ -28,7 +28,11 @@ export function countSpaces(value: string): number {
 
 export function measureInlineNode(node: LayoutNode, containerWidth: number, context: LayoutContext, layoutCallback: LayoutCallback): InlineMetrics {
     if (node.style.display === Display.InlineBlock || node.style.display === Display.InlineFlex || node.style.display === Display.InlineGrid || node.style.display === Display.InlineTable) {
+        const savedX = node.box.x;
+        const savedY = node.box.y;
         context.layoutChild(node);
+        node.box.x = savedX;
+        node.box.y = savedY;
     }
 
     const marginLeft = resolveLength(node.style.marginLeft, containerWidth, { auto: "zero" });

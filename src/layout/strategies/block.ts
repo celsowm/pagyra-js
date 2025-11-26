@@ -31,7 +31,7 @@ import { ContentMeasurer } from "../utils/content-measurer.js";
 const LAYOUT_DEBUG = process.env.PAGYRA_DEBUG_LAYOUT === "1";
 const layoutDebug = (...args: unknown[]): void => {
   if (LAYOUT_DEBUG) {
-    // console.log(...args); // Removed as per task to remove non-recommended console.log
+    console.log(...args);
   }
 };
 
