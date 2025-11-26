@@ -23,114 +23,62 @@ import {
   type LineHeightValue,
 } from "./line-height.js";
 
+// Import domain interfaces
+import type { LayoutProperties } from "./properties/layout.js";
+import type { TypographyProperties, TextTransform, OverflowWrap } from "./properties/typography.js";
+import type { BoxModelProperties } from "./properties/box-model.js";
+import type { FlexboxProperties, FlexDirection, AlignSelfValue } from "./properties/flexbox.js";
+import type {
+  GridProperties,
+  GridAutoFlow,
+  TrackSize,
+  TrackDefinition,
+  FixedTrackSize,
+  FlexTrackSize,
+  AutoTrackSize,
+  RepeatTrackDefinition,
+  AutoRepeatTrackDefinition,
+  TrackSizeInput,
+  TrackDefinitionInput,
+  FixedTrackSizeInput,
+  FlexTrackSizeInput,
+  AutoTrackSizeInput,
+  RepeatTrackDefinitionInput,
+  AutoRepeatTrackDefinitionInput,
+} from "./properties/grid.js";
+import type {
+  VisualProperties,
+  BoxShadow,
+  BoxShadowInput,
+  TextShadow,
+  TextShadowInput,
+} from "./properties/visual.js";
+import type { MiscProperties } from "./properties/misc.js";
+
+// Re-export types for convenience
 export type { NumericLength } from "./length.js";
 export type { LineHeightInput, LineHeightValue } from "./line-height.js";
+export type { TextTransform, OverflowWrap };
+export type { FlexDirection, AlignSelfValue };
+export type { GridAutoFlow };
+export type {
+  TrackSize,
+  TrackDefinition,
+  FixedTrackSize,
+  FlexTrackSize,
+  AutoTrackSize,
+  RepeatTrackDefinition,
+  AutoRepeatTrackDefinition,
+  TrackSizeInput,
+  TrackDefinitionInput,
+  FixedTrackSizeInput,
+  FlexTrackSizeInput,
+  AutoTrackSizeInput,
+  RepeatTrackDefinitionInput,
+  AutoRepeatTrackDefinitionInput,
+};
+export type { BoxShadow, BoxShadowInput, TextShadow, TextShadowInput };
 
-export type FlexDirection = "row" | "row-reverse" | "column" | "column-reverse";
-export type GridAutoFlow = "row" | "column" | "row dense" | "column dense";
-export type AlignSelfValue = AlignItems | "auto";
-export type OverflowWrap = "normal" | "break-word" | "anywhere";
-export type TextTransform = "none" | "uppercase" | "lowercase" | "capitalize";
-
-export interface FixedTrackSize {
-  kind: "fixed";
-  size: number;
-}
-
-export interface FlexTrackSize {
-  kind: "flex";
-  flex: number;
-  min?: number;
-  max?: number;
-}
-
-export interface AutoTrackSize {
-  kind: "auto";
-  min?: number;
-  max?: number;
-}
-
-export type TrackSize = FixedTrackSize | FlexTrackSize | AutoTrackSize;
-
-export interface RepeatTrackDefinition {
-  kind: "repeat";
-  count: number;
-  track: TrackSize;
-}
-
-export interface AutoRepeatTrackDefinition {
-  kind: "repeat-auto";
-  mode: "auto-fit" | "auto-fill";
-  track: TrackSize;
-}
-
-export type TrackDefinition = TrackSize | RepeatTrackDefinition | AutoRepeatTrackDefinition;
-
-export interface FixedTrackSizeInput {
-  kind: "fixed";
-  size: NumericLength;
-}
-
-export interface FlexTrackSizeInput {
-  kind: "flex";
-  flex: number;
-  min?: NumericLength;
-  max?: NumericLength;
-}
-
-export interface AutoTrackSizeInput {
-  kind: "auto";
-  min?: NumericLength;
-  max?: NumericLength;
-}
-
-export type TrackSizeInput = FixedTrackSizeInput | FlexTrackSizeInput | AutoTrackSizeInput;
-
-export interface RepeatTrackDefinitionInput {
-  kind: "repeat";
-  count: number;
-  track: TrackSizeInput;
-}
-
-export interface AutoRepeatTrackDefinitionInput {
-  kind: "repeat-auto";
-  mode: "auto-fit" | "auto-fill";
-  track: TrackSizeInput;
-}
-
-export type TrackDefinitionInput = TrackSizeInput | RepeatTrackDefinitionInput | AutoRepeatTrackDefinitionInput;
-
-export interface BoxShadow {
-  inset: boolean;
-  offsetX: number;
-  offsetY: number;
-  blurRadius: number;
-  spreadRadius: number;
-  color?: string;
-}
-
-export interface BoxShadowInput {
-  inset: boolean;
-  offsetX: NumericLength;
-  offsetY: NumericLength;
-  blurRadius: NumericLength;
-  spreadRadius: NumericLength;
-  color?: string;
-}
-
-export interface TextShadow {
-  offsetX: number;
-  offsetY: number;
-  blurRadius: number;
-  color?: string;
-}
-
-export interface TextShadowInput {
-  offsetX: NumericLength;
-  offsetY: NumericLength;
-  blurRadius?: NumericLength;
-  color?: string;
-}
 
 // src/css/apply-declarations.ts
 export interface StyleAccumulator {
@@ -139,7 +87,7 @@ export interface StyleAccumulator {
   float?: string;
   color?: string;
   textDecorationColor?: string;
-   textDecorationStyle?: string;
+  textDecorationStyle?: string;
   backgroundLayers?: BackgroundLayer[];
   borderColor?: string;
   boxShadows?: BoxShadowInput[];
@@ -210,102 +158,19 @@ export interface StyleAccumulator {
   opacity?: number;
 }
 
-export interface StyleProperties {
-  textAlign?: string;
-  verticalAlign?: string;
-  textDecorationLine?: string;
-  textDecorationColor?: string;
-  textDecorationStyle?: string;
-  textIndent: LengthLike;
-  textTransform: TextTransform;
-  transform?: string;
-  display: Display;
-  position: Position;
-  zIndex: number | "auto";
-  float: FloatMode;
-  clear: ClearMode;
-  overflowX: OverflowMode;
-  overflowY: OverflowMode;
-  whiteSpace: WhiteSpace;
-  textWrap: TextWrap;
-  overflowWrap: OverflowWrap;
-  writingMode: WritingMode;
-  width: LengthLike;
-  height: LengthLike;
-  minWidth?: LengthLike;
-  maxWidth?: LengthLike;
-  minHeight?: LengthLike;
-  maxHeight?: LengthLike;
-  marginTop: LengthLike;
-  marginRight: LengthLike;
-  marginBottom: LengthLike;
-  marginLeft: LengthLike;
-  paddingTop: LengthLike;
-  paddingRight: LengthLike;
-  paddingBottom: LengthLike;
-  paddingLeft: LengthLike;
-  borderTop: LengthLike;
-  borderRight: LengthLike;
-  borderBottom: LengthLike;
-  borderLeft: LengthLike;
-  borderTopLeftRadiusX: number;
-  borderTopLeftRadiusY: number;
-  borderTopRightRadiusX: number;
-  borderTopRightRadiusY: number;
-  borderBottomRightRadiusX: number;
-  borderBottomRightRadiusY: number;
-  borderBottomLeftRadiusX: number;
-  borderBottomLeftRadiusY: number;
-  borderStyleTop?: string;
-  borderStyleRight?: string;
-  borderStyleBottom?: string;
-  borderStyleLeft?: string;
-  backgroundLayers?: BackgroundLayer[];  // fonte da verdade
-  borderColor?: string;
-  boxShadows: BoxShadow[];
-  textShadows: TextShadow[];
-  color?: string;
-  fontFamily?: string;
-  fontWeight?: number;
-  fontStyle?: string;
-  fontVariant?: string;
-  objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down";
-  left?: LengthLike;
-  right?: LengthLike;
-  top?: LengthLike;
-  bottom?: LengthLike;
-  insetInlineStart?: LengthLike;
-  insetInlineEnd?: LengthLike;
-  insetBlockStart?: LengthLike;
-  insetBlockEnd?: LengthLike;
-  fontSize: number;
-  lineHeight: LineHeightValue;
-  letterSpacing: number;
-  wordSpacing: number;
-  flexGrow: number;
-  flexShrink: number;
-  flexBasis: LengthLike;
-  listStyleType: string;
-  alignItems: AlignItems;
-  alignSelf: AlignSelfValue;
-  justifyContent: JustifyContent;
-  alignContent: AlignContent;
-  flexDirection: FlexDirection;
-  flexWrap: boolean;
-  trackListColumns: TrackDefinition[];
-  trackListRows: TrackDefinition[];
-  autoFlow: GridAutoFlow;
-  rowGap: number;
-  columnGap: number;
-  tableLayout: TableLayoutMode;
-  borderModel: BorderModel;
-  breakBefore: string;
-  breakAfter: string;
-  breakInside: string;
-  widows: number;
-  orphans: number;
-  opacity: number;
-}
+/**
+ * Complete CSS style properties.
+ * Composed from focused domain interfaces for better organization and maintainability.
+ */
+export type StyleProperties =
+  LayoutProperties &
+  TypographyProperties &
+  BoxModelProperties &
+  FlexboxProperties &
+  GridProperties &
+  VisualProperties &
+  MiscProperties;
+
 
 const defaultStyle = BrowserDefaults.createBaseDefaults() as StyleProperties;
 
