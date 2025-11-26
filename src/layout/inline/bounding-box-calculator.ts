@@ -32,9 +32,28 @@ export class BoundingBoxCalculator {
             const lh = resolvedLineHeight(node.style);
             node.box.contentHeight = lineCount * lh;
 
-            const maxWidth = runs.reduce((max, run) => Math.max(max, run.lineWidth ?? run.width), 0);
-            node.box.contentWidth = maxWidth;
-            node.box.borderBoxWidth = maxWidth;
+            // Calculate actual content width by finding the extent of all runs
+            // relative to the node's box.x position
+            if (runs.length > 0) {
+                // Find the actual extent of all runs from their positions and widths
+                // Initialize with the first run's values to avoid Infinity edge cases
+                const firstRun = runs[0];
+                let minX = firstRun.startX;
+                let maxX = firstRun.startX + firstRun.width;
+                for (let i = 1; i < runs.length; i++) {
+                    const run = runs[i];
+                    minX = Math.min(minX, run.startX);
+                    maxX = Math.max(maxX, run.startX + run.width);
+                }
+                // The content width is the span from minX to maxX
+                // Since node.box.x is set to minX in run-placer, the content width is maxX - minX
+                const actualWidth = maxX - minX;
+                node.box.contentWidth = actualWidth;
+            } else {
+                node.box.contentWidth = 0;
+            }
+
+            node.box.borderBoxWidth = node.box.contentWidth;
             node.box.borderBoxHeight = node.box.contentHeight;
             node.box.marginBoxWidth = node.box.borderBoxWidth;
             node.box.marginBoxHeight = node.box.borderBoxHeight;

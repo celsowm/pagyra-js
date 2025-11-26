@@ -80,8 +80,17 @@ export class RunPlacer {
                 isLastLine,
             };
 
-            node.box.x = startX;
-            node.box.y = lineTop;
+            // Update node.box.x to track the minimum startX across all runs for this node
+            // This ensures the bounding box starts at the leftmost run position
+            if (!this.nodeRuns.has(node)) {
+                // First run for this node - set initial position
+                node.box.x = startX;
+                node.box.y = lineTop;
+            } else {
+                // Multiple runs - use the minimum X and Y to encompass all runs
+                node.box.x = Math.min(node.box.x, startX);
+                node.box.y = Math.min(node.box.y, lineTop);
+            }
             node.box.baseline = lineBaseline;
             this.pushRun(node, run);
         }
