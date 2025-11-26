@@ -22,4 +22,9 @@ export class CoordinateTransformer {
   public convertPxToPt(value: number): number {
     return this.pxToPt(value);
   }
+
+  // NOVO
+  public convertPtToPx(value: number): number {
+    return this.ptToPx(value);
+  }
 }

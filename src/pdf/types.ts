@@ -345,6 +345,7 @@ export interface TextPaintOptions {
   readonly fontFamily?: string;
   readonly fontWeight?: number;
   readonly fontStyle?: string;
+  readonly fontVariant?: string;
   readonly absolute?: boolean;
 }
 

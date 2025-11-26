@@ -47,44 +47,32 @@ export class TextRenderer {
       return;
     }
 
-    const font = await this.fontResolver.ensureFontResource({ fontFamily: options.fontFamily, fontWeight: options.fontWeight, text });
-    this.registerFont(font);
-    const usePageOffset = !(options.absolute ?? false);
-    const offsetY = usePageOffset ? this.coordinateTransformer.pageOffsetPx : 0;
-    const xPt = this.coordinateTransformer.convertPxToPt(xPx);
-    const yPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(yPx - offsetY);
-    const color = options.color ?? { r: 0, g: 0, b: 0, a: 1 };
-    const before = text;
-    const { scheme, encoded } = encodeTextPayload(before, font);
+    const fontFamily = options.fontFamily ?? "Times New Roman";
+    const fontWeight = options.fontWeight ?? 400;
+    const fontStyle = options.fontStyle ?? "normal";
+    const fontVariant = options.fontVariant;
 
-    const baselineAdjust = options.fontSizePt;
+    // header/footer hoje passa tamanho em pt
+    const fontSizePx = this.coordinateTransformer.convertPtToPx(options.fontSizePt);
 
-    log("encoding", "info", "encoding-path", {
-      scheme,
-      font: font.baseFont
-    });
+    const run: Run = {
+      text,
+      fontFamily,
+      fontWeight,
+      fontStyle,
+      fontVariant,
+      fontSize: fontSizePx,
+      letterSpacing: 0,
+      wordSpacing: 0,
+      fill: options.color ?? { r: 0, g: 0, b: 0, a: 1 },
+      lineMatrix: {
+        a: 1, b: 0, c: 0, d: 1,
+        e: xPx,
+        f: yPx, // baseline em px, igual aos outros runs
+      },
+    };
 
-    log("paint", "trace", "drawText(content)", {
-      before: before.length > 60 ? before.slice(0, 57) + "..." : before,
-      encoded: encoded.length > 60 ? encoded.slice(0, 57) + "..." : encoded,
-      font: font.baseFont, size: options.fontSizePt
-    });
-
-    log("paint", "debug", "drawing text", {
-      text: text.slice(0, 32),
-      fontName: font.baseFont,
-      fontSizePt: options.fontSizePt,
-      xPt, yPt
-    });
-
-    this.commands.push(
-      fillColorCommand(color),
-      "BT",
-      `/${font.resourceName} ${formatNumber(options.fontSizePt)} Tf`,
-      `${formatNumber(xPt)} ${formatNumber(yPt - baselineAdjust)} Td`,
-      `(${encoded}) Tj`,
-      "ET",
-    );
+    await this.drawTextRun(run);
   }
 
   async drawTextRun(run: Run): Promise<void> {
@@ -127,12 +115,18 @@ export class TextRenderer {
       return;
     }
 
-    log("paint", "info", `${PINK}USING GLYPH RUN${RESET_COLOR}`, {
+    log("paint", "debug", `${PINK}USING GLYPH RUN${RESET_COLOR}`, {
       text: run.text.slice(0, 64),
       glyphCount: glyphRun.glyphIds.length,
     });
 
     const Tm = run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+    if (!run.lineMatrix) {
+      log("paint", "debug", "Run provided without lineMatrix, using identity fallback", {
+        text: run.text.slice(0, 32),
+        fontFamily: run.fontFamily,
+      });
+    }
     const localBaseline = Tm.f - this.coordinateTransformer.pageOffsetPx;
     const y = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localBaseline);
     const x = this.coordinateTransformer.convertPxToPt(Tm.e);
