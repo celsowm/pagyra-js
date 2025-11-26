@@ -1,4 +1,6 @@
 node_modules/
 dist/
 *.log
-playground/exports/
+# Keep sample PDFs for PR review
+playground/exports/*
+!playground/exports/background-text-debug.pdf
