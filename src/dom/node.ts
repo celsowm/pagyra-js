@@ -113,4 +113,21 @@ export class LayoutNode {
     }
     visitor(this);
   }
+
+  shift(dx: number, dy: number): void {
+    this.box.x += dx;
+    this.box.y += dy;
+    this.box.baseline += dy;
+
+    if (this.inlineRuns) {
+      for (const run of this.inlineRuns) {
+        run.startX += dx;
+        run.baseline += dy;
+      }
+    }
+
+    for (const child of this.childrenInternal) {
+      child.shift(dx, dy);
+    }
+  }
 }

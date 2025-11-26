@@ -270,6 +270,67 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
         node.box.scrollHeight = Math.max(node.box.scrollHeight, node.box.contentHeight);
     }
 
+    // Propagate bounding boxes from text nodes to their inline ancestors.
+    // This ensures that container nodes (like spans) have a bounding box that encompasses their content,
+    // even if they didn't generate box items themselves (e.g. no padding/border).
+    const boundingBoxes = new Map<LayoutNode, { minX: number; minY: number; maxX: number; maxY: number }>();
+
+    const updateBox = (node: LayoutNode, rect: { minX: number; minY: number; maxX: number; maxY: number }) => {
+        let current = boundingBoxes.get(node);
+        if (!current) {
+            // Seed with existing box if it appears valid (non-zero size), otherwise start with the new rect.
+            if (node.box.contentWidth > 0 || node.box.contentHeight > 0) {
+                current = {
+                    minX: node.box.x,
+                    minY: node.box.y,
+                    maxX: node.box.x + node.box.contentWidth,
+                    maxY: node.box.y + node.box.contentHeight,
+                };
+                // Union with the new rect
+                current.minX = Math.min(current.minX, rect.minX);
+                current.minY = Math.min(current.minY, rect.minY);
+                current.maxX = Math.max(current.maxX, rect.maxX);
+                current.maxY = Math.max(current.maxY, rect.maxY);
+            } else {
+                current = { ...rect };
+            }
+            boundingBoxes.set(node, current);
+        } else {
+            current.minX = Math.min(current.minX, rect.minX);
+            current.minY = Math.min(current.minY, rect.minY);
+            current.maxX = Math.max(current.maxX, rect.maxX);
+            current.maxY = Math.max(current.maxY, rect.maxY);
+        }
+    };
+
+    for (const [node, runs] of nodeRuns.entries()) {
+        // Start with the node's own box (which was just computed/updated in the previous loop)
+        const rect = {
+            minX: node.box.x,
+            minY: node.box.y,
+            maxX: node.box.x + node.box.contentWidth,
+            maxY: node.box.y + node.box.contentHeight,
+        };
+
+        let curr = node.parent;
+        while (curr && curr !== container && isInlineDisplay(curr.style.display)) {
+            updateBox(curr, rect);
+            curr = curr.parent;
+        }
+    }
+
+    // Apply computed bounding boxes back to the nodes
+    for (const [node, rect] of boundingBoxes.entries()) {
+        node.box.x = rect.minX;
+        node.box.y = rect.minY;
+        node.box.contentWidth = rect.maxX - rect.minX;
+        node.box.contentHeight = rect.maxY - rect.minY;
+        node.box.borderBoxWidth = Math.max(node.box.borderBoxWidth, node.box.contentWidth);
+        node.box.borderBoxHeight = Math.max(node.box.borderBoxHeight, node.box.contentHeight);
+        node.box.marginBoxWidth = Math.max(node.box.marginBoxWidth, node.box.borderBoxWidth);
+        node.box.marginBoxHeight = Math.max(node.box.marginBoxHeight, node.box.borderBoxHeight);
+    }
+
     return { newCursorY: lineTop };
 }
 
@@ -296,14 +357,9 @@ export function placeInlineItem(item: InlineMetrics, lineStartX: number, lineTop
 }
 
 export function offsetInlineDescendants(node: LayoutNode, deltaX: number, deltaY: number): void {
-    node.walk((child) => {
-        if (child === node) {
-            return;
-        }
-        child.box.x += deltaX;
-        child.box.y += deltaY;
-        child.box.baseline += deltaY;
-    }, false);
+    for (const child of node.children) {
+        child.shift(deltaX, deltaY);
+    }
 }
 
 function layoutInlineChildrenIfNeeded(

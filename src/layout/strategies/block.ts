@@ -155,9 +155,7 @@ export class BlockLayoutStrategy implements LayoutStrategy {
       child.box.usedMarginRight = usedMarginRight;
       const deltaX = usedMarginLeft;
       if (deltaX !== 0) {
-        child.walk((desc) => {
-          desc.box.x += deltaX;
-        });
+        child.shift(deltaX, 0);
       }
       child.box.x = contentX + usedMarginLeft;
 
@@ -167,7 +165,7 @@ export class BlockLayoutStrategy implements LayoutStrategy {
       previousBottomMargin = collapsedMarginBottom;
 
       cursorY = child.box.y + child.box.borderBoxHeight;
-      
+
       if (collapseBottomWithChildren && child === lastCollapsibleChild) {
         cursorY += collapsedMarginBottom - bottomCollapseAmount;
         previousBottomMargin = 0;
@@ -238,6 +236,7 @@ export class BlockLayoutStrategy implements LayoutStrategy {
     finalizeOverflow(node);
   }
 }
+
 
 function isInlineLevel(node: LayoutNode): boolean {
   switch (node.style.display) {
@@ -327,7 +326,7 @@ function shiftInFlowChildrenX(node: LayoutNode, deltaX: number): void {
       if (desc === node) {
         return;
       }
-      desc.box.x -= deltaX;
+      desc.shift(-deltaX, 0);
     });
   }
 }
