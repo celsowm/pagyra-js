@@ -60,7 +60,7 @@ export class TtfTableParser {
 
       // Essential TTF tables that MUST NOT be filtered out
       const essentialTables = ['cmap', 'head', 'hhea', 'hmtx', 'maxp', 'name', 'OS/2', 'post'];
-      
+
       // Bounds validation - allow graceful skip for non-essential tables
       if (tableOffset + length > this.dataView.byteLength) {
         if (essentialTables.includes(tagString)) {
@@ -113,6 +113,16 @@ export class TtfTableParser {
   getInt16(table: DataView, offset: number): number {
     if (offset + 2 > table.byteLength) throw new Error("Read beyond table bounds (getInt16)");
     return table.getInt16(offset, false); // big-endian
+  }
+
+  getInt8(table: DataView, offset: number): number {
+    if (offset + 1 > table.byteLength) throw new Error("Read beyond table bounds (getInt8)");
+    return table.getInt8(offset);
+  }
+
+  getUint8(table: DataView, offset: number): number {
+    if (offset + 1 > table.byteLength) throw new Error("Read beyond table bounds (getUint8)");
+    return table.getUint8(offset);
   }
 
   getUint32(table: DataView, offset: number): number {
