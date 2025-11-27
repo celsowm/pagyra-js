@@ -11,6 +11,7 @@ import type {
 import type { SvgRenderContext } from "./render-svg.js";
 import type { SvgStyle } from "./style-computer.js";
 import type { PathCommand } from "../renderers/shape-renderer.js";
+import type { StrokeOptions } from "../types.js";
 import { parsePathData } from "../../svg/path-data.js";
 import { buildEllipseSegments, buildRectSegments, buildRoundedRectSegments } from "./geometry-builder.js";
 import { mapPathSegments, mapPoints, mapSvgPoint } from "./coordinate-mapper.js";
@@ -178,10 +179,8 @@ export function renderPolygon(node: SvgPolygonNode, style: SvgStyle, context: Sv
   }
   const strokeColor = resolvePaint(style.stroke, style.opacity * style.strokeOpacity);
   if (strokeColor) {
-    const strokeWidthPx = (style.strokeWidth ?? 1) * context.strokeScale;
     context.painter.strokePolyline(mapped, strokeColor, {
-      lineWidth: strokeWidthPx,
-      lineJoin: style.strokeLinejoin,
+      ...getStrokeOptions(style, context),
       close: true,
     });
   }
@@ -198,11 +197,8 @@ export function renderPolyline(node: SvgPolylineNode, style: SvgStyle, context: 
   }
   const strokeColor = resolvePaint(style.stroke, style.opacity * style.strokeOpacity);
   if (strokeColor) {
-    const strokeWidthPx = (style.strokeWidth ?? 1) * context.strokeScale;
     context.painter.strokePolyline(mapped, strokeColor, {
-      lineWidth: strokeWidthPx,
-      lineJoin: style.strokeLinejoin,
-      lineCap: style.strokeLinecap,
+      ...getStrokeOptions(style, context),
       close: false,
     });
   }
@@ -219,10 +215,8 @@ export function renderLine(node: SvgLineNode, style: SvgStyle, context: SvgRende
     return;
   }
   const points = [start, end];
-  const strokeWidthPx = (style.strokeWidth ?? 1) * context.strokeScale;
   context.painter.strokePolyline(points, strokeColor, {
-    lineWidth: strokeWidthPx,
-    lineCap: style.strokeLinecap,
+    ...getStrokeOptions(style, context),
     close: false,
   });
 }
@@ -257,13 +251,7 @@ function paintPathCommands(commands: PathCommand[], style: SvgStyle, context: Sv
   }
   const strokeColor = resolvePaint(style.stroke, style.opacity * style.strokeOpacity);
   if (strokeColor) {
-    const strokeWidthPx = (style.strokeWidth ?? 1) * context.strokeScale;
-    const strokeOptions = {
-      lineWidth: strokeWidthPx > 0 ? strokeWidthPx : undefined,
-      lineCap: style.strokeLinecap,
-      lineJoin: style.strokeLinejoin,
-    };
-    context.painter.strokePath(commands, strokeColor, strokeOptions);
+    context.painter.strokePath(commands, strokeColor, getStrokeOptions(style, context));
   }
 }
 
@@ -455,4 +443,21 @@ function svgRadialNodeToRadialGradient(node: SvgRadialGradientNode, context?: Sv
   }
 
   return radRatio;
+}
+
+function getStrokeOptions(style: SvgStyle, context: SvgRenderContext): StrokeOptions {
+  const strokeWidthPx = (style.strokeWidth ?? 1) * context.strokeScale;
+  const options: StrokeOptions = {
+    lineWidth: strokeWidthPx > 0 ? strokeWidthPx : undefined,
+    lineCap: style.strokeLinecap,
+    lineJoin: style.strokeLinejoin,
+  };
+
+  if (style.strokeDashArray && style.strokeDashArray.length > 0) {
+    const pattern = style.strokeDashArray.map((v) => v * context.strokeScale);
+    const phase = (style.strokeDashOffset ?? 0) * context.strokeScale;
+    options.dash = { pattern, phase };
+  }
+
+  return options;
 }
