@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Text Overlap</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 48px 32px;
+        }
+
+        .shadow-grid {
+            display: flex;
+            gap: 32px;
+        }
+
+        .shadow-div {
+            background-color: #ffffff;
+            padding: 32px;
+            width: 260px;
+        }
+
+        .shadow-title {
+            font-size: 20px;
+            margin: 0 0 12px;
+        }
+
+        .shadow-text {
+            font-size: 15px;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="shadow-grid">
+        <div class="shadow-div">
+            <h2 class="shadow-title">First Title</h2>
+            <p class="shadow-text">First paragraph text.</p>
+        </div>
+        <div class="shadow-div">
+            <h2 class="shadow-title">Second Title</h2>
+            <p class="shadow-text">Second paragraph text.</p>
+        </div>
+    </div>
+</body>
+</html>

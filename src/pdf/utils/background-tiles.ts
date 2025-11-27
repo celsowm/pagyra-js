@@ -30,6 +30,9 @@ export function rectEquals(a: Rect | undefined, b: Rect | undefined, epsilon = 0
  * Computes the tile rectangles for a background layer inside a clipping rect,
  * honoring the repeat mode. Returned rects are already intersected with the
  * clip rect (they never extend outside).
+ * 
+ * For 'space' mode: tiles are repeated with even spacing between them
+ * For 'round' mode: tiles are scaled to fit perfectly without gaps
  */
 export function computeBackgroundTileRects(tileRect: Rect, clipRect: Rect, repeat: BackgroundRepeat): Rect[] {
   const width = tileRect.width;
@@ -43,8 +46,19 @@ export function computeBackgroundTileRects(tileRect: Rect, clipRect: Rect, repea
     return single ? [single] : [];
   }
 
-  const repeatX = repeat === "repeat" || repeat === "repeat-x" || repeat === "space" || repeat === "round";
-  const repeatY = repeat === "repeat" || repeat === "repeat-y" || repeat === "space" || repeat === "round";
+  // Handle 'space' mode
+  if (repeat === "space") {
+    return computeSpacedTiles(tileRect, clipRect);
+  }
+
+  // Handle 'round' mode
+  if (repeat === "round") {
+    return computeRoundedTiles(tileRect, clipRect);
+  }
+
+  // Handle standard repeat modes (repeat, repeat-x, repeat-y)
+  const repeatX = repeat === "repeat" || repeat === "repeat-x";
+  const repeatY = repeat === "repeat" || repeat === "repeat-y";
 
   const result: Rect[] = [];
 
@@ -59,8 +73,7 @@ export function computeBackgroundTileRects(tileRect: Rect, clipRect: Rect, repea
     if (ty >= maxY) {
       break;
     }
-    if (ty + height <= clipRect.x && !repeatY) {
-      // Single row above viewport and non-repeating on Y – nothing to paint
+    if (ty + height <= clipRect.y && !repeatY) {
       break;
     }
 
@@ -70,7 +83,6 @@ export function computeBackgroundTileRects(tileRect: Rect, clipRect: Rect, repea
         break;
       }
       if (tx + width <= clipRect.x && !repeatX) {
-        // Single column left of viewport and non-repeating on X – nothing to paint
         break;
       }
 
@@ -93,3 +105,88 @@ export function computeBackgroundTileRects(tileRect: Rect, clipRect: Rect, repea
   return result;
 }
 
+/**
+ * Computes tiles for 'space' mode: tiles are repeated with even spacing.
+ * The first and last tiles touch the edges of the clip rect.
+ */
+function computeSpacedTiles(tileRect: Rect, clipRect: Rect): Rect[] {
+  const result: Rect[] = [];
+  const tileWidth = tileRect.width;
+  const tileHeight = tileRect.height;
+  const availableWidth = clipRect.width;
+  const availableHeight = clipRect.height;
+
+  // Calculate how many tiles fit in each direction
+  const tilesX = Math.max(1, Math.floor(availableWidth / tileWidth));
+  const tilesY = Math.max(1, Math.floor(availableHeight / tileHeight));
+
+  // Calculate spacing between tiles
+  const spacingX = tilesX > 1 ? (availableWidth - tilesX * tileWidth) / (tilesX - 1) : 0;
+  const spacingY = tilesY > 1 ? (availableHeight - tilesY * tileHeight) / (tilesY - 1) : 0;
+
+  // Generate tiles with spacing
+  for (let iy = 0; iy < tilesY; iy++) {
+    const ty = clipRect.y + iy * (tileHeight + spacingY);
+
+    for (let ix = 0; ix < tilesX; ix++) {
+      const tx = clipRect.x + ix * (tileWidth + spacingX);
+
+      const candidate: Rect = {
+        x: tx,
+        y: ty,
+        width: tileWidth,
+        height: tileHeight
+      };
+
+      const clipped = intersectRects(candidate, clipRect);
+      if (clipped) {
+        result.push(clipped);
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Computes tiles for 'round' mode: tiles are scaled to fit perfectly.
+ * Tiles are stretched or shrunk so they fit without gaps or clipping.
+ */
+function computeRoundedTiles(tileRect: Rect, clipRect: Rect): Rect[] {
+  const result: Rect[] = [];
+  const tileWidth = tileRect.width;
+  const tileHeight = tileRect.height;
+  const availableWidth = clipRect.width;
+  const availableHeight = clipRect.height;
+
+  // Calculate how many tiles would fit (rounded to nearest integer)
+  const tilesX = Math.max(1, Math.round(availableWidth / tileWidth));
+  const tilesY = Math.max(1, Math.round(availableHeight / tileHeight));
+
+  // Calculate scaled tile dimensions
+  const scaledWidth = availableWidth / tilesX;
+  const scaledHeight = availableHeight / tilesY;
+
+  // Generate scaled tiles
+  for (let iy = 0; iy < tilesY; iy++) {
+    const ty = clipRect.y + iy * scaledHeight;
+
+    for (let ix = 0; ix < tilesX; ix++) {
+      const tx = clipRect.x + ix * scaledWidth;
+
+      const candidate: Rect = {
+        x: tx,
+        y: ty,
+        width: scaledWidth,
+        height: scaledHeight
+      };
+
+      const clipped = intersectRects(candidate, clipRect);
+      if (clipped) {
+        result.push(clipped);
+      }
+    }
+  }
+
+  return result;
+}

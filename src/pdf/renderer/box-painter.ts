@@ -92,14 +92,6 @@ function paintBackground(painter: PagePainter, box: RenderBox): void {
     const gradient = background.gradient;
     const clipRect = paintArea.rect;
 
-    if (gradient.repeat === "space" || gradient.repeat === "round") {
-      log(
-        "paint",
-        "warn",
-        `Gradient background repeat mode "${gradient.repeat}" is not fully supported. Treating as "repeat".`,
-      );
-    }
-
     const gradientRect = gradient.rect ?? clipRect;
     const repeatMode = gradient.repeat ?? "no-repeat";
     const tiles = computeBackgroundTileRects(gradientRect, clipRect, repeatMode);
@@ -127,9 +119,6 @@ function paintBackgroundImageLayer(
 ): void {
   if (!layer || !layer.rect) {
     return;
-  }
-  if (layer.repeat === "space" || layer.repeat === "round") {
-    log("paint", "warn", `Background repeat mode "${layer.repeat}" is not fully supported. Treating as "repeat".`);
   }
 
   const repeatMode = layer.repeat ?? "repeat";

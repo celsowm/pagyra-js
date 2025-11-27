@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Flexbox Text Positioning Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        .test-section {
+            margin-bottom: 40px;
+            border: 2px solid #ccc;
+            padding: 16px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: #333;
+        }
+
+        /* Test 1: Basic horizontal flexbox */
+        .flex-row {
+            display: flex;
+            gap: 20px;
+            border: 1px dashed #999;
+            padding: 10px;
+        }
+
+        .flex-item {
+            background-color: #f0f0f0;
+            padding: 15px;
+            border: 1px solid #666;
+        }
+
+        /* Test 2: Flexbox with justify-content */
+        .flex-space-between {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            border: 1px dashed #999;
+            padding: 10px;
+        }
+
+        /* Test 3: Vertical flexbox */
+        .flex-column {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            border: 1px dashed #999;
+            padding: 10px;
+        }
+
+        /* Test 4: Nested flexbox */
+        .flex-nested-outer {
+            display: flex;
+            gap: 20px;
+            border: 1px dashed #999;
+            padding: 10px;
+        }
+
+        .flex-nested-inner {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background-color: #e8e8e8;
+            padding: 10px;
+            border: 1px solid #666;
+        }
+
+        .item-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 0 0 8px 0;
+            color: #000;
+        }
+
+        .item-text {
+            font-size: 14px;
+            margin: 0;
+            color: #444;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Flexbox Text Positioning Test Suite</h1>
+
+    <!-- Test 1: Basic Horizontal Flexbox -->
+    <div class="test-section">
+        <div class="section-title">Test 1: Basic Horizontal Flexbox (flex-direction: row)</div>
+        <div class="flex-row">
+            <div class="flex-item">
+                <h2 class="item-title">First Item</h2>
+                <p class="item-text">This text should appear in the first box on the left.</p>
+            </div>
+            <div class="flex-item">
+                <h2 class="item-title">Second Item</h2>
+                <p class="item-text">This text should appear in the second box to the right of the first.</p>
+            </div>
+            <div class="flex-item">
+                <h2 class="item-title">Third Item</h2>
+                <p class="item-text">This text should appear in the third box on the right.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test 2: Flexbox with space-between -->
+    <div class="test-section">
+        <div class="section-title">Test 2: Justify Content Space-Between</div>
+        <div class="flex-space-between">
+            <div class="flex-item">
+                <h2 class="item-title">Left</h2>
+                <p class="item-text">Positioned at left edge</p>
+            </div>
+            <div class="flex-item">
+                <h2 class="item-title">Middle</h2>
+                <p class="item-text">Should be centered</p>
+            </div>
+            <div class="flex-item">
+                <h2 class="item-title">Right</h2>
+                <p class="item-text">Positioned at right edge</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test 3: Vertical Flexbox -->
+    <div class="test-section">
+        <div class="section-title">Test 3: Vertical Flexbox (flex-direction: column)</div>
+        <div class="flex-column">
+            <div class="flex-item">
+                <h2 class="item-title">Top Item</h2>
+                <p class="item-text">This should be at the top.</p>
+            </div>
+            <div class="flex-item">
+                <h2 class="item-title">Middle Item</h2>
+                <p class="item-text">This should be in the middle below the top.</p>
+            </div>
+            <div class="flex-item">
+                <h2 class="item-title">Bottom Item</h2>
+                <p class="item-text">This should be at the bottom.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test 4: Nested Flexbox -->
+    <div class="test-section">
+        <div class="section-title">Test 4: Nested Flexbox (Columns within Rows)</div>
+        <div class="flex-nested-outer">
+            <div class="flex-nested-inner">
+                <h2 class="item-title">Column 1</h2>
+                <p class="item-text">First item in left column</p>
+                <p class="item-text">Second item in left column</p>
+            </div>
+            <div class="flex-nested-inner">
+                <h2 class="item-title">Column 2</h2>
+                <p class="item-text">First item in middle column</p>
+                <p class="item-text">Second item in middle column</p>
+            </div>
+            <div class="flex-nested-inner">
+                <h2 class="item-title">Column 3</h2>
+                <p class="item-text">First item in right column</p>
+                <p class="item-text">Second item in right column</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test 5: Original Shadow Example (Simplified) -->
+    <div class="test-section">
+        <div class="section-title">Test 5: Original Problem Case</div>
+        <div style="display: flex; gap: 32px;">
+            <div style="background-color: #ffffff; padding: 32px; width: 260px; border: 1px solid #ccc;">
+                <h2 style="font-size: 20px; margin: 0 0 12px;">Layered Drop Shadow</h2>
+                <p style="font-size: 15px; margin: 0;">Two cascading shadows create a lifted card.</p>
+            </div>
+            <div style="background-color: #ffffff; padding: 32px; width: 260px; border: 1px solid #ccc;">
+                <h2 style="font-size: 20px; margin: 0 0 12px;">Inset Glow</h2>
+                <p style="font-size: 15px; margin: 0;">Inset shadows highlight interactive panels.</p>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

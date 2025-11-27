@@ -6,7 +6,7 @@ import { inFlow } from "./node-math.js";
 const LAYOUT_DEBUG = process.env.PAGYRA_DEBUG_LAYOUT === "1";
 const layoutDebug = (...args: unknown[]): void => {
     if (LAYOUT_DEBUG) {
-        // Debug logging can be enabled via environment variable
+        console.log(...args);
     }
 };
 
@@ -114,12 +114,8 @@ export class ContentMeasurer {
             if (child.style.display === Display.None) {
                 continue;
             }
-            child.walk((desc) => {
-                if (desc === node) {
-                    return;
-                }
-                desc.shift(-deltaX, 0);
-            });
+            // Shift the child and all its descendants
+            child.shift(-deltaX, 0);
         }
     }
 }

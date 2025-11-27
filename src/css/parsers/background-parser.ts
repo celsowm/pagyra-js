@@ -122,10 +122,10 @@ function splitBackgroundLayers(value: string): string[] {
   let current = '';
   let parenCount = 0;
   let i = 0;
-  
+
   while (i < value.length) {
     const char = value[i];
-    
+
     if (char === '(') {
       parenCount++;
       current += char;
@@ -141,11 +141,11 @@ function splitBackgroundLayers(value: string): string[] {
     }
     i++;
   }
-  
+
   if (current.trim()) {
     result.push(current.trim());
   }
-  
+
   return result;
 }
 
@@ -430,5 +430,17 @@ export function applyBackgroundOrigin(style: any, value: string): void {
   const layer = getOrCreateTopRenderableLayer(style);
   if (layer.kind === "image" || layer.kind === "gradient") {
     layer.origin = token;
+  }
+}
+
+export function applyBackgroundRepeat(style: any, value: string): void {
+  ensureLayers(style);
+  const token = value.trim().toLowerCase();
+  if (!isRepeatKeyword(token)) {
+    return;
+  }
+  const layer = getOrCreateTopRenderableLayer(style);
+  if (layer.kind === "image" || layer.kind === "gradient") {
+    layer.repeat = token as BackgroundRepeat;
   }
 }

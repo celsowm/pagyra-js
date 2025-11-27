@@ -168,6 +168,11 @@
     "htmlUrl": "examples/background-repeat-showcase.html"
   },
   {
+    "id": "background-repeat-space-round",
+    "label": "Background Repeat: Space & Round",
+    "htmlUrl": "examples/background-repeat-space-round.html"
+  },
+  {
     "id": "background-advanced-showcase",
     "label": "Advanced Background Techniques",
     "htmlUrl": "examples/background-advanced-showcase.html"

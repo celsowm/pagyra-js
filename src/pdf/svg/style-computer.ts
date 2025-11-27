@@ -7,6 +7,8 @@ export interface SvgStyle {
   strokeWidth?: number;
   strokeLinecap?: "butt" | "round" | "square";
   strokeLinejoin?: "miter" | "round" | "bevel";
+  strokeDashArray?: number[];
+  strokeDashOffset?: number;
   fillRule: "nonzero" | "evenodd";
   opacity: number;
   fillOpacity: number;
@@ -72,6 +74,20 @@ export function deriveStyle(base: SvgStyle, node: SvgDrawableNode | SvgGroupNode
     }
   }
 
+  if (attrs["stroke-dasharray"] !== undefined) {
+    const value = parseDashArray(attrs["stroke-dasharray"]);
+    if (value) {
+      style.strokeDashArray = value;
+    }
+  }
+
+  if (attrs["stroke-dashoffset"] !== undefined) {
+    const value = parseNumber(attrs["stroke-dashoffset"]);
+    if (value !== undefined) {
+      style.strokeDashOffset = value;
+    }
+  }
+
   if (attrs["fill-rule"] !== undefined) {
     const rule = normalizeFillRule(attrs["fill-rule"]);
     if (rule) {
@@ -110,6 +126,8 @@ export function createDefaultStyle(): SvgStyle {
     strokeWidth: 1,
     strokeLinecap: "butt",
     strokeLinejoin: "miter",
+    strokeDashArray: undefined,
+    strokeDashOffset: 0,
     fillRule: "nonzero",
     opacity: 1,
     fillOpacity: 1,
@@ -206,4 +224,23 @@ function clamp01(value: number): number {
     return 1;
   }
   return value;
+}
+
+function parseDashArray(value: string | undefined): number[] | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "none") {
+    return undefined;
+  }
+  const parts = trimmed
+    .split(/[\s,]+/)
+    .map((part) => Number.parseFloat(part))
+    .filter((num) => Number.isFinite(num) && num >= 0);
+
+  if (parts.length === 0) {
+    return undefined;
+  }
+  return parts;
 }

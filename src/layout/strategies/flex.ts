@@ -426,5 +426,14 @@ function offsetLayoutSubtree(node: LayoutNode, deltaX: number, deltaY: number): 
     desc.box.x += deltaX;
     desc.box.y += deltaY;
     desc.box.baseline += deltaY;
+    
+    // Update inline runs if they exist
+    if (desc.inlineRuns && desc.inlineRuns.length > 0) {
+      for (const run of desc.inlineRuns) {
+        run.startX += deltaX;
+        run.baseline += deltaY;
+      }
+    }
   });
 }
+
