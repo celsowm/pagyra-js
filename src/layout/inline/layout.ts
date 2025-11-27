@@ -51,7 +51,7 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
     let cursorX = 0;
     let lineIndex = 0;
     const lineParts: { item: LayoutItem; offset: number }[] = [];
-    const runPlacer = new RunPlacer();
+    const runPlacer = new RunPlacer(context.env.fontEmbedder);
 
     const placeRunsForLine = (parts: { item: LayoutItem; offset: number }[], isLastLine: boolean) => {
         const offsetShift = alignmentStrategy.calculateOffset(

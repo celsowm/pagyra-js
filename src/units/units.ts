@@ -46,3 +46,5 @@ export function makeUnitParsers(ctx: UnitCtx) {
     parseLengthOrPercent: (value: string) => parseLengthOrPercent(value),
   };
 }
+
+export type UnitParsers = ReturnType<typeof makeUnitParsers>;

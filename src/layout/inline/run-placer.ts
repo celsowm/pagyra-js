@@ -3,6 +3,7 @@ import type { LayoutItem } from "./types.js";
 import { isBoxItem } from "./types.js";
 import { placeInlineItem } from "./layout.js";
 import { calculateBaseline } from "./font-baseline-calculator.js";
+import type { FontEmbedder } from "../../pdf/font/embedder.js";
 
 /**
  * Context information for placing runs on a specific line
@@ -26,6 +27,8 @@ export interface LineContext {
 export class RunPlacer {
     private nodeRuns = new Map<LayoutNode, InlineRun[]>();
     private maxInlineEnd = 0;
+
+    constructor(private readonly fontEmbedder: FontEmbedder | null = null) { }
 
     /**
      * Place all items on a line, creating InlineRun objects for text and positioning box items.
@@ -72,9 +75,12 @@ export class RunPlacer {
             const itemLineHeight = part.item.lineHeight ?? lineHeight;
 
             // Use calculateBaseline with font metrics when available
-            // For now, we don't have font metrics readily available here, so we use the default heuristic
-            // TODO: Pass fontEmbedder to get accurate font metrics
-            const lineBaseline = calculateBaseline(lineTop, fontSize, itemLineHeight, null);
+            const fontFamily = part.item.style?.fontFamily ?? "sans-serif";
+            const fontWeight = part.item.style?.fontWeight ?? 400;
+            const fontStyle = part.item.style?.fontStyle ?? "normal";
+
+            const fontMetrics = this.fontEmbedder?.getMetrics(fontFamily, fontWeight, fontStyle);
+            const lineBaseline = calculateBaseline(lineTop, fontSize, itemLineHeight, fontMetrics);
 
             const startX = lineStartX + part.offset;
             const run: InlineRun = {
