@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { renderHtmlToPdf } from '../src/html-to-pdf.js';
+import { DEFAULT_PAGE_WIDTH_PX, DEFAULT_PAGE_HEIGHT_PX } from '../src/units/page-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,6 +14,9 @@ async function main() {
   let debugLevel: string | undefined;
   let debugCats: string[] | undefined;
   let examplePathArg: string | undefined;
+  let pageWidth: number | undefined;
+  let pageHeight: number | undefined;
+  let margins: { top: number; right: number; bottom: number; left: number } | undefined;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -21,6 +25,24 @@ async function main() {
       i++;
     } else if (arg === '--debug-cats' && i + 1 < args.length) {
       debugCats = args[i + 1].split(',').map(cat => cat.trim()).filter(Boolean);
+      i++;
+    } else if (arg === '--page-width' && i + 1 < args.length) {
+      pageWidth = parseFloat(args[i + 1]);
+      i++;
+    } else if (arg === '--page-height' && i + 1 < args.length) {
+      pageHeight = parseFloat(args[i + 1]);
+      i++;
+    } else if (arg === '--margins' && i + 1 < args.length) {
+      const marginValues = args[i + 1].split(',').map(m => parseFloat(m.trim()));
+      if (marginValues.length === 1) {
+        margins = { top: marginValues[0], right: marginValues[0], bottom: marginValues[0], left: marginValues[0] };
+      } else if (marginValues.length === 2) {
+        margins = { top: marginValues[0], right: marginValues[1], bottom: marginValues[0], left: marginValues[1] };
+      } else if (marginValues.length === 4) {
+        margins = { top: marginValues[0], right: marginValues[1], bottom: marginValues[2], left: marginValues[3] };
+      } else {
+        console.warn('Invalid --margins argument. Expected 1, 2, or 4 comma-separated numbers (e.g., "10", "10,20", "10,20,30,40").');
+      }
       i++;
     } else if (!arg.startsWith('--')) {
       examplePathArg = arg;
@@ -64,6 +86,9 @@ async function main() {
 
   const html = await fs.readFile(examplePath, 'utf8');
 
+  const finalPageWidth = pageWidth ?? DEFAULT_PAGE_WIDTH_PX;
+  const finalPageHeight = pageHeight ?? DEFAULT_PAGE_HEIGHT_PX;
+
   console.log('Rendering playground example to PDF:', examplePath);
   // Provide resource/asset roots so example-relative and absolute (/images/...) URLs resolve
   const resourceBaseDir = path.dirname(examplePath);
@@ -72,12 +97,12 @@ async function main() {
   const pdf = await renderHtmlToPdf({
     html,
     css: '',
-    viewportWidth: 800,
-    viewportHeight: 600,
-    pageWidth: 800,
-    pageHeight: 600,
-    margins: { top: 0, right: 0, bottom: 0, left: 0 },
-    debug: false,
+    viewportWidth: finalPageWidth,
+    viewportHeight: finalPageHeight,
+    pageWidth: finalPageWidth,
+    pageHeight: finalPageHeight,
+    margins: margins ?? { top: 0, right: 0, bottom: 0, left: 0 },
+    debug: !!(debugLevel || debugCats),
     debugLevel: debugLevel as any,
     debugCats,
     resourceBaseDir,

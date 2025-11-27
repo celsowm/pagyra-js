@@ -195,6 +195,11 @@ Do **not** restructure without updating this file and the README.
     - `npm run playground:render [example-path]` - Render a specific example from playground/public/examples/
     - `npm run playground:render -- --debug-level debug` - Enable debug logging
     - `npm run playground:render -- --debug-cats layout,pdf` - Enable specific debug categories (comma-separated)
+    - `npm run playground:render -- --page-width 800` - Set a custom page width in pixels
+    - `npm run playground:render -- --page-height 600` - Set a custom page height in pixels
+    - `npm run playground:render -- --margins "50"` - Set uniform margins (50px)
+    - `npm run playground:render -- --margins "20,40"` - Set vertical (20px) and horizontal (40px) margins
+    - `npm run playground:render -- --margins "20,30,40,50"` - Set top, right, bottom, and left margins individually
     - Output PDFs are saved to `playground/exports/` directory
   
 - **Scripts:** Development utilities in `/scripts/` directory
