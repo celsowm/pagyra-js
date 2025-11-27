@@ -222,8 +222,23 @@ function computeGlyphRunFromText(
     const gid = metrics.cmap.getGlyphId(cp);
     glyphIds.push(gid);
     positions.push({ x, y: 0 });
+
     const advanceWidth = metrics.glyphMetrics.get(gid)?.advanceWidth ?? 0;
-    const advancePx = (advanceWidth / unitsPerEm) * fontSize + letterSpacing;
+    let advancePx = (advanceWidth / unitsPerEm) * fontSize + letterSpacing;
+
+    // Apply kerning if the next character is available
+    const currentCharLength = cp > 0xffff ? 2 : 1;
+    const nextCharIndex = i + currentCharLength;
+    if (nextCharIndex < text.length) {
+      const nextCp = text.codePointAt(nextCharIndex)!;
+      const nextGid = metrics.cmap.getGlyphId(nextCp);
+      const kerningValue = metrics.kerning?.get(gid)?.get(nextGid) ?? 0;
+      if (kerningValue !== 0) {
+        const kerningPx = (kerningValue / unitsPerEm) * fontSize;
+        advancePx += kerningPx;
+      }
+    }
+
     x += advancePx;
     if (cp > 0xffff) i++;
   }
