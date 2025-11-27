@@ -1,6 +1,6 @@
 // src/css/parsers/length-parser.ts
 
-import { ptToPx } from "../../units/units.js";
+import { cmToPx, inToPx, mmToPx, pcToPx, ptToPx, qToPx } from "../../units/units.js";
 import { getViewportHeight, getViewportWidth } from "../viewport.js";
 import { percent, relativeLength, type RelativeLength } from "../length.js";
 
@@ -14,7 +14,7 @@ export function parseLength(value: string): number | RelativeLength | undefined 
   if (!normalized || normalized === "auto") {
     return undefined;
   }
-  const match = normalized.match(/^(-?\d+(?:\.\d+)?)(px|pt|vh|vw|em|rem)?$/);
+  const match = normalized.match(/^(-?\d+(?:\.\d+)?)(px|pt|vh|vw|em|rem|cm|mm|q|in|pc)?$/);
   if (!match) {
     return undefined;
   }
@@ -28,6 +28,16 @@ export function parseLength(value: string): number | RelativeLength | undefined 
       return numeric;
     case "pt":
       return ptToPx(numeric);
+    case "cm":
+      return cmToPx(numeric);
+    case "mm":
+      return mmToPx(numeric);
+    case "q":
+      return qToPx(numeric);
+    case "in":
+      return inToPx(numeric);
+    case "pc":
+      return pcToPx(numeric);
     case "vh":
       return (numeric / 100) * getViewportHeight();
     case "vw":
