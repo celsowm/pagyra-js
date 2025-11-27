@@ -75,7 +75,9 @@ function measureText(
   const lines = effectiveText.split(/\r?\n/);
   let maxLineWidth = 0;
 
-  const fontMetrics = fontEmbedder?.getMetrics(style.fontFamily ?? "");
+  const fontWeight = typeof style.fontWeight === "number" ? style.fontWeight : 400;
+  const fontStyle = style.fontStyle ?? "normal";
+  const fontMetrics = fontEmbedder?.getMetrics(style.fontFamily ?? "", fontWeight, fontStyle);
 
   for (const line of lines) {
     const glyphWidth = measureTextWithGlyphs(line, style, fontMetrics ?? null);

@@ -48,7 +48,9 @@ function measureItems(
   style: ComputedStyle,
   fontEmbedder: FontEmbedder | null
 ): TextItem[] {
-  const fontMetrics = fontEmbedder?.getMetrics(style.fontFamily ?? "");
+  const fontWeight = typeof style.fontWeight === "number" ? style.fontWeight : 400;
+  const fontStyle = style.fontStyle ?? "normal";
+  const fontMetrics = fontEmbedder?.getMetrics(style.fontFamily ?? "", fontWeight, fontStyle);
 
   return segments.map(s => {
     const glyphWidth = measureTextWithGlyphs(s.text, style, fontMetrics ?? null);

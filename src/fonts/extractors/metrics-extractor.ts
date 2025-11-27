@@ -145,6 +145,7 @@ export class Woff2MetricsExtractor implements MetricsExtractor {
     const numLongHorMetrics = new DataView(hheaTable.buffer, hheaTable.byteOffset, hheaTable.length).getUint16(34, false);
     
     let hmtxOffset = 0;
+    let lastAdvanceWidth = 0;
     
     // Process longHorMetric entries (advanceWidth + leftSideBearing)
     for (let i = 0; i < numLongHorMetrics && i < numGlyphs; i++) {
@@ -156,15 +157,17 @@ export class Woff2MetricsExtractor implements MetricsExtractor {
         leftSideBearing
       });
       
+      lastAdvanceWidth = advanceWidth;
       hmtxOffset += 4; // 2 bytes advanceWidth + 2 bytes leftSideBearing
     }
     
     // Process remaining glyphs with just leftSideBearing
+    // Per OpenType spec: these glyphs reuse the last advanceWidth value
     for (let i = numLongHorMetrics; i < numGlyphs; i++) {
       const leftSideBearing = hmtx.getInt16(hmtxOffset, false);
       
       glyphMetrics.set(i, {
-        advanceWidth: 0, // Use default advance width from font metrics
+        advanceWidth: lastAdvanceWidth,
         leftSideBearing
       });
       
