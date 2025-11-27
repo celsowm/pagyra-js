@@ -11,7 +11,9 @@ import { FloatContext } from "../context/float-context.js";
 export type LayoutCallback = (node: LayoutNode, containerWidth: number, context: LayoutContext) => { contentWidth: number; contentHeight: number } | null;
 
 export function measureSegment(text: string, style: LayoutNode["style"], fontEmbedder: FontEmbedder | null): number {
-    const metrics = fontEmbedder?.getMetrics(style.fontFamily ?? "");
+    const fontWeight = typeof style.fontWeight === "number" ? style.fontWeight : 400;
+    const fontStyle = style.fontStyle ?? "normal";
+    const metrics = fontEmbedder?.getMetrics(style.fontFamily ?? "", fontWeight, fontStyle);
     const glyphWidth = measureTextWithGlyphs(text, style, metrics ?? null);
     return glyphWidth ?? estimateLineWidth(text, style);
 }

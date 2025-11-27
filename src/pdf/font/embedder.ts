@@ -7,6 +7,7 @@ import { detectFontFormat } from "../../fonts/detector.js";
 import { reconstructTtf } from "../../fonts/utils/ttf-reconstructor.js";
 import { computeWidths } from "./widths.js";
 import { createToUnicodeCMapText } from "./to-unicode.js";
+import { BASE_FONT_ALIASES, GENERIC_FAMILIES } from "./font-config.js";
 
 export { computeWidths } from "./widths.js";
 export { createToUnicodeCMapText } from "./to-unicode.js";
@@ -270,11 +271,61 @@ export class FontEmbedder {
 
 
   /**
-   * Return parsed TTF metrics for a loaded face by name, or null if not available.
+   * Return parsed TTF metrics for a loaded face by name or family, or null if not available.
    * Exposed to allow rendering code to access outlines/metrics for embedding masks.
+   * 
+   * The lookup tries:
+   * 1. Exact match by face name (e.g., "Tinos-Bold")
+   * 2. Match by family name (e.g., "Tinos") with weight/style matching
+   * 3. Case-insensitive match by family name
+   * 4. If input contains comma-separated font stack (e.g., "Tinos, serif"), tries each font
+   * 5. Uses BASE_FONT_ALIASES to resolve CSS font names to embedded fonts (e.g., "Times New Roman" → "Tinos")
+   * 
+   * @param faceName - Font family name or font stack
+   * @param fontWeight - Optional font weight (100-900), defaults to 400
+   * @param fontStyle - Optional font style ('normal' | 'italic' | 'oblique'), defaults to 'normal'
    */
-  public getMetrics(faceName: string): TtfFontMetrics | null {
-    return this.faceMetrics.get(faceName) ?? null;
+  public getMetrics(faceName: string, fontWeight: number = 400, fontStyle: string = "normal"): TtfFontMetrics | null {
+    // Try exact match first
+    const exact = this.faceMetrics.get(faceName);
+    if (exact) return exact;
+
+    const wantsItalic = fontStyle === "italic" || fontStyle === "oblique";
+
+    // Handle font-family stacks like "'Times New Roman', Times, serif"
+    const fontStack = faceName.split(",").map(f => f.trim().replace(/^["']|["']$/g, ""));
+    
+    for (const fontName of fontStack) {
+      const normalizedQuery = fontName.toLowerCase().trim();
+      
+      // Try exact match with this font name
+      const exactMatch = this.faceMetrics.get(fontName);
+      if (exactMatch) return exactMatch;
+      
+      // Check if this is an alias that maps to an embedded font
+      const aliasedFont = BASE_FONT_ALIASES.get(normalizedQuery) || GENERIC_FAMILIES.get(normalizedQuery);
+      const targetFamily = aliasedFont ? aliasedFont.toLowerCase() : normalizedQuery;
+      
+      // Collect all faces matching the family
+      const matchingFaces: FontFaceDef[] = [];
+      for (const face of this.config.fontFaceDefs) {
+        const faceFamily = (face.family || "").toLowerCase().trim();
+        if (faceFamily === targetFamily) {
+          matchingFaces.push(face);
+        }
+      }
+      
+      // Pick the best face by weight and style
+      if (matchingFaces.length > 0) {
+        const bestFace = pickFaceByWeight(matchingFaces, fontWeight, wantsItalic);
+        if (bestFace) {
+          const metrics = this.faceMetrics.get(bestFace.name);
+          if (metrics) return metrics;
+        }
+      }
+    }
+
+    return null;
   }
 }
 
