@@ -135,6 +135,7 @@ import {
   applyBackgroundSizeDecl,
   applyBackgroundPositionDecl,
   applyBackgroundOriginDecl,
+  applyBackgroundRepeatDecl,
   parseBackgroundImage,
   parseBackground,
   parseObjectFit,
@@ -279,18 +280,19 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("background-size", applyBackgroundSizeDecl);
   registerPropertyParser("background-position", applyBackgroundPositionDecl);
   registerPropertyParser("background-origin", applyBackgroundOriginDecl);
+  registerPropertyParser("background-repeat", applyBackgroundRepeatDecl);
   registerPropertyParser("background-image", parseBackgroundImage);
   registerPropertyParser("background", parseBackground);
   registerPropertyParser("object-fit", parseObjectFit);
 
-   // Grid
+  // Grid
   registerPropertyParser("grid-template-columns", parseGridTemplateColumns);
   registerPropertyParser("grid-template-rows", parseGridTemplateRows);
   registerPropertyParser("grid-auto-flow", parseGridAutoFlow);
   registerPropertyParser("gap", parseGap);
   registerPropertyParser("row-gap", parseRowGap);
   registerPropertyParser("column-gap", parseColumnGap);
-  
+
   // Opacity
   registerPropertyParser("opacity", parseOpacity);
 }

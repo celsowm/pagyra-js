@@ -1,7 +1,7 @@
 // src/css/parsers/background-parser-extended.ts
 
 import { parseLinearGradient } from "./gradient-parser.js";
-import { parseBackgroundShorthand, applyBackgroundSize, applyBackgroundPosition, applyBackgroundOrigin } from "./background-parser.js";
+import { parseBackgroundShorthand, applyBackgroundSize, applyBackgroundPosition, applyBackgroundOrigin, applyBackgroundRepeat } from "./background-parser.js";
 import type { StyleAccumulator } from "../style.js";
 
 export function applyBackgroundSizeDecl(value: string, target: StyleAccumulator): void {
@@ -14,6 +14,10 @@ export function applyBackgroundPositionDecl(value: string, target: StyleAccumula
 
 export function applyBackgroundOriginDecl(value: string, target: StyleAccumulator): void {
   applyBackgroundOrigin(target, value);
+}
+
+export function applyBackgroundRepeatDecl(value: string, target: StyleAccumulator): void {
+  applyBackgroundRepeat(target, value);
 }
 
 export function parseBackgroundImage(value: string, target: StyleAccumulator): void {
