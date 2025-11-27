@@ -30,7 +30,7 @@ export class TableLayoutStrategy implements LayoutStrategy {
       resolvedWidth: node.box.contentWidth,
     });
 
-    const grid = this.buildTableGrid(node);
+    const { grid, rowNodes } = this.buildTableGrid(node);
     if (grid.length === 0 || grid[0].length === 0) {
       node.box.contentHeight = 0;
       return;
@@ -108,6 +108,56 @@ export class TableLayoutStrategy implements LayoutStrategy {
       const numericBorder = (value: LengthLike | undefined): number =>
         resolveLength(value, node.box.contentWidth, { auto: "zero" });
 
+      // For collapsed borders, we need to:
+      // 1. Collapse borders between adjacent cells (winner takes the shared border)
+      // 2. Collapse outer cell borders with table border
+      
+      // Get table border widths
+      const tableBorderTop = numericBorder(node.style.borderTop);
+      const tableBorderRight = numericBorder(node.style.borderRight);
+      const tableBorderBottom = numericBorder(node.style.borderBottom);
+      const tableBorderLeft = numericBorder(node.style.borderLeft);
+
+      // Collapse table border with outer cells
+      for (let c = 0; c < numCols; c++) {
+        // Top edge cells collapse with table top border
+        const topCell = grid[0][c];
+        if (topCell && this.isOriginCell(topCell, 0, c)) {
+          const cellTop = numericBorder(topCell.style.borderTop);
+          const shared = Math.max(cellTop, tableBorderTop);
+          topCell.style.borderTop = shared;
+        }
+        // Bottom edge cells collapse with table bottom border
+        const bottomCell = grid[numRows - 1][c];
+        if (bottomCell && this.isOriginCell(bottomCell, numRows - 1, c)) {
+          const cellBottom = numericBorder(bottomCell.style.borderBottom);
+          const shared = Math.max(cellBottom, tableBorderBottom);
+          bottomCell.style.borderBottom = shared;
+        }
+      }
+      for (let r = 0; r < numRows; r++) {
+        // Left edge cells collapse with table left border
+        const leftCell = grid[r][0];
+        if (leftCell && this.isOriginCell(leftCell, r, 0)) {
+          const cellLeft = numericBorder(leftCell.style.borderLeft);
+          const shared = Math.max(cellLeft, tableBorderLeft);
+          leftCell.style.borderLeft = shared;
+        }
+        // Right edge cells collapse with table right border
+        const rightCell = grid[r][numCols - 1];
+        if (rightCell && this.isOriginCell(rightCell, r, numCols - 1)) {
+          const cellRight = numericBorder(rightCell.style.borderRight);
+          const shared = Math.max(cellRight, tableBorderRight);
+          rightCell.style.borderRight = shared;
+        }
+      }
+      
+      // Clear table border since it's now handled by cells
+      node.style.borderTop = 0;
+      node.style.borderRight = 0;
+      node.style.borderBottom = 0;
+      node.style.borderLeft = 0;
+
       // Resolve vertical shared borders between adjacent rows
       for (let r = 0; r < numRows - 1; r++) {
         for (let c = 0; c < numCols; c++) {
@@ -145,6 +195,29 @@ export class TableLayoutStrategy implements LayoutStrategy {
         }
       }
     }
+
+    // Propagate row background color to cells that don't have their own background
+    // This is needed because cells are painted after rows and would cover the row background
+    for (let r = 0; r < numRows; r++) {
+      const rowNode = rowNodes[r];
+      if (!rowNode) continue;
+      const rowBgColor = rowNode.style.backgroundColor;
+      if (!rowBgColor) continue;
+      
+      for (let c = 0; c < numCols; c++) {
+        const cell = grid[r][c];
+        if (!cell || !this.isOriginCell(cell, r, c)) continue;
+        // Only propagate if cell doesn't have its own background color
+        if (!cell.style.backgroundColor) {
+          // Add the row's background color as a color layer
+          if (!cell.style.backgroundLayers) {
+            cell.style.backgroundLayers = [];
+          }
+          cell.style.backgroundLayers.push({ kind: 'color', color: rowBgColor });
+        }
+      }
+    }
+
     const colWidths = this.calculateColumnWidths(grid, node.box.contentWidth);
     const tableContentWidth = colWidths.reduce((sum, width) => sum + width, 0);
     node.box.contentWidth = tableContentWidth;
@@ -237,17 +310,24 @@ export class TableLayoutStrategy implements LayoutStrategy {
             cell.box.contentHeight,
           );
 
-          const newX = node.box.x + colOffsets[c] + boxMetrics.borderLeft + boxMetrics.paddingLeft;
-          const newY = node.box.y + rowOffsets[r] + boxMetrics.borderTop + boxMetrics.paddingTop;
+          // Position the cell's border box at the column/row offset
+          // The cell's border box starts at colOffsets[c], NOT at the content position
+          const borderBoxX = node.box.x + colOffsets[c];
+          const borderBoxY = node.box.y + rowOffsets[r];
+          
+          // Content position is inside border and padding
+          const contentX = borderBoxX + boxMetrics.borderLeft + boxMetrics.paddingLeft;
+          const contentY = borderBoxY + boxMetrics.borderTop + boxMetrics.paddingTop;
 
           // Calculate the offset from the cell's position during layout (which was 0,0)
-          const deltaX = newX - cell.box.x;
-          const deltaY = newY - cell.box.y;
+          const deltaX = contentX - cell.box.x;
+          const deltaY = contentY - cell.box.y;
 
-          cell.box.x = newX;
-          cell.box.y = newY;
+          // Set cell position to border box position (not content position)
+          cell.box.x = borderBoxX;
+          cell.box.y = borderBoxY;
 
-          // Apply the same offset to all of the cell's descendants, plus any vertical-align offset
+          // Apply the content offset to all of the cell's descendants, plus any vertical-align offset
           cell.walk((descendant) => {
             descendant.box.x += deltaX;
             descendant.box.y += deltaY + alignOffsetY;
@@ -275,6 +355,19 @@ export class TableLayoutStrategy implements LayoutStrategy {
       }
     }
 
+    // Position row nodes (<tr>) so their backgrounds render correctly
+    for (let r = 0; r < rowNodes.length; r++) {
+      const rowNode = rowNodes[r];
+      if (rowNode) {
+        rowNode.box.x = node.box.x;
+        rowNode.box.y = node.box.y + rowOffsets[r];
+        rowNode.box.contentWidth = tableContentWidth;
+        rowNode.box.contentHeight = rowHeights[r];
+        rowNode.box.borderBoxWidth = tableContentWidth;
+        rowNode.box.borderBoxHeight = rowHeights[r];
+      }
+    }
+
     node.box.contentHeight = rowOffsets[numRows];
     node.box.borderBoxWidth = node.box.contentWidth + horizontalNonContent(node, cb.width);
     node.box.borderBoxHeight = node.box.contentHeight + verticalNonContent(node, cb.width);
@@ -282,13 +375,15 @@ export class TableLayoutStrategy implements LayoutStrategy {
     node.box.scrollHeight = node.box.contentHeight;
   }
 
-  private buildTableGrid(tableNode: LayoutNode): (LayoutNode | null)[][] {
+  private buildTableGrid(tableNode: LayoutNode): { grid: (LayoutNode | null)[][], rowNodes: LayoutNode[] } {
     const grid: (LayoutNode | null)[][] = [];
+    const rowNodes: LayoutNode[] = [];
     const activeRowSpans: { colStart: number; colSpan: number; remainingRows: number; cell: LayoutNode }[] = [];
     let currentRowIndex = -1;
 
     const processRow = (rowNode: LayoutNode) => {
       currentRowIndex++;
+      rowNodes.push(rowNode);
       const row: (LayoutNode | null)[] = [];
 
       for (const span of activeRowSpans) {
@@ -356,7 +451,7 @@ export class TableLayoutStrategy implements LayoutStrategy {
       while (row.length < maxCols) row.push(null);
     });
 
-    return grid;
+    return { grid, rowNodes };
   }
 
   private calculateColumnWidths(grid: (LayoutNode | null)[][], tableWidth: number): number[] {
