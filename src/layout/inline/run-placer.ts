@@ -2,6 +2,7 @@ import { LayoutNode, type InlineRun } from "../../dom/node.js";
 import type { LayoutItem } from "./types.js";
 import { isBoxItem } from "./types.js";
 import { placeInlineItem } from "./layout.js";
+import { calculateBaseline } from "./font-baseline-calculator.js";
 
 /**
  * Context information for placing runs on a specific line
@@ -41,7 +42,6 @@ export class RunPlacer {
 
         const lineWidth = parts.reduce((max, part) => Math.max(max, part.offset + part.item.width), 0);
         const currentAvailableWidth = Math.max(availableWidth, 0);
-        const lineBaseline = lineTop + lineHeight;
 
         const spaceCount = parts.reduce((count, part) => {
             if (part.item.kind === "space") {
@@ -67,6 +67,15 @@ export class RunPlacer {
                 continue;
             }
 
+            // Calculate baseline based on the item's fontSize and lineHeight
+            const fontSize = part.item.style?.fontSize ?? 16;
+            const itemLineHeight = part.item.lineHeight ?? lineHeight;
+
+            // Use calculateBaseline with font metrics when available
+            // For now, we don't have font metrics readily available here, so we use the default heuristic
+            // TODO: Pass fontEmbedder to get accurate font metrics
+            const lineBaseline = calculateBaseline(lineTop, fontSize, itemLineHeight, null);
+
             const startX = lineStartX + part.offset;
             const run: InlineRun = {
                 lineIndex,
@@ -87,7 +96,7 @@ export class RunPlacer {
                 node.box.x = startX;
                 node.box.y = lineTop;
             } else {
-                // Multiple runs - use the minimum X and Y to encompass all runs
+                // Multiple runs -use the minimum X and Y to encompass all runs
                 node.box.x = Math.min(node.box.x, startX);
                 node.box.y = Math.min(node.box.y, lineTop);
             }
