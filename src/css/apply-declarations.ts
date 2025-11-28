@@ -69,7 +69,7 @@ export function applyDeclarationsToStyle(
     const parser = getCachedParser(property);
     if (parser) {
       parser(value, target, units, inheritedFontWeight);
-    } else {
+    } else if (!property.startsWith('--')) {
       console.warn(`Unsupported CSS property: ${property}`);
     }
   }
@@ -79,7 +79,7 @@ export function applyDeclarationsToStyle(
     const parser = getCachedParser(property);
     if (parser) {
       parser(value, target, units, inheritedFontWeight);
-    } else {
+    } else if (!property.startsWith('--')) {
       console.warn(`Unsupported CSS property: ${property}`);
     }
   }

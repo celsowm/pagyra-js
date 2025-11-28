@@ -22,6 +22,7 @@ import {
   type LineHeightInput,
   type LineHeightValue,
 } from "./line-height.js";
+import { CustomPropertiesMap } from "./custom-properties.js";
 
 // Import domain interfaces
 import type { LayoutProperties } from "./properties/layout.js";
@@ -269,6 +270,7 @@ export class ComputedStyle implements StyleProperties {
   widows: number;
   orphans: number;
   opacity: number;
+  customProperties: CustomPropertiesMap;
 
   constructor(init?: Partial<StyleProperties>) {
     const data: StyleProperties = {
@@ -376,6 +378,7 @@ export class ComputedStyle implements StyleProperties {
     this.textDecorationColor = init?.textDecorationColor ?? defaultStyle.textDecorationColor;
     this.textDecorationStyle = init?.textDecorationStyle ?? defaultStyle.textDecorationStyle;
     this.opacity = data.opacity;
+    this.customProperties = init?.customProperties ?? new CustomPropertiesMap();
   }
 
   get backgroundColor(): string | undefined {

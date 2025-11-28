@@ -1,4 +1,5 @@
 import { FloatMode, ClearMode, TableLayoutMode, BorderModel } from "../enums.js";
+import { CustomPropertiesMap } from "../custom-properties.js";
 
 /**
  * Miscellaneous CSS properties.
@@ -37,4 +38,7 @@ export interface MiscProperties {
 
     /** Minimum lines at top of page/column */
     orphans: number;
+
+    /** CSS Custom Properties (Variables) */
+    customProperties?: CustomPropertiesMap;
 }

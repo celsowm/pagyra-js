@@ -18,6 +18,11 @@ import { parseInlineStyle } from "./inline-style-parser.js";
 import { StyleInheritanceResolver } from "./style-inheritance.js";
 import { CssUnitResolver } from "./css-unit-resolver.js";
 import { LayoutPropertyResolver } from "./layout-property-resolver.js";
+import {
+  CustomPropertiesMap,
+  extractCustomProperties,
+  resolveDeclarationsWithVariables,
+} from "./custom-properties.js";
 
 function mapFloat(value: string | undefined): FloatMode | undefined {
   switch (value) {
@@ -146,6 +151,7 @@ export function computeStyleForElement(
         log("style", "debug", "Display declaration found", { selector: rule.selector, display: rule.declarations.display });
       }
       // Normalize rule declarations to lowercase keys
+      // Normalize rule declarations to lowercase keys
       const normalizedRuleDeclarations: Record<string, string> = {};
       for (const [prop, value] of Object.entries(rule.declarations)) {
         normalizedRuleDeclarations[prop.toLowerCase()] = value;
@@ -161,8 +167,27 @@ export function computeStyleForElement(
   }
   Object.assign(aggregated, inlineStyle);
 
+  // === CSS Custom Properties (CSS Variables) Support ===
+
+  // 1. Inherit custom properties from parent
+  let customProperties = parentStyle.customProperties
+    ? parentStyle.customProperties.clone()
+    : new CustomPropertiesMap();
+
+  // 2. Extract and merge custom properties from this element's declarations
+  const elementCustomProps = extractCustomProperties(aggregated);
+  customProperties = elementCustomProps.inherit(customProperties);
+
+  log("style", "debug", "custom properties", {
+    count: customProperties.size,
+    keys: customProperties.keys()
+  });
+
+  // 3. Resolve var() references in all declarations
+  const resolvedDeclarations = resolveDeclarationsWithVariables(aggregated, customProperties);
+
   // Apply declarations to style accumulator
-  applyDeclarationsToStyle(aggregated, styleInit, units, inherited.fontWeight ?? mergedDefaults.fontWeight);
+  applyDeclarationsToStyle(resolvedDeclarations, styleInit, units, inherited.fontWeight ?? mergedDefaults.fontWeight);
 
   // Determine final display value
   const defaultDisplay = mergedDefaults.display ?? defaultDisplayForTag(tagName);
@@ -211,7 +236,8 @@ export function computeStyleForElement(
   const elementDefinesFontSize = mergedDefaults.fontSize !== baseDefaults.fontSize;
   const elementDefinesLineHeight = !lineHeightEquals(mergedDefaults.lineHeight, baseDefaults.lineHeight);
 
-  const styleOptions: Partial<StyleProperties> = {
+  const styleOptions: Partial<StyleProperties> & { customProperties?: CustomPropertiesMap } = {
+    customProperties,
     // Start with merged defaults
     ...mergedDefaults,
     // Override with inherited values

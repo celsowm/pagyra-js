@@ -134,6 +134,7 @@ Do **not** restructure without updating this file and the README.
 - **Float values:** `none`, `left`, `right`, `inline-start`, `inline-end`
 - **Table displays for `table`, `tbody/thead/tfoot`, `tr`, `td/th` are forced to canonical display types when overridden improperly.
 - Defaults approximate UA styles (headings, paragraphs, lists, inline elements, tables, etc.).
+- **CSS Variables:** Supported via `--custom-property` syntax and `var()` function with fallback support. Variables are inherited and resolved at computed style time.
 
 ---
 

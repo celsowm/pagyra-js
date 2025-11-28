@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        :root {
+            --cor: red;
+            /* 1. Definição da variável */
+            --bg-color: #f0f0f0;
+            --padding: 20px;
+            --border-width: 5px;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            padding: var(--padding);
+        }
+
+        p {
+            color: var(--cor);
+            /* 2. Uso da variável */
+            border: var(--border-width) solid var(--cor);
+            padding: 10px;
+        }
+
+        .nested {
+            --local-color: blue;
+            color: var(--local-color);
+        }
+
+        .fallback {
+            color: var(--undefined, green);
+        }
+    </style>
+</head>
+
+<body>
+    <h1>CSS Variables Test</h1>
+    <p>Este texto será vermelho (This text should be red).</p>
+
+    <div class="nested">
+        This text should be blue (local variable).
+    </div>
+
+    <div class="fallback">
+        This text should be green (fallback).
+    </div>
+</body>
+
+</html>
