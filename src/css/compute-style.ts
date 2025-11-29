@@ -150,11 +150,14 @@ export function computeStyleForElement(
       if (rule.declarations.display) {
         log("style", "debug", "Display declaration found", { selector: rule.selector, display: rule.declarations.display });
       }
-      // Normalize rule declarations to lowercase keys
-      // Normalize rule declarations to lowercase keys
+      // Normalize rule declarations to lowercase keys (except custom properties which are case-sensitive)
       const normalizedRuleDeclarations: Record<string, string> = {};
       for (const [prop, value] of Object.entries(rule.declarations)) {
-        normalizedRuleDeclarations[prop.toLowerCase()] = value;
+        if (prop.startsWith('--')) {
+          normalizedRuleDeclarations[prop] = value;
+        } else {
+          normalizedRuleDeclarations[prop.toLowerCase()] = value;
+        }
       }
       Object.assign(aggregated, normalizedRuleDeclarations);
     }

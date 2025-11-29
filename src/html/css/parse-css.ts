@@ -42,7 +42,12 @@ export function buildCssRules(cssText: string): ParsedCss {
         if (!declaration.property || declaration.value === undefined) {
           continue;
         }
-        declarations[declaration.property.trim().toLowerCase()] = declaration.value.trim();
+        const prop = declaration.property.trim();
+        if (prop.startsWith('--')) {
+          declarations[prop] = declaration.value.trim();
+        } else {
+          declarations[prop.toLowerCase()] = declaration.value.trim();
+        }
       }
       for (const selector of selectors) {
         const matcher = createSelectorMatcher(selector.trim());
@@ -62,7 +67,12 @@ export function buildCssRules(cssText: string): ParsedCss {
         if (!declaration.property || declaration.value === undefined) {
           continue;
         }
-        declarations[declaration.property.trim().toLowerCase()] = declaration.value.trim();
+        const prop = declaration.property.trim();
+        if (prop.startsWith('--')) {
+          declarations[prop] = declaration.value.trim();
+        } else {
+          declarations[prop.toLowerCase()] = declaration.value.trim();
+        }
       }
       result.fontFaceRules.push({ declarations });
     }
