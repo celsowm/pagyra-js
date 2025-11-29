@@ -1,7 +1,7 @@
 import { LayoutNode } from "../../dom/node.js";
 import { AlignItems, Display, JustifyContent } from "../../css/enums.js";
 import type { LayoutContext, LayoutStrategy } from "../pipeline/strategy.js";
-import { containingBlock } from "../utils/node-math.js";
+import { containingBlock, resolveBoxMetrics } from "../utils/node-math.js";
 import { resolveLength, isAutoLength } from "../../css/length.js";
 import type { LengthLike } from "../../css/length.js";
 import type { FlexDirection, AlignSelfValue } from "../../css/style.js";
@@ -60,6 +60,9 @@ export class FlexLayoutStrategy implements LayoutStrategy {
     const gapCalculator = new GapCalculator({ rowGap, columnGap });
     const mainAxisGap = gapCalculator.getMainAxisGap(isRow);
 
+    // Resolve box metrics (padding/border)
+    const boxMetrics = resolveBoxMetrics(node, cb.width, cb.height);
+
     if (isRow) {
       node.box.contentWidth = resolveInitialDimension(specifiedMain, cbMain);
       node.box.contentHeight = resolveInitialDimension(specifiedCross, cbCross);
@@ -68,8 +71,18 @@ export class FlexLayoutStrategy implements LayoutStrategy {
       node.box.contentHeight = resolveInitialDimension(specifiedMain, cbMain);
     }
 
-    node.box.borderBoxWidth = node.box.contentWidth;
-    node.box.borderBoxHeight = node.box.contentHeight;
+    node.box.borderBoxWidth =
+      node.box.contentWidth +
+      boxMetrics.paddingLeft +
+      boxMetrics.paddingRight +
+      boxMetrics.borderLeft +
+      boxMetrics.borderRight;
+    node.box.borderBoxHeight =
+      node.box.contentHeight +
+      boxMetrics.paddingTop +
+      boxMetrics.paddingBottom +
+      boxMetrics.borderTop +
+      boxMetrics.borderBottom;
     node.box.scrollWidth = Math.max(node.box.scrollWidth, node.box.contentWidth);
     node.box.scrollHeight = Math.max(node.box.scrollHeight, node.box.contentHeight);
 
@@ -267,11 +280,11 @@ export class FlexLayoutStrategy implements LayoutStrategy {
       const previousX = item.node.box.x;
       const previousY = item.node.box.y;
       if (isRow) {
-        item.node.box.x = node.box.x + cursor + item.mainMarginStart;
-        item.node.box.y = node.box.y + crossOffset + item.crossMarginStart;
+        item.node.box.x = boxMetrics.contentBoxX + cursor + item.mainMarginStart;
+        item.node.box.y = boxMetrics.contentBoxY + crossOffset + item.crossMarginStart;
       } else {
-        item.node.box.x = node.box.x + crossOffset + item.crossMarginStart;
-        item.node.box.y = node.box.y + cursor + item.mainMarginStart;
+        item.node.box.x = boxMetrics.contentBoxX + crossOffset + item.crossMarginStart;
+        item.node.box.y = boxMetrics.contentBoxY + cursor + item.mainMarginStart;
       }
       offsetLayoutSubtree(item.node, item.node.box.x - previousX, item.node.box.y - previousY);
 
@@ -290,8 +303,18 @@ export class FlexLayoutStrategy implements LayoutStrategy {
       node.box.contentHeight = containerMainSize;
     }
 
-    node.box.borderBoxWidth = node.box.contentWidth;
-    node.box.borderBoxHeight = node.box.contentHeight;
+    node.box.borderBoxWidth =
+      node.box.contentWidth +
+      boxMetrics.paddingLeft +
+      boxMetrics.paddingRight +
+      boxMetrics.borderLeft +
+      boxMetrics.borderRight;
+    node.box.borderBoxHeight =
+      node.box.contentHeight +
+      boxMetrics.paddingTop +
+      boxMetrics.paddingBottom +
+      boxMetrics.borderTop +
+      boxMetrics.borderBottom;
     node.box.scrollWidth = node.box.contentWidth;
     node.box.scrollHeight = node.box.contentHeight;
   }

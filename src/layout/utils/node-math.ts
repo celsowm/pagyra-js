@@ -3,6 +3,44 @@ import { Display, FloatMode, OverflowMode, Position } from "../../css/enums.js";
 import { clampMinMax, resolveLength, isAutoLength, type LengthLike } from "../../css/length.js";
 import type { ContainingBlock, Viewport } from "../../geometry/box.js";
 
+export interface BoxMetrics {
+  paddingLeft: number;
+  paddingRight: number;
+  paddingTop: number;
+  paddingBottom: number;
+  borderLeft: number;
+  borderRight: number;
+  borderTop: number;
+  borderBottom: number;
+  contentBoxX: number;
+  contentBoxY: number;
+}
+
+export function resolveBoxMetrics(node: LayoutNode, widthRef: number, heightRef: number): BoxMetrics {
+  const { style } = node;
+  const paddingLeft = resolveLength(style.paddingLeft, widthRef, { auto: "zero" });
+  const paddingRight = resolveLength(style.paddingRight, widthRef, { auto: "zero" });
+  const paddingTop = resolveLength(style.paddingTop, heightRef, { auto: "zero" });
+  const paddingBottom = resolveLength(style.paddingBottom, heightRef, { auto: "zero" });
+  const borderLeft = resolveLength(style.borderLeft, widthRef, { auto: "zero" });
+  const borderRight = resolveLength(style.borderRight, widthRef, { auto: "zero" });
+  const borderTop = resolveLength(style.borderTop, heightRef, { auto: "zero" });
+  const borderBottom = resolveLength(style.borderBottom, heightRef, { auto: "zero" });
+
+  return {
+    paddingLeft,
+    paddingRight,
+    paddingTop,
+    paddingBottom,
+    borderLeft,
+    borderRight,
+    borderTop,
+    borderBottom,
+    contentBoxX: node.box.x + borderLeft + paddingLeft,
+    contentBoxY: node.box.y + borderTop + paddingTop,
+  };
+}
+
 export function horizontalNonContent(node: LayoutNode, reference: number): number {
   const { style } = node;
   return (
@@ -143,8 +181,8 @@ export function resolveWidthBlock(node: LayoutNode, containingBlockWidth: number
     style.width === "auto"
       ? available
       : resolveLength(style.width, containingBlockWidth, {
-          auto: "reference",
-        });
+        auto: "reference",
+      });
   const minWidth = style.minWidth ? resolveLength(style.minWidth, containingBlockWidth, { auto: "zero" }) : Number.NEGATIVE_INFINITY;
   const maxWidth = style.maxWidth ? resolveLength(style.maxWidth, containingBlockWidth, { auto: "reference" }) : Number.POSITIVE_INFINITY;
   return clampMinMax(width, minWidth, maxWidth);
