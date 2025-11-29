@@ -59,23 +59,57 @@ export function offsetRenderTree(root: RenderBox, dx: number, dy: number, _debug
   }
 }
 
+export interface PageVerticalMarginsOptions {
+  /** Page height in pixels */
+  pageHeight: number;
+  /** Page margins */
+  margins: PageMarginsPx;
+  /** Header height in pixels (content will be pushed down by this amount) */
+  headerHeightPx?: number;
+  /** Footer height in pixels (reduces available content area) */
+  footerHeightPx?: number;
+}
+
 export function applyPageVerticalMargins(root: RenderBox, pageHeight: number, margins: PageMarginsPx): void {
+  applyPageVerticalMarginsWithHf(root, { pageHeight, margins });
+}
+
+/**
+ * Applies vertical margins and header/footer offsets to the render tree.
+ * This implements Word/mPDF-like behavior where:
+ * - Content starts below the top margin + header height
+ * - Content ends above the bottom margin + footer height
+ * - Each page has the header/footer space reserved
+ */
+export function applyPageVerticalMarginsWithHf(
+  root: RenderBox,
+  options: PageVerticalMarginsOptions,
+): void {
+  const { pageHeight, margins, headerHeightPx = 0, footerHeightPx = 0 } = options;
+
   const safePageHeight = Number.isFinite(pageHeight) && pageHeight > 0 ? pageHeight : 1;
   const marginTop = Number.isFinite(margins.top) && margins.top > 0 ? margins.top : 0;
   const marginBottom = Number.isFinite(margins.bottom) && margins.bottom > 0 ? margins.bottom : 0;
-  const totalMargin = marginTop + marginBottom;
-  const usableHeight = safePageHeight - totalMargin > 0 ? safePageHeight - totalMargin : safePageHeight;
+
+  // Effective top offset includes margin AND header
+  const effectiveTop = marginTop + headerHeightPx;
+  // Effective bottom includes margin AND footer
+  const effectiveBottom = marginBottom + footerHeightPx;
+  const totalReserved = effectiveTop + effectiveBottom;
+
+  // Usable height for content per page
+  const usableHeight = safePageHeight - totalReserved > 0 ? safePageHeight - totalReserved : safePageHeight;
 
   const mapY = (value: number): number => {
     if (!Number.isFinite(value)) {
       return value;
     }
     if (value <= 0) {
-      return value + marginTop;
+      return value + effectiveTop;
     }
     const pageIndex = Math.floor(value / usableHeight);
     const remainder = value - pageIndex * usableHeight;
-    return pageIndex * safePageHeight + marginTop + remainder;
+    return pageIndex * safePageHeight + effectiveTop + remainder;
   };
 
   const adjustRect = (rect: Rect | null | undefined): void => {
