@@ -1,4 +1,5 @@
 import type { NumericLength } from "../length.js";
+import type { GapProperties } from "./gap.js";
 
 export type GridAutoFlow = "row" | "column" | "row dense" | "column dense";
 
@@ -75,8 +76,11 @@ export type TrackDefinitionInput = TrackSizeInput | RepeatTrackDefinitionInput |
 /**
  * Grid layout CSS properties.
  * Handles CSS Grid container and item properties.
+ * 
+ * Extends GapProperties to inherit rowGap and columnGap,
+ * following the DRY principle and enabling shared gap utilities.
  */
-export interface GridProperties {
+export interface GridProperties extends GapProperties {
     /** Column track definitions */
     trackListColumns: TrackDefinition[];
 
@@ -86,9 +90,5 @@ export interface GridProperties {
     /** Auto-placement flow direction */
     autoFlow: GridAutoFlow;
 
-    /** Gap between rows */
-    rowGap: number;
-
-    /** Gap between columns */
-    columnGap: number;
+    // rowGap and columnGap are inherited from GapProperties
 }

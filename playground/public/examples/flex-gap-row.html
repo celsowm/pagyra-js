@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flexbox Row Gap Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        
+        .demo-section {
+            margin-bottom: 40px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .demo-section h2 {
+            color: #34495e;
+            margin-top: 0;
+            font-size: 18px;
+        }
+        
+        .flex-container {
+            display: flex;
+            flex-direction: row;
+            background-color: #e3f2fd;
+            padding: 15px;
+            border: 2px solid #2196f3;
+            border-radius: 4px;
+        }
+        
+        .flex-item {
+            background-color: #4caf50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 4px;
+            min-width: 100px;
+        }
+        
+        /* Demo 1: No gap */
+        .no-gap {
+            column-gap: 0;
+        }
+        
+        /* Demo 2: Small gap */
+        .small-gap {
+            column-gap: 10px;
+        }
+        
+        /* Demo 3: Large gap */
+        .large-gap {
+            column-gap: 30px;
+        }
+        
+        /* Demo 4: Gap with justify-content center */
+        .gap-center {
+            column-gap: 20px;
+            justify-content: center;
+        }
+        
+        /* Demo 5: Gap with justify-content space-between */
+        .gap-space-between {
+            column-gap: 15px;
+            justify-content: space-between;
+        }
+        
+        .description {
+            color: #555;
+            margin-bottom: 10px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <h1>Flexbox Row with Column Gap - Demo</h1>
+    
+    <div class="demo-section">
+        <h2>1. No Gap (column-gap: 0)</h2>
+        <p class="description">Flex items with no gap between them</p>
+        <div class="flex-container no-gap">
+            <div class="flex-item">Item 1</div>
+            <div class="flex-item">Item 2</div>
+            <div class="flex-item">Item 3</div>
+        </div>
+    </div>
+    
+    <div class="demo-section">
+        <h2>2. Small Gap (column-gap: 10px)</h2>
+        <p class="description">Flex items with 10px gap between them</p>
+        <div class="flex-container small-gap">
+            <div class="flex-item">Item 1</div>
+            <div class="flex-item">Item 2</div>
+            <div class="flex-item">Item 3</div>
+        </div>
+    </div>
+    
+    <div class="demo-section">
+        <h2>3. Large Gap (column-gap: 30px)</h2>
+        <p class="description">Flex items with 30px gap between them</p>
+        <div class="flex-container large-gap">
+            <div class="flex-item">Item 1</div>
+            <div class="flex-item">Item 2</div>
+            <div class="flex-item">Item 3</div>
+        </div>
+    </div>
+    
+    <div class="demo-section">
+        <h2>4. Gap + Justify Center (column-gap: 20px, justify-content: center)</h2>
+        <p class="description">Gap is additive with justify-content spacing</p>
+        <div class="flex-container gap-center">
+            <div class="flex-item">Item 1</div>
+            <div class="flex-item">Item 2</div>
+            <div class="flex-item">Item 3</div>
+        </div>
+    </div>
+    
+    <div class="demo-section">
+        <h2>5. Gap + Space Between (column-gap: 15px, justify-content: space-between)</h2>
+        <p class="description">Explicit gap combined with space-between distribution</p>
+        <div class="flex-container gap-space-between">
+            <div class="flex-item">Item 1</div>
+            <div class="flex-item">Item 2</div>
+            <div class="flex-item">Item 3</div>
+            <div class="flex-item">Item 4</div>
+        </div>
+    </div>
+</body>
+</html>

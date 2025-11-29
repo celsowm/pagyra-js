@@ -10,6 +10,7 @@ import {
   verticalNonContent,
 } from "../utils/node-math.js";
 import type { LayoutNode } from "../../dom/node.js";
+import { calculateTrackOffsets, calculateTotalGap } from "../utils/gap-calculator.js";
 
 type RepeatTrack = Extract<TrackDefinition, { kind: "repeat" }>;
 type AutoRepeatTrack = Extract<TrackDefinition, { kind: "repeat-auto" }>;
@@ -104,7 +105,7 @@ function resolveColumnWidths(tracks: TrackSize[], contentWidth: number, columnGa
     return [];
   }
 
-  const gapTotal = columnGap * Math.max(0, columnCount - 1);
+  const gapTotal = calculateTotalGap(columnGap, columnCount);
   const available = Math.max(0, contentWidth - gapTotal);
   const minSizes = tracks.map((track) => trackMinSize(track));
   const flexFactors = tracks.map((track) => trackFlex(track));
@@ -175,18 +176,13 @@ export class GridLayoutStrategy implements LayoutStrategy {
       flattenedTracks.length > 0 ? flattenedTracks : [{ kind: "flex", flex: 1 } as TrackSize];
     const columnWidths = resolveColumnWidths(tracks, baseContentWidth, columnGap);
     const totalColumnWidth =
-      columnWidths.reduce((sum, width) => sum + width, 0) + columnGap * Math.max(0, columnWidths.length - 1);
+      columnWidths.reduce((sum, width) => sum + width, 0) + calculateTotalGap(columnGap, columnWidths.length);
     const resolvedContentWidth = columnWidths.length > 0 ? Math.max(baseContentWidth, totalColumnWidth) : baseContentWidth;
     node.box.contentWidth = resolvedContentWidth;
     node.box.borderBoxWidth = resolvedContentWidth + horizontalExtras;
     node.box.marginBoxWidth = node.box.borderBoxWidth + horizontalMargin(node, resolvedContentWidth);
 
-    const columnOffsets: number[] = [];
-    let offset = 0;
-    for (const width of columnWidths) {
-      columnOffsets.push(offset);
-      offset += width + columnGap;
-    }
+    const columnOffsets = calculateTrackOffsets(columnWidths, columnGap);
 
     let contentHeight = 0;
     let currentRowTop = contentOriginY;
@@ -230,7 +226,7 @@ export class GridLayoutStrategy implements LayoutStrategy {
       contentHeight += currentRowHeight;
     }
 
-    const totalRowGap = rowGap * Math.max(0, rowCount - 1);
+    const totalRowGap = calculateTotalGap(rowGap, rowCount);
     const verticalExtras = verticalNonContent(node, node.box.contentWidth);
     node.box.contentHeight = Math.max(0, contentHeight + totalRowGap);
     node.box.borderBoxHeight = node.box.contentHeight + verticalExtras;

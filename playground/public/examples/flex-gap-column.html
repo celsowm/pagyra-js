@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flexbox Column Gap Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+
+        .demo-section {
+            margin-bottom: 40px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            display: inline-block;
+            margin-right: 20px;
+            vertical-align: top;
+        }
+
+        .demo-section h2 {
+            color: #34495e;
+            margin-top: 0;
+            font-size: 16px;
+        }
+
+        .flex-container {
+            display: flex;
+            flex-direction: column;
+            background-color: #fff3e0;
+            padding: 15px;
+            border: 2px solid #ff9800;
+            border-radius: 4px;
+            width: 200px;
+        }
+
+        .flex-item {
+            background-color: #e91e63;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            border-radius: 4px;
+        }
+
+        /* Demo 1: No gap */
+        .no-gap {
+            row-gap: 0;
+        }
+
+        /* Demo 2: Small gap */
+        .small-gap {
+            row-gap: 10px;
+        }
+
+        /* Demo 3: Large gap */
+        .large-gap {
+            row-gap: 25px;
+        }
+
+        /* Demo 4: Gap with justify-content center */
+        .gap-center {
+            row-gap: 15px;
+            justify-content: center;
+            height: 400px;
+        }
+
+        .description {
+            color: #555;
+            margin-bottom: 10px;
+            font-size: 13px;
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Flexbox Column with Row Gap - Demo</h1>
+
+    <div class="demo-section">
+        <h2>No Gap</h2>
+        <p class="description">row-gap: 0</p>
+        <div class="flex-container no-gap">
+            <div class="flex-item">Item 1</div>
+            <div class="flex-item">Item 2</div>
+            <div class="flex-item">Item 3</div>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>Small Gap</h2>
+        <p class="description">row-gap: 10px</p>
+        <div class="flex-container small-gap">
+            <div class="flex-item">Item 1</div>
+            <div class="flex-item">Item 2</div>
+            <div class="flex-item">Item 3</div>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>Large Gap</h2>
+        <p class="description">row-gap: 25px</p>
+        <div class="flex-container large-gap">
+            <div class="flex-item">Item 1</div>
+            <div class="flex-item">Item 2</div>
+            <div class="flex-item">Item 3</div>
+        </div>
+    </div>
+
+    <br style="clear: both;">
+
+    <div class="demo-section">
+        <h2>Gap + Justify Center</h2>
+        <p class="description">row-gap: 15px<br>justify-content: center</p>
+        <div class="flex-container gap-center">
+            <div class="flex-item">Item 1</div>
+            <div class="flex-item">Item 2</div>
+            <div class="flex-item">Item 3</div>
+        </div>
+    </div>
+</body>
+
+</html>

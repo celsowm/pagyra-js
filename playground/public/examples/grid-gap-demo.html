@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grid Gap Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+
+        .demo-section {
+            margin-bottom: 40px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .demo-section h2 {
+            color: #34495e;
+            margin-top: 0;
+            font-size: 18px;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            background-color: #f3e5f5;
+            padding: 15px;
+            border: 2px solid #9c27b0;
+            border-radius: 4px;
+        }
+
+        .grid-item {
+            background-color: #00bcd4;
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 4px;
+        }
+
+        /* Demo 1: No gap */
+        .no-gap {
+            column-gap: 0;
+            row-gap: 0;
+        }
+
+        /* Demo 2: Column gap only */
+        .column-gap-only {
+            column-gap: 15px;
+            row-gap: 0;
+        }
+
+        /* Demo 3: Row gap only */
+        .row-gap-only {
+            column-gap: 0;
+            row-gap: 20px;
+        }
+
+        /* Demo 4: Both gaps */
+        .both-gaps {
+            column-gap: 20px;
+            row-gap: 20px;
+        }
+
+        /* Demo 5: Different gaps */
+        .different-gaps {
+            column-gap: 30px;
+            row-gap: 10px;
+        }
+
+        .description {
+            color: #555;
+            margin-bottom: 10px;
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>CSS Grid with Gap - Demo</h1>
+
+    <div class="demo-section">
+        <h2>1. No Gap</h2>
+        <p class="description">column-gap: 0, row-gap: 0</p>
+        <div class="grid-container no-gap">
+            <div class="grid-item">1</div>
+            <div class="grid-item">2</div>
+            <div class="grid-item">3</div>
+            <div class="grid-item">4</div>
+            <div class="grid-item">5</div>
+            <div class="grid-item">6</div>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>2. Column Gap Only</h2>
+        <p class="description">column-gap: 15px, row-gap: 0</p>
+        <div class="grid-container column-gap-only">
+            <div class="grid-item">1</div>
+            <div class="grid-item">2</div>
+            <div class="grid-item">3</div>
+            <div class="grid-item">4</div>
+            <div class="grid-item">5</div>
+            <div class="grid-item">6</div>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>3. Row Gap Only</h2>
+        <p class="description">column-gap: 0, row-gap: 20px</p>
+        <div class="grid-container row-gap-only">
+            <div class="grid-item">1</div>
+            <div class="grid-item">2</div>
+            <div class="grid-item">3</div>
+            <div class="grid-item">4</div>
+            <div class="grid-item">5</div>
+            <div class="grid-item">6</div>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>4. Both Gaps Equal</h2>
+        <p class="description">column-gap: 20px, row-gap: 20px</p>
+        <div class="grid-container both-gaps">
+            <div class="grid-item">1</div>
+            <div class="grid-item">2</div>
+            <div class="grid-item">3</div>
+            <div class="grid-item">4</div>
+            <div class="grid-item">5</div>
+            <div class="grid-item">6</div>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>5. Different Gaps</h2>
+        <p class="description">column-gap: 30px, row-gap: 10px</p>
+        <div class="grid-container different-gaps">
+            <div class="grid-item">1</div>
+            <div class="grid-item">2</div>
+            <div class="grid-item">3</div>
+            <div class="grid-item">4</div>
+            <div class="grid-item">5</div>
+            <div class="grid-item">6</div>
+        </div>
+    </div>
+</body>
+
+</html>

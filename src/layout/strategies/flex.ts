@@ -5,6 +5,7 @@ import { containingBlock } from "../utils/node-math.js";
 import { resolveLength, isAutoLength } from "../../css/length.js";
 import type { LengthLike } from "../../css/length.js";
 import type { FlexDirection, AlignSelfValue } from "../../css/style.js";
+import { GapCalculator, calculateTotalGap } from "../utils/gap-calculator.js";
 
 function blockifyFlexItemDisplay(display: Display): Display {
   switch (display) {
@@ -52,6 +53,12 @@ export class FlexLayoutStrategy implements LayoutStrategy {
     const cbCross = isRow ? cb.height : cb.width;
     const specifiedMain = resolveFlexSize(isRow ? node.style.width : node.style.height, cbMain);
     const specifiedCross = resolveFlexSize(isRow ? node.style.height : node.style.width, cbCross);
+
+    // Read gap properties for flex layout
+    const rowGap = node.style.rowGap ?? 0;
+    const columnGap = node.style.columnGap ?? 0;
+    const gapCalculator = new GapCalculator({ rowGap, columnGap });
+    const mainAxisGap = gapCalculator.getMainAxisGap(isRow);
 
     if (isRow) {
       node.box.contentWidth = resolveInitialDimension(specifiedMain, cbMain);
@@ -208,12 +215,16 @@ export class FlexLayoutStrategy implements LayoutStrategy {
       }
     }
 
+    // Account for gaps in total main size
+    const gapSpace = calculateTotalGap(mainAxisGap, items.length);
+    const totalMainWithGaps = totalMain + gapSpace;
+
     let containerMainSize: number;
     if (specifiedMain !== undefined) {
       containerMainSize = specifiedMain;
     } else {
-      const reference = Number.isFinite(cbMain) && cbMain > 0 ? cbMain : totalMain;
-      containerMainSize = Math.max(reference, totalMain);
+      const reference = Number.isFinite(cbMain) && cbMain > 0 ? cbMain : totalMainWithGaps;
+      containerMainSize = Math.max(reference, totalMainWithGaps);
     }
 
     let containerCrossSize: number;
@@ -241,7 +252,10 @@ export class FlexLayoutStrategy implements LayoutStrategy {
 
     const justify = node.style.justifyContent ?? JustifyContent.FlexStart;
     const align = alignContainer;
-    const { offset: initialOffset, gap } = resolveJustifySpacing(justify, containerMainSize - totalMain, items.length);
+    // Calculate justify spacing based on free space AFTER accounting for gaps
+    // This makes gap additive with justify-content spacing (per CSS Flexbox spec)
+    const freeSpaceAfterGaps = containerMainSize - totalMainWithGaps;
+    const { offset: initialOffset, gap: justifyGap } = resolveJustifySpacing(justify, freeSpaceAfterGaps, items.length);
 
     let cursor = initialOffset;
 
@@ -263,7 +277,8 @@ export class FlexLayoutStrategy implements LayoutStrategy {
 
       cursor += item.mainContribution;
       if (index < items.length - 1) {
-        cursor += gap;
+        // Apply explicit gap PLUS justify spacing (additive per spec)
+        cursor += mainAxisGap + justifyGap;
       }
     }
 
@@ -426,7 +441,7 @@ function offsetLayoutSubtree(node: LayoutNode, deltaX: number, deltaY: number): 
     desc.box.x += deltaX;
     desc.box.y += deltaY;
     desc.box.baseline += deltaY;
-    
+
     // Update inline runs if they exist
     if (desc.inlineRuns && desc.inlineRuns.length > 0) {
       for (const run of desc.inlineRuns) {
