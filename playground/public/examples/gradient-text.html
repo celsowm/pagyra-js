@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>H1 Isolado - HTML→PDF</title>
+    <style>
+        :root {
+            --fs-hero: clamp(30px, 5vw, 58px);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+        }
+
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+
+            background:
+                radial-gradient(1200px 500px at 20% -10%, #e0e7ff66, transparent 60%),
+                linear-gradient(180deg, #f9fafb 0%, #f1f5f9 100%);
+        }
+
+        h1 {
+            font-size: var(--fs-hero);
+            line-height: 1.05;
+            letter-spacing: -0.02em;
+            margin: 0;
+            text-align: center;
+            background: linear-gradient(90deg, #7c3aed 0%, #06b6d4 40%, #22c55e 80%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Texto 1234568910</h1>
+
+</body>
+
+</html>
