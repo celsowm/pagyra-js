@@ -12,4 +12,13 @@ export {
 
 export { computeHfTokens, applyPlaceholders } from "./header-footer-tokens.js";
 
-export { paintHeaderFooter } from "./header-footer-painter.js";
+export { paintHeaderFooter, type HeaderFooterPaintContext } from "./header-footer-painter.js";
+
+export {
+  renderHeaderFooterHtml,
+  paintRenderedHeaderFooter,
+  calculatePageContentArea,
+  type HeaderFooterRenderOptions,
+  type RenderedHeaderFooter,
+  type PageContentAreaConfig,
+} from "./header-footer-renderer.js";

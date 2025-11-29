@@ -3,6 +3,7 @@ import type { LayoutTree, PageSize, PdfMetadata, RenderBox, RGBA, TextPaintOptio
 import {
   initHeaderFooterContext,
   layoutHeaderFooterTrees,
+  adjustPageBoxForHf,
   computeHfTokens,
 } from "./header-footer.js";
 import { paginateTree } from "./pagination.js";
@@ -17,10 +18,21 @@ import { log } from "../logging/debug.js";
 
 const DEFAULT_PAGE_SIZE: PageSize = { widthPt: 595.28, heightPt: 841.89 }; // A4 in points
 
+export interface PageMargins {
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+  readonly left: number;
+}
+
 export interface RenderPdfOptions {
   readonly pageSize?: PageSize;
   readonly metadata?: PdfMetadata;
   readonly fontConfig?: FontConfig;
+  /** Page margins in pixels - used for header/footer positioning */
+  readonly margins?: PageMargins;
+  /** CSS for header/footer styling */
+  readonly headerFooterCss?: string;
 }
 
 export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = {}): Promise<Uint8Array> {
@@ -38,13 +50,32 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
 
   preflightFontsForPdfa(fontRegistry);
 
+  const pageHeightPx = ptToPx(pageSize.heightPt) || 1;
+  const pageWidthPx = ptToPx(pageSize.widthPt) || 1;
+
+  // Use provided margins or derive from layout
+  const margins = options.margins ?? {
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  };
+
   const baseContentBox = computeBaseContentBox(layout.root, pageSize, pxToPt);
   const hfContext = initHeaderFooterContext(layout.hf, pageSize, baseContentBox);
   const hfLayout = layoutHeaderFooterTrees(hfContext, pxToPt);
 
-  const pageHeightPx = ptToPx(pageSize.heightPt) || 1;
-  const pageWidthPx = ptToPx(pageSize.widthPt) || 1;
-  const pages = paginateTree(layout.root, { pageHeight: pageHeightPx });
+  // Adjust content area to exclude header/footer heights
+  // This implements the Word/mPDF behavior where headers and footers
+  // reduce the available content area
+  const adjustedContentBox = adjustPageBoxForHf(baseContentBox, hfLayout);
+
+  // Calculate effective page height for pagination
+  // When headers/footers are present, the content area is reduced
+  const effectiveContentHeightPx = pageHeightPx - hfLayout.headerHeightPx - hfLayout.footerHeightPx;
+  const paginationHeight = effectiveContentHeightPx > 0 ? effectiveContentHeightPx : pageHeightPx;
+
+  const pages = paginateTree(layout.root, { pageHeight: paginationHeight });
   const totalPages = pages.length;
   const tokens = computeHfTokens(layout.hf.placeholders ?? {}, totalPages, options.metadata);
   const pageBackground = resolvePageBackground(layout.root);
@@ -72,6 +103,8 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
       tokens,
       headerFooterTextOptions,
       pageBackground,
+      margins,
+      headerFooterCss: options.headerFooterCss,
     });
 
     const resources = registerPageResources(doc, painterResult);

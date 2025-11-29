@@ -1,4 +1,5 @@
 import { pickFooterVariant, pickHeaderVariant, paintHeaderFooter, type HeaderFooterLayout } from "../header-footer.js";
+import type { HeaderFooterPaintContext } from "../header-footer-painter.js";
 import { PagePainter, type PainterResult } from "../page-painter.js";
 import type { FontRegistry } from "../font/font-registry.js";
 import { LayerMode } from "../types.js";
@@ -18,6 +19,10 @@ export interface PagePaintInput {
   readonly tokens: Map<string, string | ((page: number, total: number) => string)>;
   readonly headerFooterTextOptions: TextPaintOptions;
   readonly pageBackground?: RGBA;
+  /** Page margins for header/footer positioning */
+  readonly margins?: { top: number; right: number; bottom: number; left: number };
+  /** CSS for header/footer styling */
+  readonly headerFooterCss?: string;
 }
 
 export async function paintLayoutPage({
@@ -33,6 +38,8 @@ export async function paintLayoutPage({
   tokens,
   headerFooterTextOptions,
   pageBackground,
+  margins,
+  headerFooterCss,
 }: PagePaintInput): Promise<PainterResult> {
   const painter = new PagePainter(pageSize.heightPt, pxToPt, fontRegistry, pageTree.pageOffsetY);
 
@@ -40,6 +47,18 @@ export async function paintLayoutPage({
   const footerVariant = pickFooterVariant(headerFooterLayout, pageNumber, totalPages);
 
   paintPageBackground(painter, pageBackground, pageWidthPx, pageHeightPx, pageTree.pageOffsetY);
+
+  // Build context for HTML-based header/footer rendering
+  const hfContext: HeaderFooterPaintContext | undefined = margins
+    ? {
+        margins,
+        pageWidthPx,
+        pageHeightPx,
+        fontRegistry,
+        pageOffsetY: pageTree.pageOffsetY,
+        css: headerFooterCss,
+      }
+    : undefined;
 
   if (headerFooterLayout.layerMode === LayerMode.Under) {
     await paintHeaderFooter(
@@ -51,6 +70,7 @@ export async function paintLayoutPage({
       totalPages,
       headerFooterTextOptions,
       true,
+      hfContext,
     );
   }
 
@@ -69,10 +89,9 @@ export async function paintLayoutPage({
       totalPages,
       headerFooterTextOptions,
       false,
+      hfContext,
     );
   }
 
   return painter.result();
 }
-
-

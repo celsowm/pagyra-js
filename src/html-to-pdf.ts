@@ -14,7 +14,7 @@ import { layoutTree } from "./layout/pipeline/layout-tree.js";
 import { buildRenderTree } from "./pdf/layout-tree-builder.js";
 import { renderPdf } from "./pdf/render.js";
 import { convertDomNode } from "./html/dom-converter.js";
-import { applyPageVerticalMargins, offsetRenderTree } from "./render/offset.js";
+import { applyPageVerticalMarginsWithHf, offsetRenderTree } from "./render/offset.js";
 import { applyTextLayoutAdjustments } from "./pdf/utils/text-layout-adjuster.js";
 import { setViewportSize } from "./css/apply-declarations.js";
 import { type PageMarginsPx } from "./units/page-utils.js";
@@ -46,13 +46,18 @@ export interface PreparedRender {
   layoutRoot: LayoutNode;
   renderTree: ReturnType<typeof buildRenderTree>;
   pageSize: { widthPt: number; heightPt: number };
+  margins: PageMarginsPx;
 }
 
 export async function renderHtmlToPdf(options: RenderHtmlOptions): Promise<Uint8Array> {
   const resolvedFontConfig = options.fontConfig ?? (await loadBuiltinFontConfig());
   const preparedOptions = resolvedFontConfig ? { ...options, fontConfig: resolvedFontConfig } : options;
   const prepared = await prepareHtmlRender(preparedOptions);
-  return renderPdf(prepared.renderTree, { pageSize: prepared.pageSize, fontConfig: resolvedFontConfig ?? undefined });
+  return renderPdf(prepared.renderTree, {
+    pageSize: prepared.pageSize,
+    fontConfig: resolvedFontConfig ?? undefined,
+    margins: prepared.margins,
+  });
 }
 
 export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<PreparedRender> {
@@ -206,11 +211,22 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   // Global justification pass: fix inline run positions for text-align: justify
   applyTextLayoutAdjustments(renderTree.root);
 
-  applyPageVerticalMargins(renderTree.root, pageHeight, margins);
+  // Get header/footer heights for proper content positioning
+  const headerHeightPx = headerFooter?.maxHeaderHeightPx ?? 0;
+  const footerHeightPx = headerFooter?.maxFooterHeightPx ?? 0;
+
+  // Apply vertical margins with header/footer space reserved
+  // This pushes content below the header and reserves space for the footer
+  applyPageVerticalMarginsWithHf(renderTree.root, {
+    pageHeight,
+    margins,
+    headerHeightPx,
+    footerHeightPx,
+  });
   offsetRenderTree(renderTree.root, margins.left, 0, debug);
 
   const pageSize = { widthPt: pxToPt(pageWidth), heightPt: pxToPt(pageHeight) };
-  return { layoutRoot: rootLayout, renderTree, pageSize };
+  return { layoutRoot: rootLayout, renderTree, pageSize, margins };
 }
 
 async function loadStylesheetFromHref(href: string, resourceBaseDir: string, assetRootDir: string): Promise<string> {
