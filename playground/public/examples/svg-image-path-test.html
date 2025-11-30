@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>SVG Image Path Test</title>
+    <style>
+        body {
+            font-family: Arial;
+            margin: 20px;
+        }
+
+        svg {
+            border: 1px solid #ddd;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>SVG Image Path Resolution Test</h1>
+    <p>This tests that absolute paths like /images/duck.jpg resolve correctly.</p>
+
+    <svg width="500" height="200" viewBox="0 0 500 200">
+        <defs>
+            <clipPath id="circleClip">
+                <circle cx="50" cy="50" r="45" />
+            </clipPath>
+        </defs>
+
+        <!-- Test absolute path: /images/duck.jpg -->
+        <image x="10" y="10" width="90" height="90" href="/images/duck.jpg" clip-path="url(#circleClip)" />
+        <text x="10" y="120" font-size="12">Absolute: /images/duck.jpg</text>
+
+        <!-- Test absolute path: /images/dice.png -->
+        <image x="150" y="10" width="90" height="90" href="/images/dice.png" />
+        <text x="150" y="120" font-size="12">Absolute: /images/dice.png</text>
+    </svg>
+
+    <p>If both images appear above, the absolute path resolution is working correctly!</p>
+</body>
+
+</html>

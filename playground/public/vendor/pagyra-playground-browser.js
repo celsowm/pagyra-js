@@ -160240,7 +160240,8 @@ async function renderImage(node, _style, context) {
         console.debug("Skipping local SVG image (no resolver in environment):", hrefAttr);
         return;
       }
-      const resolved = resolver(hrefAttr, context.resourceBaseDir ?? context.assetRootDir);
+      const base = hrefAttr.startsWith("/") ? context.assetRootDir ?? context.resourceBaseDir : context.resourceBaseDir ?? context.assetRootDir;
+      const resolved = resolver(hrefAttr, base);
       imageInfo = await imageService.loadImage(resolved);
       node._resolvedHref = resolved;
     }

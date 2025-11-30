@@ -252,7 +252,11 @@ async function renderImage(node: SvgImageNode, _style: SvgStyle, context: SvgRen
         console.debug("Skipping local SVG image (no resolver in environment):", hrefAttr);
         return;
       }
-      const resolved = resolver(hrefAttr, context.resourceBaseDir ?? context.assetRootDir);
+      // Choose base: assetRootDir for paths starting with /, resourceBaseDir for relative paths
+      const base = hrefAttr.startsWith('/')
+        ? (context.assetRootDir ?? context.resourceBaseDir)
+        : (context.resourceBaseDir ?? context.assetRootDir);
+      const resolved = resolver(hrefAttr, base);
       imageInfo = await imageService.loadImage(resolved);
       (node as any)._resolvedHref = resolved;
     }

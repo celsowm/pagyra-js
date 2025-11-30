@@ -43,10 +43,14 @@ export class NodeEnvironment implements Environment {
   }
 
   resolveLocal(source: string, base?: string): string {
+    // URLs and data URIs pass through unchanged
     if (/^(https?:)?\/\//i.test(source) || /^data:/i.test(source)) {
       return source;
     }
-    const resolved = base ? path.resolve(base, source) : path.resolve(source);
+    // Strip leading slash to treat as document-relative (not filesystem-absolute)
+    // This ensures /images/duck.jpg resolves to {base}/images/duck.jpg, not C:\images\duck.jpg on Windows
+    const normalized = source.startsWith('/') ? source.slice(1) : source;
+    const resolved = base ? path.resolve(base, normalized) : path.resolve(normalized);
     return resolved;
   }
 

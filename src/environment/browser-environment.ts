@@ -28,7 +28,7 @@ class BrowserCompression implements Compression {
     const reader = stream.readable.getReader();
     const chunks: Uint8Array[] = [];
     let total = 0;
-    for (;;) {
+    for (; ;) {
       const { done, value } = await reader.read();
       if (done) break;
       chunks.push(value);
