@@ -32,19 +32,53 @@ export interface Base14Variants {
  * For example, "Arial" → "Arimo", "Times New Roman" → "Tinos"
  */
 export const BASE_FONT_ALIASES: ReadonlyMap<string, string> = new Map([
-    ["helvetica", "Arimo"],            // Use Arimo instead of Helvetica
-    ["arial", "Arimo"],                // Use Arimo instead of Helvetica
-    ["times", "Tinos"],                // Use Tinos instead of Times-Roman
-    ["times-roman", "Tinos"],          // Use Tinos instead of Times-Roman
-    ["times new roman", "Tinos"],      // Use Tinos instead of Times-Roman
-    ["georgia", "Tinos"],              // Use Tinos instead of Times-Roman
-    ["courier", "DejaVu Sans"],        // Use DejaVu instead of Courier
-    ["courier new", "DejaVu Sans"],    // Use DejaVu instead of Courier
-    ["monaco", "DejaVu Sans"],         // Use DejaVu instead of Courier
+    // Sans/UI families
+    ["helvetica", "Lato"],
+    ["arial", "Arimo"],
+    ["arial black", "Arimo"],
+    ["segoe ui", "Roboto"],
+    ["open sans", "Lato"],
+    ["calibri", "Roboto"],
+    ["roboto", "Roboto"],
+    ["arimo", "Arimo"],
+    ["lato", "Lato"],
+    ["noto sans", "Noto Sans"],
+    ["notosans-regular", "Noto Sans"],
+    ["dejavu sans", "DejaVu Sans"],
+
+    // Serif
+    ["times", "Tinos"],
+    ["times-roman", "Tinos"],
+    ["times new roman", "Tinos"],
+    ["georgia", "Tinos"],
+    ["garamond", "Tinos"],
+    ["baskerville", "Tinos"],
+
+    // Mono
+    ["courier", "Fira Code"],
+    ["courier new", "Fira Code"],
+    ["consolas", "Fira Code"],
+    ["menlo", "Fira Code"],
+    ["monaco", "Fira Code"],
+    ["source code pro", "Fira Code"],
+
+    // Decorative / cursive
+    ["comic sans", "Caveat"],
+    ["comic sans ms", "Caveat"],
+    ["fantasy", "Cinzel Decorative"],
+    ["cursive", "Caveat"],
+
+    // Emoji / math / symbols
+    ["noto emoji", "Noto Emoji"],
+    ["noto color emoji", "Noto Emoji"],
+    ["segoe ui emoji", "Noto Emoji"],
+    ["apple color emoji", "Noto Emoji"],
+    ["twemoji", "Noto Emoji"],
+    ["cambria math", "STIX Two Math"],
+    ["stix two math", "STIX Two Math"],
+    ["math", "STIX Two Math"],
     ["symbol", "Symbol"],
     ["zapfdingbats", "ZapfDingbats"],
-    ["notosans-regular", "NotoSans-Regular"],  // Unicode-capable font for bullets
-    ["roboto", "Roboto-Regular"],              // Map generic Roboto to specific variant
 ]);
 
 /**
@@ -53,12 +87,14 @@ export const BASE_FONT_ALIASES: ReadonlyMap<string, string> = new Map([
  * Used when no specific font family is requested or as a final fallback.
  */
 export const GENERIC_FAMILIES: ReadonlyMap<string, string> = new Map([
-    ["serif", "Tinos"],            // Use Tinos instead of Times-Roman
-    ["sans-serif", "Arimo"],       // Use Arimo instead of Helvetica
-    ["monospace", "DejaVu Sans"],  // Use DejaVu instead of Courier
-    ["system-ui", "Arimo"],        // Use Arimo instead of Helvetica
-    ["cursive", "Tinos"],          // Use Tinos instead of Times-Roman
-    ["fantasy", "Arimo"],          // Use Arimo instead of Helvetica
+    ["serif", "Tinos"],
+    ["sans-serif", "Lato"],
+    ["monospace", "Fira Code"],
+    ["system-ui", "Roboto"],
+    ["cursive", "Caveat"],
+    ["fantasy", "Cinzel Decorative"],
+    ["emoji", "Noto Emoji"],
+    ["math", "STIX Two Math"],
 ]);
 
 /**
@@ -71,9 +107,14 @@ export const BASE14_FALLBACKS: ReadonlyMap<string, string> = new Map([
     ["times-roman", "Times-Roman"],
     ["times new roman", "Times-Roman"],
     ["georgia", "Times-Roman"],
+    ["garamond", "Times-Roman"],
+    ["baskerville", "Times-Roman"],
     ["serif", "Times-Roman"],
     ["helvetica", "Helvetica"],
     ["arial", "Helvetica"],
+    ["segoe ui", "Helvetica"],
+    ["open sans", "Helvetica"],
+    ["calibri", "Helvetica"],
     ["sans-serif", "Helvetica"],
     ["system-ui", "Helvetica"],
     ["courier", "Courier"],
