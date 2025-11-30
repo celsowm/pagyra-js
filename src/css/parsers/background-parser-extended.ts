@@ -1,8 +1,23 @@
 // src/css/parsers/background-parser-extended.ts
 
 import { parseLinearGradient } from "./gradient-parser.js";
-import { parseBackgroundShorthand, applyBackgroundSize, applyBackgroundPosition, applyBackgroundOrigin, applyBackgroundRepeat } from "./background-parser.js";
+import {
+  parseBackgroundShorthand,
+  applyBackgroundSize,
+  applyBackgroundPosition,
+  applyBackgroundOrigin,
+  applyBackgroundRepeat,
+  ensureLayers,
+} from "./background-parser.js";
 import type { StyleAccumulator } from "../style.js";
+import type { BackgroundClip } from "../background-types.js";
+
+const BACKGROUND_CLIP_VALUES = new Set<BackgroundClip>([
+  "border-box",
+  "padding-box",
+  "content-box",
+  "text",
+]);
 
 export function applyBackgroundSizeDecl(value: string, target: StyleAccumulator): void {
   applyBackgroundSize(target, value);
@@ -18,6 +33,34 @@ export function applyBackgroundOriginDecl(value: string, target: StyleAccumulato
 
 export function applyBackgroundRepeatDecl(value: string, target: StyleAccumulator): void {
   applyBackgroundRepeat(target, value);
+}
+
+export function applyBackgroundClipDecl(value: string, target: StyleAccumulator): void {
+  const layers = ensureLayers(target);
+  if (layers.length === 0) {
+    return;
+  }
+
+  const tokens = value
+    .split(",")
+    .map((token) => token.trim().toLowerCase())
+    .filter((token) => token.length > 0);
+
+  if (tokens.length === 0) {
+    return;
+  }
+
+  for (let i = 0; i < tokens.length; i++) {
+    const clipValue = tokens[i] as BackgroundClip;
+    if (!BACKGROUND_CLIP_VALUES.has(clipValue)) {
+      continue;
+    }
+    const layerIndex = Math.min(i, layers.length - 1);
+    const layer = layers[layerIndex];
+    if (layer) {
+      layer.clip = clipValue as BackgroundClip;
+    }
+  }
 }
 
 export function parseBackgroundImage(value: string, target: StyleAccumulator): void {

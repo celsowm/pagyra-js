@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Gradient Text with background-clip</title>
+  <style>
+    body {
+      font-family: "Inter", system-ui, "Helvetica Neue", sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #111;
+      color: #fff;
+    }
+
+    .gradient-title {
+      font-size: 64px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      background: linear-gradient(220deg, #ff8a00, #e52e71 45%, #8a2be2);
+      color: transparent;
+      -webkit-background-clip: text;
+      background-clip: text;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="gradient-title">
+    Background clip text
+  </div>
+</body>
+</html>

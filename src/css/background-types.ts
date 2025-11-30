@@ -3,6 +3,7 @@ import type { ImageInfo } from "../image/types.js";
 export interface ColorBackgroundLayer {
   kind: "color";
   color: string; // ex: #fff, rgba(...)
+  clip?: BackgroundClip;
 }
 
 export interface ImageBackgroundLayer {

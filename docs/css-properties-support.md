@@ -115,7 +115,7 @@ writing-mode | Horizontal or vertical layout of text. | ✅ Yes | ❌ No
 background | Shorthand for all background properties. | ✅ Yes | ✅ Yes
 background-attachment | Whether background scrolls or is fixed. | ✅ Yes (Fixed works as static) | ❌ No
 background-blend-mode | Blending mode of background layers. | ✅ Yes | ❌ No
-background-clip | Painting area of the background. | ✅ Yes | ❌ No
+background-clip | Painting area of the background (text clip fills glyphs). | ✅ Yes | ✅ Yes (text clipping for gradients)
 background-color | Background color of element. | ✅ Yes | ✅ Yes
 background-image | Background image(s). | ✅ Yes | ✅ Yes
 background-origin | Positioning area of background images. | ✅ Yes | ✅ Yes

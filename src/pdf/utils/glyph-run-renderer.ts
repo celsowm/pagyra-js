@@ -4,6 +4,12 @@ import type { GraphicsStateManager } from "../renderers/graphics-state-manager.j
 import { fillColorCommand, formatNumber } from "../renderers/text-renderer-utils.js";
 import type { RGBA } from "../types.js";
 
+export interface DrawGlyphRunOptions {
+  skipColor?: boolean;
+  textRenderingMode?: number;
+  afterTextCommands?: string[];
+}
+
 /**
  * Draws a GlyphRun using a PdfFontSubset.
  * Returns PDF content stream commands.
@@ -17,25 +23,25 @@ export function drawGlyphRun(
   color: RGBA,
   graphicsStateManager?: GraphicsStateManager,
   wordSpacingPt = 0,
+  options?: DrawGlyphRunOptions,
 ): string[] {
     const commands: string[] = [];
-
-    // Set fill color (handles 0-255 inputs and alpha via graphics state)
-    commands.push(fillColorCommand(color, graphicsStateManager));
+    if (!options?.skipColor) {
+      commands.push(fillColorCommand(color, graphicsStateManager));
+    }
 
     // Begin text
     commands.push("BT");
-
-    // Set font and size
     commands.push(`${subset.name} ${formatNumber(fontSizePt)} Tf`);
-
-    // Set text position
     commands.push(`${formatNumber(xPt)} ${formatNumber(yPt)} Td`);
 
-    // Apply word spacing (Tw) when requested.
     const appliedWordSpacing = wordSpacingPt !== 0;
     if (appliedWordSpacing) {
       commands.push(`${formatNumber(wordSpacingPt)} Tw`);
+    }
+
+    if (options?.textRenderingMode !== undefined) {
+      commands.push(`${options.textRenderingMode} Tr`);
     }
 
     // Build TJ array with per-glyph kerning/letter-spacing adjustments and optional word spacing.
@@ -99,6 +105,9 @@ export function drawGlyphRun(
 
     // End text
     commands.push("ET");
+    if (options?.afterTextCommands && options.afterTextCommands.length > 0) {
+        commands.push(...options.afterTextCommands);
+    }
 
     return commands;
 }

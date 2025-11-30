@@ -1,4 +1,4 @@
-import type { Run, TextPaintOptions } from "../types.js";
+import type { Run, TextPaintOptions, Rect } from "../types.js";
 import type { FontRegistry, FontResource } from "../font/font-registry.js";
 import type { PdfObjectRef } from "../primitives/pdf-document.js";
 import { log } from "../../logging/debug.js";
@@ -11,6 +11,9 @@ import { TextDecorationRenderer } from "./text-decoration-renderer.js";
 import { TextFontResolver } from "./text-font-resolver.js";
 import { encodeTextPayload } from "./text-encoder.js";
 import { drawGlyphRun } from "../utils/glyph-run-renderer.js";
+import { GradientService } from "../shading/gradient-service.js";
+import type { LinearGradient, RadialGradient } from "../../css/parsers/gradient-parser.js";
+import { transformForRect } from "./shape-utils.js";
 import type { GlyphRun } from "../../layout/text-run.js";
 import type { UnifiedFont } from "../../fonts/types.js";
 
@@ -20,6 +23,8 @@ const RESET_COLOR = "\x1b[0m";
 export interface TextRendererResult {
   readonly commands: string[];
   readonly fonts: Map<string, PdfObjectRef>;
+  readonly shadings: Map<string, string>;
+  readonly patterns: Map<string, string>;
 }
 
 export class TextRenderer {
@@ -29,6 +34,8 @@ export class TextRenderer {
   private readonly shadowRenderer: TextShadowRenderer;
   private readonly graphicsStateManager?: GraphicsStateManager;
   private readonly fontResolver: TextFontResolver;
+  private readonly gradientService: GradientService;
+  private readonly patterns = new Map<string, string>();
 
   constructor(
     private readonly coordinateTransformer: CoordinateTransformer,
@@ -40,6 +47,7 @@ export class TextRenderer {
     this.fontResolver = new TextFontResolver(fontRegistry);
     this.shadowRenderer = new TextShadowRenderer(coordinateTransformer, fontRegistry, imageRenderer, graphicsStateManager);
     this.decorationRenderer = new TextDecorationRenderer(coordinateTransformer, graphicsStateManager);
+    this.gradientService = new GradientService(coordinateTransformer);
   }
 
   async drawText(text: string, xPx: number, yPx: number, options: TextPaintOptions = { fontSizePt: 10 }): Promise<void> {
@@ -169,6 +177,53 @@ export class TextRenderer {
     const subsetResource = this.fontRegistry.ensureSubsetForGlyphRun(glyphRun, font);
     this.registerSubsetFont(subsetResource.alias, subsetResource.ref);
 
+    const gradientBackground = run.textGradient;
+    if (gradientBackground && gradientBackground.rect && gradientBackground.rect.width > 0 && gradientBackground.rect.height > 0) {
+      log("paint", "debug", "text run has background clip gradient", {
+        text: run.text.slice(0, 32),
+        rect: gradientBackground.rect,
+      });
+      const gradientPaint = gradientBackground.gradient;
+      const isLinear = (gradientPaint as LinearGradient).type === "linear";
+      const isRadial = (gradientPaint as RadialGradient).type === "radial";
+      if (isLinear || isRadial) {
+        const pattern = this.gradientService.createPatternFromLinearGradient(
+          gradientPaint as LinearGradient,
+          {
+            width: gradientBackground.rect.width,
+            height: gradientBackground.rect.height,
+            x: gradientBackground.rect.x,
+            y: gradientBackground.rect.y,
+          },
+        );
+        this.patterns.set(pattern.patternName, pattern.dictionary);
+
+        const usePattern: string[] = [
+          "q",
+          `/Pattern cs`,
+          `/${pattern.patternName} scn`,
+        ];
+        const glyphPatternCommands = drawGlyphRun(
+          glyphRun,
+          subsetResource.subset,
+          x,
+          y,
+          fontSizePt,
+          color,
+          this.graphicsStateManager,
+          wordSpacingPt,
+          { skipColor: true },
+        );
+        if (glyphPatternCommands.length > 0) {
+          this.commands.push(...usePattern, ...glyphPatternCommands, "Q");
+          if (run.decorations) {
+            this.commands.push(...this.decorationRenderer.render(run, color));
+          }
+          return;
+        }
+      }
+    }
+
     const glyphCommands = drawGlyphRun(
       glyphRun,
       subsetResource.subset,
@@ -197,10 +252,46 @@ export class TextRenderer {
     this.fonts.set(alias, ref);
   }
 
+  private fillGradientRect(rect: Rect, gradient: LinearGradient | RadialGradient): string[] {
+    const width = Math.max(rect.width, 0);
+    const height = Math.max(rect.height, 0);
+    if (width <= 0 || height <= 0) {
+      return [];
+    }
+    const shading =
+      gradient.type === "radial"
+        ? this.gradientService.createRadialGradient(gradient as RadialGradient, rect)
+        : this.gradientService.createLinearGradient(gradient as LinearGradient, rect);
+
+    return [
+      "q",
+      transformForRect(rect, this.coordinateTransformer, null),
+      `0 0 ${formatNumber(width)} ${formatNumber(height)} re`,
+      "W n",
+      `/${shading.shadingName} sh`,
+      "Q",
+    ];
+  }
+
+  private fillPatternRect(rect: Rect): string[] {
+    const width = Math.max(rect.width, 0);
+    const height = Math.max(rect.height, 0);
+    if (width <= 0 || height <= 0) {
+      return [];
+    }
+    return [
+      transformForRect(rect, this.coordinateTransformer, null),
+      `0 0 ${formatNumber(width)} ${formatNumber(height)} re`,
+      "f",
+    ];
+  }
+
   getResult(): TextRendererResult {
     return {
       commands: [...this.commands],
       fonts: new Map(this.fonts),
+      shadings: this.gradientService.getShadings(),
+      patterns: new Map(this.patterns),
     };
   }
 }

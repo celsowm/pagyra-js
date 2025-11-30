@@ -13,6 +13,7 @@ import {
   type RGBA,
   type ImageRef,
   type BorderStyles,
+  type Background,
   NodeKind,
   Overflow,
   LayerMode,
@@ -24,7 +25,10 @@ import { resolveBoxShadows, resolveTextShadows, calculateVisualOverflow } from "
 import { extractImageRef } from "./utils/image-utils.js";
 import { calculateBoxDimensions } from "./utils/box-dimensions-utils.js";
 import { resolveDecorations } from "./utils/text-decoration-utils.js";
-import { resolveBackgroundLayers } from "./utils/background-layer-resolver.js";
+import {
+  resolveBackgroundLayers,
+  resolveTextGradientLayer,
+} from "./utils/background-layer-resolver.js";
 import { parseTransform } from "../transform/css-parser.js";
 import { buildNodeTextRuns } from "./utils/node-text-run-factory.js";
 import type { FontResolver } from "../fonts/types.js";
@@ -122,7 +126,11 @@ function mapOverflow(mode: OverflowMode): Overflow {
 // MAIN CONVERSION FUNCTION
 // ====================
 
-function convertNode(node: LayoutNode, state: { counter: number; fontResolver?: FontResolver }): RenderBox {
+function convertNode(
+  node: LayoutNode,
+  state: { counter: number; fontResolver?: FontResolver },
+  inheritedTextGradient?: Background["gradient"],
+): RenderBox {
   // Use the original HTML ID if available, otherwise generate a new one
   const originalId = node.customData?.id as string | undefined;
   const id = originalId || `node-${state.counter++}`;
@@ -136,7 +144,16 @@ function convertNode(node: LayoutNode, state: { counter: number; fontResolver?: 
   const transformString = node.style.transform;
   const transform = transformString ? parseTransform(transformString) ?? undefined : undefined;
 
-  const children = node.children.map((child) => convertNode(child, state));
+  const ownTextGradient = resolveTextGradientLayer(node, { borderBox, paddingBox, contentBox });
+  if (ownTextGradient) {
+    log("layout", "debug", "node has background-clip:text gradient", {
+      tagName: node.tagName,
+      rect: ownTextGradient.rect,
+    });
+  }
+  const textGradient = ownTextGradient ?? inheritedTextGradient;
+
+  const children = node.children.map((child) => convertNode(child, state, textGradient));
   const imageRef = extractImageRef(node);
   const decorations = resolveDecorations(node.style);
   const textRuns = buildNodeTextRuns({
@@ -149,6 +166,7 @@ function convertNode(node: LayoutNode, state: { counter: number; fontResolver?: 
     transform: transform ?? undefined,
     fallbackColor: textColor ?? DEFAULT_TEXT_COLOR,
     fontResolver: state.fontResolver,
+    textGradient,
   });
 
   log("layout", "debug", "node converted", {

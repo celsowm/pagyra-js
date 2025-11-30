@@ -38,6 +38,7 @@ export interface PdfResources {
     xObjects: Map<string, PdfObjectRef>;
     extGStates: Map<string, PdfObjectRef>;
     shadings: Map<string, PdfObjectRef>;
+    patterns?: Map<string, PdfObjectRef>;
 }
 
 export interface PdfObject {

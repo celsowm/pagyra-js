@@ -157,6 +157,7 @@ export interface Run {
   wordSpacing?: number;
   decorations?: Decorations;
   advanceWidth?: number;
+  textGradient?: GradientBackground;
   textShadows?: TextShadowLayer[];
 
   // --- Justification metadata (inlineRuns path only) ---

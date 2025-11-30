@@ -86,6 +86,7 @@ export class PdfBuilder {
         this.buildFonts(pushObject);
         this.buildExtGStates(pushObject);
         this.buildShadings(pushObject);
+        this.buildPatterns(pushObject);
         this.buildImages(pushObject);
         this.buildStreams(pushObject);
         this.buildCustomObjects(pushObject);
@@ -107,6 +108,9 @@ export class PdfBuilder {
         }
         for (const obj of this.objectRegistry.getAll()) {
             this.refManager.ensureRefNumber(obj.ref);
+        }
+        for (const pattern of this.patternRegistry.getAll()) {
+            this.refManager.ensureRefNumber(pattern.ref);
         }
     }
 
@@ -134,6 +138,15 @@ export class PdfBuilder {
     private buildShadings(pushObject: (body: string | Buffer | unknown, ref?: PdfObjectRef | null) => PdfObjectRef): void {
         for (const shading of this.shadingRegistry.getAll()) {
             shading.ref = pushObject(shading.dict, shading.ref);
+        }
+    }
+
+    /**
+     * Builds pattern objects.
+     */
+    private buildPatterns(pushObject: (body: string | Buffer | unknown, ref?: PdfObjectRef | null) => PdfObjectRef): void {
+        for (const pattern of this.patternRegistry.getAll()) {
+            pattern.ref = pushObject(pattern.dict, pattern.ref);
         }
     }
 
@@ -260,6 +273,17 @@ export class PdfBuilder {
         }
         if (shadingEntries.length > 0) {
             resourcesParts.push(`/Shading << ${shadingEntries.join(" ")} >>`);
+        }
+
+        // Patterns
+        const patternEntries: string[] = [];
+        if (page.resources.patterns) {
+            for (const [alias, ref] of page.resources.patterns) {
+                patternEntries.push(`/${alias} ${ref.objectNumber} 0 R`);
+            }
+            if (patternEntries.length > 0) {
+                resourcesParts.push(`/Pattern << ${patternEntries.join(" ")} >>`);
+            }
         }
 
         return resourcesParts;

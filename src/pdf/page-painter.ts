@@ -28,6 +28,7 @@ export interface PainterResult {
   readonly images: PainterImageResource[];
   readonly graphicsStates: Map<string, number>;
   readonly shadings: Map<string, string>;
+  readonly patterns?: Map<string, string>;
 }
 
 export interface PainterImageResource {

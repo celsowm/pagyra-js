@@ -8,6 +8,11 @@ export interface GradientShading {
   readonly dictionary: string;
 }
 
+export interface GradientPattern {
+  readonly patternName: string;
+  readonly dictionary: string;
+}
+
 let GLOBAL_GRADIENT_SERVICE_ID = 0;
 
 export class GradientService {
@@ -78,6 +83,25 @@ export class GradientService {
     const shading: GradientShading = { shadingName, dictionary };
     this.shadings.set(shadingName, shading);
     return shading;
+  }
+
+  createPatternFromLinearGradient(
+    gradient: LinearGradient,
+    rect: { x?: number; y?: number; width: number; height: number },
+  ): GradientPattern {
+    const shading = this.createLinearGradient(gradient, { x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+    const patternName = `${shading.shadingName}_Pat`;
+    const tx = this.coordinateTransformer.convertPxToPt(rect.x ?? 0);
+    const ty = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt((rect.y ?? 0) + rect.height);
+    const dict = [
+      "<<",
+      "/Type /Pattern",
+      "/PatternType 2",
+      `/Shading ${shading.dictionary}`,
+      `/Matrix [1 0 0 1 ${formatNumber(tx)} ${formatNumber(ty)}]`,
+      ">>",
+    ].join("\n");
+    return { patternName, dictionary: dict };
   }
 
   createRadialGradient(

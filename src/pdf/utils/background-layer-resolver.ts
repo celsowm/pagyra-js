@@ -21,6 +21,10 @@ export function resolveBackgroundLayers(node: LayoutNode, boxes: BackgroundBoxes
 
   for (let i = layers.length - 1; i >= 0; i--) {
     const layer = layers[i];
+    if (layer.clip === "text") {
+      continue;
+    }
+
     if (layer.kind === "gradient" && background.gradient === undefined) {
       const gradient = createGradientBackground(layer, boxes);
       if (gradient) {
@@ -40,6 +44,20 @@ export function resolveBackgroundLayers(node: LayoutNode, boxes: BackgroundBoxes
   }
 
   return background;
+}
+
+export function resolveTextGradientLayer(node: LayoutNode, boxes: BackgroundBoxes): Background["gradient"] | undefined {
+  const layers = node.style.backgroundLayers ?? [];
+  for (let i = layers.length - 1; i >= 0; i--) {
+    const layer = layers[i];
+    if (layer.kind === "gradient" && layer.clip === "text") {
+      const gradient = createGradientBackground(layer, boxes);
+      if (gradient) {
+        return gradient;
+      }
+    }
+  }
+  return undefined;
 }
 
 function createBackgroundImage(layer: ImageBackgroundLayer, boxes: BackgroundBoxes): Background["image"] | undefined {

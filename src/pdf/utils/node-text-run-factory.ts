@@ -1,5 +1,5 @@
 import type { LayoutNode } from "../../dom/node.js";
-import type { RenderBox, Rect, RGBA, Run, Decorations } from "../types.js";
+import type { RenderBox, Rect, RGBA, Run, Decorations, GradientBackground } from "../types.js";
 import type { Matrix } from "../../geometry/matrix.js";
 import { createTextRuns } from "./text-utils.js";
 import { createListMarkerRun } from "./list-utils.js";
@@ -20,10 +20,11 @@ export interface NodeTextRunContext {
   transform?: Matrix;
   fallbackColor: RGBA;
   fontResolver?: FontResolver;
+  textGradient?: GradientBackground;
 }
 
 export function buildNodeTextRuns(context: NodeTextRunContext): Run[] {
-  const { node, children, borderBox, contentBox, textColor, decorations, transform, fallbackColor, fontResolver } = context;
+  const { node, children, borderBox, contentBox, textColor, decorations, transform, fallbackColor, fontResolver, textGradient } = context;
   const textRuns = createTextRuns(node, textColor, decorations);
 
   // If we have a fontResolver, enhance text runs with GlyphRun data
@@ -35,6 +36,12 @@ export function buildNodeTextRuns(context: NodeTextRunContext): Run[] {
     const markerRun = createListMarkerRun(node, contentBox, children, textColor ?? fallbackColor);
     if (markerRun) {
       textRuns.unshift(markerRun);
+    }
+  }
+
+  if (textGradient) {
+    for (const run of textRuns) {
+      run.textGradient = textGradient;
     }
   }
 

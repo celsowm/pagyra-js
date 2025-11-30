@@ -12,6 +12,7 @@ export interface PainterResult {
   readonly images: PainterImageResource[];
   readonly graphicsStates: Map<string, number>;
   readonly shadings: Map<string, string>;
+  readonly patterns?: Map<string, string>;
 }
 
 export interface PainterImageResource {
@@ -76,12 +77,26 @@ export class ResultCombiner {
       });
     }
 
+    const combinedShadings = new Map<string, string>();
+    for (const [name, dict] of shapeResult.shadings) {
+      combinedShadings.set(name, dict);
+    }
+    for (const [name, dict] of textResult.shadings) {
+      combinedShadings.set(name, dict);
+    }
+
+    const combinedPatterns = new Map<string, string>();
+    for (const [name, dict] of textResult.patterns ?? []) {
+      combinedPatterns.set(name, dict);
+    }
+
     return {
       content: allCommands.join("\n"),
       fonts: textResult.fonts,
       images: processedImages,
       graphicsStates,
-      shadings: shapeResult.shadings,
+      shadings: combinedShadings,
+      patterns: combinedPatterns,
     };
   }
 }

@@ -136,6 +136,7 @@ import {
   applyBackgroundPositionDecl,
   applyBackgroundOriginDecl,
   applyBackgroundRepeatDecl,
+  applyBackgroundClipDecl,
   parseBackgroundImage,
   parseBackground,
   parseObjectFit,
@@ -281,6 +282,7 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("background-position", applyBackgroundPositionDecl);
   registerPropertyParser("background-origin", applyBackgroundOriginDecl);
   registerPropertyParser("background-repeat", applyBackgroundRepeatDecl);
+  registerPropertyParser("background-clip", applyBackgroundClipDecl);
   registerPropertyParser("background-image", parseBackgroundImage);
   registerPropertyParser("background", parseBackground);
   registerPropertyParser("object-fit", parseObjectFit);

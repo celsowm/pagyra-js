@@ -70,7 +70,7 @@ function extractFunctionCall(value: string, fnName: string): FunctionSlice | nul
 /**
  * Ensures background layers array exists and returns the top renderable layer
  */
-function ensureLayers(style: any): BackgroundLayer[] {
+export function ensureLayers(style: any): BackgroundLayer[] {
   if (!style.backgroundLayers) {
     style.backgroundLayers = [];
   }

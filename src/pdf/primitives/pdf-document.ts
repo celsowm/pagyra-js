@@ -32,6 +32,7 @@ export class PdfDocument {
       xObjects: page.resources?.xObjects ?? new Map(),
       extGStates: page.resources?.extGStates ?? new Map(),
       shadings: page.resources?.shadings ?? new Map(),
+      patterns: page.resources?.patterns ?? new Map(),
     };
 
     this.builder.addPage({

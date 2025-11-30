@@ -183,6 +183,11 @@
     "htmlUrl": "examples/background-origin-showcase.html"
   },
   {
+    "id": "background-clip-text",
+    "label": "Background Clip Text Gradient",
+    "htmlUrl": "examples/background-clip-text.html"
+  },
+  {
     "id": "webp-example",
     "label": "WebP Image Example",
     "htmlUrl": "examples/webp-example.html"

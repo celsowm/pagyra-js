@@ -7,6 +7,7 @@ export interface PageResources {
   xObjects: Map<string, PdfObjectRef>;
   extGStates: Map<string, PdfObjectRef>;
   shadings: Map<string, PdfObjectRef>;
+  patterns: Map<string, PdfObjectRef>;
 }
 
 export function registerPageResources(doc: PdfDocument, result: PainterResult): PageResources {
@@ -29,10 +30,17 @@ export function registerPageResources(doc: PdfDocument, result: PainterResult): 
     shadings.set(name, ref);
   }
 
+  const patterns = new Map<string, PdfObjectRef>();
+  for (const [name, dict] of result.patterns ?? []) {
+    const ref = doc.registerPattern(name, dict);
+    patterns.set(name, ref);
+  }
+
   return {
     fonts: result.fonts,
     xObjects,
     extGStates,
     shadings,
+    patterns,
   };
 }
