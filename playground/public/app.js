@@ -461,6 +461,12 @@ function updateHtmlPreview() {
 
   const html = getHtmlValue();
   const css = getCssValue();
+  const viewport = getViewportDimensions();
+  const page = computePageSize(viewport);
+  const marginTop = PAGE_MARGINS.top.toFixed(2);
+  const marginRight = PAGE_MARGINS.right.toFixed(2);
+  const marginBottom = PAGE_MARGINS.bottom.toFixed(2);
+  const marginLeft = PAGE_MARGINS.left.toFixed(2);
 
   // Create a complete HTML document with the user's input
   const fullHtml = `
@@ -474,9 +480,19 @@ function updateHtmlPreview() {
           * {
             box-sizing: border-box;
           }
-          body {
+          html {
             margin: 0;
-            padding: 20px;
+            padding: 32px 0;
+            background: #e2e8f0;
+            min-height: 100%;
+          }
+          body {
+            margin: 0 auto;
+            width: ${page.width.toFixed(2)}px;
+            min-height: ${page.height.toFixed(2)}px;
+            padding: ${marginTop}px ${marginRight}px ${marginBottom}px ${marginLeft}px;
+            background: #fff;
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
             line-height: 1.6;
             color: #333;
           }
@@ -647,6 +663,12 @@ async function init() {
   }
   if (DOM.cssInput) {
     DOM.cssInput.addEventListener("input", handleInputChange);
+  }
+  if (DOM.viewportWidth) {
+    DOM.viewportWidth.addEventListener("input", handleInputChange);
+  }
+  if (DOM.viewportHeight) {
+    DOM.viewportHeight.addEventListener("input", handleInputChange);
   }
 
   // CKEditor toggle
