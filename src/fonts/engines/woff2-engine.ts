@@ -5,8 +5,8 @@ import { decodeWoff2 } from "../woff2/decoder.js";
 type ParsedWoff2 = ParsedFont & { ttfBuffer: Uint8Array };
 
 export class Woff2Engine {
-  parse(fontData: Uint8Array): ParsedWoff2 {
-    const { parsed, ttfBuffer } = decodeWoff2(fontData);
+  async parse(fontData: Uint8Array): Promise<ParsedWoff2> {
+    const { parsed, ttfBuffer } = await decodeWoff2(fontData);
     return { ...parsed, ttfBuffer };
   }
 

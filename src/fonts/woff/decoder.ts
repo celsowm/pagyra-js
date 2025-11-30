@@ -1,9 +1,13 @@
-import { inflateSync } from "zlib";
 import type { ParsedFont } from "../types.js";
+import { decompressWoffZlib, type AsyncDecompressFn } from "../../compression/decompress.js";
 
 const WOFF_SIGNATURE = 0x774f4646; // "wOFF"
 const WOFF_HEADER_SIZE = 44;
 const TABLE_DIR_ENTRY_SIZE = 20;
+
+export interface WoffDependencies {
+  inflate?: AsyncDecompressFn;
+}
 
 function readUInt32(view: DataView, offset: number): number {
   return view.getUint32(offset, false);
@@ -26,7 +30,8 @@ function tagToString(tag: number): string {
  * Decode a WOFF 1.0 font into raw sfnt table data.
  * SRP: only responsible for WOFF container parsing + per-table decompression.
  */
-export function decodeWoff(fontData: Uint8Array): ParsedFont {
+export async function decodeWoff(fontData: Uint8Array, deps: WoffDependencies = {}): Promise<ParsedFont> {
+  const inflate = deps.inflate ?? decompressWoffZlib;
   if (fontData.byteLength < WOFF_HEADER_SIZE) {
     throw new Error("Invalid WOFF: file too short");
   }
@@ -76,7 +81,8 @@ export function decodeWoff(fontData: Uint8Array): ParsedFont {
     const compressedSlice = fontData.subarray(offset, offset + compLength);
     let tableData: Uint8Array;
     if (compLength !== origLength) {
-      const inflated = inflateSync(compressedSlice);
+      // WOFF stores DEFLATE-compressed table data with a zlib header.
+      const inflated = await inflate(compressedSlice);
       if (inflated.byteLength !== origLength) {
         throw new Error("Invalid WOFF: decompressed size mismatch");
       }

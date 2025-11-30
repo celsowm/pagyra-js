@@ -77,14 +77,14 @@ export class FontEmbedder {
         const format = detectFontFormat(fontData);
         let ttfBuffer: ArrayBuffer;
         if (format === "woff") {
-          const parsed = await import("../../fonts/woff/decoder.js");
-          const decoded = parsed.decodeWoff(fontData);
+          const { decodeWoff } = await import("../../fonts/woff/decoder.js");
+          const decoded = await decodeWoff(fontData);
           ttfBuffer = reconstructTtf(decoded);
           fontData = new Uint8Array(ttfBuffer);
           (face as any).data = ttfBuffer;
         } else if (format === "woff2") {
           const { decodeWoff2 } = await import("../../fonts/woff2/decoder.js");
-          const decoded = decodeWoff2(fontData);
+          const decoded = await decodeWoff2(fontData);
           // Copy into a fresh ArrayBuffer to avoid SharedArrayBuffer unions
           const ttfCopy = decoded.ttfBuffer.slice();
           ttfBuffer = ttfCopy.buffer;

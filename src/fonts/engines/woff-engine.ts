@@ -4,7 +4,7 @@ import type { FontFormat, ParsedFont, UnifiedFont } from "../types.js";
 import { parseTtfBuffer } from "../../pdf/font/ttf-lite.js";
 
 export class WoffEngine {
-  parse(fontData: Uint8Array): ParsedFont {
+  async parse(fontData: Uint8Array): Promise<ParsedFont> {
     return decodeWoff(fontData);
   }
 

@@ -1,16 +1,14 @@
-import { brotliDecompressSync } from "zlib";
 import type { ParsedFont } from "../types.js";
+import { decompressWoff2, type AsyncDecompressFn } from "../../compression/decompress.js";
 import { Buf, readBase128, read255UShort } from "./buffer.js";
 
-type BrotliDecompress = (data: Uint8Array) => Uint8Array;
-
 export interface Woff2Dependencies {
-  decompress: BrotliDecompress;
+  decompress?: AsyncDecompressFn;
   transformers?: Map<number, Woff2Transform>;
 }
 
 interface ResolvedWoff2Dependencies {
-  decompress: BrotliDecompress;
+  decompress: AsyncDecompressFn;
   transformers: Map<number, Woff2Transform>;
 }
 
@@ -116,7 +114,7 @@ const round4 = (v: number) => (v + 3) & ~3;
 
 function resolveDependencies(deps?: Partial<Woff2Dependencies>): ResolvedWoff2Dependencies {
   return {
-    decompress: deps?.decompress ?? ((data: Uint8Array) => brotliDecompressSync(data)),
+    decompress: deps?.decompress ?? decompressWoff2,
     transformers: deps?.transformers ?? createDefaultTransformers(),
   };
 }
@@ -955,10 +953,10 @@ function rebuildFont(
 
 // --- Public API -------------------------------------------------------------
 
-export function decodeWoff2(
+export async function decodeWoff2(
   fontData: Uint8Array,
   deps?: Partial<Woff2Dependencies>
-): { parsed: ParsedFont; ttfBuffer: Uint8Array } {
+): Promise<{ parsed: ParsedFont; ttfBuffer: Uint8Array }> {
   const resolvedDeps = resolveDependencies(deps);
   const header = parseHeader(fontData);
   const compressed = fontData.subarray(
@@ -966,7 +964,7 @@ export function decodeWoff2(
     header.compressedOffset + header.compressedLength
   );
 
-  const decompressed = resolvedDeps.decompress(compressed);
+  const decompressed = await resolvedDeps.decompress(compressed);
   if (decompressed.byteLength !== header.uncompressedSize) {
     throw new Error("Invalid WOFF2: brotli size mismatch");
   }

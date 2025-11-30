@@ -16,6 +16,8 @@ const alias: Record<string, string> = {
   fs: resolveProjectPath("src/shim/fs-empty.ts"),
   "node:zlib": resolveProjectPath("src/shim/zlib-empty.ts"),
   zlib: resolveProjectPath("src/shim/zlib-empty.ts"),
+  "node:util": resolveProjectPath("src/shim/empty.ts"),
+  util: resolveProjectPath("src/shim/empty.ts"),
   "src/environment/node-environment.ts": resolveProjectPath("src/environment/node-environment.browser.ts"),
   "src/pdf/font/builtin-fonts.ts": resolveProjectPath("src/pdf/font/builtin-fonts.browser.ts"),
 };
