@@ -33,6 +33,8 @@ async function start() {
     res.send('window.__PLAYGROUND_MODE = "browser";');
   });
 
+  // Expose shared assets (fonts, images) for the browser bundle.
+  app.use("/assets", express.static(path.resolve("assets")));
   app.use(express.static(PUBLIC_DIR));
 
   const server = app.listen(PORT, () => {
