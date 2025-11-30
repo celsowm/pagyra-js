@@ -1,7 +1,6 @@
 import type { PagePainter } from "../page-painter.js";
 import type { RenderBox } from "../types.js";
 import type { SvgNode, SvgRootNode, SvgImageNode } from "../../svg/types.js";
-import path from "path";
 import {
   renderCircle,
   renderEllipse,
@@ -18,6 +17,8 @@ import { parseTransform } from "../../transform/css-parser.js";
 import { mapSvgPoint } from "./coordinate-mapper.js";
 import { ImageService } from "../../image/image-service.js";
 import { getAlignFactors, parsePreserveAspectRatio } from "./aspect-ratio.js";
+import { decodeBase64ToUint8Array } from "../../utils/base64.js";
+import type { Environment } from "../../environment/environment.js";
 
 interface SvgCustomData {
   root: SvgRootNode;
@@ -35,12 +36,13 @@ export interface SvgRenderContext {
   // optional resource roots propagated from HTML conversion
   resourceBaseDir?: string;
   assetRootDir?: string;
+  environment?: Environment;
 }
 
 // Map of defs by id (gradients, clipPaths, etc.) built once per svg render
 export type SvgDefsMap = Map<string, any>;
 
-export async function renderSvgBox(painter: PagePainter, box: RenderBox): Promise<void> {
+export async function renderSvgBox(painter: PagePainter, box: RenderBox, environment?: Environment): Promise<void> {
   const svgData = extractSvgCustomData(box);
   if (!svgData) {
     return;
@@ -100,6 +102,7 @@ export async function renderSvgBox(painter: PagePainter, box: RenderBox): Promis
     viewportMatrix,
     transform: initialTransform,
     strokeScale,
+    environment,
     // resource roots will be set below from the box customData if available
   };
 
@@ -221,7 +224,7 @@ async function renderImage(node: SvgImageNode, _style: SvgStyle, context: SvgRen
   }
 
   let imageInfo;
-  const imageService = ImageService.getInstance();
+  const imageService = ImageService.getInstance(context.environment);
   try {
     if (hrefAttr.startsWith("data:")) {
       // data URI
@@ -230,25 +233,27 @@ async function renderImage(node: SvgImageNode, _style: SvgStyle, context: SvgRen
       const meta = hrefAttr.substring(5, comma);
       const isBase64 = meta.endsWith(";base64");
       const payload = hrefAttr.substring(comma + 1);
-      const buffer = isBase64 ? Buffer.from(payload, "base64") : Buffer.from(decodeURIComponent(payload), "utf8");
-      const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-      imageInfo = await imageService.decodeImage(arrayBuffer);
+      const bytes = isBase64 ? decodeBase64ToUint8Array(payload) : new TextEncoder().encode(decodeURIComponent(payload));
+      const copy = bytes.slice();
+      imageInfo = await imageService.decodeImage(copy.buffer);
     } else if (/^https?:\/\//i.test(hrefAttr)) {
       // Remote images not supported in this offline renderer
       console.debug("Skipping remote image in SVG:", hrefAttr);
       return;
     } else {
       // Local file reference. Resolve using assetRootDir for absolute (/images/...) or resourceBaseDir for relative
-      let resolved: string;
-      if (hrefAttr.startsWith("/")) {
-        const root = context.assetRootDir ?? process.cwd();
-        resolved = path.join(root, hrefAttr.replace(/^\//, ""));
-      } else {
-        const base = context.resourceBaseDir ?? process.cwd();
-        resolved = path.resolve(base, hrefAttr);
+      const hasProcess = typeof process !== "undefined" && !!process.versions?.node;
+      if (!hasProcess) {
+        console.debug("Skipping local SVG image in non-Node environment:", hrefAttr);
+        return;
       }
+      const resolver = context.environment?.resolveLocal;
+      if (!resolver) {
+        console.debug("Skipping local SVG image (no resolver in environment):", hrefAttr);
+        return;
+      }
+      const resolved = resolver(hrefAttr, context.resourceBaseDir ?? context.assetRootDir);
       imageInfo = await imageService.loadImage(resolved);
-      // Attach resolved path back to href for later reporting
       (node as any)._resolvedHref = resolved;
     }
   } catch (err) {

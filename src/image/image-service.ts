@@ -2,8 +2,9 @@ import { JpegDecoder } from './jpeg-decoder.js';
 import { PngDecoder } from './png-decoder.js';
 import { WebpDecoder } from './webp-decoder.js';
 import type { ImageInfo, ImageDecodeOptions } from './types.js';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
+import type { Environment } from '../environment/environment.js';
+import { NodeEnvironment } from '../environment/node-environment.js';
+import { getGlobalEnvironment } from '../environment/global.js';
 
 /**
  * Image Service following SOLID principles:
@@ -13,17 +14,22 @@ import { fileURLToPath } from 'url';
  */
 export class ImageService {
   private static instance: ImageService;
+  private readonly env: Environment;
   private imageCache = new Map<string, ImageInfo>();
   private readonly jpegDecoder = new JpegDecoder();
   private readonly pngDecoder = new PngDecoder();
   private readonly webpDecoder = new WebpDecoder();
 
+  private constructor(env?: Environment) {
+    this.env = env ?? globalEnvironmentFallback();
+  }
+
   /**
    * Singleton pattern implementation
    */
-  public static getInstance(): ImageService {
+  public static getInstance(env?: Environment): ImageService {
     if (!ImageService.instance) {
-      ImageService.instance = new ImageService();
+      ImageService.instance = new ImageService(env);
     }
     return ImageService.instance;
   }
@@ -40,8 +46,7 @@ export class ImageService {
     }
 
     try {
-      const buffer = readFileSync(normalizedPath);
-      const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+      const arrayBuffer = await this.env.loader.load(normalizedPath);
       const imageInfo = await this.decodeImage(arrayBuffer, options);
 
       // Cache the result
@@ -166,9 +171,18 @@ export class ImageService {
   }
 
   private normalizeSource(source: string): string {
-    if (source.startsWith("file://")) {
-      return fileURLToPath(source);
-    }
     return source;
   }
+}
+
+function globalEnvironmentFallback(): Environment {
+  const maybeEnv = getGlobalEnvironment();
+  if (maybeEnv) return maybeEnv;
+
+  const hasProcess = typeof process !== "undefined" && !!process.versions?.node;
+  if (hasProcess) {
+    return new NodeEnvironment();
+  }
+
+  throw new Error("Environment not provided to ImageService and no global __PAGYRA_ENV__ set");
 }

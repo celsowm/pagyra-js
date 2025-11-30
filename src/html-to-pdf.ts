@@ -1,8 +1,7 @@
 // src/html-to-pdf.ts
 
 import { parseHTML } from "linkedom";
-import path from "path";
-import { readFileSync } from "fs";
+import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { type FontConfig } from "./types/fonts.js";
 import { configureDebug, log, type LogLevel } from "./logging/debug.js";
@@ -24,6 +23,9 @@ import { FontEmbedder } from "./pdf/font/embedder.js";
 import { PdfDocument } from "./pdf/primitives/pdf-document.js";
 import { loadBuiltinFontConfig } from "./pdf/font/builtin-fonts.js";
 import { Display } from "./css/enums.js";
+import type { Environment } from "./environment/environment.js";
+import { NodeEnvironment } from "./environment/node-environment.js";
+import { decodeBase64ToUint8Array } from "./utils/base64.js";
 
 export interface RenderHtmlOptions {
   html: string;
@@ -40,6 +42,8 @@ export interface RenderHtmlOptions {
   resourceBaseDir?: string;
   assetRootDir?: string;
   headerFooter?: Partial<HeaderFooterHTML>;
+  /** Environment abstraction (Node/browser). Defaults to Node implementation. */
+  environment?: Environment;
 }
 
 export interface PreparedRender {
@@ -50,13 +54,15 @@ export interface PreparedRender {
 }
 
 export async function renderHtmlToPdf(options: RenderHtmlOptions): Promise<Uint8Array> {
-  const resolvedFontConfig = options.fontConfig ?? (await loadBuiltinFontConfig());
-  const preparedOptions = resolvedFontConfig ? { ...options, fontConfig: resolvedFontConfig } : options;
+  const environment = options.environment ?? new NodeEnvironment(options.assetRootDir ?? options.resourceBaseDir);
+  const resolvedFontConfig = options.fontConfig ?? (await loadBuiltinFontConfig(environment));
+  const preparedOptions = resolvedFontConfig ? { ...options, fontConfig: resolvedFontConfig, environment } : { ...options, environment };
   const prepared = await prepareHtmlRender(preparedOptions);
   return renderPdf(prepared.renderTree, {
     pageSize: prepared.pageSize,
     fontConfig: resolvedFontConfig ?? undefined,
     margins: prepared.margins,
+    environment,
   });
 }
 
@@ -66,8 +72,10 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   const normalizedHtml = normalizeHtmlInput(html);
 
   setViewportSize(viewportWidth, viewportHeight);
-  const resourceBaseDir = path.resolve(options.resourceBaseDir ?? options.assetRootDir ?? process.cwd());
-  const assetRootDir = path.resolve(options.assetRootDir ?? resourceBaseDir);
+  const isNode = typeof process !== "undefined" && !!process.versions?.node;
+  const resourceBaseDir = options.resourceBaseDir ?? options.assetRootDir ?? "";
+  const assetRootDir = options.assetRootDir ?? resourceBaseDir;
+  const environment = options.environment ?? new NodeEnvironment(assetRootDir);
 
   if (debugLevel || debugCats) {
     configureDebug({ level: debugLevel ?? (debug ? "debug" : "info"), cats: debugCats });
@@ -100,7 +108,7 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   for (const linkTag of linkTags) {
     const href = linkTag.getAttribute("href");
     if (!href) continue;
-    const cssText = await loadStylesheetFromHref(href, resourceBaseDir, assetRootDir);
+    const cssText = await loadStylesheetFromHref(href, resourceBaseDir, assetRootDir, environment);
     if (cssText) mergedCss += "\n" + cssText;
   }
   const { styleRules: cssRules, fontFaceRules } = parseCss(mergedCss);
@@ -143,7 +151,7 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   }
   const rootLayout = new LayoutNode(rootStyle, [], { tagName: processChildrenOf?.tagName?.toLowerCase() });
 
-  const conversionContext = { resourceBaseDir, assetRootDir, units, rootFontSize };
+  const conversionContext = { resourceBaseDir, assetRootDir, units, rootFontSize, environment };
 
   if (processChildrenOf) {
     log('html-to-pdf', 'debug', `prepareHtmlRender - processing children of: ${processChildrenOf.tagName}, count: ${processChildrenOf.childNodes.length}`);
@@ -170,7 +178,7 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
     if (fontFamily && src) {
       const targetUrl = pickFontUrlFromSrc(src);
       if (targetUrl && options.fontConfig) {
-        const fontData = await loadFontData(targetUrl, resourceBaseDir, assetRootDir);
+        const fontData = await loadFontData(targetUrl, resourceBaseDir, assetRootDir, environment);
         if (fontData) {
           const weightStr = fontFace.declarations["font-weight"] || "400";
           const styleStr = fontFace.declarations["font-style"] || "normal";
@@ -191,7 +199,7 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   if (options.fontConfig) {
     for (const face of options.fontConfig.fontFaceDefs) {
       if (!face.data && face.src) {
-        const loaded = await loadFontData(face.src, resourceBaseDir, assetRootDir);
+        const loaded = await loadFontData(face.src, resourceBaseDir, assetRootDir, environment);
         if (loaded) {
           (face as any).data = loaded;
         }
@@ -229,7 +237,7 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   return { layoutRoot: rootLayout, renderTree, pageSize, margins };
 }
 
-async function loadStylesheetFromHref(href: string, resourceBaseDir: string, assetRootDir: string): Promise<string> {
+async function loadStylesheetFromHref(href: string, resourceBaseDir: string, assetRootDir: string, environment: Environment): Promise<string> {
   const trimmed = href.trim();
   if (!trimmed) return "";
 
@@ -244,16 +252,13 @@ async function loadStylesheetFromHref(href: string, resourceBaseDir: string, ass
       return rewriteCssUrls(cssText, absoluteHref);
     }
 
-    let cssPath = trimmed;
-    if (cssPath.startsWith("file://")) {
-      cssPath = fileURLToPath(cssPath);
-    } else if (cssPath.startsWith("/")) {
-      cssPath = path.resolve(assetRootDir, `.${cssPath}`);
-    } else if (!path.isAbsolute(cssPath)) {
-      cssPath = path.resolve(resourceBaseDir, cssPath);
-    }
-    const cssText = readFileSync(cssPath, "utf-8");
-    return rewriteCssUrls(cssText, pathToFileURL(cssPath).toString());
+    const cssPath = environment.resolveLocal ? environment.resolveLocal(trimmed, resourceBaseDir) : resolveLocalPath(trimmed, resourceBaseDir, assetRootDir);
+    const cssBuffer = await environment.loader.load(cssPath);
+    const cssText = new TextDecoder("utf-8").decode(cssBuffer);
+    const baseHref = /^https?:\/\//i.test(cssPath) || cssPath.startsWith("file:")
+      ? cssPath
+      : pathToFileURL(cssPath).toString();
+    return rewriteCssUrls(cssText, baseHref);
   } catch (error) {
     log("parse", "warn", "Failed to load stylesheet", { href, error: error instanceof Error ? error.message : String(error) });
     return "";
@@ -315,7 +320,19 @@ function normalizeFontStyle(styleStr: string): "normal" | "italic" {
   return normalized.includes("italic") || normalized.includes("oblique") ? "italic" : "normal";
 }
 
-async function loadFontData(src: string, resourceBaseDir: string, assetRootDir: string): Promise<ArrayBuffer | null> {
+function resolveLocalPath(target: string, resourceBaseDir: string, assetRootDir: string): string {
+  let result = target;
+  if (result.startsWith("file://")) {
+    result = fileURLToPath(result);
+  } else if (result.startsWith("/")) {
+    result = path.resolve(assetRootDir, `.${result}`);
+  } else if (!path.isAbsolute(result)) {
+    result = path.resolve(resourceBaseDir, result);
+  }
+  return result;
+}
+
+async function loadFontData(src: string, resourceBaseDir: string, assetRootDir: string, environment: Environment): Promise<ArrayBuffer | null> {
   const trimmed = src.trim();
   if (!trimmed) return null;
   let target = trimmed;
@@ -334,8 +351,9 @@ async function loadFontData(src: string, resourceBaseDir: string, assetRootDir: 
       if (!/;base64/i.test(meta)) {
         throw new Error("Only base64-encoded data URIs are supported for fonts");
       }
-      const data = Buffer.from(target.slice(commaIdx + 1), "base64");
-      return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+      const data = decodeBase64ToUint8Array(target.slice(commaIdx + 1));
+      const copy = data.slice();
+      return copy.buffer;
     }
 
     if (/^https?:\/\//i.test(target)) {
@@ -346,19 +364,9 @@ async function loadFontData(src: string, resourceBaseDir: string, assetRootDir: 
       return await response.arrayBuffer();
     }
 
-    if (target.startsWith("file://")) {
-      target = fileURLToPath(target);
-    } else if (target.startsWith("/")) {
-      target = path.resolve(assetRootDir, `.${target}`);
-    } else if (!path.isAbsolute(target)) {
-      target = path.resolve(resourceBaseDir, target);
-    }
-
-    const fontDataBuffer = readFileSync(target);
-    return fontDataBuffer.buffer.slice(
-      fontDataBuffer.byteOffset,
-      fontDataBuffer.byteOffset + fontDataBuffer.byteLength
-    );
+    const resolved = environment.resolveLocal ? environment.resolveLocal(target, resourceBaseDir) : resolveLocalPath(target, resourceBaseDir, assetRootDir);
+    const fontDataBuffer = await environment.loader.load(resolved);
+    return fontDataBuffer;
   } catch (error) {
     log("font", "warn", "Failed to load font data", { src, error: error instanceof Error ? error.message : String(error) });
     return null;

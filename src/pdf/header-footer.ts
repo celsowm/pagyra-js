@@ -22,3 +22,4 @@ export {
   type RenderedHeaderFooter,
   type PageContentAreaConfig,
 } from "./header-footer-renderer.js";
+export type { Environment as HeaderFooterEnvironment } from "../environment/environment.js";

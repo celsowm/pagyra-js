@@ -21,6 +21,7 @@ import { ImageMatrixBuilder } from "./utils/image-matrix-builder.js";
 import { TransformScopeManager } from "./utils/transform-scope-manager.js";
 import { ResultCombiner } from "./utils/result-combiner.js";
 import { globalGlyphAtlas } from "./font/glyph-atlas.js";
+import type { Environment } from "../environment/environment.js";
 
 export interface PainterResult {
   readonly content: string;
@@ -56,12 +57,14 @@ export class PagePainter {
   private readonly transformScopeManager: TransformScopeManager;
   private readonly resultCombiner: ResultCombiner;
   private clipDepth = 0;
+  readonly environment?: Environment;
 
   constructor(
     pageHeightPt: number,
     pxToPt: (value: number) => number,
     fontRegistry: FontRegistry,
     pageOffsetPx: number = 0,
+    environment?: Environment,
   ) {
     this.coordinateTransformer = new CoordinateTransformer(pageHeightPt, pxToPt, pageOffsetPx);
     this.graphicsStateManager = new GraphicsStateManager();
@@ -72,6 +75,7 @@ export class PagePainter {
     this.imageMatrixBuilder = new ImageMatrixBuilder(this.coordinateTransformer);
     this.transformScopeManager = new TransformScopeManager(this.coordinateTransformer, this.shapeRenderer);
     this.resultCombiner = new ResultCombiner(this.textRenderer, this.imageRenderer, this.shapeRenderer, this.graphicsStateManager);
+    this.environment = environment;
   }
 
   get pageHeightPx(): number {

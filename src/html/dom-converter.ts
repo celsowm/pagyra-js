@@ -12,6 +12,7 @@ import type { SvgRootNode } from "../svg/types.js";
 import { ImageService } from "../image/image-service.js";
 import type { ImageInfo } from "../image/types.js";
 import { log } from "../logging/debug.js";
+import { decodeBase64ToUint8Array } from "../utils/base64.js";
 
 function findMeaningfulSibling(start: Node | null, direction: "previous" | "next"): Node | null {
   let current = start;
@@ -103,7 +104,7 @@ async function loadBackgroundImage(
   cssUrl: string,
   context: ConversionContext,
 ): Promise<{ info: ImageInfo; resolvedSrc: string } | null> {
-  const imageService = ImageService.getInstance();
+  const imageService = ImageService.getInstance(context.environment);
   const resolvedSrc = resolveImageSource(cssUrl, context);
 
   if (isHttpUrl(resolvedSrc)) {
@@ -119,9 +120,9 @@ async function loadBackgroundImage(
         log('dom-converter', 'warn', `Unsupported data URI format for background image: ${cssUrl}`);
         return null;
       }
-      const buffer = Buffer.from(match[2], "base64");
-      const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-      imageInfo = await imageService.decodeImage(arrayBuffer);
+      const bytes = decodeBase64ToUint8Array(match[2]);
+      const copy = bytes.slice();
+      imageInfo = await imageService.decodeImage(copy.buffer);
     } else {
       imageInfo = await imageService.loadImage(resolvedSrc);
     }

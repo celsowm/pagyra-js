@@ -43,7 +43,7 @@ export interface PdfResources {
 
 export interface PdfObject {
     ref: PdfObjectRef;
-    body: Buffer;
+    body: Uint8Array;
 }
 
 export interface PdfExtGStateResource {

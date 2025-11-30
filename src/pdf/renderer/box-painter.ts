@@ -35,7 +35,7 @@ export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Prom
   paintBoxShadows(painter, [box], true);
 
   if (box.kind === NodeKind.Svg || (box.tagName === "svg" && box.customData?.svg)) {
-    await renderSvgBox(painter, box);
+    await renderSvgBox(painter, box, painter.environment);
   } else if (box.image) {
     painter.drawImage(box.image, box.contentBox);
   }

@@ -10,6 +10,7 @@ import {
 } from "./header-footer-renderer.js";
 import { paintBoxAtomic } from "./renderer/box-painter.js";
 import { log } from "../logging/debug.js";
+import type { Environment } from "../environment/environment.js";
 
 export interface HeaderFooterPaintContext {
   /** Page margins in pixels */
@@ -24,6 +25,8 @@ export interface HeaderFooterPaintContext {
   pageOffsetY: number;
   /** Optional CSS for header/footer styling */
   css?: string;
+  /** Platform environment (Node/browser) */
+  environment?: Environment;
 }
 
 /**
@@ -108,6 +111,7 @@ async function paintHeaderFooterWithContext(
           tokens,
           pageNumber: pageIndex,
           totalPages,
+          environment: context.environment,
         });
 
         if (rendered) {
@@ -141,6 +145,7 @@ async function paintHeaderFooterWithContext(
           tokens,
           pageNumber: pageIndex,
           totalPages,
+          environment: context.environment,
         });
 
         if (rendered) {

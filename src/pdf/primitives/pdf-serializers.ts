@@ -2,6 +2,7 @@ import type { PdfObjectRef } from "./pdf-types.js";
 import type { PdfMetadata } from "../types.js";
 import { encodeAndEscapePdfText } from "../utils/encoding.js";
 import { log } from "../../logging/debug.js";
+import { concatBytes, encodeBinaryString } from "./pdf-bytes.js";
 
 /**
  * Pure serialization functions for PDF objects and values.
@@ -60,19 +61,12 @@ export function serializeExtGState(alpha: number): string {
 export function serializeStream(
     content: string | Uint8Array,
     extraEntries: string[] = []
-): Buffer {
-    const encoded =
-        typeof content === "string"
-            ? Buffer.from(content, "binary")
-            : Buffer.from(content);
+): Uint8Array {
+    const encoded = typeof content === "string" ? encodeBinaryString(content) : new Uint8Array(content);
     const entries = [`/Length ${encoded.length}`, ...extraEntries].join(" ");
-    const header = `<< ${entries} >>\nstream\n`;
-    const footer = "\nendstream";
-    return Buffer.concat([
-        Buffer.from(header, "binary"),
-        encoded,
-        Buffer.from(footer, "binary"),
-    ]);
+    const header = encodeBinaryString(`<< ${entries} >>\nstream\n`);
+    const footer = encodeBinaryString("\nendstream");
+    return concatBytes([header, encoded, footer]);
 }
 
 /**

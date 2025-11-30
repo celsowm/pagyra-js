@@ -21,6 +21,7 @@ import {
     formatNumber,
     hasMetadata,
 } from "./pdf-serializers.js";
+import { concatBytes, encodeBinaryString } from "./pdf-bytes.js";
 
 /**
  * Orchestrates PDF document generation by coordinating resource registries,
@@ -56,23 +57,23 @@ export class PdfBuilder {
      */
     finalize(): Uint8Array {
         const objects: PdfObject[] = [];
-        const header = Buffer.from("%PDF-1.4\n", "binary");
+        const header = encodeBinaryString("%PDF-1.4\n");
 
         // Helper to push objects with proper reference assignment
         const pushObject = (
-            body: string | Buffer | unknown,
+            body: string | Uint8Array | unknown,
             ref?: PdfObjectRef | null
         ): PdfObjectRef => {
             const objectRef = this.refManager.ensureRefNumber(ref ?? { objectNumber: 0 });
-            let payload: Buffer;
+            let payload: Uint8Array;
 
             if (typeof body === "string") {
-                payload = Buffer.from(body, "binary");
-            } else if (body instanceof Buffer) {
+                payload = encodeBinaryString(body);
+            } else if (body instanceof Uint8Array) {
                 payload = body;
             } else {
                 const serialized = serializeValue(body as Record<string, unknown> | readonly unknown[]);
-                payload = Buffer.from(serialized, "binary");
+                payload = encodeBinaryString(serialized);
             }
 
             objects.push({ ref: objectRef, body: payload });
@@ -117,7 +118,7 @@ export class PdfBuilder {
     /**
      * Builds font objects.
      */
-    private buildFonts(pushObject: (body: string | Buffer | unknown, ref?: PdfObjectRef | null) => PdfObjectRef): void {
+    private buildFonts(pushObject: (body: string | Uint8Array | unknown, ref?: PdfObjectRef | null) => PdfObjectRef): void {
         for (const font of this.fontRegistry.getAll()) {
             font.objectRef = pushObject(serializeType1Font(font.baseFont), font.objectRef);
         }
@@ -126,7 +127,7 @@ export class PdfBuilder {
     /**
      * Builds ExtGState objects.
      */
-    private buildExtGStates(pushObject: (body: string | Buffer | unknown, ref?: PdfObjectRef | null) => PdfObjectRef): void {
+    private buildExtGStates(pushObject: (body: string | Uint8Array | unknown, ref?: PdfObjectRef | null) => PdfObjectRef): void {
         for (const state of this.extGStateRegistry.getAll()) {
             state.ref = pushObject(serializeExtGState(state.alpha), state.ref);
         }
@@ -135,7 +136,7 @@ export class PdfBuilder {
     /**
      * Builds shading objects.
      */
-    private buildShadings(pushObject: (body: string | Buffer | unknown, ref?: PdfObjectRef | null) => PdfObjectRef): void {
+    private buildShadings(pushObject: (body: string | Uint8Array | unknown, ref?: PdfObjectRef | null) => PdfObjectRef): void {
         for (const shading of this.shadingRegistry.getAll()) {
             shading.ref = pushObject(shading.dict, shading.ref);
         }
@@ -144,7 +145,7 @@ export class PdfBuilder {
     /**
      * Builds pattern objects.
      */
-    private buildPatterns(pushObject: (body: string | Buffer | unknown, ref?: PdfObjectRef | null) => PdfObjectRef): void {
+    private buildPatterns(pushObject: (body: string | Uint8Array | unknown, ref?: PdfObjectRef | null) => PdfObjectRef): void {
         for (const pattern of this.patternRegistry.getAll()) {
             pattern.ref = pushObject(pattern.dict, pattern.ref);
         }
@@ -153,7 +154,7 @@ export class PdfBuilder {
     /**
      * Builds image XObject streams.
      */
-    private buildImages(pushObject: (body: string | Buffer | unknown, ref?: PdfObjectRef | null) => PdfObjectRef): void {
+    private buildImages(pushObject: (body: string | Uint8Array | unknown, ref?: PdfObjectRef | null) => PdfObjectRef): void {
         for (const image of this.imageRegistry.getAll()) {
             const entries = [
                 "/Type /XObject",
@@ -180,7 +181,7 @@ export class PdfBuilder {
     /**
      * Builds custom stream objects.
      */
-    private buildStreams(pushObject: (body: string | Buffer | unknown, ref?: PdfObjectRef | null) => PdfObjectRef): void {
+    private buildStreams(pushObject: (body: string | Uint8Array | unknown, ref?: PdfObjectRef | null) => PdfObjectRef): void {
         for (const stream of this.streamRegistry.getAll()) {
             const entries = Object.entries(stream.headers).map(([k, v]) => `/${k} ${v}`);
             const body = serializeStream(stream.data, entries);
@@ -191,7 +192,7 @@ export class PdfBuilder {
     /**
      * Builds custom registered objects.
      */
-    private buildCustomObjects(pushObject: (body: string | Buffer | unknown, ref?: PdfObjectRef | null) => PdfObjectRef): void {
+    private buildCustomObjects(pushObject: (body: string | Uint8Array | unknown, ref?: PdfObjectRef | null) => PdfObjectRef): void {
         for (const obj of this.objectRegistry.getAll()) {
             obj.ref = pushObject(obj.value, obj.ref);
         }
@@ -200,7 +201,7 @@ export class PdfBuilder {
     /**
      * Builds page objects and returns their references.
      */
-    private buildPages(pushObject: (body: string | Buffer | unknown, ref?: PdfObjectRef | null) => PdfObjectRef): PdfObjectRef[] {
+    private buildPages(pushObject: (body: string | Uint8Array | unknown, ref?: PdfObjectRef | null) => PdfObjectRef): PdfObjectRef[] {
         const pageRefs: PdfObjectRef[] = [];
 
         for (const page of this.pages) {
@@ -294,7 +295,7 @@ export class PdfBuilder {
      */
     private buildPageAnnotations(
         page: PdfPage,
-        pushObject: (body: string | Buffer | unknown, ref?: PdfObjectRef | null) => PdfObjectRef
+        pushObject: (body: string | Uint8Array | unknown, ref?: PdfObjectRef | null) => PdfObjectRef
     ): PdfObjectRef[] {
         const annotationRefs: PdfObjectRef[] = [];
         for (const annotation of page.annotations) {
@@ -309,7 +310,7 @@ export class PdfBuilder {
      */
     private buildPagesTree(
         pageRefs: PdfObjectRef[],
-        pushObject: (body: string | Buffer | unknown, ref?: PdfObjectRef | null) => PdfObjectRef
+        pushObject: (body: string | Uint8Array | unknown, ref?: PdfObjectRef | null) => PdfObjectRef
     ): PdfObjectRef {
         const kids = pageRefs.map((ref) => `${ref.objectNumber} 0 R`).join(" ");
         return pushObject(
@@ -322,7 +323,7 @@ export class PdfBuilder {
      */
     private buildCatalog(
         pagesRef: PdfObjectRef,
-        pushObject: (body: string | Buffer | unknown, ref?: PdfObjectRef | null) => PdfObjectRef
+        pushObject: (body: string | Uint8Array | unknown, ref?: PdfObjectRef | null) => PdfObjectRef
     ): PdfObjectRef {
         return pushObject(
             ["<<", "/Type /Catalog", `/Pages ${pagesRef.objectNumber} 0 R`, ">>"].join("\n")
@@ -333,7 +334,7 @@ export class PdfBuilder {
      * Builds the Info (metadata) object if metadata is present.
      */
     private buildMetadata(
-        pushObject: (body: string | Buffer | unknown, ref?: PdfObjectRef | null) => PdfObjectRef
+        pushObject: (body: string | Uint8Array | unknown, ref?: PdfObjectRef | null) => PdfObjectRef
     ): PdfObjectRef | null {
         if (hasMetadata(this.metadata)) {
             return pushObject(serializeInfo(this.metadata));
@@ -345,20 +346,20 @@ export class PdfBuilder {
      * Assembles the final PDF byte array.
      */
     private assemblePdf(
-        header: Buffer,
+        header: Uint8Array,
         objects: PdfObject[],
         catalogRef: PdfObjectRef,
         infoRef: PdfObjectRef | null
     ): Uint8Array {
         const xrefEntries: string[] = ["0000000000 65535 f \n"];
-        const chunks: Buffer[] = [header];
+        const chunks: Uint8Array[] = [header];
         let offset = header.length;
 
         // Write all objects
         for (const object of objects) {
-            const objectHeader = Buffer.from(`${object.ref.objectNumber} 0 obj\n`, "binary");
-            const objectFooter = Buffer.from("\nendobj\n", "binary");
-            const objectBuffer = Buffer.concat([objectHeader, object.body, objectFooter]);
+            const objectHeader = encodeBinaryString(`${object.ref.objectNumber} 0 obj\n`);
+            const objectFooter = encodeBinaryString("\nendobj\n");
+            const objectBuffer = concatBytes([objectHeader, object.body, objectFooter]);
             xrefEntries.push(formatXref(offset));
             chunks.push(objectBuffer);
             offset += objectBuffer.length;
@@ -367,12 +368,11 @@ export class PdfBuilder {
         // Write cross-reference table and trailer
         const xrefStart = offset;
         const size = this.refManager.getObjectCount();
-        const trailerBody = Buffer.from(
-            `xref\n0 ${size}\n${xrefEntries.join("")}trailer\n${serializeTrailer(size, catalogRef, infoRef)}\nstartxref\n${xrefStart}\n%%EOF\n`,
-            "binary"
+        const trailerBody = encodeBinaryString(
+            `xref\n0 ${size}\n${xrefEntries.join("")}trailer\n${serializeTrailer(size, catalogRef, infoRef)}\nstartxref\n${xrefStart}\n%%EOF\n`
         );
         chunks.push(trailerBody);
 
-        return Buffer.concat(chunks);
+        return concatBytes(chunks);
     }
 }

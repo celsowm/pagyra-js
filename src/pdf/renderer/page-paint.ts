@@ -5,6 +5,7 @@ import type { FontRegistry } from "../font/font-registry.js";
 import { LayerMode } from "../types.js";
 import type { LayoutPageTree, PageSize, RGBA, TextPaintOptions } from "../types.js";
 import { paintBoxAtomic, paintPageBackground } from "./box-painter.js";
+import type { Environment } from "../../environment/environment.js";
 
 export interface PagePaintInput {
   readonly pageTree: LayoutPageTree;
@@ -23,6 +24,8 @@ export interface PagePaintInput {
   readonly margins?: { top: number; right: number; bottom: number; left: number };
   /** CSS for header/footer styling */
   readonly headerFooterCss?: string;
+  /** Platform environment (Node/browser) for resource loading during paint */
+  readonly environment?: Environment;
 }
 
 export async function paintLayoutPage({
@@ -40,8 +43,9 @@ export async function paintLayoutPage({
   pageBackground,
   margins,
   headerFooterCss,
+  environment,
 }: PagePaintInput): Promise<PainterResult> {
-  const painter = new PagePainter(pageSize.heightPt, pxToPt, fontRegistry, pageTree.pageOffsetY);
+  const painter = new PagePainter(pageSize.heightPt, pxToPt, fontRegistry, pageTree.pageOffsetY, environment);
 
   const headerVariant = pickHeaderVariant(headerFooterLayout, pageNumber, totalPages);
   const footerVariant = pickFooterVariant(headerFooterLayout, pageNumber, totalPages);
@@ -57,6 +61,7 @@ export async function paintLayoutPage({
         fontRegistry,
         pageOffsetY: pageTree.pageOffsetY,
         css: headerFooterCss,
+        environment,
       }
     : undefined;
 

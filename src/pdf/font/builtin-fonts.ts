@@ -1,8 +1,9 @@
-import { readFile } from "node:fs/promises";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { log, type LogLevel } from "../../logging/debug.js";
 import type { FontConfig, FontFaceDef } from "../../types/fonts.js";
+import type { Environment } from "../../environment/environment.js";
+import { NodeEnvironment } from "../../environment/node-environment.js";
 
 type BuiltinFace = Omit<FontFaceDef, "src" | "data"> & { file: string };
 
@@ -55,8 +56,7 @@ const BUILTIN_FACES: BuiltinFace[] = [
 let cachedConfig: FontConfig | null | undefined;
 let loading: Promise<FontConfig | null> | null = null;
 
-export async function loadBuiltinFontConfig(): Promise<FontConfig | null> {
-
+export async function loadBuiltinFontConfig(environment: Environment = new NodeEnvironment()): Promise<FontConfig | null> {
   if (loading) {
     return loading;
   }
@@ -74,14 +74,14 @@ export async function loadBuiltinFontConfig(): Promise<FontConfig | null> {
         const filePath = path.join(baseDir, face.file);
         log('font', 'debug', "Loading font file:", filePath);
         try {
-          const buffer = await readFile(filePath);
+          const buffer = await environment.loader.load(filePath);
           faces.push({
             name: face.name,
             family: face.family,
             weight: face.weight,
             style: face.style,
             src: filePath,
-            data: buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer,
+            data: buffer,
           });
         } catch (err) {
           log('font', 'warn', `Failed to load font file: ${filePath}`, err);

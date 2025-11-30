@@ -10,6 +10,7 @@ import { ImageStrategy } from "../layout/strategies/image.js";
 import type { ImageInfo } from "../image/types.js";
 import type { UnitParsers } from "../units/units.js";
 import { log } from "../logging/debug.js";
+import { decodeBase64ToUint8Array } from "../utils/base64.js";
 
 // The ConversionContext should be defined where it's used
 export interface ConversionContext {
@@ -17,6 +18,7 @@ export interface ConversionContext {
   assetRootDir: string;
   units: UnitParsers;
   rootFontSize: number;
+  environment?: import("../environment/environment.js").Environment;
 }
 
 export function resolveImageSource(src: string, context: ConversionContext): string {
@@ -36,15 +38,18 @@ export function resolveImageSource(src: string, context: ConversionContext): str
   } catch {
     // Not an absolute URL, fall through to filesystem resolution
   }
+  if (context.environment?.resolveLocal) {
+    return context.environment.resolveLocal(trimmed, context.resourceBaseDir || context.assetRootDir || undefined);
+  }
   if (trimmed.startsWith("/")) {
-    const resolved = path.resolve(context.assetRootDir, `.${trimmed}`);
+    const resolved = context.assetRootDir ? path.resolve(context.assetRootDir, `.${trimmed}`) : trimmed;
     log('image-converter', 'debug', "resolveImageSource - resolving absolute path:", { src, trimmed, assetRootDir: context.assetRootDir, resolved });
     return resolved;
   }
   if (path.isAbsolute(trimmed)) {
     return trimmed;
   }
-  return path.resolve(context.resourceBaseDir, trimmed);
+  return context.resourceBaseDir ? path.resolve(context.resourceBaseDir, trimmed) : trimmed;
 }
 
 function isHttpUrl(value: string): boolean {
@@ -78,7 +83,7 @@ export async function convertImageElement(
 
   let imageInfo: ImageInfo;
   try {
-    const imageService = ImageService.getInstance();
+    const imageService = ImageService.getInstance(context.environment);
     if (isHttpUrl(resolvedSrc)) {
       throw new Error(`Remote images are not supported (${resolvedSrc})`);
     }
@@ -87,8 +92,9 @@ export async function convertImageElement(
       if (!match) {
         throw new Error("Invalid data URI");
       }
-      const buffer = Buffer.from(match[2], "base64");
-      imageInfo = await imageService.decodeImage(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength), {
+      const bytes = decodeBase64ToUint8Array(match[2]);
+      const copy = bytes.slice();
+      imageInfo = await imageService.decodeImage(copy.buffer, {
         maxWidth: width,
         maxHeight: height,
       });

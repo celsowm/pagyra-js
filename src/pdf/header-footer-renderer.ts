@@ -33,6 +33,7 @@ import { computeGlyphRun, applyWordSpacingToGlyphRun } from "./utils/node-text-r
 import type { PagePainter } from "./page-painter.js";
 import { paintBoxAtomic } from "./renderer/box-painter.js";
 import { applyPlaceholders } from "./header-footer-tokens.js";
+import type { Environment } from "../environment/environment.js";
 
 export interface HeaderFooterRenderOptions {
   /** The HTML content for the header/footer */
@@ -57,6 +58,8 @@ export interface HeaderFooterRenderOptions {
   pageNumber?: number;
   /** Total number of pages */
   totalPages?: number;
+  /** Platform environment (Node/browser) for resource loading */
+  environment?: Environment;
 }
 
 export interface RenderedHeaderFooter {
@@ -81,12 +84,16 @@ export async function renderHeaderFooterHtml(
     widthPx,
     maxHeightPx,
     fontEmbedder,
-    resourceBaseDir = process.cwd(),
-    assetRootDir = resourceBaseDir,
+    resourceBaseDir,
+    assetRootDir,
     tokens,
     pageNumber = 1,
     totalPages = 1,
+    environment,
   } = options;
+
+  const resolvedResourceBase = resourceBaseDir ?? "";
+  const resolvedAssetRoot = assetRootDir ?? resolvedResourceBase;
 
   if (!html || !html.trim()) {
     return null;
@@ -122,7 +129,7 @@ export async function renderHeaderFooterHtml(
 
   const rootLayout = new LayoutNode(rootStyle, [], { tagName: rootElement?.tagName?.toLowerCase() });
 
-  const conversionContext = { resourceBaseDir, assetRootDir, units, rootFontSize };
+  const conversionContext = { resourceBaseDir: resolvedResourceBase, assetRootDir: resolvedAssetRoot, units, rootFontSize, environment };
 
   if (rootElement) {
     for (const child of Array.from(rootElement.childNodes)) {

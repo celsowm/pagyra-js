@@ -169,14 +169,14 @@ export class WOFFDeflate {
     data: Uint8Array,
     level: number
   ): Promise<Uint8Array> {
-    // Try Node.js zlib first
-    if (typeof process !== 'undefined' && process.versions?.node) {
-      return this.nodeDeflateCompress(data, level);
-    }
-
     // Try browser CompressionStream API
     if (typeof CompressionStream !== 'undefined') {
       return this.browserDeflateCompress(data);
+    }
+
+    // Fallback to Node zlib when available
+    if (typeof process !== 'undefined' && process.versions?.node) {
+      return this.nodeDeflateCompress(data, level);
     }
 
     throw new Error('No DEFLATE implementation available');
@@ -186,14 +186,14 @@ export class WOFFDeflate {
    * Platform-specific DEFLATE decompression
    */
   private static async deflateDecompress(data: Uint8Array): Promise<Uint8Array> {
-    // Try Node.js zlib first
-    if (typeof process !== 'undefined' && process.versions?.node) {
-      return this.nodeDeflateDecompress(data);
-    }
-
     // Try browser DecompressionStream API
     if (typeof DecompressionStream !== 'undefined') {
       return this.browserDeflateDecompress(data);
+    }
+
+    // Fallback to Node zlib when available
+    if (typeof process !== 'undefined' && process.versions?.node) {
+      return this.nodeDeflateDecompress(data);
     }
 
     throw new Error('No DEFLATE implementation available');

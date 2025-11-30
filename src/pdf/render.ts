@@ -15,6 +15,7 @@ import { registerPageResources, type PageResources } from "./utils/page-resource
 import { FontRegistryResolver } from "../fonts/font-registry-resolver.js";
 import { applyWordSpacingToGlyphRun, computeGlyphRun } from "./utils/node-text-run-factory.js";
 import { log } from "../logging/debug.js";
+import type { Environment } from "../environment/environment.js";
 
 const DEFAULT_PAGE_SIZE: PageSize = { widthPt: 595.28, heightPt: 841.89 }; // A4 in points
 
@@ -33,6 +34,8 @@ export interface RenderPdfOptions {
   readonly margins?: PageMargins;
   /** CSS for header/footer styling */
   readonly headerFooterCss?: string;
+  /** Platform environment (Node/browser) for resource loading during paint */
+  readonly environment?: Environment;
 }
 
 export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = {}): Promise<Uint8Array> {
@@ -90,22 +93,23 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
     const pageTree = pages[index];
     const pageNumber = index + 1;
 
-    const painterResult = await paintLayoutPage({
-      pageTree,
-      pageNumber,
-      totalPages,
-      pageSize,
-      pxToPt,
-      pageWidthPx,
-      pageHeightPx,
-      fontRegistry,
-      headerFooterLayout: hfLayout,
-      tokens,
-      headerFooterTextOptions,
-      pageBackground,
-      margins,
-      headerFooterCss: options.headerFooterCss,
-    });
+  const painterResult = await paintLayoutPage({
+    pageTree,
+    pageNumber,
+    totalPages,
+    pageSize,
+    pxToPt,
+    pageWidthPx,
+    pageHeightPx,
+    fontRegistry,
+    headerFooterLayout: hfLayout,
+    tokens,
+    headerFooterTextOptions,
+    pageBackground,
+    margins,
+    headerFooterCss: options.headerFooterCss,
+    environment: options.environment,
+  });
 
     const resources = registerPageResources(doc, painterResult);
 
