@@ -493,8 +493,6 @@ function updateHtmlPreview() {
             padding: ${marginTop}px ${marginRight}px ${marginBottom}px ${marginLeft}px;
             background: #fff;
             box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
-            line-height: 1.6;
-            color: #333;
           }
           /* User styles */
           ${css}
