@@ -5,7 +5,7 @@ import { LayoutNode, type LayoutNodeOptions } from "../dom/node.js";
 import { ComputedStyle } from "../css/style.js";
 import { cloneLineHeight } from "../css/line-height.js";
 import { computeStyleForElement } from "../css/compute-style.js";
-import { convertImageElement, resolveImageSource, type ConversionContext } from "./image-converter.js";
+import { convertImageElement, resolveImageSource, canLoadHttpResource, type ConversionContext } from "./image-converter.js";
 import { Display, WhiteSpace } from "../css/enums.js";
 import { parseSvg } from "../svg/parser.js";
 import type { SvgRootNode } from "../svg/types.js";
@@ -107,7 +107,7 @@ async function loadBackgroundImage(
   const imageService = ImageService.getInstance(context.environment);
   const resolvedSrc = resolveImageSource(cssUrl, context);
 
-  if (isHttpUrl(resolvedSrc)) {
+  if (isHttpUrl(resolvedSrc) && !canLoadHttpResource(resolvedSrc, context)) {
     log('dom-converter', 'warn', `Skipping remote background image (${resolvedSrc}); remote assets are not supported.`);
     return null;
   }

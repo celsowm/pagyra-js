@@ -56,6 +56,52 @@ function isHttpUrl(value: string): boolean {
   return /^https?:\/\//i.test(value);
 }
 
+function parseHttpUrl(value?: string): URL | null {
+  if (!value) {
+    return null;
+  }
+  try {
+    const url = new URL(value);
+    if (url.protocol === "http:" || url.protocol === "https:") {
+      return url;
+    }
+  } catch {
+    // Ignore parse failures; only interested in HTTP(S) bases.
+  }
+  return null;
+}
+
+function collectAllowedOrigins(context: ConversionContext): URL[] {
+  const origins = new Map<string, URL>();
+  const candidates = [context.assetRootDir, context.resourceBaseDir];
+  for (const candidate of candidates) {
+    const parsed = parseHttpUrl(candidate);
+    if (parsed) {
+      const key = parsed.origin;
+      if (!origins.has(key)) {
+        origins.set(key, parsed);
+      }
+    }
+  }
+  return Array.from(origins.values());
+}
+
+export function canLoadHttpResource(url: string, context: ConversionContext): boolean {
+  if (!isHttpUrl(url)) {
+    return false;
+  }
+  try {
+    const target = new URL(url);
+    if (target.protocol !== "http:" && target.protocol !== "https:") {
+      return false;
+    }
+    const allowed = collectAllowedOrigins(context);
+    return allowed.some((origin) => origin.origin === target.origin);
+  } catch {
+    return false;
+  }
+}
+
 export async function convertImageElement(
   element: DomEl,
   cssRules: CssRuleEntry[],
@@ -84,7 +130,7 @@ export async function convertImageElement(
   let imageInfo: ImageInfo;
   try {
     const imageService = ImageService.getInstance(context.environment);
-    if (isHttpUrl(resolvedSrc)) {
+    if (isHttpUrl(resolvedSrc) && !canLoadHttpResource(resolvedSrc, context)) {
       throw new Error(`Remote images are not supported (${resolvedSrc})`);
     }
     if (resolvedSrc.startsWith("data:")) {

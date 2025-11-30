@@ -157296,6 +157296,48 @@ function resolveImageSource(src, context) {
 function isHttpUrl(value) {
   return /^https?:\/\//i.test(value);
 }
+function parseHttpUrl(value) {
+  if (!value) {
+    return null;
+  }
+  try {
+    const url = new URL(value);
+    if (url.protocol === "http:" || url.protocol === "https:") {
+      return url;
+    }
+  } catch {
+  }
+  return null;
+}
+function collectAllowedOrigins(context) {
+  const origins = /* @__PURE__ */ new Map();
+  const candidates = [context.assetRootDir, context.resourceBaseDir];
+  for (const candidate of candidates) {
+    const parsed = parseHttpUrl(candidate);
+    if (parsed) {
+      const key2 = parsed.origin;
+      if (!origins.has(key2)) {
+        origins.set(key2, parsed);
+      }
+    }
+  }
+  return Array.from(origins.values());
+}
+function canLoadHttpResource(url, context) {
+  if (!isHttpUrl(url)) {
+    return false;
+  }
+  try {
+    const target = new URL(url);
+    if (target.protocol !== "http:" && target.protocol !== "https:") {
+      return false;
+    }
+    const allowed = collectAllowedOrigins(context);
+    return allowed.some((origin) => origin.origin === target.origin);
+  } catch {
+    return false;
+  }
+}
 async function convertImageElement(element, cssRules, parentStyle, context) {
   const style = computeStyleForElement(element, cssRules, parentStyle, context.units, context.rootFontSize);
   const rawSrc = element.getAttribute("href") ?? element.getAttribute("xlink:href") ?? element.getAttribute("src") ?? "";
@@ -157314,7 +157356,7 @@ async function convertImageElement(element, cssRules, parentStyle, context) {
   let imageInfo;
   try {
     const imageService = ImageService.getInstance(context.environment);
-    if (isHttpUrl(resolvedSrc)) {
+    if (isHttpUrl(resolvedSrc) && !canLoadHttpResource(resolvedSrc, context)) {
       throw new Error(`Remote images are not supported (${resolvedSrc})`);
     }
     if (resolvedSrc.startsWith("data:")) {
@@ -157879,7 +157921,7 @@ function parseSpan(raw) {
 async function loadBackgroundImage(cssUrl, context) {
   const imageService = ImageService.getInstance(context.environment);
   const resolvedSrc = resolveImageSource(cssUrl, context);
-  if (isHttpUrl2(resolvedSrc)) {
+  if (isHttpUrl2(resolvedSrc) && !canLoadHttpResource(resolvedSrc, context)) {
     log("dom-converter", "warn", `Skipping remote background image (${resolvedSrc}); remote assets are not supported.`);
     return null;
   }
