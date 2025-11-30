@@ -7,6 +7,7 @@ import type {
   GradientBackgroundLayer,
 } from "../background-types.js";
 import { parseLinearGradient, parseRadialGradient } from "./gradient-parser.js";
+import { NAMED_COLORS } from "../named-colors.js";
 
 function normalizeBackgroundSizeKeyword(value: string): "cover" | "contain" | "auto" | undefined {
   const trimmed = value.trim().toLowerCase();
@@ -318,15 +319,22 @@ function parseBackgroundPosition(x: string, y: string): { x: string; y: string }
  * Checks if value is a color
  */
 function isColorValue(value: string): boolean {
-  // Simple color detection - can be enhanced
-  const colorKeywords = ['transparent', 'black', 'white', 'red', 'green', 'blue', 'yellow', 'gray', 'silver', 'maroon', 'purple', 'fuchsia', 'lime', 'olive', 'navy', 'teal', 'aqua'];
   const lowerValue = value.toLowerCase();
-
-  if (colorKeywords.includes(lowerValue)) return true;
-  if (lowerValue.startsWith('#') && (lowerValue.length === 4 || lowerValue.length === 7)) return true;
-  if (lowerValue.startsWith('rgb(') || lowerValue.startsWith('rgba(')) return true;
-  if (lowerValue.startsWith('hsl(') || lowerValue.startsWith('hsla(')) return true;
-
+  if (lowerValue in NAMED_COLORS) {
+    return true;
+  }
+  if (lowerValue === "transparent") {
+    return true;
+  }
+  if (lowerValue.startsWith("#") && (lowerValue.length === 4 || lowerValue.length === 7)) {
+    return true;
+  }
+  if (lowerValue.startsWith("rgb(") || lowerValue.startsWith("rgba(")) {
+    return true;
+  }
+  if (lowerValue.startsWith("hsl(") || lowerValue.startsWith("hsla(")) {
+    return true;
+  }
   return false;
 }
 

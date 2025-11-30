@@ -336,7 +336,9 @@ function isVerticalKeyword(value: string): boolean {
   return lower === "top" || lower === "bottom";
 }
 
-function isRadialSizeKeyword(value: string): value is Exclude<RadialGradient["size"], string> {
+function isRadialSizeKeyword(
+  value: string,
+): value is "closest-side" | "farthest-side" | "closest-corner" | "farthest-corner" {
   switch (value) {
     case "closest-side":
     case "farthest-side":

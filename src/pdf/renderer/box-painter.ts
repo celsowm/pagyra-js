@@ -6,6 +6,7 @@ import { NodeKind, type RenderBox, type RGBA, type Rect, type Radius, type Borde
 import type { PagePainter } from "../page-painter.js";
 import { computeBackgroundTileRects, intersectRects, rectEquals } from "../utils/background-tiles.js";
 import { computeBorderSideStrokes } from "../utils/border-dashes.js";
+import type { PathCommand } from "../renderers/shape-renderer.js";
 
 export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Promise<void> {
   log("paint", "debug", `paintBoxAtomic: ${box.tagName} id:${box.id} opacity:${box.opacity}`, { id: box.id, opacity: box.opacity });
@@ -22,6 +23,13 @@ export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Prom
   }
 
   paintBoxShadows(painter, [box], false);
+
+  const clipCommands = buildClipPathCommands(box.clipPath);
+  const hasClip = !!clipCommands;
+  if (hasClip && clipCommands) {
+    painter.beginClipPath(clipCommands);
+  }
+
   paintBackground(painter, box);
   paintBorder(painter, box);
   paintBoxShadows(painter, [box], true);
@@ -33,6 +41,10 @@ export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Prom
   }
 
   await paintText(painter, box);
+
+  if (hasClip) {
+    painter.endClipPath();
+  }
 
   if (hasOpacity) {
     painter.endOpacityScope(box.opacity);
@@ -208,4 +220,17 @@ function zeroRadius(): Radius {
     bottomRight: { x: 0, y: 0 },
     bottomLeft: { x: 0, y: 0 },
   };
+}
+
+function buildClipPathCommands(clipPath: RenderBox["clipPath"]): PathCommand[] | null {
+  if (!clipPath || clipPath.type !== "polygon" || clipPath.points.length < 3) {
+    return null;
+  }
+  const [first, ...rest] = clipPath.points;
+  const commands: PathCommand[] = [{ type: "moveTo", x: first.x, y: first.y }];
+  for (const point of rest) {
+    commands.push({ type: "lineTo", x: point.x, y: point.y });
+  }
+  commands.push({ type: "closePath" });
+  return commands;
 }

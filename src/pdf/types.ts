@@ -56,6 +56,11 @@ export interface Radius {
   bottomLeft: CornerRadius;
 }
 
+export interface ClipPath {
+  type: "polygon";
+  points: ShapePoint[];
+}
+
 export interface BackgroundImage {
   image: ImageRef;
   rect: Rect;
@@ -259,6 +264,7 @@ export interface RenderBox {
   padding: Edges;
   border: Edges;
   borderRadius: Radius;
+  clipPath?: ClipPath;
   background: Background;
   opacity: number;
   overflow: Overflow;

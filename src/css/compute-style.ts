@@ -309,6 +309,7 @@ export function computeStyleForElement(
   if (styleInit.zIndex !== undefined) styleOptions.zIndex = styleInit.zIndex;
   if (styleInit.color !== undefined) styleOptions.color = styleInit.color;
   if (styleInit.backgroundLayers !== undefined) styleOptions.backgroundLayers = styleInit.backgroundLayers;
+  if (styleInit.clipPath !== undefined) (styleOptions as any).clipPath = styleInit.clipPath;
   if (styleInit.borderColor !== undefined) styleOptions.borderColor = styleInit.borderColor;
   if (styleInit.borderStyleTop !== undefined) styleOptions.borderStyleTop = styleInit.borderStyleTop;
   if (styleInit.borderStyleRight !== undefined) styleOptions.borderStyleRight = styleInit.borderStyleRight;

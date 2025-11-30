@@ -55,6 +55,7 @@ export class PagePainter {
   private readonly imageMatrixBuilder: ImageMatrixBuilder;
   private readonly transformScopeManager: TransformScopeManager;
   private readonly resultCombiner: ResultCombiner;
+  private clipDepth = 0;
 
   constructor(
     pageHeightPt: number,
@@ -175,6 +176,20 @@ export class PagePainter {
 
   strokePath(commands: PathCommand[], color: RGBA, options: StrokeOptions = {}): void {
     this.shapeRenderer.strokePath(commands, color, options);
+  }
+
+  beginClipPath(commands: PathCommand[], options: { fillRule?: "nonzero" | "evenodd" } = {}): void {
+    if (this.shapeRenderer.beginClipPath(commands, options)) {
+      this.clipDepth++;
+    }
+  }
+
+  endClipPath(): void {
+    if (this.clipDepth <= 0) {
+      return;
+    }
+    this.shapeRenderer.endClipPath();
+    this.clipDepth--;
   }
 
   convertPxToPt(value: number): number {

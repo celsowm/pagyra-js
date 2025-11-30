@@ -141,6 +141,7 @@ import {
   parseBackground,
   parseObjectFit,
 } from "./background-parser-extended.js";
+import { parseClipPath } from "./clip-path-parser.js";
 
 // Grid
 import {
@@ -286,6 +287,7 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("background-image", parseBackgroundImage);
   registerPropertyParser("background", parseBackground);
   registerPropertyParser("object-fit", parseObjectFit);
+  registerPropertyParser("clip-path", parseClipPath);
 
   // Grid
   registerPropertyParser("grid-template-columns", parseGridTemplateColumns);

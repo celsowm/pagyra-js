@@ -1,6 +1,7 @@
 import type { NumericLength } from "../length.js";
 import type { BackgroundLayer } from "../background-types.js";
 import { OverflowMode } from "../enums.js";
+import type { ClipPath } from "../clip-path-types.js";
 
 // Box shadow types
 export interface BoxShadow {
@@ -61,4 +62,7 @@ export interface VisualProperties {
 
     /** Vertical overflow behavior */
     overflowY: OverflowMode;
+
+    /** Clipping path applied to the element */
+    clipPath?: ClipPath;
 }

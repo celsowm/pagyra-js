@@ -316,6 +316,23 @@ export class ShapeRenderer {
     this.pushFillCommands(color, [...pdfCommands, operator], false);
   }
 
+  beginClipPath(commands: PathCommand[], options: { fillRule?: "nonzero" | "evenodd" } = {}): boolean {
+    if (!commands || commands.length === 0) {
+      return false;
+    }
+    const pdfCommands = this.pathCommandsToPdf(commands);
+    if (!pdfCommands || pdfCommands.length === 0) {
+      return false;
+    }
+    const clipOp = options.fillRule === "evenodd" ? "W*" : "W";
+    this.commands.push("q", ...pdfCommands, `${clipOp} n`);
+    return true;
+  }
+
+  endClipPath(): void {
+    this.commands.push("Q");
+  }
+
   // New: fill an arbitrary path with a gradient. We compute a bounding box of the path
   // (in page pixels) and use it as the gradient rectangle when creating the shading.
   // The path itself is converted to PDF commands and used as the clipping path before
