@@ -26,7 +26,8 @@ A TypeScript-based HTML to PDF converter library.
 1. Install dependencies: `npm install`
 2. Build the project: `npm run build`
 3. Run tests: `npm test`
-4. Run playground: `npm run playground`
+4. Run the Node-backed playground: `npm run playground`
+5. Run the browser-backed playground (bundles `renderHtmlToPdfBrowser` and serves `playground/public`): `npm run playground:browser`
 
 ## Build Process
 

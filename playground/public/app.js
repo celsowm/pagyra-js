@@ -48,6 +48,123 @@ const CONTENT_DEFAULTS = {
   heightPx: PAGE_DIMENSIONS.heightPx - PAGE_DIMENSIONS.marginPx * 2,
 };
 
+const DEFAULT_PAGE_MARGINS_PX = {
+  top: PAGE_MARGINS.top,
+  right: PAGE_MARGINS.right,
+  bottom: PAGE_MARGINS.bottom,
+  left: PAGE_MARGINS.left,
+};
+const DEFAULT_PAGE_WIDTH_PX = PAGE_DIMENSIONS.widthPx;
+const DEFAULT_PAGE_HEIGHT_PX = PAGE_DIMENSIONS.heightPx;
+const PLAYGROUND_MODE = (window.__PLAYGROUND_MODE ?? "node").toLowerCase();
+const IS_BROWSER_MODE = PLAYGROUND_MODE === "browser";
+
+let browserRenderHtmlToPdf = null;
+let browserLogCategories = [];
+let browserRendererPromise = null;
+
+function sanitizeDimension(value, fallback) {
+  if (!Number.isFinite(value ?? NaN)) {
+    return fallback;
+  }
+  const sanitized = Number(value);
+  return sanitized > 0 ? sanitized : fallback;
+}
+
+function maxContentDimension(total, marginsSum) {
+  return Math.max(1, total - marginsSum);
+}
+
+function resolvePageMarginsPx(pageWidthPx, pageHeightPx) {
+  const margins = { ...DEFAULT_PAGE_MARGINS_PX };
+  const horizontalSum = margins.left + margins.right;
+  const verticalSum = margins.top + margins.bottom;
+  const usableWidth = maxContentDimension(pageWidthPx, 0);
+  const usableHeight = maxContentDimension(pageHeightPx, 0);
+
+  if (horizontalSum > usableWidth) {
+    const scale = usableWidth / (horizontalSum || 1);
+    margins.left *= scale;
+    margins.right *= scale;
+  }
+  if (verticalSum > usableHeight) {
+    const scale = usableHeight / (verticalSum || 1);
+    margins.top *= scale;
+    margins.bottom *= scale;
+  }
+  return margins;
+}
+
+async function ensureBrowserRenderer() {
+  if (!IS_BROWSER_MODE) {
+    return;
+  }
+  if (browserRendererPromise) {
+    return browserRendererPromise;
+  }
+  browserRendererPromise = import("./vendor/pagyra-playground-browser.js")
+    .then((module) => {
+      browserRenderHtmlToPdf = module.renderHtmlToPdfBrowser;
+      browserLogCategories = Array.isArray(module.LOG_CATEGORIES) ? module.LOG_CATEGORIES : [];
+    })
+    .catch((error) => {
+      browserRendererPromise = null;
+      console.error("[playground] failed to load browser renderer bundle:", error);
+      throw error;
+    });
+  return browserRendererPromise;
+}
+
+function computeBrowserResourceBase(documentPath) {
+  const origin = window.location.origin;
+  const defaultBase = origin.endsWith("/") ? origin : `${origin}/`;
+  if (!documentPath) {
+    return { resourceBaseDir: defaultBase, assetRootDir: defaultBase };
+  }
+  try {
+    const normalized = documentPath.startsWith("/") ? documentPath : `/${documentPath}`;
+    const docUrl = new URL(normalized, origin);
+    docUrl.hash = "";
+    docUrl.search = "";
+    const directory = new URL(".", docUrl);
+    return { resourceBaseDir: directory.toString(), assetRootDir: defaultBase };
+  } catch (error) {
+    console.warn("[playground] failed to compute resource base:", error);
+    return { resourceBaseDir: defaultBase, assetRootDir: defaultBase };
+  }
+}
+
+function buildHeaderFooter(headerHtml, footerHtml) {
+  const headerFooter = {};
+  if (headerHtml) {
+    headerFooter.headerHtml = headerHtml;
+    headerFooter.maxHeaderHeightPx = headerFooter.maxHeaderHeightPx ?? 64;
+  }
+  if (footerHtml) {
+    headerFooter.footerHtml = footerHtml;
+    headerFooter.maxFooterHeightPx = headerFooter.maxFooterHeightPx ?? 64;
+  }
+  return Object.keys(headerFooter).length ? headerFooter : undefined;
+}
+
+function renderDebugCategoryCheckboxes(categories) {
+  if (!DOM.debugCategoriesContainer) return;
+  DOM.debugCategoriesContainer.innerHTML = "";
+  if (!categories.length) {
+    DOM.debugCategoriesContainer.textContent = "No categories available.";
+    return;
+  }
+  for (const cat of categories) {
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = cat;
+    input.className = "log-cat";
+    label.append(input, ` ${cat.charAt(0).toUpperCase() + cat.slice(1)}`);
+    DOM.debugCategoriesContainer.append(label);
+  }
+}
+
 const STATUS_COLORS = {
   neutral: "#94a3b8",
   success: "#38bdf8",
@@ -266,28 +383,64 @@ async function renderPdf() {
   const documentPath = selectedExample?.htmlUrl;
   const debug = getDebugConfig();
 
+  const sanitizedPageWidth = sanitizeDimension(page.width, DEFAULT_PAGE_WIDTH_PX);
+  const sanitizedPageHeight = sanitizeDimension(page.height, DEFAULT_PAGE_HEIGHT_PX);
+  const margins = resolvePageMarginsPx(sanitizedPageWidth, sanitizedPageHeight);
+  const maxContentWidth = maxContentDimension(sanitizedPageWidth, margins.left + margins.right);
+  const maxContentHeight = maxContentDimension(sanitizedPageHeight, margins.top + margins.bottom);
+  const viewportWidth = Math.min(sanitizeDimension(viewport.width, maxContentWidth), maxContentWidth);
+  const viewportHeight = Math.min(sanitizeDimension(viewport.height, maxContentHeight), maxContentHeight);
+  const headerFooter = buildHeaderFooter(headerHtml, footerHtml);
+  const serverPayload = {
+    html,
+    css,
+    headerHtml: headerHtml || undefined,
+    footerHtml: footerHtml || undefined,
+    viewportWidth,
+    viewportHeight,
+    pageWidth: sanitizedPageWidth,
+    pageHeight: sanitizedPageHeight,
+    documentPath,
+    debugLevel: debug.level,
+    debugCats: debug.cats.length > 0 ? debug.cats : undefined,
+  };
+  const { resourceBaseDir, assetRootDir } = computeBrowserResourceBase(documentPath);
+  const browserOptions = {
+    html,
+    css,
+    viewportWidth,
+    viewportHeight,
+    pageWidth: sanitizedPageWidth,
+    pageHeight: sanitizedPageHeight,
+    margins,
+    debugLevel: debug.level,
+    debugCats: debug.cats.length > 0 ? debug.cats : undefined,
+    resourceBaseDir,
+    assetRootDir,
+    ...(headerFooter ? { headerFooter } : {}),
+  };
+
   setStatus("Rendering...", "neutral");
   DOM.renderButton.disabled = true;
 
   try {
+    if (IS_BROWSER_MODE) {
+      await ensureBrowserRenderer();
+      if (!browserRenderHtmlToPdf) {
+        throw new Error("Browser renderer bundle is not ready");
+      }
+      const pdfBytes = await browserRenderHtmlToPdf(browserOptions);
+      const blob = new Blob([pdfBytes], { type: "application/pdf" });
+      handleRenderSuccess(URL.createObjectURL(blob));
+      return;
+    }
+
     const response = await fetch("/render", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        html,
-        css,
-        headerHtml: headerHtml || undefined,
-        footerHtml: footerHtml || undefined,
-        viewportWidth: viewport.width,
-        viewportHeight: viewport.height,
-        pageWidth: page.width,
-        pageHeight: page.height,
-        documentPath,
-        debugLevel: debug.level,
-        debugCats: debug.cats.length > 0 ? debug.cats : undefined,
-      }),
+      body: JSON.stringify(serverPayload),
     });
 
     if (!response.ok) {
@@ -310,21 +463,21 @@ async function renderPdf() {
 async function fetchAndRenderDebugCategories() {
   if (!DOM.debugCategoriesContainer) return;
 
+  if (IS_BROWSER_MODE) {
+    try {
+      await ensureBrowserRenderer();
+      renderDebugCategoryCheckboxes(browserLogCategories);
+      return;
+    } catch (error) {
+      console.warn("[playground] falling back to server debug categories:", error);
+    }
+  }
+
   try {
     const response = await fetch("/debug-categories");
     if (!response.ok) throw new Error("Failed to fetch debug categories");
     const categories = await response.json();
-
-    DOM.debugCategoriesContainer.innerHTML = "";
-    for (const cat of categories) {
-      const label = document.createElement("label");
-      const input = document.createElement("input");
-      input.type = "checkbox";
-      input.value = cat;
-      input.className = "log-cat";
-      label.append(input, ` ${cat.charAt(0).toUpperCase() + cat.slice(1)}`);
-      DOM.debugCategoriesContainer.append(label);
-    }
+    renderDebugCategoryCheckboxes(Array.isArray(categories) ? categories : []);
   } catch (error) {
     console.error("Failed to load debug categories:", error);
     DOM.debugCategoriesContainer.textContent = "Failed to load categories.";

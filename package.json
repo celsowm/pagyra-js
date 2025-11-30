@@ -23,8 +23,9 @@
     "test": "vitest run",
     "lint": "eslint src tests --ext .ts,.js",
     "playground": "tsx playground/server.ts",
+    "playground:browser": "tsx scripts/playground-browser-server.ts",
     "playground:render": "tsx scripts/render-playground-example.ts --debug-level debug --debug-cats 'layout,paint,pdf'",
-    "build:browser": "esbuild src/browser-entry.ts --bundle --minify --sourcemap --format=esm --platform=browser --main-fields=browser,module,main --alias:node:path=./src/shim/empty.ts --alias:path=./src/shim/empty.ts --alias:node:url=./src/shim/url-empty.ts --alias:url=./src/shim/url-empty.ts --alias:node:fs/promises=./src/shim/fs-empty.ts --alias:fs=./src/shim/fs-empty.ts --alias:node:zlib=./src/shim/zlib-empty.ts --alias:zlib=./src/shim/zlib-empty.ts --outfile=dist/browser/pagyra.min.js --alias:src/environment/node-environment.ts=./src/environment/node-environment.browser.ts --alias:src/pdf/font/builtin-fonts.ts=./src/pdf/font/builtin-fonts.browser.ts"
+    "build:browser": "tsx scripts/build-browser-bundle.ts --target dist --sourcemap --minify"
   },
   "devDependencies": {
     "@types/css": "^0.0.36",
