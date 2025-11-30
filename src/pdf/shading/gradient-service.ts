@@ -50,19 +50,19 @@ export class GradientService {
       const x1 = gradient.coords.x2 - coordRect.x;
       const y1 = gradient.coords.y2 - coordRect.y;
       coords = [
-        this.coordinateTransformer.convertPxToPt(x0),
-        this.coordinateTransformer.convertPxToPt(y0),
-        this.coordinateTransformer.convertPxToPt(x1),
-        this.coordinateTransformer.convertPxToPt(y1),
+        x0,
+        y0,
+        x1,
+        y1,
       ];
     } else if (gradient.coords && gradient.coords.units === "ratio") {
       // coords are in objectBoundingBox (0..1) relative to rect
-      const widthPt = Math.max(this.coordinateTransformer.convertPxToPt(coordRect.width), 0);
-      const heightPt = Math.max(this.coordinateTransformer.convertPxToPt(coordRect.height), 0);
-      const x0 = gradient.coords.x1 * widthPt;
-      const y0 = gradient.coords.y1 * heightPt;
-      const x1 = gradient.coords.x2 * widthPt;
-      const y1 = gradient.coords.y2 * heightPt;
+      const widthPx = Math.max(coordRect.width, 0);
+      const heightPx = Math.max(coordRect.height, 0);
+      const x0 = gradient.coords.x1 * widthPx;
+      const y0 = gradient.coords.y1 * heightPx;
+      const x1 = gradient.coords.x2 * widthPx;
+      const y1 = gradient.coords.y2 * heightPx;
       coords = [x0, y0, x1, y1];
     } else {
       coords = this.calculateGradientCoordinates(gradient, coordRect);
@@ -91,14 +91,16 @@ export class GradientService {
   ): GradientPattern {
     const shading = this.createLinearGradient(gradient, { x: rect.x, y: rect.y, width: rect.width, height: rect.height });
     const patternName = `${shading.shadingName}_Pat`;
+    const scale = this.coordinateTransformer.convertPxToPt(1);
+    const localY = (rect.y ?? 0) - this.coordinateTransformer.pageOffsetPx;
     const tx = this.coordinateTransformer.convertPxToPt(rect.x ?? 0);
-    const ty = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt((rect.y ?? 0) + rect.height);
+    const ty = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localY);
     const dict = [
       "<<",
       "/Type /Pattern",
       "/PatternType 2",
       `/Shading ${shading.dictionary}`,
-      `/Matrix [1 0 0 1 ${formatNumber(tx)} ${formatNumber(ty)}]`,
+      `/Matrix [${formatNumber(scale)} 0 0 ${formatNumber(-scale)} ${formatNumber(tx)} ${formatNumber(ty)}]`,
       ">>",
     ].join("\n");
     return { patternName, dictionary: dict };
@@ -111,10 +113,10 @@ export class GradientService {
     const shadingName = this.generateShadingName();
     const stops = this.normalizeStops(gradient.stops);
 
-    const widthPt = Math.max(this.coordinateTransformer.convertPxToPt(rect.width), 0);
-    const heightPt = Math.max(this.coordinateTransformer.convertPxToPt(rect.height), 0);
-    const safeWidth = widthPt > 0 ? widthPt : 1;
-    const safeHeight = heightPt > 0 ? heightPt : 1;
+    const widthPx = Math.max(rect.width, 0);
+    const heightPx = Math.max(rect.height, 0);
+    const safeWidth = widthPx > 0 ? widthPx : 1;
+    const safeHeight = heightPx > 0 ? heightPx : 1;
 
   let coords: [number, number, number, number, number, number];
   let matrixEntry: string | null = null;
@@ -128,16 +130,16 @@ export class GradientService {
       const localCxPx = cxPx - (rect.x ?? 0);
       const localCyPx = cyPx - (rect.y ?? 0);
 
-      const centerX = this.coordinateTransformer.convertPxToPt(localCxPx);
-      const centerY = this.coordinateTransformer.convertPxToPt(localCyPx);
-      const radius = this.coordinateTransformer.convertPxToPt(rPx);
+      const centerX = localCxPx;
+      const centerY = localCyPx;
+      const radius = rPx;
 
       // If focal point provided, place inner circle at focal, otherwise inner circle at center with r0 = 0
       if (gradient.fx !== undefined && gradient.fy !== undefined) {
         const fxPx = gradient.fx - (rect.x ?? 0);
         const fyPx = gradient.fy - (rect.y ?? 0);
-        const focalX = this.coordinateTransformer.convertPxToPt(fxPx);
-        const focalY = this.coordinateTransformer.convertPxToPt(fyPx);
+        const focalX = fxPx;
+        const focalY = fyPx;
         coords = [focalX, focalY, 0, centerX, centerY, radius];
       } else {
         coords = [centerX, centerY, 0, centerX, centerY, radius];
@@ -237,10 +239,10 @@ export class GradientService {
     gradient: LinearGradient,
     rect: { width: number; height: number },
   ): [number, number, number, number] {
-    const widthPt = Math.max(this.coordinateTransformer.convertPxToPt(rect.width), 0);
-    const heightPt = Math.max(this.coordinateTransformer.convertPxToPt(rect.height), 0);
-    const safeWidth = widthPt > 0 ? widthPt : 1;
-    const safeHeight = heightPt > 0 ? heightPt : 1;
+    const widthPx = Math.max(rect.width, 0);
+    const heightPx = Math.max(rect.height, 0);
+    const safeWidth = widthPx > 0 ? widthPx : 1;
+    const safeHeight = heightPx > 0 ? heightPx : 1;
     const centerX = safeWidth / 2;
     const centerY = safeHeight / 2;
 

@@ -8,6 +8,7 @@ import type {
   ImageBackgroundLayer,
 } from "../../css/background-types.js";
 import type { ImageInfo } from "../../image/types.js";
+import type { RadialGradient } from "../../css/parsers/gradient-parser.js";
 
 export interface BackgroundBoxes {
   borderBox: Rect;
@@ -94,14 +95,20 @@ function createGradientBackground(
     return undefined;
   }
   const position = resolveBackgroundPosition(layer.position, originRect, size.width, size.height);
+  const rect = {
+    x: position.x,
+    y: position.y,
+    width: size.width,
+    height: size.height,
+  };
+
+  const normalizedGradient = normalizeGradientGeometry(layer.gradient, rect);
+  if (!normalizedGradient) {
+    return undefined;
+  }
   return {
-    gradient: layer.gradient,
-    rect: {
-      x: position.x,
-      y: position.y,
-      width: size.width,
-      height: size.height,
-    },
+    gradient: normalizedGradient,
+    rect,
     repeat: layer.repeat ?? "no-repeat",
     originRect,
   };
@@ -240,6 +247,183 @@ function parseBackgroundSizeComponent(
     return value;
   }
   return undefined;
+}
+
+function normalizeGradientGeometry(
+  gradient: GradientBackgroundLayer["gradient"],
+  rect: Rect,
+): GradientBackgroundLayer["gradient"] | undefined {
+  if (!gradient) {
+    return undefined;
+  }
+  if ((gradient as any).type === "radial") {
+    return normalizeRadialGradient(gradient as RadialGradient, rect);
+  }
+  return gradient;
+}
+
+function normalizeRadialGradient(
+  gradient: RadialGradient,
+  rect: Rect,
+): RadialGradient | undefined {
+  if (gradient.coordsUnits === "userSpace") {
+    return gradient;
+  }
+  if (rect.width <= 0 || rect.height <= 0) {
+    return undefined;
+  }
+
+  const hasCssHints = !!gradient.at || !!gradient.size || !!gradient.shape || gradient.source === "css";
+  if (!hasCssHints) {
+    return gradient;
+  }
+
+  const cxPx = resolvePositionToPx(gradient.at?.x, rect.width, (gradient.cx ?? 0.5) * rect.width, "x");
+  const cyPx = resolvePositionToPx(gradient.at?.y, rect.height, (gradient.cy ?? 0.5) * rect.height, "y");
+  const radiusPx = resolveRadialRadiusPx(
+    gradient.size,
+    gradient.shape,
+    rect.width,
+    rect.height,
+    cxPx,
+    cyPx,
+    gradient.r,
+  );
+  const maxDimension = Math.max(rect.width, rect.height, 1);
+
+  return {
+    ...gradient,
+    cx: clampUnit(cxPx / rect.width),
+    cy: clampUnit(cyPx / rect.height),
+    r: clampUnit(radiusPx / maxDimension),
+    coordsUnits: "ratio",
+  };
+}
+
+function resolvePositionToPx(
+  raw: string | undefined,
+  length: number,
+  fallbackPx: number,
+  axis: "x" | "y",
+): number {
+  if (!Number.isFinite(length) || length <= 0) {
+    return fallbackPx;
+  }
+  if (!raw) {
+    return clamp(rawNumber(fallbackPx), 0, length);
+  }
+  const lower = raw.trim().toLowerCase();
+  if (lower === "left" || lower === "top") return 0;
+  if (lower === "center") return length / 2;
+  if (lower === "right" || lower === "bottom") return length;
+  if (lower.endsWith("%")) {
+    const pct = Number.parseFloat(lower.slice(0, -1));
+    if (Number.isFinite(pct)) {
+      return clamp((pct / 100) * length, 0, length);
+    }
+  }
+  if (lower.endsWith("px")) {
+    const px = Number.parseFloat(lower);
+    if (Number.isFinite(px)) {
+      return clamp(px, 0, length);
+    }
+  }
+  const numeric = Number.parseFloat(lower);
+  if (Number.isFinite(numeric)) {
+    return clamp(numeric, 0, length);
+  }
+  return clamp(rawNumber(fallbackPx), 0, length);
+}
+
+function resolveRadialRadiusPx(
+  size: RadialGradient["size"],
+  shape: RadialGradient["shape"],
+  width: number,
+  height: number,
+  cx: number,
+  cy: number,
+  fallbackRatio: number,
+): number {
+  const distanceLeft = Math.max(cx, 0);
+  const distanceRight = Math.max(width - cx, 0);
+  const distanceTop = Math.max(cy, 0);
+  const distanceBottom = Math.max(height - cy, 0);
+
+  const sideMin = Math.min(distanceLeft, distanceRight, distanceTop, distanceBottom);
+  const sideMax = Math.max(distanceLeft, distanceRight, distanceTop, distanceBottom);
+
+  const cornerDistances = [
+    Math.hypot(cx, cy),
+    Math.hypot(cx, Math.max(height - cy, 0)),
+    Math.hypot(Math.max(width - cx, 0), cy),
+    Math.hypot(Math.max(width - cx, 0), Math.max(height - cy, 0)),
+  ];
+  const cornerMin = Math.min(...cornerDistances);
+  const cornerMax = Math.max(...cornerDistances);
+
+  const keyword = typeof size === "string" ? size.toLowerCase() : undefined;
+  if (keyword === "closest-side") {
+    return sideMin;
+  }
+  if (keyword === "farthest-side") {
+    return sideMax;
+  }
+  if (keyword === "closest-corner") {
+    return cornerMin;
+  }
+  if (keyword === "farthest-corner" || keyword === undefined) {
+    return cornerMax;
+  }
+
+  const explicit = parseLength(size, Math.max(width, height));
+  if (explicit !== undefined) {
+    return explicit;
+  }
+
+  const fallback = Number.isFinite(fallbackRatio) ? fallbackRatio * Math.max(width, height) : cornerMax;
+  return fallback;
+}
+
+function parseLength(value: string | undefined, relativeTo: number): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const trimmed = value.trim().toLowerCase();
+  if (trimmed.endsWith("%")) {
+    const pct = Number.parseFloat(trimmed.slice(0, -1));
+    if (Number.isFinite(pct)) {
+      return (pct / 100) * relativeTo;
+    }
+    return undefined;
+  }
+  if (trimmed.endsWith("px")) {
+    const px = Number.parseFloat(trimmed);
+    return Number.isFinite(px) ? px : undefined;
+  }
+  const numeric = Number.parseFloat(trimmed);
+  return Number.isFinite(numeric) ? numeric : undefined;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) {
+    return min;
+  }
+  if (value < min) return min;
+  if (value > max) return max;
+  return value;
+}
+
+function rawNumber(value: number): number {
+  return Number.isFinite(value) ? value : 0;
+}
+
+function clampUnit(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  if (value < 0) return 0;
+  if (value > 1) return 1;
+  return value;
 }
 
 function convertToImageRef(layer: ImageBackgroundLayer, info: ImageInfo): ImageRef {

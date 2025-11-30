@@ -6,7 +6,7 @@ import type {
   BackgroundSize,
   GradientBackgroundLayer,
 } from "../background-types.js";
-import { parseLinearGradient } from "./gradient-parser.js";
+import { parseLinearGradient, parseRadialGradient } from "./gradient-parser.js";
 
 function normalizeBackgroundSizeKeyword(value: string): "cover" | "contain" | "auto" | undefined {
   const trimmed = value.trim().toLowerCase();
@@ -157,7 +157,9 @@ function parseSingleBackgroundLayer(value: string): BackgroundLayer | null {
   if (!trimmed) return null;
 
   // Handle gradients
-  const gradientSlice = extractFunctionCall(trimmed, "linear-gradient");
+  const gradientSlice =
+    extractFunctionCall(trimmed, "radial-gradient") ??
+    extractFunctionCall(trimmed, "linear-gradient");
   if (gradientSlice) {
     const gradientLayer = parseGradientLayer(gradientSlice.text);
     if (gradientLayer) {
@@ -193,10 +195,10 @@ function parseSingleBackgroundLayer(value: string): BackgroundLayer | null {
  */
 function parseGradientLayer(value: string): GradientBackgroundLayer | null {
   const normalized = value.trim().toLowerCase();
-  if (!normalized.startsWith("linear-gradient(")) {
-    return null;
-  }
-  const gradient = parseLinearGradient(value);
+  const gradient =
+    normalized.startsWith("linear-gradient(") ? parseLinearGradient(value) :
+    normalized.startsWith("radial-gradient(") ? parseRadialGradient(value) :
+    null;
   if (!gradient) {
     return null;
   }

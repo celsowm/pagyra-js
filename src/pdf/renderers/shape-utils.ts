@@ -1,6 +1,6 @@
 import type { RGBA, Rect, ShapePoint } from "../types.js";
 import { CoordinateTransformer } from "../utils/coordinate-transformer.js";
-import { parseLinearGradient } from "../../css/parsers/gradient-parser.js";
+import { parseLinearGradient, parseRadialGradient } from "../../css/parsers/gradient-parser.js";
 
 export function strokeColorCommand(color: RGBA): string {
   const r = formatNumber(normalizeChannel(color.r));
@@ -176,7 +176,7 @@ export function resolveGradientPaint(paint: unknown): import("../../css/parsers/
     return paint as import("../../css/parsers/gradient-parser.js").LinearGradient | import("../../css/parsers/gradient-parser.js").RadialGradient;
   }
   if (typeof paint === "string") {
-    return parseLinearGradient(paint);
+    return parseLinearGradient(paint) ?? parseRadialGradient(paint);
   }
   return null;
 }

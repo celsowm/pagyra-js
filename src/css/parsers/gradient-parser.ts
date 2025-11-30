@@ -28,6 +28,10 @@ export interface RadialGradient {
   // Optional transform parsed from SVG's gradientTransform (matrix with a,b,c,d,e,f)
   transform?: { a: number; b: number; c: number; d: number; e: number; f: number };
   // gradientUnits omitted for CSS radial gradients; SVG will supply via its own node conversion
+  shape?: "circle" | "ellipse";
+  size?: "closest-side" | "farthest-side" | "closest-corner" | "farthest-corner" | string;
+  at?: { x: string; y: string };
+  source?: "css" | "svg";
 }
 
 export function parseLinearGradient(value: string): LinearGradient | null {
@@ -159,6 +163,55 @@ export function parseLinearGradient(value: string): LinearGradient | null {
   };
 }
 
+export function parseRadialGradient(value: string): RadialGradient | null {
+  const trimmed = value.trim();
+  const lower = trimmed.toLowerCase();
+  if (!lower.startsWith("radial-gradient(") || !trimmed.endsWith(")")) {
+    return null;
+  }
+
+  const content = trimmed.slice("radial-gradient(".length, -1);
+  if (!content) {
+    return null;
+  }
+
+  const commaIndex = findTopLevelComma(content);
+  const descriptorPart = commaIndex === -1 ? "" : content.slice(0, commaIndex).trim();
+  let stopsContent = commaIndex === -1 ? content : content.slice(commaIndex + 1).trim();
+
+  const descriptor = parseRadialDescriptor(descriptorPart);
+  if (!descriptor.hasDescriptor) {
+    stopsContent = content;
+  }
+
+  const stops: GradientStop[] = [];
+  const colorStopValues = splitCssCommaList(stopsContent);
+  for (const stopValue of colorStopValues) {
+    if (!stopValue.trim()) continue;
+    const stop = parseGradientStop(stopValue);
+    if (stop) {
+      stops.push(stop);
+    }
+  }
+
+  if (stops.length === 0) {
+    stops.push({ color: "#000000" });
+  }
+
+  return {
+    type: "radial",
+    cx: 0.5,
+    cy: 0.5,
+    r: 0.5,
+    stops,
+    coordsUnits: "ratio",
+    shape: descriptor.shape,
+    size: descriptor.size,
+    at: descriptor.position,
+    source: "css",
+  };
+}
+
 function parseGradientStop(value: string): GradientStop | null {
   const parts = splitCssList(value);
   if (parts.length === 0) {
@@ -207,4 +260,105 @@ function parseGradientStop(value: string): GradientStop | null {
   }
   
   return { color, position };
+}
+
+function parseRadialDescriptor(value: string): { shape?: "circle" | "ellipse"; size?: RadialGradient["size"]; position?: { x: string; y: string }; hasDescriptor: boolean } {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return { hasDescriptor: false };
+  }
+
+  const tokens = trimmed.split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) {
+    return { hasDescriptor: false };
+  }
+
+  const atIndex = tokens.findIndex((token) => token.toLowerCase() === "at");
+  const beforeAt = atIndex === -1 ? tokens : tokens.slice(0, atIndex);
+  const positionTokens = atIndex === -1 ? [] : tokens.slice(atIndex + 1);
+
+  let shape: "circle" | "ellipse" | undefined;
+  let size: RadialGradient["size"];
+
+  for (const token of beforeAt) {
+    const lower = token.toLowerCase();
+    if (lower === "circle" || lower === "ellipse") {
+      shape = lower;
+      continue;
+    }
+    if (isRadialSizeKeyword(lower)) {
+      size = lower;
+      continue;
+    }
+  }
+
+  const position = parseRadialPosition(positionTokens);
+  const hasDescriptor = !!shape || !!size || !!position;
+  return { shape, size, position, hasDescriptor };
+}
+
+function parseRadialPosition(tokens: string[]): { x: string; y: string } | undefined {
+  if (!tokens || tokens.length === 0) {
+    return undefined;
+  }
+
+  if (tokens.length === 1) {
+    const token = tokens[0];
+    if (isVerticalKeyword(token)) {
+      return { x: "50%", y: keywordToPositionValue(token, "y") };
+    }
+    return { x: keywordToPositionValue(token, "x"), y: "50%" };
+  }
+
+  const xToken = tokens[0];
+  const yToken = tokens[1];
+  return {
+    x: keywordToPositionValue(xToken, "x"),
+    y: keywordToPositionValue(yToken, "y"),
+  };
+}
+
+function keywordToPositionValue(token: string, axis: "x" | "y"): string {
+  const lower = token.toLowerCase();
+  if (axis === "x") {
+    if (lower === "left") return "0%";
+    if (lower === "right") return "100%";
+  } else {
+    if (lower === "top") return "0%";
+    if (lower === "bottom") return "100%";
+  }
+  if (lower === "center") return "50%";
+  return token;
+}
+
+function isVerticalKeyword(value: string): boolean {
+  const lower = value.toLowerCase();
+  return lower === "top" || lower === "bottom";
+}
+
+function isRadialSizeKeyword(value: string): value is Exclude<RadialGradient["size"], string> {
+  switch (value) {
+    case "closest-side":
+    case "farthest-side":
+    case "closest-corner":
+    case "farthest-corner":
+      return true;
+    default:
+      return false;
+  }
+}
+
+function findTopLevelComma(value: string): number {
+  let depth = 0;
+  for (let i = 0; i < value.length; i++) {
+    const char = value[i];
+    if (char === "(") {
+      depth++;
+    } else if (char === ")") {
+      depth = Math.max(0, depth - 1);
+    } else if (char === "," && depth === 0) {
+      return i;
+    }
+  }
+  return -1;
 }

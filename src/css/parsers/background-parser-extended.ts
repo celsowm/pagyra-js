@@ -1,6 +1,6 @@
 // src/css/parsers/background-parser-extended.ts
 
-import { parseLinearGradient } from "./gradient-parser.js";
+import { parseLinearGradient, parseRadialGradient } from "./gradient-parser.js";
 import {
   parseBackgroundShorthand,
   applyBackgroundSize,
@@ -66,8 +66,8 @@ export function applyBackgroundClipDecl(value: string, target: StyleAccumulator)
 export function parseBackgroundImage(value: string, target: StyleAccumulator): void {
   const trimmed = value.trim();
 
-  // Try to parse as linear gradient first
-  const gradient = parseLinearGradient(value);
+  // Try to parse gradients first
+  const gradient = parseLinearGradient(value) ?? parseRadialGradient(value);
   if (gradient) {
     if (!target.backgroundLayers) {
       target.backgroundLayers = [];
