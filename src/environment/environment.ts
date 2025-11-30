@@ -28,4 +28,8 @@ export interface Environment {
    * Monotonic-ish clock for timing/debug (milliseconds).
    */
   now(): number;
+  /**
+   * Get an environment variable.
+   */
+  getEnv(name: string): string | undefined;
 }

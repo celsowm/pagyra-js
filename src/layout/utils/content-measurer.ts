@@ -3,12 +3,7 @@ import { Display } from "../../css/enums.js";
 import { resolveLength } from "../../css/length.js";
 import { inFlow } from "./node-math.js";
 
-const LAYOUT_DEBUG = process.env.PAGYRA_DEBUG_LAYOUT === "1";
-const layoutDebug = (...args: unknown[]): void => {
-    if (LAYOUT_DEBUG) {
-        console.log(...args);
-    }
-};
+type LayoutDebug = (...args: unknown[]) => void;
 
 /**
  * Handles measurement and adjustment of intrinsic content width for layout nodes.
@@ -22,6 +17,7 @@ const layoutDebug = (...args: unknown[]): void => {
  * needs to shrink-to-fit based on children's actual space usage.
  */
 export class ContentMeasurer {
+    constructor(private readonly layoutDebug: LayoutDebug) {}
     /**
      * Measures the intrinsic width of in-flow content within a node.
      * 
@@ -69,7 +65,7 @@ export class ContentMeasurer {
             const relativeStart = marginStart - contentStartX;
             const relativeEnd = relativeStart + marginBoxWidth;
 
-            layoutDebug(
+            this.layoutDebug(
                 `[measureInFlowContentWidth] parent=${node.tagName ?? "(anonymous)"} child=${child.tagName ?? "(anonymous)"} marginStart=${marginStart} relativeStart=${relativeStart} marginBoxWidth=${marginBoxWidth} borderBoxWidth=${borderBoxWidth} child.box.x=${child.box.x} contentStartX=${contentStartX}`,
             );
 

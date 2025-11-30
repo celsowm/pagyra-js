@@ -27,23 +27,18 @@ import { clearForBlock, placeFloat } from "../utils/floats.js";
 import { defaultInlineFormatter } from "../utils/inline-formatter.js";
 import { isInlineLevel } from "../utils/display-utils.js";
 import { ContentMeasurer } from "../utils/content-measurer.js";
-
-const LAYOUT_DEBUG = process.env.PAGYRA_DEBUG_LAYOUT === "1";
-const layoutDebug = (...args: unknown[]): void => {
-  if (LAYOUT_DEBUG) {
-    console.log(...args);
-  }
-};
+import { createLayoutDebug } from "../debug.js";
 
 export class BlockLayoutStrategy implements LayoutStrategy {
   private readonly supportedDisplays = new Set<Display>([Display.Block, Display.FlowRoot, Display.InlineBlock, Display.TableCell]);
-  private readonly contentMeasurer = new ContentMeasurer();
 
   canLayout(node: LayoutNode): boolean {
     return this.supportedDisplays.has(node.style.display);
   }
 
   layout(node: LayoutNode, context: LayoutContext): void {
+    const layoutDebug = createLayoutDebug(context);
+    const contentMeasurer = new ContentMeasurer(layoutDebug);
     const cb = containingBlock(node, context.env.viewport);
     node.establishesBFC = establishesBFC(node);
 
@@ -175,7 +170,7 @@ export class BlockLayoutStrategy implements LayoutStrategy {
       }
     }
 
-    const measurement = this.contentMeasurer.measureInFlowWidth(node, contentWidth, contentX);
+    const measurement = contentMeasurer.measureInFlowWidth(node, contentWidth, contentX);
     if (Number.isFinite(measurement.width)) {
       const intrinsicWidth = Math.max(0, measurement.width);
       node.box.scrollWidth = Math.max(node.box.scrollWidth, intrinsicWidth);
@@ -207,7 +202,7 @@ export class BlockLayoutStrategy implements LayoutStrategy {
           layoutDebug(
             `[BlockLayout] shifting inline-block children tag=${debugTag} offset=${measurement.leftOffset}`,
           );
-          this.contentMeasurer.shiftInFlowChildrenX(node, measurement.leftOffset);
+          contentMeasurer.shiftInFlowChildrenX(node, measurement.leftOffset);
         }
         if (targetContentWidth !== node.box.contentWidth) {
           node.box.contentWidth = targetContentWidth;
@@ -239,5 +234,3 @@ export class BlockLayoutStrategy implements LayoutStrategy {
     finalizeOverflow(node);
   }
 }
-
-

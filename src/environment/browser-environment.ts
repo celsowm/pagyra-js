@@ -71,4 +71,8 @@ export class BrowserEnvironment implements Environment {
   now(): number {
     return typeof performance !== "undefined" ? performance.now() : Date.now();
   }
+
+  getEnv(_name: string): string | undefined {
+    return undefined;
+  }
 }

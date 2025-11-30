@@ -4,6 +4,7 @@ import { resolvedLineHeight } from "../../css/style.js";
 import { resolveLength } from "../../css/length.js";
 import type { InlineLayoutOptions, InlineLayoutResult, LayoutItem, InlineMetrics } from "./types.js";
 import { isBoxItem } from "./types.js";
+import type { LayoutContext } from "../pipeline/strategy.js";
 import { collectInlineFragments, tokenizeFragments, splitWordItemToken } from "./tokenizer.js";
 import { FloatContext } from "../context/float-context.js";
 import {
@@ -16,19 +17,14 @@ import {
 import { getAlignmentStrategy, type TextAlignmentStrategy } from "./text-alignment.js";
 import { BoundingBoxCalculator } from "./bounding-box-calculator.js";
 import { RunPlacer } from "./run-placer.js";
-
-const LAYOUT_DEBUG = process.env.PAGYRA_DEBUG_LAYOUT === "1";
-const layoutDebug = (...args: unknown[]): void => {
-    if (LAYOUT_DEBUG) {
-        // console.log(...args);
-    }
-};
+import { createLayoutDebug } from "../debug.js";
 
 
 
 export function layoutInlineFormattingContext(options: InlineLayoutOptions): InlineLayoutResult {
     const { container, inlineNodes, context, floatContext, contentX, contentWidth } = options;
     container.establishesIFC = true;
+    const layoutDebug = createLayoutDebug(context);
 
     const textAlign = container.style.display === Display.Inline
         ? undefined
@@ -208,13 +204,12 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
     return { newCursorY: lineTop };
 }
 
-export function placeInlineItem(item: InlineMetrics, lineStartX: number, lineTop: number): void {
+export function placeInlineItem(item: InlineMetrics, lineStartX: number, lineTop: number, context?: LayoutContext): void {
     const { node } = item;
     const contentX = lineStartX + item.lineOffset + item.marginLeft + item.borderLeft + item.paddingLeft;
     const contentY = lineTop + item.marginTop + item.borderTop + item.paddingTop;
-    layoutDebug(
-        `[placeInlineItem] node=${node.tagName ?? "(anonymous)"} lineStartX=${lineStartX} lineOffset=${item.lineOffset} marginLeft=${item.marginLeft} paddingLeft=${item.paddingLeft} borderLeft=${item.borderLeft} -> contentX=${contentX}`,
-    );
+    const layoutDebug = context ? createLayoutDebug(context) : (): void => { /* no-op */ };
+    layoutDebug(`[placeInlineItem] node=${node.tagName ?? "(anonymous)"} lineStartX=${lineStartX} lineOffset=${item.lineOffset} marginLeft=${item.marginLeft} paddingLeft=${item.paddingLeft} borderLeft=${item.borderLeft} -> contentX=${contentX}`);
 
     const previousX = node.box.x;
     const previousY = node.box.y;
@@ -288,7 +283,3 @@ function layoutInlineChildrenIfNeeded(
         contentHeight: Math.max(0, contentHeight),
     };
 }
-
-
-
-

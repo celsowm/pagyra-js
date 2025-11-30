@@ -53,4 +53,8 @@ export class NodeEnvironment implements Environment {
   now(): number {
     return Date.now();
   }
+
+  getEnv(name: string): string | undefined {
+    return process.env[name];
+  }
 }
