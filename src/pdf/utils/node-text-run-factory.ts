@@ -172,20 +172,31 @@ export function computeGlyphRun(font: UnifiedFont, text: string, fontSize: numbe
 }
 
 export function applyWordSpacingToGlyphRun(glyphRun: GlyphRun, text: string, wordSpacing: number | undefined): void {
+  // Optimization 1: Simpler truthy check covers (undefined, null, 0)
   if (!wordSpacing) {
     return;
   }
-  const additional = wordSpacing;
-  for (let idx = 0; idx < glyphRun.positions.length; idx++) {
-    const ch = text[idx];
-    if (ch === " " && idx < glyphRun.positions.length - 1) {
-      for (let j = idx + 1; j < glyphRun.positions.length; j++) {
-        glyphRun.positions[j] = {
-          x: glyphRun.positions[j].x + additional,
-          y: glyphRun.positions[j].y,
-        };
-      }
+
+  let accumulatedSpacing = 0;
+  // Optimization 2: Cache the length.
+  // Accessing .length on every iteration can be slightly slower in some JS engines.
+  const len = glyphRun.positions.length;
+
+  for (let i = 0; i < len; i++) {
+    if (accumulatedSpacing > 0) {
+      glyphRun.positions[i].x += accumulatedSpacing;
     }
+
+    // Optimization 3: Use charCodeAt instead of string comparison.
+    // text[i] === " " creates a temporary string object for every character.
+    // charCodeAt(i) === 32 compares integers, which is faster and generates no garbage.
+    if (text.charCodeAt(i) === 32) {
+      accumulatedSpacing += wordSpacing;
+    }
+  }
+
+  if (accumulatedSpacing > 0) {
+    glyphRun.width = (glyphRun.width ?? 0) + accumulatedSpacing;
   }
 }
 
