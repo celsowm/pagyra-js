@@ -11,6 +11,17 @@ import { computeGlyphRun, applyWordSpacingToGlyphRun } from "../../src/pdf/utils
 type TextAlign = "left" | "right" | "center" | "justify";
 type Direction = "ltr" | "rtl";
 
+interface BrowserConfig {
+  text: string;
+  fontFamily: string;
+  fontSize: number;
+  lineHeight: number;
+  direction: Direction;
+  textAlign: TextAlign;
+  containerWidth: number;
+  viewportHeight: number;
+}
+
 interface CompareOptions {
   text: string;
   fontFamily: string;
@@ -323,7 +334,8 @@ async function captureBrowserMeasurement(options: CompareOptions): Promise<Brows
       })(cfg);
     `;
 
-    const result = await page.evaluate(new Function("cfg", browserMeasurementScript), {
+    const pageFunction = new Function("cfg", browserMeasurementScript) as (cfg: BrowserConfig) => Promise<BrowserMeasurement>;
+    const config: BrowserConfig = {
       text: options.text,
       fontFamily: options.fontFamily,
       fontSize: options.fontSize,
@@ -332,7 +344,8 @@ async function captureBrowserMeasurement(options: CompareOptions): Promise<Brows
       textAlign: options.textAlign,
       containerWidth: options.containerWidth,
       viewportHeight: options.viewportHeight,
-    });
+    };
+    const result = await page.evaluate(pageFunction, config);
 
     return result;
   } finally {
