@@ -7,6 +7,7 @@ import { initFontSystem } from "../../src/pdf/font/font-registry.js";
 import { loadBuiltinFontConfig } from "../../src/pdf/font/builtin-fonts.js";
 import { FontRegistryResolver } from "../../src/fonts/font-registry-resolver.js";
 import { computeGlyphRun, applyWordSpacingToGlyphRun } from "../../src/pdf/utils/node-text-run-factory.js";
+import { DEFAULT_PAGE_WIDTH_PX, DEFAULT_PAGE_MARGINS_PX, maxContentDimension } from "../../src/units/page-utils.js";
 
 type TextAlign = "left" | "right" | "center" | "justify";
 type Direction = "ltr" | "rtl";
@@ -77,6 +78,11 @@ interface PdfRunInfo {
   isLastLine: boolean;
 }
 
+// Default content width: A4 page width minus default margins,
+// matching the playground's default viewport width.
+const DEFAULT_CONTAINER_WIDTH =
+  maxContentDimension(DEFAULT_PAGE_WIDTH_PX, DEFAULT_PAGE_MARGINS_PX.left + DEFAULT_PAGE_MARGINS_PX.right);
+
 const DEFAULT_TEXT =
   "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. " +
   "Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor. " +
@@ -88,7 +94,7 @@ const DEFAULT_CONFIG: Omit<CompareOptions, "text"> = {
   textAlign: "justify",
   direction: "ltr",
   lineHeight: 1.5,
-  containerWidth: 480,
+  containerWidth: DEFAULT_CONTAINER_WIDTH,
   viewportHeight: 900,
   pageHeight: 900,
 };
@@ -113,8 +119,9 @@ async function main() {
 async function captureBrowserMeasurement(options: CompareOptions): Promise<BrowserMeasurement> {
   const browser = await chromium.launch();
   try {
+    const viewportWidth = Math.round(options.containerWidth + 120);
     const page = await browser.newPage({
-      viewport: { width: options.containerWidth + 120, height: options.viewportHeight },
+      viewport: { width: viewportWidth, height: options.viewportHeight },
     });
     await page.setContent("<!doctype html><html><head><meta charset='utf-8'/><title>glyph debug</title></head><body></body></html>", {
       waitUntil: "domcontentloaded",
@@ -405,6 +412,7 @@ async function capturePdfMeasurement(options: CompareOptions): Promise<PdfMeasur
       </body>
     </html>`;
 
+  const fontConfig = await loadBuiltinFontConfig();
   const prepared = await prepareHtmlRender({
     html,
     css: "",
@@ -413,9 +421,9 @@ async function capturePdfMeasurement(options: CompareOptions): Promise<PdfMeasur
     pageWidth: options.containerWidth,
     pageHeight: options.pageHeight,
     margins: { top: 0, right: 0, bottom: 0, left: 0 },
+    fontConfig: fontConfig ?? undefined,
   });
 
-  const fontConfig = await loadBuiltinFontConfig();
   const doc = new PdfDocument();
   const fontRegistry = initFontSystem(doc, prepared.renderTree.css);
   if (fontConfig) {

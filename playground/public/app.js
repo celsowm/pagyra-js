@@ -496,8 +496,10 @@ function populateExampleSelect(examples) {
 
 
 function setViewportDefaults() {
-  DOM.viewportWidth.value = CONTENT_DEFAULTS.widthPx.toFixed(2);
-  DOM.viewportHeight.value = CONTENT_DEFAULTS.heightPx.toFixed(2);
+  // Use rounded defaults so the playground starts with the intended A4 content
+  // width (~698px) and avoids tiny floating point noise in the input field.
+  DOM.viewportWidth.value = Math.round(CONTENT_DEFAULTS.widthPx).toString();
+  DOM.viewportHeight.value = Math.round(CONTENT_DEFAULTS.heightPx).toString();
 }
 
 async function loadExample(example) {

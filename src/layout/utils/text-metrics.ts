@@ -295,7 +295,13 @@ export function measureTextWithGlyphs(
     return null;
   }
 
+  const unitsPerEm = fontMetrics.metrics.unitsPerEm;
+  const kerning = fontMetrics.kerning;
   let totalWidth = 0;
+  let prevGid: number | null = null;
+  let glyphCount = 0;
+  let spaceCount = 0;
+
   for (const char of text) {
     const codePoint = char.codePointAt(0);
     if (codePoint === undefined) {
@@ -306,14 +312,25 @@ export function measureTextWithGlyphs(
     if (glyphMetrics) {
       totalWidth += glyphMetrics.advanceWidth;
     }
+    if (prevGid !== null && kerning) {
+      const kernAdjust = kerning.get(prevGid)?.get(glyphId) ?? 0;
+      if (kernAdjust !== 0) {
+        totalWidth += kernAdjust;
+      }
+    }
+    prevGid = glyphId;
+    glyphCount += 1;
+    if (char === " ") {
+      spaceCount += 1;
+    }
   }
 
-  const scale = style.fontSize / fontMetrics.metrics.unitsPerEm;
+  const scale = style.fontSize / unitsPerEm;
   const baseWidthPx = totalWidth * scale;
   const letterSpacing = style.letterSpacing ?? 0;
   const wordSpacing = style.wordSpacing ?? 0;
   const spacingContribution =
-    Math.max(text.length - 1, 0) * letterSpacing + countSpaces(text) * wordSpacing;
+    Math.max(glyphCount - 1, 0) * letterSpacing + spaceCount * wordSpacing;
 
   return baseWidthPx + spacingContribution;
 }

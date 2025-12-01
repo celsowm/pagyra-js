@@ -364,6 +364,12 @@ async function loadFontData(src: string, resourceBaseDir: string, assetRootDir: 
       return await response.arrayBuffer();
     }
 
+    if (/^file:/i.test(target)) {
+      const localPath = fileURLToPath(target);
+      const fontDataBuffer = await environment.loader.load(localPath);
+      return fontDataBuffer;
+    }
+
     const resolved = environment.resolveLocal ? environment.resolveLocal(target, resourceBaseDir) : resolveLocalPath(target, resourceBaseDir, assetRootDir);
     const fontDataBuffer = await environment.loader.load(resolved);
     return fontDataBuffer;
