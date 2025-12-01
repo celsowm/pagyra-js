@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Debugger de Parágrafo Justificado</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Arimo:ital,wght@0,400;0,700;1,400;1,700&family=Tinos:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color-scheme: dark light;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: #0f172a;
+      color: #e5e7eb;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 1rem 1.5rem;
+      background: #020617;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+
+    header span.label {
+      font-size: 0.75rem;
+      padding: 0.1rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #94a3b8;
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr);
+      gap: 1px;
+      background: #020617;
+      min-height: 0;
+    }
+
+    @media (max-width: 900px) {
+      main {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto auto;
+      }
+    }
+
+    section {
+      padding: 1rem 1.25rem;
+      background: radial-gradient(circle at top left, rgba(148, 163, 184, 0.15), #020617 55%);
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #9ca3af;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .section-header small {
+      font-size: 0.75rem;
+      color: #6b7280;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 160px;
+      resize: vertical;
+      border-radius: 0.75rem;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      background: rgba(15, 23, 42, 0.9);
+      color: #e5e7eb;
+      padding: 0.75rem 0.85rem;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      outline: none;
+    }
+
+    textarea:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.3);
+    }
+
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 0.5rem;
+    }
+
+    .controls-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    label.inline {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    input[type="range"] {
+      accent-color: #38bdf8;
+    }
+
+    select, input[type="number"] {
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      color: #e5e7eb;
+      border-radius: 999px;
+      padding: 0.2rem 0.6rem;
+      font-size: 0.8rem;
+      outline: none;
+    }
+
+    button {
+      border-radius: 999px;
+      background: linear-gradient(135deg, #0ea5e9, #22c55e);
+      border: none;
+      color: white;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.45rem 1rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      cursor: pointer;
+      box-shadow: 0 10px 25px rgba(15, 118, 110, 0.4);
+      white-space: nowrap;
+    }
+
+    button span.icon {
+      font-size: 1rem;
+    }
+
+    button:active {
+      transform: translateY(1px);
+      box-shadow: 0 4px 15px rgba(15, 118, 110, 0.4);
+    }
+
+    .preview-shell {
+      border-radius: 0.9rem;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      background: radial-gradient(circle at top, rgba(148, 163, 184, 0.15), rgba(15, 23, 42, 0.95));
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      min-height: 200px;
+    }
+
+    .preview-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+
+    .preview-container {
+      position: relative;
+      border-radius: 0.7rem;
+      background: #f9fafb;
+      color: #111827;
+      padding: 1rem;
+      min-height: 120px;
+      overflow: hidden;
+    }
+
+    .preview-container p {
+      margin: 0;
+    }
+
+    #preview {
+      text-align: justify;
+      font-size: 16px;
+    }
+
+    .hint {
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+
+    .results-grid {
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      gap: 0.75rem;
+      min-height: 0;
+    }
+
+    .results-summary {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      font-size: 0.8rem;
+      color: #9ca3af;
+    }
+
+    .pill {
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      font-size: 0.75rem;
+    }
+
+    .lines-output {
+      background: rgba(15, 23, 42, 0.9);
+      border-radius: 0.75rem;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      padding: 0.6rem 0.75rem;
+      font-size: 0.78rem;
+      max-height: 120px;
+      overflow: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      white-space: pre-wrap;
+    }
+
+    .table-shell {
+      border-radius: 0.75rem;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      background: rgba(15, 23, 42, 0.9);
+      padding: 0.4rem 0.3rem 0.3rem;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .table-shell h3 {
+      margin: 0 0 0.25rem;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #9ca3af;
+      padding: 0 0.4rem;
+    }
+
+    .table-container {
+      flex: 1;
+      min-height: 0;
+      max-height: 260px;
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.74rem;
+      table-layout: fixed;
+    }
+
+    thead {
+      position: sticky;
+      top: 0;
+      background: rgba(15, 23, 42, 1);
+      z-index: 1;
+    }
+
+    th, td {
+      padding: 0.25rem 0.4rem;
+      border-bottom: 1px solid rgba(31, 41, 55, 0.9);
+      text-align: left;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    th {
+      font-weight: 500;
+      color: #9ca3af;
+    }
+
+    tr:nth-child(even) td {
+      background: rgba(15, 23, 42, 0.7);
+    }
+
+    .char-cell {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    .char-cell span {
+      padding: 0.05rem 0.3rem;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.18);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      display: inline-block;
+    }
+
+    .footnote {
+      margin-top: 0.25rem;
+      font-size: 0.7rem;
+      color: #6b7280;
+      padding: 0 0.3rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Debugger de Parágrafo Justificado</h1>
+    <span class="label">Layout inspector</span>
+  </header>
+
+  <main>
+    <section aria-label="Entrada de texto e opções">
+      <div class="section-header">
+        <h2>Texto</h2>
+        <small>Digite, cole ou edite o parágrafo que você quer inspecionar.</small>
+      </div>
+
+      <textarea id="sourceText"></textarea>
+
+      <div class="controls-row">
+        <div class="controls-group">
+          <label class="inline">
+            Tamanho
+            <input type="range" id="fontSize" min="10" max="32" value="16" />
+            <span id="fontSizeValue">16px</span>
+          </label>
+
+          <label class="inline">
+            Alinhamento
+            <select id="textAlign">
+              <option value="justify" selected>justify</option>
+              <option value="left">left</option>
+              <option value="right">right</option>
+              <option value="center">center</option>
+            </select>
+          </label>
+
+          <label class="inline">
+            Fonte
+            <select id="fontFamily">
+              <option value="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Sistema</option>
+              <option value="Georgia, 'Times New Roman', serif">Serif</option>
+              <option value="'Tinos', Georgia, 'Times New Roman', serif">Tinos (Google)</option>
+              <option value="'Arimo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">Arimo (Google)</option>
+              <option value="'Times New Roman', Times, serif">Times</option>
+              <option value="'Courier New', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace">Mono</option>
+            </select>
+          </label>
+
+          <label class="inline">
+            Threshold de linha
+            <input type="number" id="lineThreshold" value="2" min="0" max="10" step="0.5" style="width:3rem" />px
+          </label>
+        </div>
+
+        <div class="controls-group">
+          <label class="inline">
+            <input type="checkbox" id="showOverlay" checked />
+            Overlay
+          </label>
+          <button id="analyzeBtn" type="button">
+            <span class="icon">🔍</span>
+            Analisar layout
+          </button>
+          <button id="exportBtn" type="button">
+            <span class="icon">📦</span>
+            Exportar JSON
+          </button>
+        </div>
+      </div>
+
+      <p class="hint">Dica: brinque com o alinhamento e o tamanho da fonte para ver como o browser redistribui os espaços na justificação.</p>
+    </section>
+
+    <section aria-label="Preview e resultados">
+      <div class="section-header">
+        <h2>Preview &amp; resultados</h2>
+        <small>O overlay reflete o layout final renderizado pelo browser.</small>
+      </div>
+
+      <div class="preview-shell">
+        <div class="preview-meta">
+          <span class="pill">Preview do parágrafo</span>
+          <span class="hint">O texto abaixo é o que está sendo medido.</span>
+        </div>
+        <div class="preview-container">
+          <p id="preview"></p>
+        </div>
+      </div>
+
+      <div class="results-grid">
+        <div class="results-summary">
+          <div><span id="summaryLines">0 linhas</span> · <span id="summaryGlyphs">0 glifos</span></div>
+          <div class="hint">Espaços aparecem como <code>␣</code> na tabela.</div>
+        </div>
+
+        <div class="lines-output" id="linesOutput"></div>
+
+        <div class="table-shell">
+          <h3>Glifos medidos</h3>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Char</th>
+                  <th>Linha</th>
+                  <th>X</th>
+                  <th>Y</th>
+                  <th>Largura</th>
+                  <th>Altura</th>
+                </tr>
+              </thead>
+              <tbody id="glyphTableBody"></tbody>
+            </table>
+          </div>
+          <div class="footnote">Os valores de X/Y são em px (viewport), já com o layout final do browser.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // -------------------------
+    // Core de debug de parágrafo
+    // -------------------------
+
+    (function () {
+      function getTextNodes(root) {
+        const walker = document.createTreeWalker(
+          root,
+          NodeFilter.SHOW_TEXT,
+          {
+            acceptNode(node) {
+              if (!node.nodeValue || !node.nodeValue.trim()) {
+                return NodeFilter.FILTER_REJECT;
+              }
+              return NodeFilter.FILTER_ACCEPT;
+            },
+          }
+        );
+
+        const nodes = [];
+        while (walker.nextNode()) {
+          nodes.push(walker.currentNode);
+        }
+        return nodes;
+      }
+
+      function segmentText(text) {
+        if (window.Intl && typeof Intl.Segmenter === "function") {
+          const seg = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+          const it = seg.segment(text);
+          const result = [];
+          for (const s of it) {
+            result.push({
+              segment: s.segment,
+              start: s.index,
+              end: s.index + s.segment.length,
+            });
+          }
+          return result;
+        }
+
+        const result = [];
+        for (let i = 0; i < text.length; i++) {
+          result.push({ segment: text[i], start: i, end: i + 1 });
+        }
+        return result;
+      }
+
+      function attachOverlay(paragraph, glyphs, lines) {
+        if (window.__paragraphDebugOverlay && window.__paragraphDebugOverlay.parentNode) {
+          window.__paragraphDebugOverlay.parentNode.removeChild(window.__paragraphDebugOverlay);
+        }
+
+        const paraRect = paragraph.getBoundingClientRect();
+        const scrollX = window.scrollX || window.pageXOffset || 0;
+        const scrollY = window.scrollY || window.pageYOffset || 0;
+
+        const overlay = document.createElement("div");
+        overlay.style.position = "absolute";
+        overlay.style.left = paraRect.left + scrollX + "px";
+        overlay.style.top = paraRect.top + scrollY + "px";
+        overlay.style.width = paraRect.width + "px";
+        overlay.style.height = paraRect.height + "px";
+        overlay.style.pointerEvents = "none";
+        overlay.style.zIndex = 999999;
+        overlay.style.boxSizing = "border-box";
+        overlay.style.outline = "1px dashed rgba(15,23,42,0.3)";
+
+        const overlayLeft = paraRect.left + scrollX;
+        const overlayTop = paraRect.top + scrollY;
+
+        glyphs.forEach((g) => {
+          const box = document.createElement("div");
+          box.style.position = "absolute";
+          const innerLeft = g.pageX - overlayLeft;
+          const innerTop = g.pageY - overlayTop;
+          box.style.left = innerLeft + "px";
+          box.style.top = innerTop + "px";
+          box.style.width = g.width + "px";
+          box.style.height = g.height + "px";
+          box.style.border = "1px solid rgba(248,113,113,0.7)";
+          box.style.boxSizing = "border-box";
+          box.style.pointerEvents = "none";
+          box.title = `${g.text} (idx ${g.globalIndex}, linha ${g.line})`;
+          overlay.appendChild(box);
+        });
+
+        lines.forEach((line) => {
+          const lineBox = document.createElement("div");
+          lineBox.style.position = "absolute";
+          const innerLeft = line.xPage - overlayLeft;
+          const innerTop = line.yPage - overlayTop;
+          lineBox.style.left = innerLeft + "px";
+          lineBox.style.top = innerTop + "px";
+          lineBox.style.width = line.width + "px";
+          lineBox.style.height = line.height + "px";
+          lineBox.style.border = "1px dashed rgba(59,130,246,0.8)";
+          lineBox.style.boxSizing = "border-box";
+          lineBox.style.pointerEvents = "none";
+          lineBox.style.fontSize = "10px";
+          lineBox.style.lineHeight = "10px";
+          lineBox.style.color = "rgba(59,130,246,0.8)";
+          lineBox.style.textAlign = "right";
+          lineBox.style.paddingRight = "2px";
+          lineBox.textContent = `L${line.line}`;
+          overlay.appendChild(lineBox);
+        });
+
+        document.body.appendChild(overlay);
+        window.__paragraphDebugOverlay = overlay;
+        return overlay;
+      }
+
+      function clearOverlay() {
+        if (window.__paragraphDebugOverlay && window.__paragraphDebugOverlay.parentNode) {
+          window.__paragraphDebugOverlay.parentNode.removeChild(window.__paragraphDebugOverlay);
+        }
+        window.__paragraphDebugOverlay = null;
+      }
+
+      function debugJustifiedParagraph(paragraph, options) {
+        if (!paragraph || !(paragraph instanceof HTMLElement)) {
+          throw new Error("Passe um elemento <p> válido para debugJustifiedParagraph(paragraph, options)");
+        }
+
+        const opts = Object.assign({ overlay: false, lineThreshold: 2 }, options || {});
+
+        const textNodes = getTextNodes(paragraph);
+        if (!textNodes.length) {
+          return { glyphs: [], lines: [], overlay: null };
+        }
+
+        const range = document.createRange();
+        const glyphs = [];
+        let globalIndex = 0;
+
+        textNodes.forEach((node, nodeIndex) => {
+          const text = node.data;
+          const segments = segmentText(text);
+
+          segments.forEach((seg) => {
+            range.setStart(node, seg.start);
+            range.setEnd(node, seg.end);
+
+            const rects = range.getClientRects();
+            if (!rects.length) return;
+
+            let chosen = rects[0];
+            for (let i = 1; i < rects.length; i++) {
+              if (rects[i].width > chosen.width) {
+                chosen = rects[i];
+              }
+            }
+
+            const scrollX = window.scrollX || window.pageXOffset || 0;
+            const scrollY = window.scrollY || window.pageYOffset || 0;
+
+            const pageX = chosen.left + scrollX;
+            const pageY = chosen.top + scrollY;
+
+            glyphs.push({
+              globalIndex: globalIndex++,
+              nodeIndex,
+              node,
+              text: seg.segment,
+              startOffset: seg.start,
+              endOffset: seg.end,
+              x: chosen.left,
+              y: chosen.top,
+              width: chosen.width,
+              height: chosen.height,
+              pageX,
+              pageY,
+              line: null,
+            });
+          });
+        });
+
+        range.detach?.();
+
+        if (!glyphs.length) {
+          return { glyphs: [], lines: [], overlay: null };
+        }
+
+        glyphs.sort((a, b) => a.y - b.y || a.x - b.x);
+
+        let line = 0;
+        let currentTop = glyphs[0].y;
+        const threshold = opts.lineThreshold;
+
+        glyphs.forEach((g) => {
+          if (Math.abs(g.y - currentTop) > threshold) {
+            line++;
+            currentTop = g.y;
+          }
+          g.line = line;
+        });
+
+        const byLine = new Map();
+        glyphs.forEach((g) => {
+          if (!byLine.has(g.line)) byLine.set(g.line, []);
+          byLine.get(g.line).push(g);
+        });
+
+        const lines = [];
+        byLine.forEach((items, lineNumber) => {
+          items.sort((a, b) => a.x - b.x);
+          const first = items[0];
+          const last = items[items.length - 1];
+          const maxHeight = items.reduce((m, g) => Math.max(m, g.height), 0);
+
+          lines.push({
+            line: lineNumber,
+            text: items.map((g) => g.text).join(""),
+            x: first.x,
+            y: first.y,
+            width: last.x + last.width - first.x,
+            height: maxHeight,
+            xPage: first.pageX,
+            yPage: first.pageY,
+            glyphs: items,
+          });
+        });
+
+        lines.sort((a, b) => a.line - b.line);
+
+        let overlay = null;
+        if (opts.overlay) {
+          overlay = attachOverlay(paragraph, glyphs, lines);
+        }
+
+        return { glyphs, lines, overlay };
+      }
+
+      window.debugJustifiedParagraph = debugJustifiedParagraph;
+      window.clearParagraphDebugOverlay = clearOverlay;
+    })();
+
+    // -------------------------
+    // UI / app wiring
+    // -------------------------
+
+    (function () {
+      const sourceText = document.getElementById("sourceText");
+      const preview = document.getElementById("preview");
+      const fontSizeInput = document.getElementById("fontSize");
+      const fontSizeValue = document.getElementById("fontSizeValue");
+      const textAlignSelect = document.getElementById("textAlign");
+      const fontFamilySelect = document.getElementById("fontFamily");
+      const lineThresholdInput = document.getElementById("lineThreshold");
+      const showOverlayInput = document.getElementById("showOverlay");
+      const analyzeBtn = document.getElementById("analyzeBtn");
+      const linesOutput = document.getElementById("linesOutput");
+      const glyphTableBody = document.getElementById("glyphTableBody");
+      const summaryLines = document.getElementById("summaryLines");
+      const summaryGlyphs = document.getElementById("summaryGlyphs");
+      const exportBtn = document.getElementById("exportBtn");
+
+      let lastGlyphs = [];
+      let lastLines = [];
+
+      const defaultText =
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. " +
+        "Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor. " +
+        "Cras elementum ultrices diam. Maecenas ligula massa, varius a, semper congue, euismod non, mi.";
+
+      function setPreviewFromTextarea() {
+        preview.textContent = sourceText.value || "";
+      }
+
+      function applyStyles() {
+        const size = parseFloat(fontSizeInput.value) || 16;
+        preview.style.fontSize = size + "px";
+        fontSizeValue.textContent = size + "px";
+        preview.style.textAlign = textAlignSelect.value;
+        preview.style.fontFamily = fontFamilySelect.value;
+      }
+
+      function formatLinesSummary(lines) {
+        if (!lines.length) return "Nenhuma linha detectada.";
+        return lines
+          .map((line) => {
+            const txt = line.text.replace(/\s/g, " ");
+            const display = txt.length > 60 ? txt.slice(0, 57) + "…" : txt;
+            return `L${line.line}: "${display}"`;
+          })
+          .join("\n");
+      }
+
+      function analyze() {
+        window.clearParagraphDebugOverlay?.();
+
+        setPreviewFromTextarea();
+        applyStyles();
+
+        if (!preview.textContent || !preview.textContent.trim()) {
+          linesOutput.textContent = "Nada para medir. Digite algum texto.";
+          glyphTableBody.innerHTML = "";
+          summaryLines.textContent = "0 linhas";
+          summaryGlyphs.textContent = "0 glifos";
+          lastGlyphs = [];
+          lastLines = [];
+          return;
+        }
+
+        const threshold = parseFloat(lineThresholdInput.value) || 2;
+
+        const { glyphs, lines } = window.debugJustifiedParagraph(preview, {
+          overlay: showOverlayInput.checked,
+          lineThreshold: threshold,
+        });
+
+        lastGlyphs = glyphs;
+        lastLines = lines;
+
+        summaryLines.textContent = `${lines.length} linha${lines.length === 1 ? "" : "s"}`;
+        summaryGlyphs.textContent = `${glyphs.length} glifo${glyphs.length === 1 ? "" : "s"}`;
+
+        linesOutput.textContent = formatLinesSummary(lines);
+
+        glyphTableBody.innerHTML = "";
+        const frag = document.createDocumentFragment();
+
+        glyphs.forEach((g) => {
+          const tr = document.createElement("tr");
+
+          const tdIdx = document.createElement("td");
+          tdIdx.textContent = g.globalIndex;
+
+          const tdChar = document.createElement("td");
+          tdChar.className = "char-cell";
+          const span = document.createElement("span");
+          let displayChar = g.text;
+          if (displayChar === " ") displayChar = "␣";
+          if (displayChar === "\n") displayChar = "↵";
+          if (!displayChar) displayChar = "∅";
+          span.textContent = displayChar;
+          tdChar.appendChild(span);
+
+          const tdLine = document.createElement("td");
+          tdLine.textContent = g.line;
+
+          const tdX = document.createElement("td");
+          const tdY = document.createElement("td");
+          const tdW = document.createElement("td");
+          const tdH = document.createElement("td");
+
+          tdX.textContent = g.x.toFixed(2);
+          tdY.textContent = g.y.toFixed(2);
+          tdW.textContent = g.width.toFixed(2);
+          tdH.textContent = g.height.toFixed(2);
+
+          tr.appendChild(tdIdx);
+          tr.appendChild(tdChar);
+          tr.appendChild(tdLine);
+          tr.appendChild(tdX);
+          tr.appendChild(tdY);
+          tr.appendChild(tdW);
+          tr.appendChild(tdH);
+
+          frag.appendChild(tr);
+        });
+
+        glyphTableBody.appendChild(frag);
+      }
+
+      function exportJson() {
+        if (!lastGlyphs.length && !lastLines.length) {
+          alert("Nenhum dado para exportar. Clique em \"Analisar layout\" primeiro.");
+          return;
+        }
+
+        const meta = {
+          text: sourceText.value,
+          fontSize: parseFloat(fontSizeInput.value) || 16,
+          textAlign: textAlignSelect.value,
+          fontFamily: fontFamilySelect.value,
+          lineThreshold: parseFloat(lineThresholdInput.value) || 2,
+          overlay: showOverlayInput.checked,
+          glyphCount: lastGlyphs.length,
+          lineCount: lastLines.length,
+          generatedAt: new Date().toISOString(),
+        };
+
+        const exportGlyphs = lastGlyphs.map((g) => ({
+          index: g.globalIndex,
+          text: g.text,
+          line: g.line,
+          x: g.x,
+          y: g.y,
+          width: g.width,
+          height: g.height,
+          pageX: g.pageX,
+          pageY: g.pageY,
+          nodeIndex: g.nodeIndex,
+          startOffset: g.startOffset,
+          endOffset: g.endOffset,
+        }));
+
+        const exportLines = lastLines.map((line) => ({
+          line: line.line,
+          text: line.text,
+          x: line.x,
+          y: line.y,
+          width: line.width,
+          height: line.height,
+          glyphIndices: line.glyphs ? line.glyphs.map((g) => g.globalIndex) : [],
+        }));
+
+        const payload = {
+          meta,
+          lines: exportLines,
+          glyphs: exportGlyphs,
+        };
+
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+        a.href = url;
+        const ts = new Date().toISOString().replace(/[:.]/g, "-");
+        a.download = `glyph-debug-${ts}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      sourceText.value = defaultText;
+      setPreviewFromTextarea();
+      applyStyles();
+
+      fontSizeInput.addEventListener("input", () => {
+        applyStyles();
+        analyze();
+      });
+
+      textAlignSelect.addEventListener("change", analyze);
+      fontFamilySelect.addEventListener("change", analyze);
+      lineThresholdInput.addEventListener("change", analyze);
+      showOverlayInput.addEventListener("change", analyze);
+
+      sourceText.addEventListener("input", () => {
+        setPreviewFromTextarea();
+      });
+
+      analyzeBtn.addEventListener("click", analyze);
+      exportBtn.addEventListener("click", exportJson);
+
+      window.addEventListener("load", () => {
+        setTimeout(analyze, 50);
+      });
+    })();
+  </script>
+</body>
+</html>
