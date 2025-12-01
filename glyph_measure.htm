@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Debugger de Parágrafo Justificado</title>
+  <title>Debugger de Parágrafo Justificado v2</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -31,6 +31,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 1rem;
+      flex-wrap: wrap;
     }
 
     header h1 {
@@ -38,6 +39,12 @@
       font-size: 1.1rem;
       font-weight: 600;
       letter-spacing: 0.03em;
+    }
+
+    .header-badges {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
     }
 
     header span.label {
@@ -48,6 +55,20 @@
       text-transform: uppercase;
       letter-spacing: 0.08em;
       color: #94a3b8;
+    }
+
+    .zoom-warning {
+      font-size: 0.7rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      background: rgba(251, 191, 36, 0.2);
+      border: 1px solid rgba(251, 191, 36, 0.6);
+      color: #fbbf24;
+      display: none;
+    }
+
+    .zoom-warning.visible {
+      display: inline-block;
     }
 
     main {
@@ -97,7 +118,7 @@
 
     textarea {
       width: 100%;
-      min-height: 160px;
+      min-height: 140px;
       resize: vertical;
       border-radius: 0.75rem;
       border: 1px solid rgba(148, 163, 184, 0.5);
@@ -177,6 +198,10 @@
       box-shadow: 0 4px 15px rgba(15, 118, 110, 0.4);
     }
 
+    button.secondary {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    }
+
     .preview-shell {
       border-radius: 0.9rem;
       border: 1px solid rgba(148, 163, 184, 0.5);
@@ -194,6 +219,8 @@
       align-items: baseline;
       font-size: 0.75rem;
       color: #9ca3af;
+      flex-wrap: wrap;
+      gap: 0.5rem;
     }
 
     .preview-container {
@@ -242,6 +269,12 @@
       border-radius: 999px;
       border: 1px solid rgba(148, 163, 184, 0.5);
       font-size: 0.75rem;
+    }
+
+    .pill.auto {
+      background: rgba(34, 197, 94, 0.2);
+      border-color: rgba(34, 197, 94, 0.6);
+      color: #22c55e;
     }
 
     .lines-output {
@@ -332,12 +365,57 @@
       color: #6b7280;
       padding: 0 0.3rem;
     }
+
+    .advanced-panel {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      margin-top: 0.25rem;
+    }
+
+    .advanced-panel summary {
+      cursor: pointer;
+      font-size: 0.75rem;
+      color: #9ca3af;
+      user-select: none;
+    }
+
+    .advanced-panel[open] summary {
+      margin-bottom: 0.5rem;
+    }
+
+    .advanced-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .info-box {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      border-radius: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.75rem;
+      color: #93c5fd;
+      margin-top: 0.5rem;
+    }
+
+    .info-box code {
+      background: rgba(0,0,0,0.3);
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+    }
   </style>
 </head>
 <body>
   <header>
-    <h1>Debugger de Parágrafo Justificado</h1>
-    <span class="label">Layout inspector</span>
+    <h1>Debugger de Parágrafo Justificado v2</h1>
+    <div class="header-badges">
+      <span class="label">Layout inspector</span>
+      <span class="zoom-warning" id="zoomWarning">⚠️ Zoom: <span id="zoomLevel">100</span>%</span>
+    </div>
   </header>
 
   <main>
@@ -380,8 +458,11 @@
           </label>
 
           <label class="inline">
-            Threshold de linha
-            <input type="number" id="lineThreshold" value="2" min="0" max="10" step="0.5" style="width:3rem" />px
+            Direção
+            <select id="textDirection">
+              <option value="ltr" selected>LTR</option>
+              <option value="rtl">RTL</option>
+            </select>
           </label>
         </div>
 
@@ -394,14 +475,70 @@
             <span class="icon">🔍</span>
             Analisar layout
           </button>
-          <button id="exportBtn" type="button">
+          <button id="exportBtn" type="button" class="secondary">
             <span class="icon">📦</span>
             Exportar JSON
           </button>
         </div>
       </div>
 
-      <p class="hint">Dica: brinque com o alinhamento e o tamanho da fonte para ver como o browser redistribui os espaços na justificação.</p>
+      <!-- Painel Avançado para resolver os 3 problemas -->
+      <details class="advanced-panel">
+        <summary>⚙️ Configurações Avançadas (Precisão, Multi-Rect, Threshold)</summary>
+        <div class="advanced-controls">
+          <!-- PROBLEMA 1: Subpixel Precision -->
+          <label class="inline">
+            Precisão
+            <select id="precisionMode">
+              <option value="full">Completa (subpixel)</option>
+              <option value="rounded" selected>Arredondada (2 decimais)</option>
+              <option value="integer">Inteiro (px)</option>
+            </select>
+          </label>
+
+          <label class="inline">
+            Coords
+            <select id="coordMode">
+              <option value="viewport" selected>Viewport (absolutas)</option>
+              <option value="relative">Relativas ao container</option>
+            </select>
+          </label>
+
+          <!-- PROBLEMA 2: Multi-Rect Handling -->
+          <label class="inline">
+            Estratégia Rect
+            <select id="rectStrategy">
+              <option value="widest" selected>Mais largo</option>
+              <option value="first">Primeiro</option>
+              <option value="largest">Maior área</option>
+              <option value="union">União (bounding box)</option>
+              <option value="all">Todos (múltiplos)</option>
+            </select>
+          </label>
+
+          <!-- PROBLEMA 3: Line Threshold Sensitivity -->
+          <label class="inline">
+            Threshold
+            <select id="thresholdMode">
+              <option value="auto" selected>Auto (baseado em line-height)</option>
+              <option value="manual">Manual</option>
+              <option value="adaptive">Adaptativo (clustering)</option>
+            </select>
+          </label>
+
+          <label class="inline" id="manualThresholdLabel" style="display:none;">
+            Valor
+            <input type="number" id="lineThreshold" value="2" min="0" max="20" step="0.5" style="width:3.5rem" />px
+          </label>
+        </div>
+
+        <div class="info-box" id="thresholdInfo">
+          ℹ️ <strong>Auto-threshold</strong>: Calculado como <code>lineHeight × 0.3</code>. 
+          Valor atual: <span id="calculatedThreshold">--</span>px
+        </div>
+      </details>
+
+      <p class="hint">Dica: Para texto RTL ou fontes exóticas, ajuste a estratégia de rect e o threshold nas configurações avançadas.</p>
     </section>
 
     <section aria-label="Preview e resultados">
@@ -413,6 +550,7 @@
       <div class="preview-shell">
         <div class="preview-meta">
           <span class="pill">Preview do parágrafo</span>
+          <span class="pill auto" id="autoThresholdBadge" style="display:none;">Auto: <span id="autoThresholdValue">--</span>px</span>
           <span class="hint">O texto abaixo é o que está sendo medido.</span>
         </div>
         <div class="preview-container">
@@ -422,7 +560,11 @@
 
       <div class="results-grid">
         <div class="results-summary">
-          <div><span id="summaryLines">0 linhas</span> · <span id="summaryGlyphs">0 glifos</span></div>
+          <div>
+            <span id="summaryLines">0 linhas</span> · 
+            <span id="summaryGlyphs">0 glifos</span> · 
+            <span id="summaryRects">0 rects</span>
+          </div>
           <div class="hint">Espaços aparecem como <code>␣</code> na tabela.</div>
         </div>
 
@@ -441,23 +583,237 @@
                   <th>Y</th>
                   <th>Largura</th>
                   <th>Altura</th>
+                  <th>Rects</th>
                 </tr>
               </thead>
               <tbody id="glyphTableBody"></tbody>
             </table>
           </div>
-          <div class="footnote">Os valores de X/Y são em px (viewport), já com o layout final do browser.</div>
+          <div class="footnote">
+            Os valores de X/Y dependem do modo de coordenadas selecionado.
+            <span id="coordModeNote">(Viewport)</span>
+          </div>
         </div>
       </div>
     </section>
   </main>
 
   <script>
-    // -------------------------
-    // Core de debug de parágrafo
-    // -------------------------
+    // =========================================
+    // CORE DE DEBUG v2 - COM SOLUÇÕES PARA:
+    // 1. Subpixel Precision
+    // 2. Multi-Rect Handling
+    // 3. Line Threshold Sensitivity
+    // =========================================
 
     (function () {
+      // -------------------------
+      // SOLUÇÃO 1: Detecção de Zoom
+      // -------------------------
+      function getZoomLevel() {
+        // Método 1: devicePixelRatio vs zoom visual
+        const dpr = window.devicePixelRatio || 1;
+        
+        // Método 2: comparar tamanho computado com esperado
+        const testEl = document.createElement('div');
+        testEl.style.cssText = 'position:absolute;width:100px;height:100px;top:-9999px;left:-9999px;';
+        document.body.appendChild(testEl);
+        const computedWidth = testEl.getBoundingClientRect().width;
+        document.body.removeChild(testEl);
+        
+        // Zoom aproximado baseado no DPR e tamanho renderizado
+        const zoomFromSize = computedWidth / 100;
+        
+        // Retorna o mais provável
+        return Math.round(zoomFromSize * 100);
+      }
+
+      function monitorZoom(callback) {
+        let lastZoom = getZoomLevel();
+        
+        const check = () => {
+          const currentZoom = getZoomLevel();
+          if (currentZoom !== lastZoom) {
+            lastZoom = currentZoom;
+            callback(currentZoom);
+          }
+        };
+
+        window.addEventListener('resize', check);
+        
+        // Também verifica periodicamente (alguns zooms não disparam resize)
+        setInterval(check, 1000);
+        
+        return lastZoom;
+      }
+
+      // -------------------------
+      // SOLUÇÃO 2: Estratégias de Multi-Rect
+      // -------------------------
+      const RectStrategies = {
+        // Estratégia original: escolhe o mais largo
+        widest: function(rects) {
+          if (!rects.length) return null;
+          let chosen = rects[0];
+          for (let i = 1; i < rects.length; i++) {
+            if (rects[i].width > chosen.width) {
+              chosen = rects[i];
+            }
+          }
+          return [chosen];
+        },
+
+        // Primeiro rect (útil para LTR simples)
+        first: function(rects) {
+          return rects.length ? [rects[0]] : null;
+        },
+
+        // Maior área (melhor para glifos fragmentados)
+        largest: function(rects) {
+          if (!rects.length) return null;
+          let chosen = rects[0];
+          let maxArea = chosen.width * chosen.height;
+          for (let i = 1; i < rects.length; i++) {
+            const area = rects[i].width * rects[i].height;
+            if (area > maxArea) {
+              chosen = rects[i];
+              maxArea = area;
+            }
+          }
+          return [chosen];
+        },
+
+        // União: bounding box de todos os rects
+        union: function(rects) {
+          if (!rects.length) return null;
+          
+          let minX = Infinity, minY = Infinity;
+          let maxX = -Infinity, maxY = -Infinity;
+          
+          for (const r of rects) {
+            minX = Math.min(minX, r.left);
+            minY = Math.min(minY, r.top);
+            maxX = Math.max(maxX, r.right);
+            maxY = Math.max(maxY, r.bottom);
+          }
+          
+          return [{
+            left: minX,
+            top: minY,
+            right: maxX,
+            bottom: maxY,
+            width: maxX - minX,
+            height: maxY - minY,
+            x: minX,
+            y: minY
+          }];
+        },
+
+        // Todos: retorna todos os rects (para análise completa)
+        all: function(rects) {
+          return rects.length ? Array.from(rects) : null;
+        }
+      };
+
+      // -------------------------
+      // SOLUÇÃO 3: Threshold Adaptativo
+      // -------------------------
+      const ThresholdStrategies = {
+        // Manual: usa valor fixo
+        manual: function(glyphs, manualValue) {
+          return { 
+            threshold: manualValue, 
+            method: 'manual',
+            confidence: 1.0 
+          };
+        },
+
+        // Auto: baseado em line-height computada
+        auto: function(glyphs, _, paragraph) {
+          if (!paragraph) return { threshold: 2, method: 'auto-fallback', confidence: 0.5 };
+          
+          const style = window.getComputedStyle(paragraph);
+          const lineHeight = parseFloat(style.lineHeight);
+          const fontSize = parseFloat(style.fontSize);
+          
+          // Se lineHeight é 'normal', estima como 1.2 × fontSize
+          const effectiveLineHeight = isNaN(lineHeight) ? fontSize * 1.2 : lineHeight;
+          
+          // Threshold = 30% da line-height (permite variação de baseline)
+          const threshold = effectiveLineHeight * 0.3;
+          
+          return { 
+            threshold: Math.max(1, threshold),
+            method: 'auto',
+            lineHeight: effectiveLineHeight,
+            fontSize: fontSize,
+            confidence: 0.9
+          };
+        },
+
+        // Adaptativo: usa clustering baseado em gaps naturais de Y
+        adaptive: function(glyphs) {
+          if (glyphs.length < 2) {
+            return { threshold: 2, method: 'adaptive-fallback', confidence: 0.5 };
+          }
+
+          // Ordena por Y
+          const sortedY = glyphs.map(g => g.y).sort((a, b) => a - b);
+          
+          // Calcula gaps entre valores Y consecutivos
+          const gaps = [];
+          for (let i = 1; i < sortedY.length; i++) {
+            gaps.push(sortedY[i] - sortedY[i - 1]);
+          }
+          
+          // Filtra gaps muito pequenos (mesmo glifo) e muito grandes (outliers)
+          const avgHeight = glyphs.reduce((s, g) => s + g.height, 0) / glyphs.length;
+          const significantGaps = gaps.filter(g => g > avgHeight * 0.1 && g < avgHeight * 3);
+          
+          if (!significantGaps.length) {
+            return { threshold: avgHeight * 0.3, method: 'adaptive-height', confidence: 0.7 };
+          }
+
+          // Encontra o gap que melhor separa "mesma linha" de "nova linha"
+          // usando o "cotovelo" na distribuição
+          significantGaps.sort((a, b) => a - b);
+          
+          let bestThreshold = significantGaps[0];
+          let maxJump = 0;
+          
+          for (let i = 1; i < significantGaps.length; i++) {
+            const jump = significantGaps[i] - significantGaps[i - 1];
+            if (jump > maxJump) {
+              maxJump = jump;
+              // Threshold = ponto médio do maior salto
+              bestThreshold = (significantGaps[i - 1] + significantGaps[i]) / 2;
+            }
+          }
+          
+          return { 
+            threshold: Math.max(1, bestThreshold),
+            method: 'adaptive',
+            gapsAnalyzed: significantGaps.length,
+            confidence: 0.85
+          };
+        }
+      };
+
+      // -------------------------
+      // Utilitários de Precisão
+      // -------------------------
+      function formatNumber(n, precision) {
+        switch (precision) {
+          case 'full': return n;
+          case 'integer': return Math.round(n);
+          case 'rounded':
+          default: return Math.round(n * 100) / 100;
+        }
+      }
+
+      // -------------------------
+      // Funções Auxiliares
+      // -------------------------
       function getTextNodes(root) {
         const walker = document.createTreeWalker(
           root,
@@ -501,7 +857,15 @@
         return result;
       }
 
-      function attachOverlay(paragraph, glyphs, lines) {
+      function isRTL(element) {
+        const style = window.getComputedStyle(element);
+        return style.direction === 'rtl';
+      }
+
+      // -------------------------
+      // Overlay Melhorado
+      // -------------------------
+      function attachOverlay(paragraph, glyphs, lines, options) {
         if (window.__paragraphDebugOverlay && window.__paragraphDebugOverlay.parentNode) {
           window.__paragraphDebugOverlay.parentNode.removeChild(window.__paragraphDebugOverlay);
         }
@@ -524,22 +888,34 @@
         const overlayLeft = paraRect.left + scrollX;
         const overlayTop = paraRect.top + scrollY;
 
+        // Desenha glifos
         glyphs.forEach((g) => {
-          const box = document.createElement("div");
-          box.style.position = "absolute";
-          const innerLeft = g.pageX - overlayLeft;
-          const innerTop = g.pageY - overlayTop;
-          box.style.left = innerLeft + "px";
-          box.style.top = innerTop + "px";
-          box.style.width = g.width + "px";
-          box.style.height = g.height + "px";
-          box.style.border = "1px solid rgba(248,113,113,0.7)";
-          box.style.boxSizing = "border-box";
-          box.style.pointerEvents = "none";
-          box.title = `${g.text} (idx ${g.globalIndex}, linha ${g.line})`;
-          overlay.appendChild(box);
+          // Se estratégia "all", pode ter múltiplos rects por glifo
+          const rectsToRender = g.allRects || [g];
+          
+          rectsToRender.forEach((rect, i) => {
+            const box = document.createElement("div");
+            box.style.position = "absolute";
+            const innerLeft = (rect.pageX || g.pageX) - overlayLeft;
+            const innerTop = (rect.pageY || g.pageY) - overlayTop;
+            box.style.left = innerLeft + "px";
+            box.style.top = innerTop + "px";
+            box.style.width = (rect.width || g.width) + "px";
+            box.style.height = (rect.height || g.height) + "px";
+            
+            // Cor diferente para múltiplos rects
+            const color = rectsToRender.length > 1 
+              ? `rgba(${100 + i * 50}, 113, 113, 0.7)` 
+              : "rgba(248,113,113,0.7)";
+            box.style.border = `1px solid ${color}`;
+            box.style.boxSizing = "border-box";
+            box.style.pointerEvents = "none";
+            box.title = `${g.text} (idx ${g.globalIndex}, linha ${g.line}${rectsToRender.length > 1 ? `, rect ${i+1}/${rectsToRender.length}` : ''})`;
+            overlay.appendChild(box);
+          });
         });
 
+        // Desenha linhas
         lines.forEach((line) => {
           const lineBox = document.createElement("div");
           lineBox.style.position = "absolute";
@@ -573,21 +949,40 @@
         window.__paragraphDebugOverlay = null;
       }
 
+      // -------------------------
+      // Função Principal MELHORADA
+      // -------------------------
       function debugJustifiedParagraph(paragraph, options) {
         if (!paragraph || !(paragraph instanceof HTMLElement)) {
           throw new Error("Passe um elemento <p> válido para debugJustifiedParagraph(paragraph, options)");
         }
 
-        const opts = Object.assign({ overlay: false, lineThreshold: 2 }, options || {});
+        const opts = Object.assign({ 
+          overlay: false, 
+          lineThreshold: 2,
+          // Novas opções
+          thresholdMode: 'auto',      // 'manual', 'auto', 'adaptive'
+          rectStrategy: 'widest',      // 'widest', 'first', 'largest', 'union', 'all'
+          precision: 'rounded',        // 'full', 'rounded', 'integer'
+          coordMode: 'viewport'        // 'viewport', 'relative'
+        }, options || {});
 
         const textNodes = getTextNodes(paragraph);
         if (!textNodes.length) {
-          return { glyphs: [], lines: [], overlay: null };
+          return { glyphs: [], lines: [], overlay: null, meta: {} };
         }
 
         const range = document.createRange();
         const glyphs = [];
         let globalIndex = 0;
+        let totalRects = 0;
+
+        // Detecta RTL para ordenação correta
+        const rtl = isRTL(paragraph);
+        const paraRect = paragraph.getBoundingClientRect();
+        
+        const scrollX = window.scrollX || window.pageXOffset || 0;
+        const scrollY = window.scrollY || window.pageYOffset || 0;
 
         textNodes.forEach((node, nodeIndex) => {
           const text = node.data;
@@ -600,57 +995,95 @@
             const rects = range.getClientRects();
             if (!rects.length) return;
 
-            let chosen = rects[0];
-            for (let i = 1; i < rects.length; i++) {
-              if (rects[i].width > chosen.width) {
-                chosen = rects[i];
-              }
+            totalRects += rects.length;
+
+            // SOLUÇÃO 2: Aplica estratégia de seleção de rects
+            const strategy = RectStrategies[opts.rectStrategy] || RectStrategies.widest;
+            const selectedRects = strategy(rects);
+            
+            if (!selectedRects || !selectedRects.length) return;
+
+            // Usa o primeiro rect selecionado como principal
+            const chosen = selectedRects[0];
+
+            // SOLUÇÃO 1: Calcula coordenadas conforme modo
+            let x, y, pageX, pageY;
+            
+            if (opts.coordMode === 'relative') {
+              x = chosen.left - paraRect.left;
+              y = chosen.top - paraRect.top;
+              pageX = x;
+              pageY = y;
+            } else {
+              x = chosen.left;
+              y = chosen.top;
+              pageX = chosen.left + scrollX;
+              pageY = chosen.top + scrollY;
             }
 
-            const scrollX = window.scrollX || window.pageXOffset || 0;
-            const scrollY = window.scrollY || window.pageYOffset || 0;
-
-            const pageX = chosen.left + scrollX;
-            const pageY = chosen.top + scrollY;
-
-            glyphs.push({
+            const glyphData = {
               globalIndex: globalIndex++,
               nodeIndex,
               node,
               text: seg.segment,
               startOffset: seg.start,
               endOffset: seg.end,
-              x: chosen.left,
-              y: chosen.top,
-              width: chosen.width,
-              height: chosen.height,
-              pageX,
-              pageY,
+              x: formatNumber(x, opts.precision),
+              y: formatNumber(y, opts.precision),
+              width: formatNumber(chosen.width, opts.precision),
+              height: formatNumber(chosen.height, opts.precision),
+              pageX: formatNumber(pageX, opts.precision),
+              pageY: formatNumber(pageY, opts.precision),
               line: null,
-            });
+              rectCount: rects.length,
+              // Armazena todos os rects se estratégia "all"
+              allRects: opts.rectStrategy === 'all' ? selectedRects.map(r => ({
+                x: formatNumber(opts.coordMode === 'relative' ? r.left - paraRect.left : r.left, opts.precision),
+                y: formatNumber(opts.coordMode === 'relative' ? r.top - paraRect.top : r.top, opts.precision),
+                width: formatNumber(r.width, opts.precision),
+                height: formatNumber(r.height, opts.precision),
+                pageX: formatNumber(r.left + scrollX, opts.precision),
+                pageY: formatNumber(r.top + scrollY, opts.precision)
+              })) : null,
+              // Dados brutos para análise
+              _rawY: chosen.top
+            };
+
+            glyphs.push(glyphData);
           });
         });
 
         range.detach?.();
 
         if (!glyphs.length) {
-          return { glyphs: [], lines: [], overlay: null };
+          return { glyphs: [], lines: [], overlay: null, meta: {} };
         }
 
-        glyphs.sort((a, b) => a.y - b.y || a.x - b.x);
+        // Ordena: para RTL, inverte a ordenação X
+        glyphs.sort((a, b) => {
+          const yDiff = a._rawY - b._rawY;
+          if (Math.abs(yDiff) > 1) return yDiff;
+          return rtl ? (b.x - a.x) : (a.x - b.x);
+        });
 
+        // SOLUÇÃO 3: Calcula threshold conforme modo
+        const thresholdStrategy = ThresholdStrategies[opts.thresholdMode] || ThresholdStrategies.auto;
+        const thresholdResult = thresholdStrategy(glyphs, opts.lineThreshold, paragraph);
+        const threshold = thresholdResult.threshold;
+
+        // Atribui linhas
         let line = 0;
-        let currentTop = glyphs[0].y;
-        const threshold = opts.lineThreshold;
+        let currentTop = glyphs[0]._rawY;
 
         glyphs.forEach((g) => {
-          if (Math.abs(g.y - currentTop) > threshold) {
+          if (Math.abs(g._rawY - currentTop) > threshold) {
             line++;
-            currentTop = g.y;
+            currentTop = g._rawY;
           }
           g.line = line;
         });
 
+        // Agrupa por linha
         const byLine = new Map();
         glyphs.forEach((g) => {
           if (!byLine.has(g.line)) byLine.set(g.line, []);
@@ -659,7 +1092,7 @@
 
         const lines = [];
         byLine.forEach((items, lineNumber) => {
-          items.sort((a, b) => a.x - b.x);
+          items.sort((a, b) => rtl ? (b.x - a.x) : (a.x - b.x));
           const first = items[0];
           const last = items[items.length - 1];
           const maxHeight = items.reduce((m, g) => Math.max(m, g.height), 0);
@@ -679,21 +1112,38 @@
 
         lines.sort((a, b) => a.line - b.line);
 
+        // Limpa dados internos dos glifos
+        glyphs.forEach(g => delete g._rawY);
+
         let overlay = null;
         if (opts.overlay) {
-          overlay = attachOverlay(paragraph, glyphs, lines);
+          overlay = attachOverlay(paragraph, glyphs, lines, opts);
         }
 
-        return { glyphs, lines, overlay };
+        // Metadados sobre a análise
+        const meta = {
+          threshold: thresholdResult,
+          rectStrategy: opts.rectStrategy,
+          coordMode: opts.coordMode,
+          precision: opts.precision,
+          totalRects,
+          rtl,
+          zoomLevel: getZoomLevel()
+        };
+
+        return { glyphs, lines, overlay, meta };
       }
 
+      // Exporta funções
       window.debugJustifiedParagraph = debugJustifiedParagraph;
       window.clearParagraphDebugOverlay = clearOverlay;
+      window.getZoomLevel = getZoomLevel;
+      window.monitorZoom = monitorZoom;
     })();
 
-    // -------------------------
-    // UI / app wiring
-    // -------------------------
+    // =========================================
+    // UI / APP WIRING
+    // =========================================
 
     (function () {
       const sourceText = document.getElementById("sourceText");
@@ -702,22 +1152,48 @@
       const fontSizeValue = document.getElementById("fontSizeValue");
       const textAlignSelect = document.getElementById("textAlign");
       const fontFamilySelect = document.getElementById("fontFamily");
-      const lineThresholdInput = document.getElementById("lineThreshold");
+      const textDirectionSelect = document.getElementById("textDirection");
       const showOverlayInput = document.getElementById("showOverlay");
       const analyzeBtn = document.getElementById("analyzeBtn");
       const linesOutput = document.getElementById("linesOutput");
       const glyphTableBody = document.getElementById("glyphTableBody");
       const summaryLines = document.getElementById("summaryLines");
       const summaryGlyphs = document.getElementById("summaryGlyphs");
+      const summaryRects = document.getElementById("summaryRects");
       const exportBtn = document.getElementById("exportBtn");
+      
+      // Novos controles avançados
+      const precisionModeSelect = document.getElementById("precisionMode");
+      const coordModeSelect = document.getElementById("coordMode");
+      const rectStrategySelect = document.getElementById("rectStrategy");
+      const thresholdModeSelect = document.getElementById("thresholdMode");
+      const lineThresholdInput = document.getElementById("lineThreshold");
+      const manualThresholdLabel = document.getElementById("manualThresholdLabel");
+      const thresholdInfo = document.getElementById("thresholdInfo");
+      const calculatedThreshold = document.getElementById("calculatedThreshold");
+      const autoThresholdBadge = document.getElementById("autoThresholdBadge");
+      const autoThresholdValue = document.getElementById("autoThresholdValue");
+      const coordModeNote = document.getElementById("coordModeNote");
+      const zoomWarning = document.getElementById("zoomWarning");
+      const zoomLevelSpan = document.getElementById("zoomLevel");
 
       let lastGlyphs = [];
       let lastLines = [];
+      let lastMeta = {};
 
       const defaultText =
         "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. " +
         "Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor. " +
         "Cras elementum ultrices diam. Maecenas ligula massa, varius a, semper congue, euismod non, mi.";
+
+      // Monitora zoom
+      const initialZoom = window.monitorZoom((newZoom) => {
+        zoomLevelSpan.textContent = newZoom;
+        zoomWarning.classList.toggle('visible', newZoom !== 100);
+      });
+      
+      zoomLevelSpan.textContent = initialZoom;
+      zoomWarning.classList.toggle('visible', initialZoom !== 100);
 
       function setPreviewFromTextarea() {
         preview.textContent = sourceText.value || "";
@@ -729,6 +1205,19 @@
         fontSizeValue.textContent = size + "px";
         preview.style.textAlign = textAlignSelect.value;
         preview.style.fontFamily = fontFamilySelect.value;
+        preview.style.direction = textDirectionSelect.value;
+      }
+
+      function updateThresholdUI() {
+        const mode = thresholdModeSelect.value;
+        manualThresholdLabel.style.display = mode === 'manual' ? '' : 'none';
+        thresholdInfo.style.display = mode === 'auto' ? '' : 'none';
+        autoThresholdBadge.style.display = mode !== 'manual' ? '' : 'none';
+      }
+
+      function updateCoordModeUI() {
+        const mode = coordModeSelect.value;
+        coordModeNote.textContent = mode === 'viewport' ? '(Viewport)' : '(Relativas ao container)';
       }
 
       function formatLinesSummary(lines) {
@@ -753,23 +1242,38 @@
           glyphTableBody.innerHTML = "";
           summaryLines.textContent = "0 linhas";
           summaryGlyphs.textContent = "0 glifos";
+          summaryRects.textContent = "0 rects";
           lastGlyphs = [];
           lastLines = [];
+          lastMeta = {};
           return;
         }
 
-        const threshold = parseFloat(lineThresholdInput.value) || 2;
-
-        const { glyphs, lines } = window.debugJustifiedParagraph(preview, {
+        const options = {
           overlay: showOverlayInput.checked,
-          lineThreshold: threshold,
-        });
+          lineThreshold: parseFloat(lineThresholdInput.value) || 2,
+          thresholdMode: thresholdModeSelect.value,
+          rectStrategy: rectStrategySelect.value,
+          precision: precisionModeSelect.value,
+          coordMode: coordModeSelect.value
+        };
+
+        const { glyphs, lines, meta } = window.debugJustifiedParagraph(preview, options);
 
         lastGlyphs = glyphs;
         lastLines = lines;
+        lastMeta = meta;
+
+        // Atualiza UI com info de threshold
+        if (meta.threshold) {
+          const t = meta.threshold.threshold;
+          calculatedThreshold.textContent = t.toFixed(2);
+          autoThresholdValue.textContent = t.toFixed(1);
+        }
 
         summaryLines.textContent = `${lines.length} linha${lines.length === 1 ? "" : "s"}`;
         summaryGlyphs.textContent = `${glyphs.length} glifo${glyphs.length === 1 ? "" : "s"}`;
+        summaryRects.textContent = `${meta.totalRects || 0} rects`;
 
         linesOutput.textContent = formatLinesSummary(lines);
 
@@ -799,11 +1303,21 @@
           const tdY = document.createElement("td");
           const tdW = document.createElement("td");
           const tdH = document.createElement("td");
+          const tdRects = document.createElement("td");
 
-          tdX.textContent = g.x.toFixed(2);
-          tdY.textContent = g.y.toFixed(2);
-          tdW.textContent = g.width.toFixed(2);
-          tdH.textContent = g.height.toFixed(2);
+          // Formata conforme precisão
+          const precision = precisionModeSelect.value;
+          const formatVal = (v) => {
+            if (precision === 'integer') return Math.round(v);
+            if (precision === 'full') return v;
+            return typeof v === 'number' ? v.toFixed(2) : v;
+          };
+
+          tdX.textContent = formatVal(g.x);
+          tdY.textContent = formatVal(g.y);
+          tdW.textContent = formatVal(g.width);
+          tdH.textContent = formatVal(g.height);
+          tdRects.textContent = g.rectCount || 1;
 
           tr.appendChild(tdIdx);
           tr.appendChild(tdChar);
@@ -812,6 +1326,7 @@
           tr.appendChild(tdY);
           tr.appendChild(tdW);
           tr.appendChild(tdH);
+          tr.appendChild(tdRects);
 
           frag.appendChild(tr);
         });
@@ -830,10 +1345,21 @@
           fontSize: parseFloat(fontSizeInput.value) || 16,
           textAlign: textAlignSelect.value,
           fontFamily: fontFamilySelect.value,
-          lineThreshold: parseFloat(lineThresholdInput.value) || 2,
+          direction: textDirectionSelect.value,
+          // Configurações avançadas
+          precision: precisionModeSelect.value,
+          coordMode: coordModeSelect.value,
+          rectStrategy: rectStrategySelect.value,
+          thresholdMode: thresholdModeSelect.value,
+          lineThreshold: lastMeta.threshold ? lastMeta.threshold.threshold : parseFloat(lineThresholdInput.value),
+          thresholdMethod: lastMeta.threshold ? lastMeta.threshold.method : 'manual',
+          // Stats
           overlay: showOverlayInput.checked,
           glyphCount: lastGlyphs.length,
           lineCount: lastLines.length,
+          totalRects: lastMeta.totalRects || 0,
+          rtl: lastMeta.rtl || false,
+          zoomLevel: lastMeta.zoomLevel || 100,
           generatedAt: new Date().toISOString(),
         };
 
@@ -850,6 +1376,8 @@
           nodeIndex: g.nodeIndex,
           startOffset: g.startOffset,
           endOffset: g.endOffset,
+          rectCount: g.rectCount,
+          allRects: g.allRects || null
         }));
 
         const exportLines = lastLines.map((line) => ({
@@ -881,10 +1409,14 @@
         URL.revokeObjectURL(url);
       }
 
+      // Inicialização
       sourceText.value = defaultText;
       setPreviewFromTextarea();
       applyStyles();
+      updateThresholdUI();
+      updateCoordModeUI();
 
+      // Event listeners básicos
       fontSizeInput.addEventListener("input", () => {
         applyStyles();
         analyze();
@@ -892,16 +1424,31 @@
 
       textAlignSelect.addEventListener("change", analyze);
       fontFamilySelect.addEventListener("change", analyze);
-      lineThresholdInput.addEventListener("change", analyze);
+      textDirectionSelect.addEventListener("change", analyze);
       showOverlayInput.addEventListener("change", analyze);
 
-      sourceText.addEventListener("input", () => {
-        setPreviewFromTextarea();
-      });
+      sourceText.addEventListener("input", setPreviewFromTextarea);
 
       analyzeBtn.addEventListener("click", analyze);
       exportBtn.addEventListener("click", exportJson);
 
+      // Event listeners avançados
+      thresholdModeSelect.addEventListener("change", () => {
+        updateThresholdUI();
+        analyze();
+      });
+
+      lineThresholdInput.addEventListener("change", analyze);
+      precisionModeSelect.addEventListener("change", analyze);
+      
+      coordModeSelect.addEventListener("change", () => {
+        updateCoordModeUI();
+        analyze();
+      });
+      
+      rectStrategySelect.addEventListener("change", analyze);
+
+      // Análise inicial
       window.addEventListener("load", () => {
         setTimeout(analyze, 50);
       });
