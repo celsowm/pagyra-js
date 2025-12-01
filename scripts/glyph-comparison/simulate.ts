@@ -67,6 +67,14 @@ interface PdfLineSummary {
   width: number;
   start: number;
   end: number;
+  isLastLine: boolean;
+}
+
+interface PdfRunInfo {
+  lineIndex: number;
+  x: number;
+  advanceWidth: number;
+  isLastLine: boolean;
 }
 
 const DEFAULT_TEXT =
@@ -418,7 +426,8 @@ async function capturePdfMeasurement(options: CompareOptions): Promise<PdfMeasur
 
   const runs = collectRuns(prepared.renderTree.root);
   const glyphs = runs.flatMap(convertRunToGlyphEntries);
-  const lines = summarizePdfLines(glyphs);
+  const runInfos = runs.map(extractRunInfo).filter((r): r is PdfRunInfo => r !== null);
+  const lines = summarizePdfLinesFromRuns(runInfos);
 
   const firstRunWithFont = runs.find((r: any) => r._debugFontName);
   const usedFont = (firstRunWithFont as any)?._debugFontName ?? "Unknown Font";
@@ -460,21 +469,65 @@ function convertRunToGlyphEntries(run: Run): GlyphEntry[] {
   });
 }
 
-function summarizePdfLines(glyphs: GlyphEntry[]): PdfLineSummary[] {
-  const grouped = new Map<number, { start: number; end: number }>();
-  for (const glyph of glyphs) {
-    const current = grouped.get(glyph.line) ?? { start: Number.POSITIVE_INFINITY, end: Number.NEGATIVE_INFINITY };
-    current.start = Math.min(current.start, glyph.x);
-    current.end = Math.max(current.end, glyph.x + glyph.width);
-    grouped.set(glyph.line, current);
+function extractRunInfo(run: Run): PdfRunInfo | null {
+  if (typeof run.lineIndex !== 'number') {
+    return null;
   }
+  return {
+    lineIndex: run.lineIndex,
+    x: run.lineMatrix?.e ?? 0,
+    advanceWidth: run.advanceWidth ?? 0,
+    isLastLine: run.isLastLine ?? false,
+  };
+}
+
+function summarizePdfLinesFromRuns(runs: PdfRunInfo[]): PdfLineSummary[] {
+  const grouped = new Map<number, { runs: PdfRunInfo[]; isLastLine: boolean }>();
+
+  for (const run of runs) {
+    const current = grouped.get(run.lineIndex) ?? { runs: [], isLastLine: false };
+    current.runs.push(run);
+    current.isLastLine = run.isLastLine;
+    grouped.set(run.lineIndex, current);
+  }
+
   return Array.from(grouped.entries())
-    .map(([line, rect]) => ({
-      line,
-      start: rect.start === Infinity ? 0 : rect.start,
-      end: rect.end === -Infinity ? 0 : rect.end,
-      width: Math.max(0, rect.end - rect.start),
-    }))
+    .map(([line, data]) => {
+      // Sort runs by x position
+      const sortedRuns = data.runs.sort((a, b) => a.x - b.x);
+
+      if (sortedRuns.length === 0) {
+        return {
+          line,
+          start: 0,
+          end: 0,
+          width: 0,
+          isLastLine: data.isLastLine,
+        };
+      }
+
+      const start = sortedRuns[0].x;
+      // Calculate end as sum of all run widths from the start position
+      const totalWidth = sortedRuns.reduce((sum, run) => sum + run.advanceWidth, 0);
+      const end = start + totalWidth;
+
+      // Debug: log run details for this line
+      if (process.env.DEBUG_RUNS) {
+        console.log(`  Line ${line} (${data.isLastLine ? 'last' : 'justified'}):`, sortedRuns.map(r => ({
+          x: r.x.toFixed(2),
+          advanceWidth: r.advanceWidth.toFixed(2),
+          isLastLine: r.isLastLine
+        })));
+      }
+
+      return {
+        line,
+        start,
+        end,
+        width: totalWidth,
+        isLastLine: data.isLastLine,
+      };
+    })
     .sort((a, b) => a.line - b.line);
 }
 
@@ -552,31 +605,34 @@ function reportComparison(browser: BrowserMeasurement, pdf: PdfMeasurement) {
   const lineDiffs = combineLineWidths(browser.lines, pdf.lines);
   console.log("\nLine width comparison:");
   for (const lineDiff of lineDiffs) {
+    const justifyStatus = lineDiff.isLastLine ? "(last line, not justified)" : "(justified)";
     console.log(
-      `  line ${lineDiff.line}: browser ${lineDiff.browserWidth.toFixed(2)} px, pdf ${lineDiff.pdfWidth.toFixed(2)} px (delta ${lineDiff.delta.toFixed(2)} px)`,
+      `  line ${lineDiff.line}: browser ${lineDiff.browserWidth.toFixed(2)} px, pdf ${lineDiff.pdfWidth.toFixed(2)} px (delta ${lineDiff.delta.toFixed(2)} px) ${justifyStatus}`,
     );
   }
 }
 
 function combineLineWidths(browserLines: BrowserLine[], pdfLines: PdfLineSummary[]) {
-  const merged = new Map<number, { browserWidth: number; pdfWidth: number }>();
+  const merged = new Map<number, { browserWidth: number; pdfWidth: number; isLastLine: boolean }>();
   for (const line of browserLines) {
-    const entry = merged.get(line.line) ?? { browserWidth: 0, pdfWidth: 0 };
+    const entry = merged.get(line.line) ?? { browserWidth: 0, pdfWidth: 0, isLastLine: false };
     entry.browserWidth = line.width;
     merged.set(line.line, entry);
   }
   for (const line of pdfLines) {
-    const entry = merged.get(line.line) ?? { browserWidth: 0, pdfWidth: 0 };
+    const entry = merged.get(line.line) ?? { browserWidth: 0, pdfWidth: 0, isLastLine: false };
     entry.pdfWidth = line.width;
+    entry.isLastLine = line.isLastLine;
     merged.set(line.line, entry);
   }
   return Array.from(merged.entries())
     .sort((a, b) => a[0] - b[0])
-    .map(([line, { browserWidth, pdfWidth }]) => ({
+    .map(([line, { browserWidth, pdfWidth, isLastLine }]) => ({
       line,
       browserWidth,
       pdfWidth,
       delta: pdfWidth - browserWidth,
+      isLastLine,
     }));
 }
 
