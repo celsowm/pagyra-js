@@ -46,6 +46,7 @@ interface GlyphEntry {
 interface BrowserMeasurement {
   glyphs: GlyphEntry[];
   lines: BrowserLine[];
+  usedFont: string;
 }
 
 interface BrowserLine {
@@ -58,6 +59,7 @@ interface BrowserLine {
 interface PdfMeasurement {
   glyphs: GlyphEntry[];
   lines: PdfLineSummary[];
+  usedFont: string;
 }
 
 interface PdfLineSummary {
@@ -329,8 +331,12 @@ async function captureBrowserMeasurement(options: CompareOptions): Promise<Brows
           lineThreshold: 2,
         });
 
+        const computedStyle = window.getComputedStyle(container);
+        const usedFont = computedStyle.fontFamily;
+
         container.remove();
-        return measurement;
+
+        return { ...measurement, usedFont };
       })(cfg);
     `;
 
@@ -414,7 +420,10 @@ async function capturePdfMeasurement(options: CompareOptions): Promise<PdfMeasur
   const glyphs = runs.flatMap(convertRunToGlyphEntries);
   const lines = summarizePdfLines(glyphs);
 
-  return { glyphs, lines };
+  const firstRunWithFont = runs.find((r: any) => r._debugFontName);
+  const usedFont = (firstRunWithFont as any)?._debugFontName ?? "Unknown Font";
+
+  return { glyphs, lines, usedFont };
 }
 
 function collectRuns(box: RenderBox): Run[] {
@@ -490,6 +499,9 @@ async function enrichRunGlyphData(run: Run, fontResolver: FontRegistryResolver):
   }
   try {
     const font = await fontResolver.resolve(run.fontFamily, run.fontWeight, run.fontStyle);
+
+    (run as any)._debugFontName = (font as any).fullName ?? (font as any).familyName ?? run.fontFamily;
+
     const glyphRun = computeGlyphRun(font, run.text, run.fontSize, run.letterSpacing ?? 0);
     applyWordSpacingToGlyphRun(glyphRun, run.text, run.wordSpacing);
     run.glyphs = glyphRun;
@@ -503,6 +515,10 @@ async function enrichRunGlyphData(run: Run, fontResolver: FontRegistryResolver):
 // ----------------------------------------
 
 function reportComparison(browser: BrowserMeasurement, pdf: PdfMeasurement) {
+  console.log(`\nSources:`);
+  console.log(`  Browser resolved font: "${browser.usedFont}"`);
+  console.log(`  PDF pipeline resolved font: "${pdf.usedFont}"`);
+
   const count = Math.min(browser.glyphs.length, pdf.glyphs.length);
   console.log(`\nGlyph counts -> browser: ${browser.glyphs.length}, pdf: ${pdf.glyphs.length}`);
 
