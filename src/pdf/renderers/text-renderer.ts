@@ -16,6 +16,8 @@ import type { LinearGradient, RadialGradient } from "../../css/parsers/gradient-
 import { transformForRect } from "./shape-utils.js";
 import type { GlyphRun } from "../../layout/text-run.js";
 import type { UnifiedFont } from "../../fonts/types.js";
+import type { Matrix } from "../../geometry/matrix.js";
+import { svgMatrixToPdf } from "../transform-adapter.js";
 
 const PINK = "\x1b[38;5;205m";
 const RESET_COLOR = "\x1b[0m";
@@ -128,22 +130,13 @@ export class TextRenderer {
       glyphCount: glyphRun.glyphIds.length,
     });
 
-    const Tm = run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
-    if (!run.lineMatrix) {
-      log("paint", "debug", "Run provided without lineMatrix, using identity fallback", {
-        text: run.text.slice(0, 32),
-        fontFamily: run.fontFamily,
-      });
-    }
-    const localBaseline = Tm.f - this.coordinateTransformer.pageOffsetPx;
-    const y = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localBaseline);
-    const x = this.coordinateTransformer.convertPxToPt(Tm.e);
+    const textMatrix = buildPdfTextMatrix(run, this.coordinateTransformer);
 
     log("paint", "debug", "drawing text run with glyphs", {
       text: run.text.slice(0, 32),
       glyphIds: glyphRun.glyphIds.slice(0, 10),
       fontSizePt,
-      x, y
+      matrix: textMatrix,
     });
 
     // Normalize text for features like small-caps (match legacy behavior for shadows)
@@ -164,7 +157,7 @@ export class TextRenderer {
         run,
         font,
         encoded,
-        Tm,
+        Tm: run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 },
         fontSizePt,
         fontSizePx: run.fontSize,
         wordSpacingPt,
@@ -206,13 +199,13 @@ export class TextRenderer {
         const glyphPatternCommands = drawGlyphRun(
           glyphRun,
           subsetResource.subset,
-          x,
-          y,
+          0,
+          0,
           fontSizePt,
           color,
           this.graphicsStateManager,
           wordSpacingPt,
-          { skipColor: true },
+          { skipColor: true, tm: textMatrix },
         );
         if (glyphPatternCommands.length > 0) {
           this.commands.push(...usePattern, ...glyphPatternCommands, "Q");
@@ -227,12 +220,13 @@ export class TextRenderer {
     const glyphCommands = drawGlyphRun(
       glyphRun,
       subsetResource.subset,
-      x,
-      y,
+      0,
+      0,
       fontSizePt,
       color,
       this.graphicsStateManager,
-      wordSpacingPt
+      wordSpacingPt,
+      { tm: textMatrix }
     );
     this.commands.push(...glyphCommands);
 
@@ -294,6 +288,53 @@ export class TextRenderer {
       patterns: new Map(this.patterns),
     };
   }
+}
+
+function buildPdfTextMatrix(run: Run, transformer: CoordinateTransformer): Matrix {
+  const base = run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+  if (!run.lineMatrix) {
+    log("paint", "debug", "Run provided without lineMatrix, using identity fallback", {
+      text: run.text.slice(0, 32),
+      fontFamily: run.fontFamily,
+    });
+  }
+  const offsetPx = transformer.pageOffsetPx;
+
+  // Normalize to page origin (top-left), removing any page offset.
+  const local: Matrix = {
+    a: base.a,
+    b: base.b,
+    c: base.c,
+    d: base.d,
+    e: base.e,
+    f: base.f - offsetPx,
+  };
+
+  const hasLinear =
+    Math.abs(local.a - 1) > 1e-6 ||
+    Math.abs(local.b) > 1e-6 ||
+    Math.abs(local.c) > 1e-6 ||
+    Math.abs(local.d - 1) > 1e-6;
+
+  // Fast path: no skew/rotate/scale -> just convert translation.
+  if (!hasLinear) {
+    return {
+      a: 1, b: 0, c: 0, d: 1,
+      e: transformer.convertPxToPt(local.e),
+      f: transformer.pageHeightPt - transformer.convertPxToPt(local.f),
+    };
+  }
+
+  // Full path: map entire matrix from CSS (y-down) to PDF (y-up), then shift to bottom-left origin.
+  const pdfPx = svgMatrixToPdf(local) ?? { a: 1, b: 0, c: 0, d: 1, e: local.e, f: local.f };
+  return {
+    a: pdfPx.a,
+    b: pdfPx.b,
+    c: pdfPx.c,
+    d: pdfPx.d,
+    e: transformer.convertPxToPt(pdfPx.e),
+    f: transformer.convertPxToPt(pdfPx.f + transformer.pageHeightPx),
+  };
 }
 
 function computeGlyphRunFromText(

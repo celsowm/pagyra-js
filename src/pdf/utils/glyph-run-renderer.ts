@@ -8,6 +8,8 @@ export interface DrawGlyphRunOptions {
   skipColor?: boolean;
   textRenderingMode?: number;
   afterTextCommands?: string[];
+  /** Optional text matrix (Tm) to apply instead of simple translation. Values must be in PDF user space (points). */
+  tm?: { a: number; b: number; c: number; d: number; e: number; f: number };
 }
 
 /**
@@ -33,7 +35,14 @@ export function drawGlyphRun(
     // Begin text
     commands.push("BT");
     commands.push(`${subset.name} ${formatNumber(fontSizePt)} Tf`);
-    commands.push(`${formatNumber(xPt)} ${formatNumber(yPt)} Td`);
+    if (options?.tm) {
+      const { a, b, c, d, e, f } = options.tm;
+      commands.push(
+        `${formatNumber(a)} ${formatNumber(b)} ${formatNumber(c)} ${formatNumber(d)} ${formatNumber(e)} ${formatNumber(f)} Tm`,
+      );
+    } else {
+      commands.push(`${formatNumber(xPt)} ${formatNumber(yPt)} Td`);
+    }
 
     const appliedWordSpacing = wordSpacingPt !== 0;
     if (appliedWordSpacing) {
