@@ -1,6 +1,6 @@
 # Pagyra-js
 
-A TypeScript-based HTML to PDF converter library with comprehensive CSS support and advanced layout capabilities.
+A TypeScript-based HTML to PDF converter library with comprehensive CSS 3 support and advanced layout capabilities.
 
 ## Features
 
