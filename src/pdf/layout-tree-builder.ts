@@ -6,12 +6,10 @@ import { log } from "../logging/debug.js";
 import {
   type LayoutTree,
   type RenderBox,
-  type Rect,
   type HeaderFooterHTML,
   type StyleSheets,
   type Positioning,
   type RGBA,
-  type ImageRef,
   type BorderStyles,
   type Background,
   NodeKind,

@@ -1,6 +1,6 @@
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { log, type LogLevel } from "../../logging/debug.js";
+import { log } from "../../logging/debug.js";
 import type { FontConfig, FontFaceDef } from "../../types/fonts.js";
 import type { Environment } from "../../environment/environment.js";
 import { NodeEnvironment } from "../../environment/node-environment.js";

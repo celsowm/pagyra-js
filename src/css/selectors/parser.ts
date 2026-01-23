@@ -1,4 +1,4 @@
-﻿import type { Part, Simple, AttrCond, AttrOp, Pseudo } from "./types.js";
+import type { Part, Simple, AttrCond, AttrOp, Pseudo } from "./types.js";
 
 /**
  * Parser leve de seletor CSS → cadeia de Parts (compostos) com combinador à esquerda.
@@ -53,21 +53,21 @@ export function parseSelector(selector: string): Part[] | null {
     while (rest.length) {
       const ch = rest[0];
       if (ch === '#') {
-        const m = /^#[^.#\[\]:\s>+~]+/.exec(rest);
+        const m = /^#[^.#[-]:\s>+~]+/.exec(rest);
         if (!m) break;
         id = m[0].slice(1);
         rest = rest.slice(m[0].length);
         continue;
       }
       if (ch === '.') {
-        const m = /^\.[^.#\[\]:\s>+~]+/.exec(rest);
+        const m = /^\.[^.#[-]:\s>+~]+/.exec(rest);
         if (!m) break;
         classes.push(m[0].slice(1));
         rest = rest.slice(m[0].length);
         continue;
       }
       if (ch === '[') {
-        const m = /^\[(\s*[-\w:]+\s*(?:([~|^$*]?=)\s*(?:"([^"]*)"|'([^']*)'|([^\]\s]+))\s*)?)\]/.exec(rest);
+        const m = /^\[(\s*[-\w:]+\s*(?:([~|^$*]?=)\s*(?:"([^"]*)"|'([^']*)'|([^\]-\s]+))\s*)?)\]/.exec(rest);
         if (!m) break;
         const name = m[1].match(/^[-\w:]+/)![0];
         const op = (m[2] as AttrOp) ?? 'exists';

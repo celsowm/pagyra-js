@@ -7,6 +7,7 @@ import type {
   TextPaintOptions,
   TextMatrix,
   StrokeOptions,
+  RenderBox,
 } from "./types.js";
 import type { LinearGradient, RadialGradient } from "../css/parsers/gradient-parser.js";
 import type { FontRegistry } from "./font/font-registry.js";
@@ -22,6 +23,7 @@ import { TransformScopeManager } from "./utils/transform-scope-manager.js";
 import { ResultCombiner } from "./utils/result-combiner.js";
 import { globalGlyphAtlas } from "./font/glyph-atlas.js";
 import type { Environment } from "../environment/environment.js";
+import { defaultFormRendererFactory } from "./renderers/form/factory.js";
 
 export interface PainterResult {
   readonly content: string;
@@ -199,6 +201,20 @@ export class PagePainter {
   convertPxToPt(value: number): number {
     return this.coordinateTransformer.convertPxToPt(value);
   }
+
+  renderFormControl(box: RenderBox): void {
+    const formRenderer = defaultFormRendererFactory.getRenderer(box);
+    const context = {
+      coordinateTransformer: this.coordinateTransformer,
+      graphicsStateManager: this.graphicsStateManager,
+      fontResolver: {
+        resolveFont: (family: string, _weight: number, _style: string) => family,
+      },
+    };
+    const result = formRenderer.render(box, context);
+    this.shapeRenderer.pushRawCommands(result.commands);
+  }
+
 
   beginOpacityScope(opacity: number): void {
     if (opacity >= 1) return;

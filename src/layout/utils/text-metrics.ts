@@ -5,6 +5,7 @@ import type { TtfFontMetrics } from "../../types/fonts.js";
 import { normalizeFontWeight } from "../../css/font-weight.js";
 import { base14Widths } from "../../pdf/font/base14-widths.js";
 import { applyTextTransform } from "../../text/text-transform.js";
+import { hasFontVariantNumeric } from "../../css/properties/typography.js";
 
 // Font family pattern for monospace detection
 const MONO_FAMILY_PATTERN = /(mono|code|courier|console)/i;
@@ -302,13 +303,84 @@ export function measureTextWithGlyphs(
   let glyphCount = 0;
   let spaceCount = 0;
 
+  // Check for tabular-nums feature
+  const fontVariantNumeric = style.fontVariantNumeric ?? [];
+  const useTabularNums = hasFontVariantNumeric(fontVariantNumeric, "tabular-nums");
+  const useSlashedZero = hasFontVariantNumeric(fontVariantNumeric, "slashed-zero");
+
+  // For tabular-nums, compute max digit width
+  let maxDigitWidth = 0;
+  if (useTabularNums) {
+    for (let d = 0; d <= 9; d++) {
+      const codePoint = d + 0x30; // '0' is 0x30
+      const glyphId = fontMetrics.cmap.getGlyphId(codePoint);
+      const glyphMetrics = fontMetrics.glyphMetrics.get(glyphId);
+      if (glyphMetrics) {
+        maxDigitWidth = Math.max(maxDigitWidth, glyphMetrics.advanceWidth);
+      }
+    }
+  }
+
+  // For slashed-zero, the width would be needed for special rendering
+  // This is reserved for future implementation when slashed-zero rendering is added
+
   for (const char of text) {
     const codePoint = char.codePointAt(0);
     if (codePoint === undefined) {
       continue;
     }
-    const glyphId = fontMetrics.cmap.getGlyphId(codePoint);
-    const glyphMetrics = fontMetrics.glyphMetrics.get(glyphId);
+
+    let glyphId = fontMetrics.cmap.getGlyphId(codePoint);
+    let glyphMetrics = fontMetrics.glyphMetrics.get(glyphId);
+
+    // Handle tabular-nums: use max digit width for all digits
+    if (useTabularNums && char >= "0" && char <= "9") {
+      const digitCodePoint = char.codePointAt(0);
+      if (digitCodePoint === undefined) {
+        // Fall back to default
+        if (glyphMetrics) {
+          totalWidth += glyphMetrics.advanceWidth;
+        }
+        if (prevGid !== null && kerning) {
+          const kernAdjust = kerning.get(prevGid)?.get(glyphId) ?? 0;
+          if (kernAdjust !== 0) {
+            totalWidth += kernAdjust;
+          }
+        }
+        prevGid = glyphId;
+        glyphCount += 1;
+        continue;
+      }
+      const digitGlyphId = fontMetrics.cmap.getGlyphId(digitCodePoint);
+      const digitGlyphMetrics = fontMetrics.glyphMetrics.get(digitGlyphId);
+      if (digitGlyphMetrics) {
+        totalWidth += maxDigitWidth;
+        prevGid = digitGlyphId;
+        glyphCount += 1;
+        continue;
+      } else {
+        // Fall back to default width calculation for this digit
+        if (glyphMetrics) {
+          totalWidth += glyphMetrics.advanceWidth;
+        }
+        if (prevGid !== null && kerning) {
+          const kernAdjust = kerning.get(prevGid)?.get(glyphId) ?? 0;
+          if (kernAdjust !== 0) {
+            totalWidth += kernAdjust;
+          }
+        }
+        prevGid = glyphId;
+        glyphCount += 1;
+        continue;
+      }
+    }
+
+    // Handle slashed-zero: add diagonal stroke effect (simulated by using zero width)
+    if (useSlashedZero && char === "0") {
+      // For now, we'll use the zero width as-is
+      // In a full implementation, we'd render a line through the zero
+    }
+
     if (glyphMetrics) {
       totalWidth += glyphMetrics.advanceWidth;
     }

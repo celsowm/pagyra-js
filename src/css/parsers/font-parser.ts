@@ -3,9 +3,21 @@
 import { parseFontWeightValue } from "../font-weight.js";
 import type { StyleAccumulator } from "../style.js";
 import type { UnitParsers } from "../../units/units.js";
+import { parseFontVariantNumeric as cssParseFontVariantNumeric } from "../properties/typography.js";
 
-export function parseFontFamily(value: string, target: StyleAccumulator): void {
-  target.fontFamily = value;
+export function parseFontVariant(value: string, target: StyleAccumulator): void {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "inherit") {
+    return;
+  }
+
+  if (normalized === "normal" || normalized === "small-caps") {
+    target.fontVariant = normalized;
+  }
+}
+
+export function parseFontVariantNumeric(value: string, target: StyleAccumulator): void {
+  target.fontVariantNumeric = cssParseFontVariantNumeric(value);
 }
 
 export function parseFontStyle(value: string, target: StyleAccumulator): void {
@@ -27,14 +39,6 @@ export function parseFontWeight(value: string, target: StyleAccumulator, _units:
   }
 }
 
-export function parseFontVariant(value: string, target: StyleAccumulator): void {
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "inherit") {
-    // Let inheritance fall back to parent; no override needed.
-    return;
-  }
-
-  if (normalized === "normal" || normalized === "small-caps") {
-    target.fontVariant = normalized;
-  }
+export function parseFontFamily(value: string, target: StyleAccumulator): void {
+  target.fontFamily = value;
 }

@@ -40,7 +40,7 @@ export interface UnitCtx {
   };
 }
 
-export function makeUnitParsers(ctx: UnitCtx) {
+export function makeUnitParsers(_ctx: UnitCtx) {
   return {
     parseLength: (value: string) => parseLength(value),
     parseLengthOrPercent: (value: string) => parseLengthOrPercent(value),

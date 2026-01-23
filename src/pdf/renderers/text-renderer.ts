@@ -5,7 +5,7 @@ import { log } from "../../logging/debug.js";
 import { CoordinateTransformer } from "../utils/coordinate-transformer.js";
 import type { ImageRenderer } from "./image-renderer.js";
 import type { GraphicsStateManager } from "./graphics-state-manager.js";
-import { fillColorCommand, formatNumber } from "./text-renderer-utils.js";
+import { formatNumber } from "./text-renderer-utils.js";
 import { TextShadowRenderer } from "./text-shadow-renderer.js";
 import { TextDecorationRenderer } from "./text-decoration-renderer.js";
 import { TextFontResolver } from "./text-font-resolver.js";

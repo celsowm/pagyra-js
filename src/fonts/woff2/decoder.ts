@@ -645,7 +645,7 @@ function reconstructGlyfTable(
       const instructionSize = read255UShort(glyphStream);
       const bbox = haveBbox ? bboxStream.readBytes(8) : null;
 
-      const baseSize = 12 + 2 * nContours + instructionSize;
+      // const _baseSize = 12 + 2 * nContours + instructionSize;
       const ptsBuf = storePoints(
         points,
         nContours,

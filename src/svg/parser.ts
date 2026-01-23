@@ -33,8 +33,7 @@ export interface ParseSvgOptions {
 }
 
 /** @deprecated Use SvgParseContext from parser-registry.ts */
-interface SvgParseContext extends ImportedSvgParseContext { }
-export type { SvgParseContext as SvgParseContext };
+type SvgParseContext = ImportedSvgParseContext;
 
 export function parseSvg(element: Element, options: ParseSvgOptions = {}): SvgRootNode | null {
   const warn = options.warn ?? (() => { });

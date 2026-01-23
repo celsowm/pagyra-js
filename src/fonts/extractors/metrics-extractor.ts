@@ -1,4 +1,4 @@
-import type { TtfMetrics, GlyphMetrics, CmapData, GlyphOutlineCmd } from '../../types/fonts.js';
+import type { TtfMetrics, GlyphMetrics, CmapData } from '../../types/fonts.js';
 import type { FontTableData } from '../parsers/base-parser.js';
 
 /**
@@ -53,7 +53,6 @@ export class Woff2MetricsExtractor implements MetricsExtractor {
     const headTable = tables['head'];
     const hheaTable = tables['hhea'];
     const maxpTable = tables['maxp'];
-    const nameTable = tables['name'];
     const os2Table = tables['OS/2'];
 
     if (!headTable || !hheaTable || !maxpTable) {
@@ -190,7 +189,6 @@ export class Woff2MetricsExtractor implements MetricsExtractor {
     const cmap = new DataView(cmapTable.buffer, cmapTable.byteOffset, cmapTable.length);
     
     // Parse cmap table structure
-    const version = cmap.getUint16(0, false);
     const numTables = cmap.getUint16(2, false);
     
     let bestSubtable: { offset: number; length: number; format: number } | null = null;
@@ -254,14 +252,9 @@ export class Woff2MetricsExtractor implements MetricsExtractor {
       throw new Error(`Expected format 4, got ${format}`);
     }
     
-    const length = cmap.getUint16(offset + 2, false);
-    const language = cmap.getUint16(offset + 4, false); // Should be 0 for Unicode
+    // const length = cmap.getUint16(offset + 2, false);
     const segCountX2 = cmap.getUint16(offset + 6, false);
     const segCount = segCountX2 / 2;
-    
-    const searchRange = cmap.getUint16(offset + 8, false);
-    const entrySelector = cmap.getUint16(offset + 10, false);
-    const rangeShift = cmap.getUint16(offset + 12, false);
     
     // Find the offset to endCodes array
     const endCodesOffset = offset + 14;
@@ -269,7 +262,7 @@ export class Woff2MetricsExtractor implements MetricsExtractor {
     const idDeltaOffset = startCodesOffset + segCount * 2;
     const idRangeOffsetOffset = idDeltaOffset + segCount * 2;
     
-    const glyphIdArrayOffset = idRangeOffsetOffset + segCount * 2;
+    // const glyphIdArrayOffset = idRangeOffsetOffset + segCount * 2;
     
     const unicodeMap = new Map<number, number>();
     
@@ -319,9 +312,8 @@ export class Woff2MetricsExtractor implements MetricsExtractor {
       throw new Error(`Expected format 12, got ${format}`);
     }
     
-    const reserved = cmap.getUint16(offset + 2, false);
-    const length = cmap.getUint32(offset + 4, false);
-    const language = cmap.getUint32(offset + 8, false);
+    // const length = cmap.getUint32(offset + 4, false);
+    // const language = cmap.getUint32(offset + 8, false);
     const nGroups = cmap.getUint32(offset + 12, false);
     
     const unicodeMap = new Map<number, number>();

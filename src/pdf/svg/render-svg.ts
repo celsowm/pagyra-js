@@ -1,5 +1,5 @@
 import type { PagePainter } from "../page-painter.js";
-import type { RenderBox } from "../types.js";
+import type { RenderBox, ImageRef } from "../types.js";
 import type { SvgNode, SvgRootNode, SvgImageNode } from "../../svg/types.js";
 import {
   renderCircle,
@@ -37,10 +37,12 @@ export interface SvgRenderContext {
   resourceBaseDir?: string;
   assetRootDir?: string;
   environment?: Environment;
+  // defs map populated during rendering
+  defs?: SvgDefsMap;
 }
 
 // Map of defs by id (gradients, clipPaths, etc.) built once per svg render
-export type SvgDefsMap = Map<string, any>;
+export type SvgDefsMap = Map<string, SvgNode>;
 
 export async function renderSvgBox(painter: PagePainter, box: RenderBox, environment?: Environment): Promise<void> {
   const svgData = extractSvgCustomData(box);
@@ -107,33 +109,31 @@ export async function renderSvgBox(painter: PagePainter, box: RenderBox, environ
   };
 
   // Build defs map (id -> node) so paint servers like gradients can be resolved during rendering
-  const defs = new Map<string, any>();
+  const defs: SvgDefsMap = new Map();
   collectDefs(root, defs);
-  // Attach to context for downstream use
-  (context as any).defs = defs;
+  context.defs = defs;
 
   // If convertDomNode attached resource roots into the customData for this SVG, copy them to context
-  if ((svgData as any).resourceBaseDir) {
-    context.resourceBaseDir = (svgData as any).resourceBaseDir as string;
+  if (svgData.resourceBaseDir) {
+    context.resourceBaseDir = svgData.resourceBaseDir;
   }
-  if ((svgData as any).assetRootDir) {
-    context.assetRootDir = (svgData as any).assetRootDir as string;
+  if (svgData.assetRootDir) {
+    context.assetRootDir = svgData.assetRootDir;
   }
 
   const baseStyle = createDefaultStyle();
   await renderNode(root, baseStyle, context);
 }
 
-function collectDefs(node: SvgNode, map: Map<string, any>): void {
+function collectDefs(node: SvgNode, map: SvgDefsMap): void {
   if (!node) return;
   // If node has an id, register it
-  const id = (node as any).id;
-  if (id && typeof id === "string") {
-    map.set(id, node);
+  if (node.id && typeof node.id === "string") {
+    map.set(node.id, node);
   }
   // Recurse into children for container nodes
-  if ((node as any).children && Array.isArray((node as any).children)) {
-    for (const child of (node as any).children) {
+  if ("children" in node && Array.isArray(node.children)) {
+    for (const child of node.children) {
       collectDefs(child, map);
     }
   }
@@ -224,6 +224,7 @@ async function renderImage(node: SvgImageNode, _style: SvgStyle, context: SvgRen
   }
 
   let imageInfo;
+  let resolvedHref = hrefAttr;
   const imageService = ImageService.getInstance(context.environment);
   try {
     if (hrefAttr.startsWith("data:")) {
@@ -256,9 +257,8 @@ async function renderImage(node: SvgImageNode, _style: SvgStyle, context: SvgRen
       const base = hrefAttr.startsWith('/')
         ? (context.assetRootDir ?? context.resourceBaseDir)
         : (context.resourceBaseDir ?? context.assetRootDir);
-      const resolved = resolver(hrefAttr, base);
-      imageInfo = await imageService.loadImage(resolved);
-      (node as any)._resolvedHref = resolved;
+      resolvedHref = resolver(hrefAttr, base);
+      imageInfo = await imageService.loadImage(resolvedHref);
     }
   } catch (err) {
     console.debug("Failed to load SVG image", hrefAttr, err instanceof Error ? err.message : err);
@@ -267,8 +267,8 @@ async function renderImage(node: SvgImageNode, _style: SvgStyle, context: SvgRen
 
   if (!imageInfo) return;
 
-  const drawWidth = Number.isFinite(node.width as number) ? (node.width as number) : imageInfo.width;
-  const drawHeight = Number.isFinite(node.height as number) ? (node.height as number) : imageInfo.height;
+  const drawWidth = Number.isFinite(node.width) ? node.width! : imageInfo.width;
+  const drawHeight = Number.isFinite(node.height) ? node.height! : imageInfo.height;
 
   const p1 = mapSvgPoint(Number(node.x ?? 0), Number(node.y ?? 0), context);
   const p2 = mapSvgPoint(Number(node.x ?? 0) + drawWidth, Number(node.y ?? 0) + drawHeight, context);
@@ -278,18 +278,18 @@ async function renderImage(node: SvgImageNode, _style: SvgStyle, context: SvgRen
 
   const rect = { x: p1.x, y: p1.y, width: p2.x - p1.x, height: p2.y - p1.y };
 
-  const imageRef = {
-    src: (node as any)._resolvedHref ?? hrefAttr,
+  const imageRef: ImageRef = {
+    src: resolvedHref,
     width: imageInfo.width,
     height: imageInfo.height,
     format: imageInfo.format,
     channels: imageInfo.channels,
     bitsPerComponent: imageInfo.bitsPerChannel,
     data: imageInfo.data,
-  } as const;
+  };
 
   try {
-    context.painter.drawImage(imageRef as any, rect);
+    context.painter.drawImage(imageRef, rect);
   } catch (err) {
     console.debug("Failed to draw image in SVG", hrefAttr, err instanceof Error ? err.message : err);
   }

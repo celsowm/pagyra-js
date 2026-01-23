@@ -102,7 +102,7 @@ export interface ShadowLayer {
   color: RGBA;
 }
 
-export interface TextShadowLayer extends ShadowLayer { }
+export type TextShadowLayer = ShadowLayer;
 
 export enum Overflow {
   Visible = "visible",

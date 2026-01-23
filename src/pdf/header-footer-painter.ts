@@ -1,14 +1,13 @@
-import type { RenderBox, TextPaintOptions, PageSize, Rect } from "./types.js";
+import type { TextPaintOptions } from "./types.js";
 import type { PagePainter } from "./page-painter.js";
-import type { HeaderFooterVariant, HeaderFooterLayout } from "./header-footer-layout.js";
+import type { HeaderFooterVariant } from "./header-footer-layout.js";
 import type { FontRegistry } from "./font/font-registry.js";
 import { applyPlaceholders } from "./header-footer-tokens.js";
 import {
   renderHeaderFooterHtml,
   paintRenderedHeaderFooter,
-  type RenderedHeaderFooter,
 } from "./header-footer-renderer.js";
-import { paintBoxAtomic } from "./renderer/box-painter.js";
+// import { paintBoxAtomic } from "./renderer/box-painter.js";
 import { log } from "../logging/debug.js";
 import type { Environment } from "../environment/environment.js";
 

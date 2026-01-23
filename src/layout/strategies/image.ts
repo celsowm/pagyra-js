@@ -118,7 +118,7 @@ export function calculateImagePosition(
   let height = imageHeight;
 
   switch (objectFit) {
-    case 'contain':
+    case 'contain': {
       const containScale = Math.min(
         containerWidth / imageWidth,
         containerHeight / imageHeight
@@ -128,8 +128,9 @@ export function calculateImagePosition(
       x = (containerWidth - width) / 2;
       y = (containerHeight - height) / 2;
       break;
+    }
 
-    case 'cover':
+    case 'cover': {
       const coverScale = Math.max(
         containerWidth / imageWidth,
         containerHeight / imageHeight
@@ -139,6 +140,7 @@ export function calculateImagePosition(
       x = (containerWidth - width) / 2;
       y = (containerHeight - height) / 2;
       break;
+    }
 
     case 'fill':
       // Use the specified dimensions if available
@@ -154,7 +156,7 @@ export function calculateImagePosition(
       y = (containerHeight - height) / 2;
       break;
 
-    case 'scale-down':
+case 'scale-down': {
       const imageScale = Math.min(
         containerWidth / imageWidth,
         containerHeight / imageHeight
@@ -164,6 +166,7 @@ export function calculateImagePosition(
       x = (containerWidth - width) / 2;
       y = (containerHeight - height) / 2;
       break;
+    }
   }
 
   return { x, y, width, height };

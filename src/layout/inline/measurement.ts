@@ -6,7 +6,6 @@ import type { LayoutContext } from "../pipeline/strategy.js";
 import { estimateLineWidth, measureTextWithGlyphs } from "../utils/text-metrics.js";
 import { FontEmbedder } from "../../pdf/font/embedder.js";
 import type { InlineMetrics } from "./types.js";
-import { FloatContext } from "../context/float-context.js";
 
 export type LayoutCallback = (node: LayoutNode, containerWidth: number, context: LayoutContext) => { contentWidth: number; contentHeight: number } | null;
 
@@ -125,20 +124,20 @@ export function measureInlineNode(node: LayoutNode, containerWidth: number, cont
     };
 }
 
-function inlineExtentWithinContainer(node: LayoutNode, referenceWidth: number): { start: number; end: number } {
-    const marginLeft = resolveLength(node.style.marginLeft, referenceWidth, { auto: "zero" });
-    const marginRight = resolveLength(node.style.marginRight, referenceWidth, { auto: "zero" });
-    const paddingLeft = resolveLength(node.style.paddingLeft, referenceWidth, { auto: "zero" });
-    const paddingRight = resolveLength(node.style.paddingRight, referenceWidth, { auto: "zero" });
-    const borderLeft = resolveLength(node.style.borderLeft, referenceWidth, { auto: "zero" });
-    const borderRight = resolveLength(node.style.borderRight, referenceWidth, { auto: "zero" });
+// function inlineExtentWithinContainer(node: LayoutNode, referenceWidth: number): { start: number; end: number } {
+//     const marginLeft = resolveLength(node.style.marginLeft, referenceWidth, { auto: "zero" });
+//     const marginRight = resolveLength(node.style.marginRight, referenceWidth, { auto: "zero" });
+//     const paddingLeft = resolveLength(node.style.paddingLeft, referenceWidth, { auto: "zero" });
+//     const paddingRight = resolveLength(node.style.paddingRight, referenceWidth, { auto: "zero" });
+//     const borderLeft = resolveLength(node.style.borderLeft, referenceWidth, { auto: "zero" });
+//     const borderRight = resolveLength(node.style.borderRight, referenceWidth, { auto: "zero" });
 
-    const marginStart = node.box.x - paddingLeft - borderLeft - marginLeft;
-    const width =
-        node.box.contentWidth + paddingLeft + paddingRight + borderLeft + borderRight + marginLeft + marginRight;
+//     const marginStart = node.box.x - paddingLeft - borderLeft - marginLeft;
+//     const width =
+//         node.box.contentWidth + paddingLeft + paddingRight + borderLeft + borderRight + marginLeft + marginRight;
 
-    return {
-        start: marginStart,
-        end: marginStart + width,
-    };
-}
+//     return {
+//         start: marginStart,
+//         end: marginStart + width,
+//     };
+// }

@@ -2,41 +2,35 @@ import type { CSSFontFace, Run, StyleSheets } from "../types.js";
 import { PdfDocument, type PdfObjectRef } from "../primitives/pdf-document.js";
 import type { FontConfig, TtfFontMetrics } from "../../types/fonts.js";
 import { FontEmbedder } from "./embedder.js";
-import { computeWidths } from "./widths.js";
 import { log } from "../../logging/debug.js";
 import { needsUnicode } from "../../text/text.js";
-import { fontWeightCacheKey, normalizeFontWeight, isBoldFontWeight } from "../../css/font-weight.js";
-import { PdfFontRegistry as GlyphSubsetRegistry } from "../font-subset/font-registry.js";
-import type { PdfFontSubset } from "./font-subset.js";
+import { fontWeightCacheKey, normalizeFontWeight } from "../../css/font-weight.js";
 import type { GlyphRun } from "../../layout/text-run.js";
-import type { UnifiedFont } from "../../fonts/types.js";
 import type { EmbeddedFont } from "./embedder.js";
 import {
   parseFontFaces,
-  selectFaceForWeight,
   parseFamilyList,
   isItalicStyle,
   normalizeToken,
-  baseFontFromFace,
 } from "../../css/font-face-parser.js";
-import {
-  BASE_FONT_ALIASES,
-  GENERIC_FAMILIES,
-  BASE14_FALLBACKS,
-  BASE14_FAMILY_VARIANTS,
-  BASE14_VARIANT_LOOKUP,
-  detectBase14Family,
-  classifyBase14Variant,
-  type Base14Family,
-  type Base14Variant,
-} from "./font-config.js";
+// import {
+//   BASE_FONT_ALIASES,
+//   GENERIC_FAMILIES,
+//   BASE14_FALLBACKS,
+//   BASE14_FAMILY_VARIANTS,
+//   BASE14_VARIANT_LOOKUP,
+//   detectBase14Family,
+//   classifyBase14Variant,
+//   type Base14Family,
+//   type Base14Variant,
+// } from "./font-config.js";
 import { applyWeightToBaseFont } from "./resolvers/weight-style-applicator.js";
 import { buildAliasedFamilyStack } from "./resolvers/family-resolver.js";
 import { resolveBaseFont } from "./resolvers/base-font-mapper.js";
 import { FontResourceManager } from "./managers/font-resource-manager.js";
 import { SubsetResourceManager, type SubsetFontResource } from "./managers/subset-resource-manager.js";
 
-const DEFAULT_STEM_V = 80;
+// const DEFAULT_STEM_V = 80;
 
 export type PdfFont = {
   name: string;

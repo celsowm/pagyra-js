@@ -228,7 +228,7 @@ function readValueRecord(table: DataView, offset: number, valueFormat: number): 
   let xPlacement: number | undefined;
   let xAdvance: number | undefined;
 
-  const consume = (flag: number) => {
+  const consume = (_flag: number) => {
     const v = table.getInt16(pos, false);
     pos += 2;
     return v;

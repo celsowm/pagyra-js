@@ -72,7 +72,6 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   const normalizedHtml = normalizeHtmlInput(html);
 
   setViewportSize(viewportWidth, viewportHeight);
-  const isNode = typeof process !== "undefined" && !!process.versions?.node;
   const resourceBaseDir = options.resourceBaseDir ?? options.assetRootDir ?? "";
   const assetRootDir = options.assetRootDir ?? resourceBaseDir;
   const environment = options.environment ?? new NodeEnvironment(assetRootDir);

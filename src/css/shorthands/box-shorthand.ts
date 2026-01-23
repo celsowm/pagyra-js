@@ -1,6 +1,6 @@
 // src/css/shorthands/box-shorthand.ts
 
-import { parseLength, parseLengthOrAuto } from "../parsers/length-parser.js";
+import { parseLengthOrAuto } from "../parsers/length-parser.js";
 import { splitCssList } from "../utils.js";
 import type { RelativeLength } from "../length.js";
 

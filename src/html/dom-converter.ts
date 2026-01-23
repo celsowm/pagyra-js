@@ -13,6 +13,7 @@ import { ImageService } from "../image/image-service.js";
 import type { ImageInfo } from "../image/types.js";
 import { log } from "../logging/debug.js";
 import { decodeBase64ToUint8Array } from "../utils/base64.js";
+import { defaultFormRegistry, extractFormControlData } from "../dom/form-registry.js";
 
 function findMeaningfulSibling(start: Node | null, direction: "previous" | "next"): Node | null {
   let current = start;
@@ -274,7 +275,6 @@ export async function convertDomNode(
           root: svgRoot,
           intrinsicWidth: intrinsic.width,
           intrinsicHeight: intrinsic.height,
-          // Propagate resource roots so SVG rendering can resolve image hrefs
           resourceBaseDir: context && (context as any).resourceBaseDir,
           assetRootDir: context && (context as any).assetRootDir,
         },
@@ -294,6 +294,24 @@ export async function convertDomNode(
       textTransform: parentStyle.textTransform,
     });
     return new LayoutNode(textStyle, [], { textContent: "\n" });
+  }
+
+  if (defaultFormRegistry.isFormElement(tagName)) {
+    const formControlData = extractFormControlData(element, tagName);
+    if (formControlData) {
+      const ownStyle = computeStyleForElement(element, cssRules, parentStyle, context.units, context.rootFontSize);
+      await hydrateBackgroundImages(ownStyle, context);
+      
+      const options: LayoutNodeOptions = { tagName };
+      const id = element.getAttribute("id");
+      if (id) {
+        options.customData = { id, formControl: formControlData };
+      } else {
+        options.customData = { formControl: formControlData };
+      }
+      
+      return new LayoutNode(ownStyle, [], options);
+    }
   }
 
   // ✅ Coalescing de #text

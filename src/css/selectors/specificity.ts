@@ -28,13 +28,13 @@ export function computeSpecificity(selector: string): Specificity {
     }
     const noNot = t.replace(/:not\(([^)]+)\)/g, '');
 
-    a += countOf(/#[^.#\[\]:\s>+~]+/g, noNot);              // IDs
-    b += countOf(/\.[^.#\[\]:\s>+~]+/g, noNot);            // classes
+    a += countOf(/#[^.#[-]:\s>+~]+/g, noNot);              // IDs
+    b += countOf(/\.[^.#[-]:\s>+~]+/g, noNot);            // classes
     b += countOf(/\[[^\]]+\]/g, noNot);                    // atributos
     b += countOf(/:(?!:)[a-z-]+(\([^)]+\))?/g, noNot);     // pseudo-classes
 
     const m = /^[a-zA-Z][a-zA-Z0-9-]*/.exec(noNot);
-    if (m && !/^[.#\[:]/.test(noNot) && m[0] !== '*') c += 1; // tag
+    if (m && !/^[.#([-]/.test(noNot) && m[0] !== '*') c += 1; // tag
   }
 
   return [a, b, c];

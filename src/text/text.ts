@@ -11,15 +11,15 @@ export function needsUnicode(text: string): boolean {
 
 // Extend Intl type for Segmenter
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Intl {
     class Segmenter {
-      constructor(locales?: string | string[], options?: any);
-      segment(input: string): any;
+      constructor(locales?: string | string[], options?: Record<string, unknown>);
+      segment(input: string): Iterable<{ segment: string }>;
     }
   }
 }
 
-// @ts-ignore: Intl.Segmenter may not be available in older environments
 export function normalizeAndSegment(text: string): string[] {
   const normalized = text.normalize("NFC");
   // Fallback for environments without Intl.Segmenter

@@ -5,7 +5,7 @@
  * Each font's data is maintained in a separate module for better SRP and modularity.
  */
 
-import type { Base14WidthsMap } from "./base14/widths-types.js";
+// import type { Base14WidthsMap } from "./base14/widths-types.js";
 import { TIMES_ROMAN_WIDTHS } from "./base14/widths-times-roman.js";
 import { TIMES_BOLD_WIDTHS } from "./base14/widths-times-bold.js";
 import { HELVETICA_WIDTHS } from "./base14/widths-helvetica.js";

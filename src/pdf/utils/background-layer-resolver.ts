@@ -194,7 +194,7 @@ function resolvePositionComponent(
   start: number,
   available: number,
   size: number,
-  axis: "x" | "y",
+  _axis: "x" | "y",
 ): number {
   if (!value || value === "left" || value === "top") {
     return start;
@@ -217,7 +217,7 @@ function resolvePositionComponent(
       return start + px;
     }
   }
-  return axis === "x" ? start : start + available;
+  return _axis === "x" ? start : start + available;
 }
 
 function parseBackgroundSizeComponent(
@@ -304,7 +304,7 @@ function resolvePositionToPx(
   raw: string | undefined,
   length: number,
   fallbackPx: number,
-  axis: "x" | "y",
+  _axis: "x" | "y",
 ): number {
   if (!Number.isFinite(length) || length <= 0) {
     return fallbackPx;

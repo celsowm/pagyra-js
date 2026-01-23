@@ -26,7 +26,7 @@ import { CustomPropertiesMap } from "./custom-properties.js";
 
 // Import domain interfaces
 import type { LayoutProperties } from "./properties/layout.js";
-import type { TypographyProperties, TextTransform, OverflowWrap } from "./properties/typography.js";
+import type { TypographyProperties, TextTransform, OverflowWrap, FontVariantNumeric } from "./properties/typography.js";
 import type { BoxModelProperties } from "./properties/box-model.js";
 import type { FlexboxProperties, FlexDirection, AlignSelfValue } from "./properties/flexbox.js";
 import type {
@@ -56,11 +56,12 @@ import type {
 } from "./properties/visual.js";
 import type { MiscProperties } from "./properties/misc.js";
 import type { ClipPath } from "./clip-path-types.js";
+import type { ContentValue } from "./parsers/content-parser.js";
 
 // Re-export types for convenience
 export type { NumericLength } from "./length.js";
 export type { LineHeightInput, LineHeightValue } from "./line-height.js";
-export type { TextTransform, OverflowWrap };
+export type { TextTransform, OverflowWrap, FontVariantNumeric };
 export type { FlexDirection, AlignSelfValue };
 export type { GridAutoFlow };
 export type {
@@ -130,6 +131,8 @@ export interface StyleAccumulator {
   fontFamily?: string;
   fontStyle?: string;
   fontVariant?: string;
+  fontVariantNumeric?: FontVariantNumeric[];
+  content?: ContentValue[];
   fontWeight?: number;
   letterSpacing?: number | RelativeLength;
   borderModel?: BorderModel;
@@ -139,6 +142,7 @@ export interface StyleAccumulator {
   textTransform?: TextTransform;
   listStyleType?: string;
   objectFit?: string;
+  verticalAlign?: string;
 
   textDecorationLine?: string;
   justifyContent?: JustifyContent;
@@ -236,6 +240,8 @@ export class ComputedStyle implements StyleProperties {
   fontWeight?: number;
   fontStyle?: string;
   fontVariant?: string;
+  fontVariantNumeric?: FontVariantNumeric[];
+  content?: ContentValue[];
   clipPath?: ClipPath;
   objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down";
   left?: LengthLike;
@@ -336,6 +342,8 @@ export class ComputedStyle implements StyleProperties {
     this.fontWeight = data.fontWeight;
     this.fontStyle = data.fontStyle;
     this.fontVariant = data.fontVariant;
+    this.fontVariantNumeric = data.fontVariantNumeric;
+    this.content = data.content;
     this.clipPath = data.clipPath;
     this.objectFit = data.objectFit;
     this.zIndex = data.zIndex;

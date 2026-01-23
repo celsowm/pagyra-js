@@ -1,4 +1,4 @@
-import type { RGBA, Rect, Radius, StrokeDash, StrokeOptions } from "../types.js";
+import type { RGBA, Rect, Radius, StrokeOptions } from "../types.js";
 import { CoordinateTransformer } from "../utils/coordinate-transformer.js";
 import { GradientService } from "../shading/gradient-service.js";
 import { parseLinearGradient, type LinearGradient, type RadialGradient } from "../../css/parsers/gradient-parser.js";

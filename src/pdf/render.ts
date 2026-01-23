@@ -3,7 +3,6 @@ import type { LayoutTree, PageSize, PdfMetadata, RenderBox, RGBA, TextPaintOptio
 import {
   initHeaderFooterContext,
   layoutHeaderFooterTrees,
-  adjustPageBoxForHf,
   computeHfTokens,
 } from "./header-footer.js";
 import { paginateTree } from "./pagination.js";
@@ -11,7 +10,7 @@ import { initFontSystem, finalizeFontSubsets, preflightFontsForPdfa } from "./fo
 import type { FontConfig } from "../types/fonts.js";
 import { paintLayoutPage } from "./renderer/page-paint.js";
 import { loadBuiltinFontConfig } from "./font/builtin-fonts.js";
-import { registerPageResources, type PageResources } from "./utils/page-resource-registrar.js";
+import { registerPageResources } from "./utils/page-resource-registrar.js";
 import { FontRegistryResolver } from "../fonts/font-registry-resolver.js";
 import { applyWordSpacingToGlyphRun, computeGlyphRun } from "./utils/node-text-run-factory.js";
 import { log } from "../logging/debug.js";
@@ -71,7 +70,7 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
   // Adjust content area to exclude header/footer heights
   // This implements the Word/mPDF behavior where headers and footers
   // reduce the available content area
-  const adjustedContentBox = adjustPageBoxForHf(baseContentBox, hfLayout);
+  // const adjustedContentBox = adjustPageBoxForHf(baseContentBox, hfLayout);
 
   // Calculate effective page height for pagination
   // When headers/footers are present, the content area is reduced

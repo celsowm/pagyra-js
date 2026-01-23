@@ -311,7 +311,7 @@ function resolveGradientPaint(paint: unknown, context?: SvgRenderContext): Linea
   if (isLinearGradientPaint(paint) || isRadialGradientPaint(paint)) return paint as LinearGradient | RadialGradient;
   if (typeof paint === "string") {
     const trimmed = paint.trim();
-    const urlMatch = trimmed.match(/^url\(\s*#([^\)\s]+)\s*\)$/i);
+    const urlMatch = trimmed.match(/^url\(\s*#([^)\s]+)\s*\)$/i);
     if (urlMatch && context) {
       const defs = (context as any).defs as Map<string, any> | undefined;
       if (defs) {

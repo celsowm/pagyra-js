@@ -1,5 +1,28 @@
-import type { ComputedStyle } from "./style.js";
+import type { ComputedStyle, StyleProperties } from "./style.js";
+import type { LineHeightValue } from "./line-height.js";
 import { cloneLineHeight } from "./line-height.js";
+import type { LengthLike } from "./length.js";
+
+/**
+ * Inherited CSS properties passed from parent to child
+ */
+export interface InheritedStyleProperties {
+    color?: string;
+    fontSize: number;
+    lineHeight: LineHeightValue;
+    fontFamily?: string;
+    fontStyle?: string;
+    fontVariant?: string;
+    fontWeight?: number;
+    letterSpacing?: number;
+    textDecorationLine?: string;
+    textDecorationColor?: string;
+    textDecorationStyle?: string;
+    overflowWrap?: string;
+    textIndent: LengthLike;
+    textTransform: string;
+    listStyleType: string;
+}
 
 /**
  * Style inheritance resolver
@@ -11,24 +34,8 @@ export class StyleInheritanceResolver {
      */
     static resolveInheritedProperties(
         parentStyle: ComputedStyle,
-        mergedDefaults: Partial<any>
-    ): {
-        color?: string;
-        fontSize: number;
-        lineHeight: any;
-        fontFamily?: string;
-        fontStyle?: string;
-        fontVariant?: string;
-        fontWeight?: number;
-        letterSpacing?: number;
-        textDecorationLine?: string;
-        textDecorationColor?: string;
-        textDecorationStyle?: string;
-        overflowWrap?: string;
-        textIndent: any; // Using any to match the flexible type system
-        textTransform: string;
-        listStyleType: string;
-    } {
+        mergedDefaults: Partial<StyleProperties>
+    ): InheritedStyleProperties {
         return {
             color: parentStyle.color ?? mergedDefaults.color,
             fontSize: parentStyle.fontSize,

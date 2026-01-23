@@ -6,6 +6,11 @@
     "cssUrl": "examples/starter-report.css"
   },
   {
+    "id": "form-showcase",
+    "label": "Form Elements Showcase",
+    "htmlUrl": "examples/form-showcase.html"
+  },
+  {
     "id": "monthly-summary",
     "label": "Relatório Básico (pt-BR)",
     "htmlUrl": "examples/monthly-summary.html"

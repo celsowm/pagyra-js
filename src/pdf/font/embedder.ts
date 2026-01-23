@@ -385,7 +385,7 @@ export async function getEmbeddedFont(name: "NotoSans-Regular" | "DejaVuSans", d
   const existing = embedder['embeddedFonts'].get(name);
   if (existing) return existing;
 
-  // @ts-ignore: TypeScript complains about private method, but this is intentional for testing
+  // @ts-expect-error: TypeScript complains about private method, but this is intentional for testing
   const embedded = embedder['embedFont'](face);
   if (embedded) {
     embedder['embeddedFonts'].set(name, embedded);

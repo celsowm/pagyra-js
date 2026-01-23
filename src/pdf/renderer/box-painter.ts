@@ -4,9 +4,10 @@ import { shrinkRadius } from "./radius.js";
 import { renderSvgBox } from "../svg/render-svg.js";
 import { NodeKind, type RenderBox, type RGBA, type Rect, type Radius, type BorderStyles } from "../types.js";
 import type { PagePainter } from "../page-painter.js";
-import { computeBackgroundTileRects, intersectRects, rectEquals } from "../utils/background-tiles.js";
+import { computeBackgroundTileRects, rectEquals } from "../utils/background-tiles.js";
 import { computeBorderSideStrokes } from "../utils/border-dashes.js";
 import type { PathCommand } from "../renderers/shape-renderer.js";
+import { defaultFormRendererFactory } from "../renderers/form/factory.js";
 
 export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Promise<void> {
   log("paint", "debug", `paintBoxAtomic: ${box.tagName} id:${box.id} opacity:${box.opacity}`, { id: box.id, opacity: box.opacity });
@@ -38,6 +39,8 @@ export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Prom
     await renderSvgBox(painter, box, painter.environment);
   } else if (box.image) {
     painter.drawImage(box.image, box.contentBox);
+  } else if (defaultFormRendererFactory.canRender(box)) {
+    painter.renderFormControl(box);
   }
 
   await paintText(painter, box);

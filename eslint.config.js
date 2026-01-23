@@ -33,4 +33,12 @@ export default [
       'no-undef': 'off',
     },
   },
+  {
+    ignores: [
+      'vendor/**',
+      'src/compression/**',
+      '_ext/**',
+      'node_modules/**',
+    ],
+  },
 ];

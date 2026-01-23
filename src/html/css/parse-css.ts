@@ -1,7 +1,9 @@
 import * as cssParser from "css";
 import { createSelectorMatcher } from "../../css/selectors/matcher.js";
 
-export type DomEl = any; // adapt to your DOM type, e.g. HTMLElement or any
+import type { DomElement } from "../../types/core.js";
+
+export type DomEl = DomElement;
 
 export interface CssRuleEntry {
   selector: string;

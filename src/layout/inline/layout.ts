@@ -1,20 +1,18 @@
-import { LayoutNode, type InlineRun } from "../../dom/node.js";
-import { Display, FloatMode } from "../../css/enums.js";
+import { LayoutNode } from "../../dom/node.js";
+import { Display } from "../../css/enums.js";
 import { resolvedLineHeight } from "../../css/style.js";
 import { resolveLength } from "../../css/length.js";
 import type { InlineLayoutOptions, InlineLayoutResult, LayoutItem, InlineMetrics } from "./types.js";
-import { isBoxItem } from "./types.js";
 import type { LayoutContext } from "../pipeline/strategy.js";
 import { collectInlineFragments, tokenizeFragments, splitWordItemToken } from "./tokenizer.js";
 import { FloatContext } from "../context/float-context.js";
 import {
     resolveInlineTextAlign,
-    isInlineDisplay,
     shouldLayoutInlineChildren,
     collectInlineParticipants,
     inlineExtentWithinContainer,
 } from "./inline-utils.js";
-import { getAlignmentStrategy, type TextAlignmentStrategy } from "./text-alignment.js";
+import { getAlignmentStrategy } from "./text-alignment.js";
 import { BoundingBoxCalculator } from "./bounding-box-calculator.js";
 import { RunPlacer } from "./run-placer.js";
 import { createLayoutDebug } from "../debug.js";
@@ -24,7 +22,6 @@ import { createLayoutDebug } from "../debug.js";
 export function layoutInlineFormattingContext(options: InlineLayoutOptions): InlineLayoutResult {
     const { container, inlineNodes, context, floatContext, contentX, contentWidth } = options;
     container.establishesIFC = true;
-    const layoutDebug = createLayoutDebug(context);
 
     const textAlign = container.style.display === Display.Inline
         ? undefined

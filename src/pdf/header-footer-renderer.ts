@@ -15,12 +15,12 @@
 import { parseHTML } from "linkedom";
 import type { FontConfig } from "../types/fonts.js";
 import { parseCss } from "../html/css/parse-css.js";
-import { makeUnitParsers, type UnitCtx, pxToPt } from "../units/units.js";
+import { makeUnitParsers, type UnitCtx } from "../units/units.js";
 import { LayoutNode } from "../dom/node.js";
 import { ComputedStyle } from "../css/style.js";
 import { layoutTree } from "../layout/pipeline/layout-tree.js";
-import { buildRenderTree, type RenderTreeOptions } from "./layout-tree-builder.js";
-import type { RenderBox, Rect, LayoutTree, RGBA, Run, TextPaintOptions } from "./types.js";
+import { buildRenderTree } from "./layout-tree-builder.js";
+import type { RenderBox, LayoutTree, Run } from "./types.js";
 import { convertDomNode } from "../html/dom-converter.js";
 import { computeStyleForElement } from "../css/compute-style.js";
 import { Display } from "../css/enums.js";

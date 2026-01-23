@@ -109,7 +109,7 @@ import {
 } from "./dimension-parser.js";
 
 // Font
-import { parseFontFamily, parseFontStyle, parseFontVariant, parseFontWeight } from "./font-parser.js";
+import { parseFontFamily, parseFontStyle, parseFontVariant, parseFontWeight, parseFontVariantNumeric } from "./font-parser.js";
 
 // Positioning
 import { parsePosition, parseTop, parseRight, parseBottom, parseLeft } from "./position-parser.js";
@@ -129,6 +129,7 @@ import {
 import { parseOverflowWrap, parseWordWrap } from "./overflow-wrap-parser.js";
 import { parseTextShadow } from "./text-shadow-parser.js";
 import { parseListStyleType } from "./list-style-parser.js";
+import { parseContent } from "./content-parser.js";
 
 // Background
 import {
@@ -249,6 +250,7 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("font-family", parseFontFamily);
   registerPropertyParser("font-style", parseFontStyle);
   registerPropertyParser("font-variant", parseFontVariant);
+  registerPropertyParser("font-variant-numeric", parseFontVariantNumeric);
   registerPropertyParser("font-weight", parseFontWeight);
 
   // Positioning
@@ -272,6 +274,7 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("word-wrap", parseWordWrap);
   registerPropertyParser("text-shadow", parseTextShadow);
   registerPropertyParser("list-style-type", parseListStyleType);
+  registerPropertyParser("content", parseContent);
   // Transform (store as raw string for limited later use)
   registerPropertyParser("transform", (value, target) => {
     // store raw transform string

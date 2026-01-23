@@ -7,7 +7,7 @@ import {
   type StyleProperties,
   type StyleAccumulator,
 } from "./style.js";
-import { resolveNumberLike } from "./length.js";
+import { resolveNumberLike, type LengthInput, type LengthLike, type NumericLength } from "./length.js";
 import { ElementSpecificDefaults, BrowserDefaults } from "./browser-defaults.js";
 import { applyDeclarationsToStyle } from "./apply-declarations.js";
 import { normalizeFontWeight } from './font-weight.js';
@@ -294,10 +294,10 @@ export function computeStyleForElement(
 
   // Create unit resolver with computed font sizes
   const unitResolver = new CssUnitResolver(computedFontSize, rootFontReference);
-  const assignLength = (value: any, setter: (resolved: any) => void): void => {
+  const assignLength = (value: LengthInput, setter: (resolved: LengthLike) => void): void => {
     unitResolver.createLengthAssigner(setter)(value);
   };
-  const assignNumberLength = (value: any, setter: (resolved: any) => void): void => {
+  const assignNumberLength = (value: NumericLength, setter: (resolved: number) => void): void => {
     unitResolver.createNumberAssigner(setter)(value);
   };
 
@@ -309,7 +309,7 @@ export function computeStyleForElement(
   if (styleInit.zIndex !== undefined) styleOptions.zIndex = styleInit.zIndex;
   if (styleInit.color !== undefined) styleOptions.color = styleInit.color;
   if (styleInit.backgroundLayers !== undefined) styleOptions.backgroundLayers = styleInit.backgroundLayers;
-  if (styleInit.clipPath !== undefined) (styleOptions as any).clipPath = styleInit.clipPath;
+  if (styleInit.clipPath !== undefined) styleOptions.clipPath = styleInit.clipPath;
   if (styleInit.borderColor !== undefined) styleOptions.borderColor = styleInit.borderColor;
   if (styleInit.borderStyleTop !== undefined) styleOptions.borderStyleTop = styleInit.borderStyleTop;
   if (styleInit.borderStyleRight !== undefined) styleOptions.borderStyleRight = styleInit.borderStyleRight;
@@ -411,8 +411,8 @@ export function computeStyleForElement(
   if (styleInit.listStyleType !== undefined) styleOptions.listStyleType = styleInit.listStyleType;
   // If a raw transform string was parsed, preserve it on the computed style so downstream
   // consumers (e.g. text run builders / renderers) can apply mapping for text.
-  if ((styleInit as any).transform !== undefined) {
-    styleOptions.transform = (styleInit as any).transform;
+  if (styleInit.transform !== undefined) {
+    styleOptions.transform = styleInit.transform;
   }
   if (styleInit.objectFit !== undefined) {
     styleOptions.objectFit = styleInit.objectFit as StyleProperties["objectFit"];
@@ -450,11 +450,11 @@ export function computeStyleForElement(
 
   const defaultDecorationStyle = mergedDefaults.textDecorationStyle ?? "solid";
   let decorationStyle = inherited.textDecorationStyle ?? defaultDecorationStyle;
-  if ((elementDefaults as any).textDecorationStyle !== undefined) {
-    decorationStyle = (elementDefaults as any).textDecorationStyle as string;
+  if (elementDefaults.textDecorationStyle !== undefined) {
+    decorationStyle = elementDefaults.textDecorationStyle;
   }
-  if ((styleInit as any).textDecorationStyle !== undefined) {
-    decorationStyle = (styleInit as any).textDecorationStyle as string;
+  if (styleInit.textDecorationStyle !== undefined) {
+    decorationStyle = styleInit.textDecorationStyle;
   }
   styleOptions.textDecorationStyle = decorationStyle;
 

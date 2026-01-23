@@ -18,7 +18,11 @@ function log(cat, level, msg, extra) {
     if (!allowed(level, cat))
         return;
     var prefix = "[".concat(cat, "] ").concat(level);
-    extra ? console.log(prefix, msg, extra) : console.log(prefix, msg);
+    if (extra) {
+        console.log(prefix, msg, extra);
+    } else {
+        console.log(prefix, msg);
+    }
 }
 function preview(s, n) {
     if (n === void 0) { n = 60; }

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Form Elements Showcase</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    
+    h1 {
+      color: #333;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .form-section {
+      background: white;
+      padding: 25px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .form-section h2 {
+      margin-top: 0;
+      color: #555;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+    }
+    
+    .form-row {
+      margin-bottom: 15px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #444;
+    }
+    
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="tel"],
+    input[type="url"],
+    input[type="search"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #4a90d9;
+      box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.2);
+    }
+    
+    input[type="checkbox"],
+    input[type="radio"] {
+      margin-right: 8px;
+    }
+    
+    .checkbox-group,
+    .radio-group {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    button {
+      padding: 12px 24px;
+      margin-right: 10px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    button[type="submit"] {
+      background-color: #4a90d9;
+      color: white;
+    }
+    
+    button[type="submit"]:hover {
+      background-color: #357abd;
+    }
+    
+    button[type="reset"] {
+      background-color: #e74c3c;
+      color: white;
+    }
+    
+    button[type="reset"]:hover {
+      background-color: #c0392b;
+    }
+    
+    button:not([type]) {
+      background-color: #95a5a6;
+      color: white;
+    }
+    
+    button:not([type]):hover {
+      background-color: #7f8c8d;
+    }
+    
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+    
+    .full-width {
+      grid-column: 1 / -1;
+    }
+  </style>
+</head>
+<body>
+  <h1>HTML Form Elements Showcase</h1>
+  
+  <div class="form-section">
+    <h2>Text Inputs</h2>
+    
+    <div class="form-grid">
+      <div class="form-row">
+        <label for="text-input">Text Input:</label>
+        <input type="text" id="text-input" placeholder="Enter your name" value="John Doe">
+      </div>
+      
+      <div class="form-row">
+        <label for="email-input">Email Input:</label>
+        <input type="email" id="email-input" placeholder="john@example.com" value="john@example.com">
+      </div>
+      
+      <div class="form-row">
+        <label for="password-input">Password Input:</label>
+        <input type="password" id="password-input" value="secret123">
+      </div>
+      
+      <div class="form-row">
+        <label for="tel-input">Phone Input:</label>
+        <input type="tel" id="tel-input" placeholder="+1 (555) 123-4567" value="+1 (555) 123-4567">
+      </div>
+      
+      <div class="form-row">
+        <label for="url-input">URL Input:</label>
+        <input type="url" id="url-input" placeholder="https://example.com" value="https://example.com">
+      </div>
+      
+      <div class="form-row">
+        <label for="search-input">Search Input:</label>
+        <input type="search" id="search-input" placeholder="Search..." value="search query">
+      </div>
+      
+      <div class="form-row full-width">
+        <label for="number-input">Number Input:</label>
+        <input type="number" id="number-input" min="0" max="100" value="42">
+      </div>
+    </div>
+  </div>
+  
+  <div class="form-section">
+    <h2>Checkboxes and Radio Buttons</h2>
+    
+    <div class="form-row">
+      <label>Checkbox Options:</label>
+      <div class="checkbox-group">
+        <input type="checkbox" id="checkbox1" checked>
+        <label for="checkbox1" style="display:inline; font-weight:normal;">Option 1 (checked)</label>
+      </div>
+      <div class="checkbox-group">
+        <input type="checkbox" id="checkbox2">
+        <label for="checkbox2" style="display:inline; font-weight:normal;">Option 2</label>
+      </div>
+      <div class="checkbox-group">
+        <input type="checkbox" id="checkbox3" checked>
+        <label for="checkbox3" style="display:inline; font-weight:normal;">Option 3 (checked)</label>
+      </div>
+    </div>
+    
+    <div class="form-row" style="margin-top:20px;">
+      <label>Radio Options:</label>
+      <div class="radio-group">
+        <input type="radio" name="radio-group" id="radio1" value="option1">
+        <label for="radio1" style="display:inline; font-weight:normal;">Choice A</label>
+      </div>
+      <div class="radio-group">
+        <input type="radio" name="radio-group" id="radio2" value="option2" checked>
+        <label for="radio2" style="display:inline; font-weight:normal;">Choice B (selected)</label>
+      </div>
+      <div class="radio-group">
+        <input type="radio" name="radio-group" id="radio3" value="option3">
+        <label for="radio3" style="display:inline; font-weight:normal;">Choice C</label>
+      </div>
+    </div>
+  </div>
+  
+  <div class="form-section">
+    <h2>Select Dropdown</h2>
+    
+    <div class="form-row">
+      <label for="single-select">Single Select:</label>
+      <select id="single-select">
+        <option value="">-- Select an option --</option>
+        <option value="option1">Option 1</option>
+        <option value="option2" selected>Option 2 (selected)</option>
+        <option value="option3">Option 3</option>
+        <option value="option4">Option 4</option>
+        <option value="option5">Option 5</option>
+      </select>
+    </div>
+    
+    <div class="form-row">
+      <label for="multi-select">Multi Select (first two selected):</label>
+      <select id="multi-select" multiple style="height:100px;">
+        <option value="opt1" selected>Option 1</option>
+        <option value="opt2" selected>Option 2</option>
+        <option value="opt3">Option 3</option>
+        <option value="opt4">Option 4</option>
+        <option value="opt5">Option 5</option>
+      </select>
+    </div>
+  </div>
+  
+  <div class="form-section">
+    <h2>Textarea</h2>
+    
+    <div class="form-row">
+      <label for="textarea-input">Comments:</label>
+      <textarea id="textarea-input" rows="4" cols="50" placeholder="Enter your comments here...">This is a multi-line textarea with some pre-filled content.
+
+Line 2 of the textarea content.
+Line 3 with more text.</textarea>
+    </div>
+  </div>
+  
+  <div class="form-section">
+    <h2>Buttons</h2>
+    
+    <div class="form-row">
+      <button type="submit">Submit Button</button>
+      <button type="reset">Reset Button</button>
+      <button type="button">Generic Button</button>
+      <button type="submit" value="Custom Text">Button with Custom Text</button>
+    </div>
+  </div>
+</body>
+</html>

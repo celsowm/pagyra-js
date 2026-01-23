@@ -52,6 +52,13 @@ export class LayoutNode {
   tableColSpan?: number;
   tableRowSpan?: number;
   tableCellOrigin?: { row: number; col: number };
+  
+  // Pseudo-element support for ::before and ::after
+  pseudoBefore?: LayoutNode;
+  pseudoAfter?: LayoutNode;
+  
+  // Counter scope for this element (used for CSS counters)
+  counterScopeId?: string;
 
   constructor(public readonly style: ComputedStyle, children: Iterable<LayoutNode> = [], options?: LayoutNodeOptions) {
     this.intrinsicInlineSize = options?.intrinsicInlineSize;

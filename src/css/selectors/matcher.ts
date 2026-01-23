@@ -29,8 +29,10 @@ export function createSelectorMatcher(selector: string): ((el: Element) => boole
 
   // Helpers DOM (assumem DOM-like API; adapte se teu DOM for custom)
   function getAttr(el: Element, name: string): string | null {
-    const value = (el as any).getAttribute ? (el as any).getAttribute(name) : null;
-    return value;
+    if (typeof el.getAttribute === "function") {
+      return el.getAttribute(name);
+    }
+    return null;
   }
 
   function matchAttr(el: Element, cond: AttrCond): boolean {
@@ -102,7 +104,7 @@ export function createSelectorMatcher(selector: string): ((el: Element) => boole
       return result;
     }
     if (p.kind === 'root') {
-      const doc = (el as any).ownerDocument;
+      const doc = el.ownerDocument;
       if (!doc || !doc.documentElement) {
         return false;
       }
@@ -115,10 +117,10 @@ export function createSelectorMatcher(selector: string): ((el: Element) => boole
     if (s.tag && el.tagName.toLowerCase() !== s.tag) {
       return false;
     }
-    if (s.id && (el as any).id !== s.id) {
+    if (s.id && el.id !== s.id) {
       return false;
     }
-    const cl: DOMTokenList | undefined = (el as any).classList;
+    const cl = el.classList;
     for (const cls of s.classes) {
       if (!cl?.contains?.(cls)) {
         return false;
