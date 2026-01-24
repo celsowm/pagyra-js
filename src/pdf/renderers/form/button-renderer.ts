@@ -2,6 +2,7 @@ import type { RenderBox, RGBA } from "../../types.js";
 import type { IFormRenderer, RenderContext, RenderCommands } from "./irenderer.js";
 import type { FormControlData, ButtonControlData } from "./types.js";
 import { formatNumber } from "../text-renderer-utils.js";
+import { encodeFormText, resolveFormFont } from "./text-utils.js";
 
 // const DEFAULT_BUTTON_PADDING_H = 20;
 const DEFAULT_BORDER_WIDTH = 1;
@@ -29,6 +30,7 @@ export class ButtonRenderer implements IFormRenderer {
     const rect = node.borderBox;
     // const paddingH = DEFAULT_BUTTON_PADDING_H;
     const borderWidth = DEFAULT_BORDER_WIDTH;
+    const { font, fontSize } = resolveFormFont(node, context.fontProvider);
 
     const xPt = ct.convertPxToPt(rect.x);
     const yPt = ct.pageHeightPt - ct.convertPxToPt(rect.y + rect.height);
@@ -52,7 +54,6 @@ export class ButtonRenderer implements IFormRenderer {
     commands.push(`${formatNumber(xPt)} ${formatNumber(yPt)} ${formatNumber(widthPt)} ${formatNumber(heightPt)} re`);
     commands.push("S");
 
-    const fontSize = node.textRuns[0]?.fontSize ?? 14;
     const textX = xPt + widthPt / 2;
     const textY = yPt + heightPt / 2 + fontSize * 0.35;
 
@@ -61,13 +62,13 @@ export class ButtonRenderer implements IFormRenderer {
       : { r: 1, g: 1, b: 1, a: 1 };
 
     commands.push("BT");
-    commands.push(`/F1 ${formatNumber(ct.convertPxToPt(fontSize))} Tf`);
+    commands.push(`/${font.resourceName} ${formatNumber(ct.convertPxToPt(fontSize))} Tf`);
     commands.push(`${textColor.r.toFixed(3)} ${textColor.g.toFixed(3)} ${textColor.b.toFixed(3)} rg`);
     
     const buttonText = this.getButtonText(data);
-    const escapedText = this.escapePdfString(buttonText);
+    const encodedText = encodeFormText(buttonText, font);
     commands.push(`1 0 0 0 ${formatNumber(textX)} ${formatNumber(textY)} Tm`);
-    commands.push(`(${escapedText}) Tj`);
+    commands.push(`(${encodedText}) Tj`);
     commands.push("ET");
 
     commands.push("Q");
@@ -119,12 +120,5 @@ export class ButtonRenderer implements IFormRenderer {
     }
   }
 
-  private escapePdfString(str: string): string {
-    return str
-      .replace(/\\/g, "\\\\")
-      .replace(/\(/g, "\\(")
-      .replace(/\)/g, "\\)")
-      // eslint-disable-next-line no-control-regex
-      .replace(/[\x00-\x1F]/g, "");
-  }
+  // Note: text encoding handled by encodeFormText.
 }

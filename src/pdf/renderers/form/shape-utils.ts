@@ -1,5 +1,6 @@
 import type { RGBA } from "../../types.js";
 import { formatNumber } from "../text-renderer-utils.js";
+import { formatPdfRgb } from "./color-utils.js";
 // import type { Rect } from "../../types.js";
 
 export interface ShapePoint {
@@ -21,11 +22,11 @@ export function drawCheckbox(
   commands.push(`${formatNumber(x)} ${formatNumber(y)} ${formatNumber(size)} ${formatNumber(size)} re`);
   
   if (isChecked) {
-    commands.push(`${color.r.toFixed(3)} ${color.g.toFixed(3)} ${color.b.toFixed(3)} rg`);
+    commands.push(`${formatPdfRgb(color)} rg`);
     commands.push("f");
   } else {
     if (strokeColor) {
-      commands.push(`${strokeColor.r.toFixed(3)} ${strokeColor.g.toFixed(3)} ${strokeColor.b.toFixed(3)} RG`);
+      commands.push(`${formatPdfRgb(strokeColor)} RG`);
     }
     commands.push("S");
   }
@@ -33,12 +34,12 @@ export function drawCheckbox(
   if (isChecked && strokeColor) {
     const strokeSize = Math.max(1, size * 0.05);
     commands.push(`${formatNumber(x)} ${formatNumber(y)} ${formatNumber(size)} ${formatNumber(size)} re`);
-    commands.push(`${strokeColor.r.toFixed(3)} ${strokeColor.g.toFixed(3)} ${strokeColor.b.toFixed(3)} RG`);
+    commands.push(`${formatPdfRgb(strokeColor)} RG`);
     commands.push(`${formatNumber(strokeSize)} w`);
     commands.push("S");
     
     commands.push(`${formatNumber(x)} ${formatNumber(y)} ${formatNumber(size)} ${formatNumber(size)} re`);
-    commands.push(`${color.r.toFixed(3)} ${color.g.toFixed(3)} ${color.b.toFixed(3)} rg`);
+    commands.push(`${formatPdfRgb(color)} rg`);
     commands.push("f");
   }
   
@@ -65,7 +66,7 @@ export function drawCheckmark(
   commands.push(`${formatNumber(p3x)} ${formatNumber(p3y)} l`);
   
   commands.push("h");
-  commands.push(`${color.r.toFixed(3)} ${color.g.toFixed(3)} ${color.b.toFixed(3)} rg`);
+  commands.push(`${formatPdfRgb(color)} rg`);
   commands.push("f");
   
   return commands;
@@ -91,7 +92,7 @@ export function drawRadio(
   commands.push("h");
   
   if (strokeColor) {
-    commands.push(`${strokeColor.r.toFixed(3)} ${strokeColor.g.toFixed(3)} ${strokeColor.b.toFixed(3)} RG`);
+    commands.push(`${formatPdfRgb(strokeColor)} RG`);
     commands.push(`${formatNumber(strokeW)} w`);
     commands.push("S");
   }
@@ -99,7 +100,7 @@ export function drawRadio(
   if (isChecked) {
     commands.push(`${formatNumber(centerX)} ${formatNumber(centerY)} ${formatNumber(innerRadius)} ${formatNumber(innerRadius)} c`);
     commands.push("h");
-    commands.push(`${fillColor.r.toFixed(3)} ${fillColor.g.toFixed(3)} ${fillColor.b.toFixed(3)} rg`);
+    commands.push(`${formatPdfRgb(fillColor)} rg`);
     commands.push("f");
   }
   
@@ -126,7 +127,7 @@ export function drawDropdownArrow(
   commands.push(`${formatNumber(rightX)} ${formatNumber(baseY)} l`);
   commands.push(`${formatNumber(leftX)} ${formatNumber(baseY)} l`);
   commands.push("h");
-  commands.push(`${color.r.toFixed(3)} ${color.g.toFixed(3)} ${color.b.toFixed(3)} rg`);
+  commands.push(`${formatPdfRgb(color)} rg`);
   commands.push("f");
   
   return commands;
@@ -147,7 +148,7 @@ export function drawFocusRing(
   const oh = height + offset * 2;
   
   commands.push(`${formatNumber(ox)} ${formatNumber(oy)} ${formatNumber(ow)} ${formatNumber(oh)} re`);
-  commands.push(`${color.r.toFixed(3)} ${color.g.toFixed(3)} ${color.b.toFixed(3)} RG`);
+  commands.push(`${formatPdfRgb(color)} RG`);
   commands.push("S");
   
   return commands;
@@ -166,7 +167,7 @@ export function drawPlaceholderText(
   
   commands.push("BT");
   commands.push(`/F1 ${formatNumber(fontSize)} Tf`);
-  commands.push(`${color.r.toFixed(3)} ${color.g.toFixed(3)} ${color.b.toFixed(3)} rg`);
+  commands.push(`${formatPdfRgb(color)} rg`);
   commands.push(`${formatNumber(x)} ${formatNumber(y)} Td`);
   
   const truncatedText = truncateText(text, width, fontSize);

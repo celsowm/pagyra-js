@@ -1,5 +1,10 @@
 import type { RenderBox } from "../../types.js";
+import type { FontResource } from "../../font/font-registry.js";
 import type { FormControlData } from "./types.js";
+
+export interface FontProvider {
+  ensureFontResourceSync(family: string | undefined, weight?: number, style?: string): FontResource;
+}
 
 export interface RenderContext {
   readonly coordinateTransformer: {
@@ -13,6 +18,7 @@ export interface RenderContext {
   readonly fontResolver: {
     resolveFont(family: string, weight: number, style: string): string;
   };
+  readonly fontProvider: FontProvider;
 }
 
 export interface RenderCommands {

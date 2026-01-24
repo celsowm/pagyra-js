@@ -2,6 +2,8 @@ import type { RenderBox } from "../../types.js";
 import type { IFormRenderer, RenderContext, RenderCommands } from "./irenderer.js";
 import type { FormControlData, TextareaControlData } from "./types.js";
 import { formatNumber } from "../text-renderer-utils.js";
+import { formatPdfRgb } from "./color-utils.js";
+import { encodeFormText, resolveFormFont } from "./text-utils.js";
 
 const DEFAULT_TEXTAREA_PADDING = 10;
 const DEFAULT_BORDER_WIDTH = 1;
@@ -31,6 +33,7 @@ export class TextareaRenderer implements IFormRenderer {
     const rect = node.borderBox;
     const padding = DEFAULT_TEXTAREA_PADDING;
     const borderWidth = DEFAULT_BORDER_WIDTH;
+    const { font, fontSize } = resolveFormFont(node, context.fontProvider);
 
     const xPt = ct.convertPxToPt(rect.x);
     const yPt = ct.pageHeightPt - ct.convertPxToPt(rect.y + rect.height);
@@ -42,28 +45,27 @@ export class TextareaRenderer implements IFormRenderer {
     commands.push("q");
     
     const bgColor = node.background?.color ?? { r: 1, g: 1, b: 1, a: 1 };
-    commands.push(`${bgColor.r.toFixed(3)} ${bgColor.g.toFixed(3)} ${bgColor.b.toFixed(3)} rg`);
+    commands.push(`${formatPdfRgb(bgColor)} rg`);
     commands.push(`${formatNumber(xPt)} ${formatNumber(yPt)} ${formatNumber(widthPt)} ${formatNumber(heightPt)} re`);
     commands.push("f");
 
     const borderColor = node.borderColor ?? { r: 0.7, g: 0.7, b: 0.7, a: 1 };
-    commands.push(`${borderColor.r.toFixed(3)} ${borderColor.g.toFixed(3)} ${borderColor.b.toFixed(3)} RG`);
+    commands.push(`${formatPdfRgb(borderColor)} RG`);
     commands.push(`${formatNumber(borderPt)} w`);
     commands.push(`${formatNumber(xPt)} ${formatNumber(yPt)} ${formatNumber(widthPt)} ${formatNumber(heightPt)} re`);
     commands.push("S");
 
     const textX = xPt + paddingPt + borderPt;
-    const fontSize = node.textRuns[0]?.fontSize ?? 14;
     const lineHeightPt = ct.convertPxToPt(LINE_HEIGHT);
     const textY = yPt + paddingPt + borderPt + fontSize * 0.35;
 
     commands.push("BT");
-    commands.push(`/F1 ${formatNumber(ct.convertPxToPt(fontSize))} Tf`);
+    commands.push(`/${font.resourceName} ${formatNumber(ct.convertPxToPt(fontSize))} Tf`);
     commands.push(`${lineHeightPt} TL`);
 
     if (data.value && data.value.length > 0) {
       const textColor = node.color ?? { r: 0, g: 0, b: 0, a: 1 };
-      commands.push(`${textColor.r.toFixed(3)} ${textColor.g.toFixed(3)} ${textColor.b.toFixed(3)} rg`);
+      commands.push(`${formatPdfRgb(textColor)} rg`);
       commands.push(`${formatNumber(textX)} ${formatNumber(textY)} Td`);
       
       const lines = data.value.split('\n');
@@ -71,16 +73,16 @@ export class TextareaRenderer implements IFormRenderer {
         if (i > 0) {
           commands.push(`0 ${formatNumber(-lineHeightPt)} Td`);
         }
-        const escapedLine = this.escapePdfString(lines[i]);
-        commands.push(`(${escapedLine}) Tj`);
+        const encodedLine = encodeFormText(lines[i], font);
+        commands.push(`(${encodedLine}) Tj`);
       }
     } else if (data.placeholder && data.placeholder.length > 0) {
       const placeholderColor = { r: 0.6, g: 0.6, b: 0.6, a: 1 };
-      commands.push(`${placeholderColor.r.toFixed(3)} ${placeholderColor.g.toFixed(3)} ${placeholderColor.b.toFixed(3)} rg`);
+      commands.push(`${formatPdfRgb(placeholderColor)} rg`);
       commands.push(`${formatNumber(textX)} ${formatNumber(textY)} Td`);
       
-      const escapedPlaceholder = this.escapePdfString(data.placeholder);
-      commands.push(`(${escapedPlaceholder}) Tj`);
+      const encodedPlaceholder = encodeFormText(data.placeholder, font);
+      commands.push(`(${encodedPlaceholder}) Tj`);
     }
 
     commands.push("ET");
@@ -104,12 +106,5 @@ export class TextareaRenderer implements IFormRenderer {
     return null;
   }
 
-  private escapePdfString(str: string): string {
-    return str
-      .replace(/\\/g, "\\\\")
-      .replace(/\(/g, "\\(")
-      .replace(/\)/g, "\\)")
-      // eslint-disable-next-line no-control-regex
-      .replace(/[\x00-\x1F]/g, "");
-  }
+  // Note: text encoding handled by encodeFormText.
 }

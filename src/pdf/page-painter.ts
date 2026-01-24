@@ -60,6 +60,7 @@ export class PagePainter {
   private readonly resultCombiner: ResultCombiner;
   private clipDepth = 0;
   readonly environment?: Environment;
+  private readonly fontRegistry: FontRegistry;
 
   constructor(
     pageHeightPt: number,
@@ -78,6 +79,7 @@ export class PagePainter {
     this.transformScopeManager = new TransformScopeManager(this.coordinateTransformer, this.shapeRenderer);
     this.resultCombiner = new ResultCombiner(this.textRenderer, this.imageRenderer, this.shapeRenderer, this.graphicsStateManager);
     this.environment = environment;
+    this.fontRegistry = fontRegistry;
   }
 
   get pageHeightPx(): number {
@@ -210,6 +212,7 @@ export class PagePainter {
       fontResolver: {
         resolveFont: (family: string, _weight: number, _style: string) => family,
       },
+      fontProvider: this.fontRegistry,
     };
     const result = formRenderer.render(box, context);
     this.shapeRenderer.pushRawCommands(result.commands);

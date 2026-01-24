@@ -63,6 +63,7 @@ export function buildRenderTree(root: LayoutNode, options: RenderTreeOptions = {
 
   const state = { counter: 0, fontResolver: options.fontResolver };
   const renderRoot = convertNode(root, state);
+
   return {
     root: renderRoot,
     dpiAssumption,
@@ -199,6 +200,17 @@ function convertNode(
       ? (rawTextAlign as "left" | "center" | "right" | "justify")
       : undefined;
 
+  const fontSnapshot = {
+    fontFamily: node.style.fontFamily,
+    fontWeight: node.style.fontWeight,
+    fontStyle: node.style.fontStyle,
+    fontSize: node.style.fontSize,
+  };
+  const customData =
+    node.customData || Object.values(fontSnapshot).some((value) => value !== undefined)
+      ? { ...node.customData, ...fontSnapshot }
+      : undefined;
+
   return {
     id,
     tagName: node.tagName,
@@ -238,7 +250,7 @@ function convertNode(
     background,
     clipPath,
     image: imageRef,
-    customData: node.customData ? { ...node.customData } : undefined,
+      customData,
     textAlign,
     transform,
   };
