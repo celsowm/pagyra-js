@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest";
 import { renderTreeForHtml, collectBoxes } from "../helpers/render-utils.js";
 
 // Tolerance for position comparison (accounts for padding and minor layout differences)

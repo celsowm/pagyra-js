@@ -1,4 +1,5 @@
 import type { FormControlData, InputType, ButtonType, SelectOption } from "../pdf/renderers/form/types.js";
+import type { SvgElement, DomElement } from "../types/core.js";
 
 export interface FormElementConfig {
   readonly tagName: string;
@@ -70,15 +71,15 @@ export function extractButtonType(typeAttr: string | null): ButtonType {
   return validTypes.includes(normalized) ? normalized : 'button';
 }
 
-export function extractBooleanAttribute(element: Element, attrName: string): boolean {
-  return element.hasAttribute(attrName) && element.getAttribute(attrName) !== 'false';
+export function extractBooleanAttribute(element: SvgElement, attrName: string): boolean {
+  return element.hasAttribute?.(attrName) === true && element.getAttribute(attrName) !== 'false';
 }
 
-export function extractSelectOptions(element: Element): SelectOption[] {
+export function extractSelectOptions(element: SvgElement): SelectOption[] {
   const options: SelectOption[] = [];
-  const optionElements = element.querySelectorAll('option');
-  
-  for (const option of Array.from(optionElements)) {
+  const optionElements = element.querySelectorAll?.('option') as DomElement[] ?? [];
+
+  for (const option of optionElements) {
     options.push({
       value: option.getAttribute('value') ?? option.textContent ?? '',
       text: option.textContent ?? '',
@@ -86,12 +87,12 @@ export function extractSelectOptions(element: Element): SelectOption[] {
       disabled: extractBooleanAttribute(option, 'disabled')
     });
   }
-  
+
   return options;
 }
 
 export function extractFormControlData(
-  element: Element,
+  element: SvgElement,
   tagName: string
 ): FormControlData | null {
   const config = defaultFormRegistry.getConfig(tagName);

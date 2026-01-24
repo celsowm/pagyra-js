@@ -1,7 +1,17 @@
-import { describe, expect, it, beforeAll } from "vitest";
 import { registerAllPropertyParsers } from "../../src/css/parsers/register-parsers.js";
-import { parseContent, formatCounterValue, evaluateContent } from "../../src/css/parsers/content-parser.js";
+import { parseContent, formatCounterValue, evaluateContent, type ContentValue } from "../../src/css/parsers/content-parser.js";
 import type { StyleAccumulator } from "../../src/css/style.js";
+
+function expectContentType<T extends ContentValue["type"]>(
+    value: ContentValue,
+    type: T,
+): Extract<ContentValue, { type: T }> {
+    expect(value.type).toBe(type);
+    if (value.type !== type) {
+        throw new Error(`Expected content type ${type} but got ${value.type}`);
+    }
+    return value as Extract<ContentValue, { type: T }>;
+}
 
 describe("content CSS property parsing", () => {
     beforeAll(() => {
@@ -13,8 +23,8 @@ describe("content CSS property parsing", () => {
         parseContent('"• "', target);
         expect(target.content).toBeDefined();
         expect(target.content).toHaveLength(1);
-        expect(target.content![0].type).toBe("string");
-        expect((target.content![0] as any).value).toBe("• ");
+        const item = expectContentType(target.content![0], "string");
+        expect(item.value).toBe("• ");
     });
 
     it("parses counter() function", () => {
@@ -22,23 +32,24 @@ describe("content CSS property parsing", () => {
         parseContent("counter(step)", target);
         expect(target.content).toBeDefined();
         expect(target.content).toHaveLength(1);
-        expect(target.content![0].type).toBe("counter");
-        expect((target.content![0] as any).counter).toBe("step");
+        const item = expectContentType(target.content![0], "counter");
+        expect(item.counter).toBe("step");
     });
 
     it("parses counter() with style", () => {
         const target: StyleAccumulator = {};
         parseContent("counter(counter, decimal)", target);
         expect(target.content).toBeDefined();
-        expect((target.content![0] as any).style).toBe("decimal");
+        const item = expectContentType(target.content![0], "counter");
+        expect(item.style).toBe("decimal");
     });
 
     it("parses attr() function", () => {
         const target: StyleAccumulator = {};
         parseContent('attr(data-index)', target);
         expect(target.content).toBeDefined();
-        expect(target.content![0].type).toBe("attr");
-        expect((target.content![0] as any).attribute).toBe("data-index");
+        const item = expectContentType(target.content![0], "attr");
+        expect(item.attribute).toBe("data-index");
     });
 
     it("parses open-quote", () => {

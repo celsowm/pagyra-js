@@ -1,13 +1,11 @@
-import { describe, it, expect, beforeAll } from "vitest";
 import { registerAllPropertyParsers } from "../../src/css/parsers/register-parsers.js";
 import { applyBackgroundRepeatDecl } from "../../src/css/parsers/background-parser-extended.js";
 import { parseBackgroundImage, parseBackground } from "../../src/css/parsers/background-parser-extended.js";
 import type { ImageBackgroundLayer, GradientBackgroundLayer } from "../../src/css/background-types.js";
 
-interface StyleAccumulator {
+type StyleAccumulator = {
     backgroundLayers?: Array<ImageBackgroundLayer | GradientBackgroundLayer>;
-    [key: string]: any;
-}
+} & Record<string, unknown>;
 
 describe("background-repeat CSS parsing", () => {
     beforeAll(() => {

@@ -8,6 +8,7 @@ import type {
 } from "../background-types.js";
 import { parseLinearGradient, parseRadialGradient } from "./gradient-parser.js";
 import { NAMED_COLORS } from "../named-colors.js";
+import type { StyleAccumulator } from "../style.js";
 
 function normalizeBackgroundSizeKeyword(value: string): "cover" | "contain" | "auto" | undefined {
   const trimmed = value.trim().toLowerCase();
@@ -71,7 +72,7 @@ function extractFunctionCall(value: string, fnName: string): FunctionSlice | nul
 /**
  * Ensures background layers array exists and returns the top renderable layer
  */
-export function ensureLayers(style: any): BackgroundLayer[] {
+export function ensureLayers(style: StyleAccumulator): BackgroundLayer[] {
   if (!style.backgroundLayers) {
     style.backgroundLayers = [];
   }
@@ -81,7 +82,7 @@ export function ensureLayers(style: any): BackgroundLayer[] {
 /**
  * Gets or creates the top renderable layer (skips color-only layers)
  */
-function getOrCreateTopRenderableLayer(style: any): BackgroundLayer {
+function getOrCreateTopRenderableLayer(style: StyleAccumulator): BackgroundLayer {
   const layers = ensureLayers(style);
 
   // Find the last non-color layer
@@ -219,7 +220,7 @@ function parseImageLayer(value: string): BackgroundLayer | null {
   let url = "";
   let position: { x: string; y: string } = { x: "left", y: "top" };
   let size: BackgroundSize = "auto";
-  let repeat = "repeat";
+  let repeat: BackgroundRepeat = "repeat";
   let origin: BackgroundOrigin | undefined;
   let currentIndex = 0;
 
@@ -269,7 +270,7 @@ function parseImageLayer(value: string): BackgroundLayer | null {
     url,
     position,
     size,
-    repeat: repeat as any,
+    repeat: repeat,
     origin,
   };
 }
@@ -365,7 +366,7 @@ function isBoxKeyword(value: string): value is BackgroundOrigin {
 /**
  * Applies background-size longhand property
  */
-export function applyBackgroundSize(style: any, value: string): void {
+export function applyBackgroundSize(style: StyleAccumulator, value: string): void {
   ensureLayers(style);
   const layer = getOrCreateTopRenderableLayer(style);
   const keyword = normalizeBackgroundSizeKeyword(value);
@@ -422,7 +423,7 @@ function parseBackgroundPositionValue(value: string): BackgroundPosition {
   return parseBackgroundPosition(first, second ?? "center");
 }
 
-export function applyBackgroundPosition(style: any, value: string): void {
+export function applyBackgroundPosition(style: StyleAccumulator, value: string): void {
   ensureLayers(style);
   const layer = getOrCreateTopRenderableLayer(style);
   const position = parseBackgroundPositionValue(value);
@@ -431,7 +432,7 @@ export function applyBackgroundPosition(style: any, value: string): void {
   }
 }
 
-export function applyBackgroundOrigin(style: any, value: string): void {
+export function applyBackgroundOrigin(style: StyleAccumulator, value: string): void {
   ensureLayers(style);
   const token = value.trim().toLowerCase();
   if (!isBoxKeyword(token)) {
@@ -443,7 +444,7 @@ export function applyBackgroundOrigin(style: any, value: string): void {
   }
 }
 
-export function applyBackgroundRepeat(style: any, value: string): void {
+export function applyBackgroundRepeat(style: StyleAccumulator, value: string): void {
   ensureLayers(style);
   const token = value.trim().toLowerCase();
   if (!isRepeatKeyword(token)) {

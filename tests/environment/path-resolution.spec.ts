@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest';
 import { NodeEnvironment } from '../../src/environment/node-environment.js';
 import { BrowserEnvironment } from '../../src/environment/browser-environment.js';
 import path from 'node:path';

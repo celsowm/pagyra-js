@@ -41,7 +41,7 @@ export class Woff2MetricsExtractor implements MetricsExtractor {
     return ['woff2'];
   }
 
-  extractMetrics(tableData: any): FontMetrics {
+  extractMetrics(tableData: FontTableData): FontMetrics {
     // Validate we have the required WOFF2 table data
     if (!tableData.tables || typeof tableData.tables !== 'object') {
       throw new Error('Invalid WOFF2 table data: missing tables');
@@ -123,7 +123,7 @@ export class Woff2MetricsExtractor implements MetricsExtractor {
     };
   }
 
-  private parseGlyphMetrics(tableData: any): ReadonlyMap<number, GlyphMetrics> {
+  private parseGlyphMetrics(tableData: FontTableData): ReadonlyMap<number, GlyphMetrics> {
     const tables = tableData.tables;
     const hmtxTable = tables['hmtx'];
     const maxpTable = tables['maxp'];

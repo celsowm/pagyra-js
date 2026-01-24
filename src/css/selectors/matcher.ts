@@ -3,21 +3,41 @@ import { parseSelector } from "./parser.js";
 import { simpleKey } from "./simple-key.js";
 
 /**
+ * Minimal DOM-like interface for selector matching
+ * Compatible with both native DOM Element and custom DomElement implementations
+ */
+export interface DomLikeElement {
+  readonly tagName: string;
+  readonly id?: string;
+  readonly classList?: DOMTokenList;
+  readonly parentElement: DomLikeElement | Element | null;
+  readonly firstElementChild: DomLikeElement | Element | null;
+  readonly lastElementChild: DomLikeElement | Element | null;
+  readonly nextElementSibling: DomLikeElement | Element | null;
+  readonly previousElementSibling: DomLikeElement | Element | null;
+  readonly ownerDocument?: { documentElement?: DomLikeElement | Element };
+  readonly textContent?: string | null;
+  getAttribute(name: string): string | null;
+  hasAttribute?(name: string): boolean;
+  querySelectorAll?(selectors: string): DomLikeElement[] | NodeListOf<Element>;
+}
+
+/**
  * Cria um predicado (el)=>boolean que testa o seletor.
  * - Avaliação right-to-left
  * - Suporte a combinadores: ', '>', '+', '~'
  * - Suporte a tag/#id/.classe/[attr]/:first/last/nth-child/:not(simple)
  * - Memoização por nó para matches de "Simple"
  */
-export function createSelectorMatcher(selector: string): ((el: Element) => boolean) | null {
+export function createSelectorMatcher(selector: string): ((el: DomLikeElement) => boolean) | null {
   const chain = parseSelector(selector);
   if (!chain) return null;
 
   // Cache: (el) -> (simpleKey -> boolean)
-  type MatchCache = WeakMap<Element, Map<string, boolean>>;
+  type MatchCache = WeakMap<DomLikeElement, Map<string, boolean>>;
   const cache: MatchCache = new WeakMap();
 
-  function memo(el: Element, s: Simple, raw: (e: Element, s: Simple) => boolean): boolean {
+  function memo(el: DomLikeElement, s: Simple, raw: (e: DomLikeElement, s: Simple) => boolean): boolean {
     let m = cache.get(el);
     if (!m) { m = new Map(); cache.set(el, m); }
     const k = simpleKey(s);
@@ -28,14 +48,14 @@ export function createSelectorMatcher(selector: string): ((el: Element) => boole
   }
 
   // Helpers DOM (assumem DOM-like API; adapte se teu DOM for custom)
-  function getAttr(el: Element, name: string): string | null {
+  function getAttr(el: DomLikeElement, name: string): string | null {
     if (typeof el.getAttribute === "function") {
       return el.getAttribute(name);
     }
     return null;
   }
 
-  function matchAttr(el: Element, cond: AttrCond): boolean {
+  function matchAttr(el: DomLikeElement, cond: AttrCond): boolean {
     const v = getAttr(el, cond.name);
     if (cond.op === 'exists') {
       const result = v !== null;
@@ -57,7 +77,7 @@ export function createSelectorMatcher(selector: string): ((el: Element) => boole
     return result;
   }
 
-  function indexInParent(el: Element): number {
+  function indexInParent(el: DomLikeElement): number {
     const p = el.parentElement;
     if (!p) {
       return -1;
@@ -72,7 +92,7 @@ export function createSelectorMatcher(selector: string): ((el: Element) => boole
     return -1;
   }
 
-  function matchesPseudo(el: Element, p: Pseudo): boolean {
+  function matchesPseudo(el: DomLikeElement, p: Pseudo): boolean {
     if (p.kind === 'first-child') {
       const result = indexInParent(el) === 1;
       return result;
@@ -113,7 +133,7 @@ export function createSelectorMatcher(selector: string): ((el: Element) => boole
     return false;
   }
 
-  function matchesSimple(el: Element, s: Simple): boolean {
+  function matchesSimple(el: DomLikeElement, s: Simple): boolean {
     if (s.tag && el.tagName.toLowerCase() !== s.tag) {
       return false;
     }
@@ -140,8 +160,8 @@ export function createSelectorMatcher(selector: string): ((el: Element) => boole
   }
 
   // Matcher right-to-left
-  return function match(el: Element): boolean {
-    let current: Element | null = el;
+  return function match(el: DomLikeElement): boolean {
+    let current: DomLikeElement | null = el;
     let i = chain.length - 1;
 
     if (!current) {
@@ -168,7 +188,7 @@ export function createSelectorMatcher(selector: string): ((el: Element) => boole
       }
 
       if (comb === ' ') {
-        let anc: Element | null = current!.parentElement, found = false;
+        let anc: DomLikeElement | null = current!.parentElement, found = false;
         while (anc) {
           if (memo(anc, needed.simple, matchesSimple)) {
             current = anc;
@@ -184,7 +204,7 @@ export function createSelectorMatcher(selector: string): ((el: Element) => boole
       }
 
       if (comb === '+') {
-        const sib = current!.previousElementSibling as Element | null;
+        const sib = current!.previousElementSibling as DomLikeElement | null;
         if (!sib) {
           return false;
         }
@@ -195,14 +215,14 @@ export function createSelectorMatcher(selector: string): ((el: Element) => boole
       }
 
       if (comb === '~') {
-        let sib = current!.previousElementSibling as Element | null, found = false;
+        let sib = current!.previousElementSibling as DomLikeElement | null, found = false;
         while (sib) {
           if (memo(sib, needed.simple, matchesSimple)) {
             current = sib;
             found = true;
             break;
           }
-          sib = sib.previousElementSibling as Element | null;
+          sib = sib.previousElementSibling as DomLikeElement | null;
         }
         if (!found) {
           return false;

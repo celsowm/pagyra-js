@@ -1,4 +1,3 @@
-import { describe, expect, it, beforeAll } from "vitest";
 import { registerAllPropertyParsers } from "../../src/css/parsers/register-parsers.js";
 import { parseFontVariantNumeric, hasFontVariantNumeric } from "../../src/css/properties/typography.js";
 import { parseFontVariantNumeric as parseFromFontParser } from "../../src/css/parsers/font-parser.js";

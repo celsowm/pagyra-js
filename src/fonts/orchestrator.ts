@@ -2,10 +2,10 @@ import { detectFontFormat } from './detector.js';
 import { TtfEngine } from './engines/ttf-engine.js';
 import { WoffEngine } from './engines/woff-engine.js';
 import { Woff2Engine } from './engines/woff2-engine.js';
-import type { FontFormat, UnifiedFont } from './types.js';
+import type { FontFormat, UnifiedFont, FontEngine } from './types.js';
 
 export class FontOrchestrator {
-  private engines = new Map<FontFormat, any>();
+  private engines = new Map<FontFormat, FontEngine<unknown>>();
 
   constructor() {
     this.engines.set('ttf', new TtfEngine());
@@ -37,12 +37,8 @@ export class FontOrchestrator {
         parsed = await engine.parse(fontData);
       }
 
-      let unifiedFont: UnifiedFont;
-      if (format === 'ttf' || format === 'otf') {
-        unifiedFont = engine.convertToUnified(parsed);
-      } else {
-        unifiedFont = await engine.convertToUnified(parsed);
-      }
+      // Always await to handle both sync and async engines uniformly
+      const unifiedFont = await engine.convertToUnified(parsed);
 
       console.log(`FONT-ORCH: Successfully parsed ${format} font`);
       return unifiedFont;

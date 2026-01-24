@@ -256,10 +256,16 @@ function normalizeGradientGeometry(
   if (!gradient) {
     return undefined;
   }
-  if ((gradient as any).type === "radial") {
-    return normalizeRadialGradient(gradient as RadialGradient, rect);
+  if (isRadialGradient(gradient)) {
+    return normalizeRadialGradient(gradient, rect);
   }
   return gradient;
+}
+
+function isRadialGradient(
+  gradient: GradientBackgroundLayer["gradient"],
+): gradient is RadialGradient {
+  return gradient.type === "radial";
 }
 
 function normalizeRadialGradient(

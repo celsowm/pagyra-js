@@ -67,7 +67,7 @@ export interface Woff2FontProgram extends FontProgram {
   readonly sourceFormat: 'woff2';
   readonly compressionInfo?: {
     type: 'woff2';
-    tables: Map<string, any>;
+    tables: Map<string, Uint8Array>;
   };
   readonly transformInfo?: {
     glyphTransformed: boolean;

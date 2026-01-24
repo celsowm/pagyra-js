@@ -23,7 +23,7 @@ interface PngMetadata {
 async function defaultInflateRaw(data: Uint8Array): Promise<Uint8Array> {
   if (typeof DecompressionStream !== "undefined") {
     const ds = new DecompressionStream('deflate-raw');
-    const stream = new Blob([data as any]).stream().pipeThrough(ds);
+    const stream = new Blob([data.buffer as ArrayBuffer]).stream().pipeThrough(ds);
     const out = await new Response(stream).arrayBuffer();
     return new Uint8Array(out);
   } else {
@@ -35,7 +35,7 @@ async function defaultInflateRaw(data: Uint8Array): Promise<Uint8Array> {
 async function defaultInflateZlib(data: Uint8Array): Promise<Uint8Array> {
   if (typeof DecompressionStream !== "undefined") {
     const ds = new DecompressionStream('deflate');
-    const stream = new Blob([data as any]).stream().pipeThrough(ds);
+    const stream = new Blob([data.buffer as ArrayBuffer]).stream().pipeThrough(ds);
     const out = await new Response(stream).arrayBuffer();
     return new Uint8Array(out);
   } else {

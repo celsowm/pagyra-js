@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest";
 import { paintBoxAtomic } from "../../src/pdf/renderer/box-painter.js";
 import { PagePainter } from "../../src/pdf/page-painter.js";
 import { PdfDocument } from "../../src/pdf/primitives/pdf-document.js";

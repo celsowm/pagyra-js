@@ -24,7 +24,7 @@ export function resolveBoxShadows(node: LayoutNode, fallbackColor: RGBA): Shadow
 
 export function resolveTextShadows(node: LayoutNode, fallbackColor: RGBA): ShadowLayer[] {
   const result: ShadowLayer[] = [];
-  const shadows = (node.style as any).textShadows ?? [];
+  const shadows = node.style.textShadows ?? [];
   for (const shadow of shadows) {
     // shadow here is expected to have numeric offsetX/offsetY/blurRadius and optional color
     const offsetX = shadow.offsetX ?? 0;

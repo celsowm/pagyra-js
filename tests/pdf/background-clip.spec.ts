@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeAll } from "vitest";
 import { registerAllPropertyParsers } from "../../src/css/parsers/register-parsers.js";
 import {
   parseBackgroundImage,

@@ -1,5 +1,15 @@
-export function defaultDisplayForTag(tag: string): 'block'|'inline'|'inline-block'|'table'|'table-row'|'table-cell' {
-  let display: string;
+type DisplayValue =
+  | "block"
+  | "inline"
+  | "inline-block"
+  | "table"
+  | "table-row"
+  | "table-cell"
+  | "table-row-group"
+  | "table-caption";
+
+export function defaultDisplayForTag(tag: string): DisplayValue {
+  let display: DisplayValue;
   switch (tag) {
     case "span":
     case "a":
@@ -57,7 +67,7 @@ export function defaultDisplayForTag(tag: string): 'block'|'inline'|'inline-bloc
       display = 'block';
       break;
   }
-  return display as 'block'|'inline'|'inline-block'|'table'|'table-row'|'table-cell'|any; // adjust types if needed
+  return display;
 }
 
 export const UA_DEFAULTS = {

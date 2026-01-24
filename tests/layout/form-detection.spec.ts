@@ -1,6 +1,12 @@
-import { describe, it, expect } from 'vitest';
 import { renderTreeForHtml } from '../helpers/render-utils.js';
 import { defaultFormRendererFactory } from '../../src/pdf/renderers/form/factory.js';
+import type { RenderBox } from '../../src/pdf/types.js';
+import {
+  isButtonControlData,
+  isInputControlData,
+  isSelectControlData,
+  isTextareaControlData,
+} from '../../src/pdf/renderers/form/types.js';
 
 describe('Form Rendering', () => {
   describe('Form Element Detection', () => {
@@ -24,8 +30,11 @@ describe('Form Rendering', () => {
       const formData = defaultFormRendererFactory.getFormControlData(inputs[0]);
       expect(formData).not.toBeNull();
       expect(formData?.kind).toBe('input');
-      expect((formData as any).inputType).toBe('checkbox');
-      expect((formData as any).isChecked).toBe(true);
+      if (!formData || !isInputControlData(formData)) {
+        throw new Error("Expected input control data");
+      }
+      expect(formData.inputType).toBe('checkbox');
+      expect(formData.isChecked).toBe(true);
     });
 
     it('should detect radio element', async () => {
@@ -37,7 +46,10 @@ describe('Form Rendering', () => {
       const formData = defaultFormRendererFactory.getFormControlData(inputs[0]);
       expect(formData).not.toBeNull();
       expect(formData?.kind).toBe('input');
-      expect((formData as any).inputType).toBe('radio');
+      if (!formData || !isInputControlData(formData)) {
+        throw new Error("Expected input control data");
+      }
+      expect(formData.inputType).toBe('radio');
     });
 
     it('should detect select element', async () => {
@@ -49,8 +61,11 @@ describe('Form Rendering', () => {
       const formData = defaultFormRendererFactory.getFormControlData(selects[0]);
       expect(formData).not.toBeNull();
       expect(formData?.kind).toBe('select');
-      expect((formData as any).options.length).toBe(2);
-      expect((formData as any).options[1].selected).toBe(true);
+      if (!formData || !isSelectControlData(formData)) {
+        throw new Error("Expected select control data");
+      }
+      expect(formData.options.length).toBe(2);
+      expect(formData.options[1].selected).toBe(true);
     });
 
     it('should detect textarea element', async () => {
@@ -62,8 +77,11 @@ describe('Form Rendering', () => {
       const formData = defaultFormRendererFactory.getFormControlData(textareas[0]);
       expect(formData).not.toBeNull();
       expect(formData?.kind).toBe('textarea');
-      expect((formData as any).rows).toBe(4);
-      expect((formData as any).value).toBe('Initial content');
+      if (!formData || !isTextareaControlData(formData)) {
+        throw new Error("Expected textarea control data");
+      }
+      expect(formData.rows).toBe(4);
+      expect(formData.value).toBe('Initial content');
     });
 
     it('should detect button element', async () => {
@@ -75,8 +93,11 @@ describe('Form Rendering', () => {
       const formData = defaultFormRendererFactory.getFormControlData(buttons[0]);
       expect(formData).not.toBeNull();
       expect(formData?.kind).toBe('button');
-      expect((formData as any).buttonType).toBe('submit');
-      expect((formData as any).value).toBe('Click Me');
+      if (!formData || !isButtonControlData(formData)) {
+        throw new Error("Expected button control data");
+      }
+      expect(formData.buttonType).toBe('submit');
+      expect(formData.value).toBe('Click Me');
     });
   });
 
@@ -109,8 +130,8 @@ describe('Form Rendering', () => {
   });
 });
 
-function findFormElements(root: any, tagName: string): any[] {
-  const results: any[] = [];
+function findFormElements(root: RenderBox, tagName: string): RenderBox[] {
+  const results: RenderBox[] = [];
   if (root.tagName?.toLowerCase() === tagName) {
     results.push(root);
   }
@@ -120,8 +141,8 @@ function findFormElements(root: any, tagName: string): any[] {
   return results;
 }
 
-function findFirstFormElement(root: any): any | null {
-  if (root.customData?.formControl) {
+function findFirstFormElement(root: RenderBox): RenderBox | null {
+  if (root.customData && "formControl" in root.customData) {
     return root;
   }
   for (const child of (root.children ?? [])) {

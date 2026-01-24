@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest';
 import { CustomPropertiesMap, resolveVariableReferences } from '../../src/css/custom-properties.js';
 
 describe('CSS Custom Properties', () => {

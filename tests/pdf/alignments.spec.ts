@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest";
 import { renderRuns } from "../helpers/render-utils.js";
 
 describe("PDF text alignment (non-justify)", () => {

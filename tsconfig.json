@@ -8,10 +8,14 @@
     "declaration": true,
     "strict": true,
     "skipLibCheck": true,
-    "types": ["node", "vitest"],
+    "types": ["node", "vitest/globals"],
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "verbatimModuleSyntax": true,
-    "allowImportingTsExtensions": false
+    "allowImportingTsExtensions": false,
+    "baseUrl": ".",
+    "paths": {
+      "rollup/parseAst": ["./types/rollup-parseAst.d.ts"]
+    }
   },
-  "include": ["src", "tests", "playground"]
+  "include": ["src", "tests", "playground", "types"]
 }

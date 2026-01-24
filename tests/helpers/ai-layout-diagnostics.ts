@@ -1,4 +1,4 @@
-type RenderBox = any;
+import type { RenderBox, Rect, Edges } from "../../src/pdf/types.js";
 
 export function findBoxWithBorderRadius(box: RenderBox): RenderBox | null {
     if (box?.borderRadius && box.borderRadius.topLeft?.x > 0) {
@@ -29,14 +29,14 @@ interface DiagnosticCheck {
 
 interface DiagnosticContext {
     testId: string;
-    css: any;
-    browser: any;
+    css: unknown;
+    browser: unknown;
     geometry: {
-        borderBox: any;
-        contentBox: any;
-        spanBox: any;
-        padding: any;
-        border: any;
+        borderBox: Rect;
+        contentBox: Rect;
+        spanBox: Rect;
+        padding: Edges;
+        border: Edges;
     };
     checks: DiagnosticCheck[];
     fontDiagnostics?: string;
@@ -47,13 +47,13 @@ let context: DiagnosticContext | null = null;
 
 export function createDiagnosticsContext(
     testId: string,
-    css: any,
-    browser: any,
-    borderBox: any,
-    contentBox: any,
-    spanBox: any,
-    padding: any,
-    border: any,
+    css: unknown,
+    browser: unknown,
+    borderBox: Rect,
+    contentBox: Rect,
+    spanBox: Rect,
+    padding: Edges,
+    border: Edges,
     fontDiagnostics?: string
 ) {
     context = {

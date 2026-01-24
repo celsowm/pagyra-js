@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest";
 import { parseBackground } from "../../src/css/parsers/background-parser-extended.js";
 import type { StyleAccumulator } from "../../src/css/style.js";
 

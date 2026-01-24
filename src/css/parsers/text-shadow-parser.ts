@@ -1,6 +1,7 @@
 import { type TextShadowInput, type StyleAccumulator } from "../style.js";
 import { clampNonNegative, splitCssCommaList, splitCssList } from "../utils.js";
 import { parseLength } from "./length-parser.js";
+import type { RelativeLength } from "../length.js";
 
 export function parseTextShadowList(value: string): TextShadowInput[] | undefined {
   const trimmed = value.trim();
@@ -63,7 +64,7 @@ function parseSingleTextShadow(input: string): TextShadowInput | null {
     return null;
   }
 
-  const asLength = (value: any, clamp = false) => {
+  const asLength = (value: number | RelativeLength | undefined, clamp = false) => {
     if (value === undefined) return 0;
     if (typeof value === "number" && clamp) {
       return clampNonNegative(value);

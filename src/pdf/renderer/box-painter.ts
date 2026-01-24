@@ -117,7 +117,13 @@ function paintBackground(painter: PagePainter, box: RenderBox): void {
           ? paintArea.radius
           : zeroRadius();
 
-      painter.fillRoundedRect(tile, radius, gradient.gradient as any);
+      // Type guard to handle gradient type conversion
+      const g = gradient.gradient;
+      if (g.type === "radial") {
+        painter.fillRoundedRect(tile, radius, g as import("../../css/parsers/gradient-parser.js").RadialGradient);
+      } else {
+        painter.fillRoundedRect(tile, radius, g as import("../../css/parsers/gradient-parser.js").LinearGradient);
+      }
     }
   }
 

@@ -33,7 +33,7 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
         : 0;
     let firstLineTextIndentPending = shouldApplyTextIndent && resolvedTextIndent !== 0;
 
-    const layoutCallback = (node: LayoutNode, width: number, ctx: any) => layoutInlineChildrenIfNeeded(node, width, ctx);
+    const layoutCallback = (node: LayoutNode, width: number, ctx: LayoutContext) => layoutInlineChildrenIfNeeded(node, width, ctx);
     const fragments = collectInlineFragments(inlineNodes, contentWidth, context, layoutCallback);
     const items = tokenizeFragments(fragments, context.env.fontEmbedder);
 
@@ -231,7 +231,7 @@ export function offsetInlineDescendants(node: LayoutNode, deltaX: number, deltaY
 function layoutInlineChildrenIfNeeded(
     node: LayoutNode,
     containerWidth: number,
-    context: any, // Using any to avoid circular type dependency if needed, or import LayoutContext
+    context: LayoutContext,
 ): { contentWidth: number; contentHeight: number } | null {
     if (!shouldLayoutInlineChildren(node)) {
         return null;

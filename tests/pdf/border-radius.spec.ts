@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest";
 import { generateRoundedRectPath } from "../../src/pdf/renderers/rounded-rect-path.js";
 import type { Radius, Rect } from "../../src/pdf/types.js";
 import { normalizeRadiiForRect, isZeroRadius } from "../../src/pdf/renderers/radius-utils.js";

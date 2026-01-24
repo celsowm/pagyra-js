@@ -38,6 +38,7 @@ export interface ElementDefaults {
   objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down";
   textDecorationLine?: string;
   textDecorationColor?: string;
+  textDecorationStyle?: string;
   overflowWrap?: "normal" | "break-word" | "anywhere";
   textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
 }

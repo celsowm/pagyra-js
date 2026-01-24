@@ -1,4 +1,3 @@
-import { describe, it, expect, vi } from "vitest";
 import { RunPlacer } from "../../src/layout/inline/run-placer.js";
 import { LayoutNode } from "../../src/dom/node.js";
 import { ComputedStyle } from "../../src/css/style.js";

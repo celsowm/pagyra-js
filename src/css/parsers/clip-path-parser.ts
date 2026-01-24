@@ -85,8 +85,8 @@ function parseClipLength(token: string): ClipPathLength | undefined {
   if (typeof parsed === "number") {
     return { unit: "px", value: parsed };
   }
-  if (typeof parsed === "object" && (parsed as any).unit === "percent") {
-    return { unit: "percent", value: (parsed as any).value as number };
+  if (typeof parsed === "object" && parsed.kind === "absolute" && parsed.unit === "percent") {
+    return { unit: "percent", value: parsed.value };
   }
   return undefined;
 }

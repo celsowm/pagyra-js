@@ -1,4 +1,5 @@
 import type { ElementDefaults } from "./types.js";
+import type { StyleProperties } from "../style.js";
 import { createBaseDefaultsObject } from "./base-defaults.js";
 import { cloneLineHeight } from "../line-height.js";
 
@@ -9,12 +10,15 @@ import { cloneLineHeight } from "../line-height.js";
  * - merging element-specific overrides into it
  */
 export class BrowserDefaults {
-  static createBaseDefaults(): any {
+  static createBaseDefaults(): Partial<StyleProperties> {
     return createBaseDefaultsObject();
   }
 
-  static mergeElementDefaults(baseDefaults: any, elementDefaults: Partial<ElementDefaults>): any {
-    const merged = { ...baseDefaults };
+  static mergeElementDefaults(
+    baseDefaults: Partial<StyleProperties>,
+    elementDefaults: Partial<ElementDefaults>,
+  ): Partial<StyleProperties> {
+    const merged: Partial<StyleProperties> = { ...baseDefaults };
 
     if (elementDefaults.fontSize !== undefined) {
       merged.fontSize = elementDefaults.fontSize;
@@ -99,13 +103,13 @@ export class BrowserDefaults {
       merged.display = elementDefaults.display;
     }
     if (elementDefaults.objectFit !== undefined) {
-      (merged as any).objectFit = elementDefaults.objectFit;
+      merged.objectFit = elementDefaults.objectFit;
     }
     if (elementDefaults.textAlign !== undefined) {
       merged.textAlign = elementDefaults.textAlign;
     }
     if (elementDefaults.textIndent !== undefined) {
-      (merged as any).textIndent = elementDefaults.textIndent;
+      merged.textIndent = elementDefaults.textIndent;
     }
     if (elementDefaults.verticalAlign !== undefined) {
       merged.verticalAlign = elementDefaults.verticalAlign;
@@ -114,13 +118,13 @@ export class BrowserDefaults {
       merged.listStyleType = elementDefaults.listStyleType;
     }
     if (elementDefaults.textDecorationLine !== undefined) {
-      (merged as any).textDecorationLine = elementDefaults.textDecorationLine;
+      merged.textDecorationLine = elementDefaults.textDecorationLine;
     }
     if (elementDefaults.overflowWrap !== undefined) {
-      (merged as any).overflowWrap = elementDefaults.overflowWrap;
+      merged.overflowWrap = elementDefaults.overflowWrap;
     }
     if (elementDefaults.textTransform !== undefined) {
-      (merged as any).textTransform = elementDefaults.textTransform;
+      merged.textTransform = elementDefaults.textTransform;
     }
     if (elementDefaults.borderCollapse !== undefined) {
       merged.borderCollapse = elementDefaults.borderCollapse;

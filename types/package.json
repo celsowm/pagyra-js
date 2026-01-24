@@ -1,0 +1,11 @@
+{
+  "name": "@pagyra-js/types",
+  "version": "1.0.0",
+  "description": "Type definitions for pagyra-js",
+  "types": "./global.d.ts",
+  "exports": {
+    "./rollup/parseAst": {
+      "types": "./rollup-parseAst.d.ts"
+    }
+  }
+}

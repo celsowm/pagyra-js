@@ -26,6 +26,7 @@ import { Display } from "./css/enums.js";
 import type { Environment } from "./environment/environment.js";
 import { NodeEnvironment } from "./environment/node-environment.js";
 import { decodeBase64ToUint8Array } from "./utils/base64.js";
+import type { SvgElement } from "./types/core.js";
 
 export interface RenderHtmlOptions {
   html: string;
@@ -94,7 +95,8 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   log('html-to-pdf', 'debug', `prepareHtmlRender - document children count: ${document.childNodes.length}`);
   for (let i = 0; i < document.childNodes.length; i++) {
     const child = document.childNodes[i];
-    log('html-to-pdf', 'debug', `prepareHtmlRender - document child ${i}: ${child.nodeType}, ${(child as any).tagName || 'text node'}`);
+    const tagName = child.nodeType === child.ELEMENT_NODE ? (child as Element).tagName : 'text node';
+    log('html-to-pdf', 'debug', `prepareHtmlRender - document child ${i}: ${child.nodeType}, ${tagName}`);
   }
   log("parse", "debug", "DOM parsed", { hasBody: !!document.body });
 
@@ -135,7 +137,7 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   const baseParentStyle = new ComputedStyle();
   const htmlElement = document.documentElement;
   const documentElementStyle = htmlElement
-    ? computeStyleForElement(htmlElement, cssRules, baseParentStyle, units, baseParentStyle.fontSize)
+    ? computeStyleForElement(htmlElement as SvgElement, cssRules, baseParentStyle, units, baseParentStyle.fontSize)
     : baseParentStyle;
   const rootFontSize = documentElementStyle.fontSize;
 
@@ -143,7 +145,7 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   if (!processChildrenOf || processChildrenOf === htmlElement) {
     rootStyle = documentElementStyle;
   } else {
-    rootStyle = computeStyleForElement(processChildrenOf, cssRules, documentElementStyle, units, rootFontSize);
+    rootStyle = computeStyleForElement(processChildrenOf as SvgElement, cssRules, documentElementStyle, units, rootFontSize);
   }
   if (isInlineDisplay(rootStyle.display)) {
     rootStyle.display = Display.Block;
@@ -155,7 +157,8 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   if (processChildrenOf) {
     log('html-to-pdf', 'debug', `prepareHtmlRender - processing children of: ${processChildrenOf.tagName}, count: ${processChildrenOf.childNodes.length}`);
     for (const child of Array.from(processChildrenOf.childNodes)) {
-      log('html-to-pdf', 'debug', `prepareHtmlRender - processing child: ${(child as any).tagName || 'text node'}, type: ${child.nodeType}`);
+      const childTagName = child.nodeType === child.ELEMENT_NODE ? (child as Element).tagName : 'text node';
+      log('html-to-pdf', 'debug', `prepareHtmlRender - processing child: ${childTagName}, type: ${child.nodeType}`);
       // Skip head and other non-content elements
       if (child.nodeType === child.ELEMENT_NODE) {
         const tagName = (child as HTMLElement).tagName.toLowerCase();
@@ -200,7 +203,8 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
       if (!face.data && face.src) {
         const loaded = await loadFontData(face.src, resourceBaseDir, assetRootDir, environment);
         if (loaded) {
-          (face as any).data = loaded;
+          // Type assertion needed because face is readonly from fontFaceDefs
+          (face as { data: ArrayBuffer }).data = loaded;
         }
       }
     }

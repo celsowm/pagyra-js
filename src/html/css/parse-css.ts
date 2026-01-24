@@ -1,5 +1,5 @@
 import * as cssParser from "css";
-import { createSelectorMatcher } from "../../css/selectors/matcher.js";
+import { createSelectorMatcher, type DomLikeElement } from "../../css/selectors/matcher.js";
 
 import type { DomElement } from "../../types/core.js";
 
@@ -8,7 +8,7 @@ export type DomEl = DomElement;
 export interface CssRuleEntry {
   selector: string;
   declarations: Record<string, string>;
-  match: (el: DomEl) => boolean;
+  match: (el: DomLikeElement) => boolean;
 }
 
 export interface FontFaceRule {

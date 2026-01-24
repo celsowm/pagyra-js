@@ -25,6 +25,7 @@ import {
 } from "./types.js";
 import { parseTransform } from "../transform/css-parser.js";
 import { ParserRegistry, type SvgParseContext as ImportedSvgParseContext } from "./parser-registry.js";
+import type { SvgElement as CoreSvgElement } from "../types/core.js";
 
 export interface ParseSvgOptions {
   warn?: (message: string) => void;
@@ -35,15 +36,48 @@ export interface ParseSvgOptions {
 /** @deprecated Use SvgParseContext from parser-registry.ts */
 type SvgParseContext = ImportedSvgParseContext;
 
-export function parseSvg(element: Element, options: ParseSvgOptions = {}): SvgRootNode | null {
+/**
+ * Union type for SVG parsing - accepts both native Element and DomElement
+ * Re-exported from core types for consistency
+ */
+export type SvgElement = CoreSvgElement;
+
+/**
+ * Type guard to check if a value is a native Element
+ */
+function isNativeElement(value: unknown): value is Element {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'tagName' in value &&
+    'getAttribute' in value &&
+    'nodeType' in value
+  );
+}
+
+/**
+ * Convert a DomElement or Element to a native Element for parsing
+ * In browser environments, DomElement is typically already a native Element
+ */
+function toNativeElement(element: SvgElement): Element {
+  if (isNativeElement(element)) {
+    return element;
+  }
+  // If it's a DomElement but not a native Element, we need to adapt it
+  // This is a fallback - in practice, browser DOM elements should pass the isNativeElement check
+  return element as unknown as Element;
+}
+
+export function parseSvg(element: SvgElement, options: ParseSvgOptions = {}): SvgRootNode | null {
   const warn = options.warn ?? (() => { });
-  if (element.tagName.toLowerCase() !== "svg") {
+  const nativeElement = toNativeElement(element);
+  if (nativeElement.tagName.toLowerCase() !== "svg") {
     warn("Expected <svg> root element.");
     return null;
   }
   const context: SvgParseContext = { warn };
   const registry = options.registry ?? defaultParserRegistry;
-  const parsed = registry.parse(element, context);
+  const parsed = registry.parse(nativeElement, context);
   if (!parsed || parsed.type !== "svg") {
     warn("Unable to parse <svg> element.");
     return null;
@@ -53,19 +87,19 @@ export function parseSvg(element: Element, options: ParseSvgOptions = {}): SvgRo
 
 /**
  * Parses a generic SVG element into a typed node structure.
- * 
+ *
  * @param element - The DOM element to parse
  * @param context - Parsing context
  * @param registry - Optional parser registry (uses default if not provided)
  * @returns Parsed SVG node or null if unsupported
  */
 export function parseElement(
-  element: Element,
+  element: SvgElement,
   context: SvgParseContext,
   registry?: ParserRegistry
 ): SvgNode | null {
   const reg = registry ?? defaultParserRegistry;
-  return reg.parse(element, context);
+  return reg.parse(toNativeElement(element), context);
 }
 
 function parseSvgRoot(element: Element, context: SvgParseContext): SvgRootNode | null {

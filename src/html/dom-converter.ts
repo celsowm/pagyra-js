@@ -14,6 +14,7 @@ import type { ImageInfo } from "../image/types.js";
 import { log } from "../logging/debug.js";
 import { decodeBase64ToUint8Array } from "../utils/base64.js";
 import { defaultFormRegistry, extractFormControlData } from "../dom/form-registry.js";
+import type { ExtendedDomNode, SvgElement } from "../types/core.js";
 
 function findMeaningfulSibling(start: Node | null, direction: "previous" | "next"): Node | null {
   let current = start;
@@ -167,7 +168,8 @@ export async function convertDomNode(
   parentStyle: ComputedStyle,
   context: ConversionContext,
 ): Promise<LayoutNode | null> {
-  log('dom-converter', 'debug', `convertDomNode - entering function for node type: ${node.nodeType}, tagName: ${(node as any).tagName || 'text node'}`);
+  const extendedNode = node as unknown as ExtendedDomNode;
+  log('dom-converter', 'debug', `convertDomNode - entering function for node type: ${node.nodeType}, tagName: ${extendedNode.tagName || 'text node'}`);
   if (node.nodeType === node.TEXT_NODE) {
     const raw = node.textContent ?? "";
     const collapsed = raw.replace(/\s+/g, " ").normalize("NFC");
@@ -196,7 +198,7 @@ export async function convertDomNode(
         textDecorationColor: parentStyle.textDecorationColor,
         textDecorationStyle: parentStyle.textDecorationStyle,
         textTransform: parentStyle.textTransform,
-        transform: parentStyle.transform as any,
+        transform: parentStyle.transform,
         textShadows: parentStyle.textShadows,
       });
       return new LayoutNode(textStyle, [], {
@@ -234,7 +236,7 @@ export async function convertDomNode(
       textDecorationColor: parentStyle.textDecorationColor,
       textDecorationStyle: parentStyle.textDecorationStyle,
       textTransform: parentStyle.textTransform,
-      transform: parentStyle.transform as any,
+      transform: parentStyle.transform,
       textShadows: parentStyle.textShadows,
     });
     return new LayoutNode(textStyle, [], {
@@ -248,7 +250,7 @@ export async function convertDomNode(
 
   if (node.nodeType !== node.ELEMENT_NODE) return null;
 
-  const element = node as DomEl;
+  const element = node as unknown as DomEl;
   const tagName = element.tagName.toLowerCase();
   log('dom-converter', 'debug', `convertDomNode - processing element: ${tagName}, with style attr: ${element.getAttribute("style")}`);
   if (tagName === "script" || tagName === "style") return null;
@@ -261,11 +263,11 @@ export async function convertDomNode(
   if (tagName === "svg") {
     const ownStyle = computeStyleForElement(element, cssRules, parentStyle, context.units, context.rootFontSize);
     log('dom-converter', 'debug', "convertDomNode - computed style backgroundLayers:", ownStyle.backgroundLayers);
-    const svgRoot = parseSvg(element, { warn: (message) => log('svg-parser', 'warn', message) });
+    const svgRoot = parseSvg(element as SvgElement, { warn: (message) => log('svg-parser', 'warn', message) });
     if (!svgRoot) {
       return new LayoutNode(ownStyle, [], { tagName });
     }
-    const intrinsic = resolveSvgIntrinsicSize(svgRoot, element);
+    const intrinsic = resolveSvgIntrinsicSize(svgRoot, element as SvgElement);
     return new LayoutNode(ownStyle, [], {
       tagName,
       intrinsicInlineSize: intrinsic.width,
@@ -275,8 +277,8 @@ export async function convertDomNode(
           root: svgRoot,
           intrinsicWidth: intrinsic.width,
           intrinsicHeight: intrinsic.height,
-          resourceBaseDir: context && (context as any).resourceBaseDir,
-          assetRootDir: context && (context as any).assetRootDir,
+          resourceBaseDir: context?.resourceBaseDir,
+          assetRootDir: context?.assetRootDir,
         },
       },
     });
@@ -297,7 +299,7 @@ export async function convertDomNode(
   }
 
   if (defaultFormRegistry.isFormElement(tagName)) {
-    const formControlData = extractFormControlData(element, tagName);
+    const formControlData = extractFormControlData(element as SvgElement, tagName);
     if (formControlData) {
       const ownStyle = computeStyleForElement(element, cssRules, parentStyle, context.units, context.rootFontSize);
       await hydrateBackgroundImages(ownStyle, context);
@@ -326,7 +328,12 @@ export async function convertDomNode(
   const layoutChildren: LayoutNode[] = [];
   let textBuf = "";
 
-  for (const child of Array.from(element.childNodes) as Node[]) {
+  const childNodes = element.childNodes;
+  if (!childNodes) {
+    return new LayoutNode(ownStyle, [], { tagName });
+  }
+
+  for (const child of Array.from(childNodes) as Node[]) {
     if (child.nodeType === child.TEXT_NODE) {
       textBuf += child.textContent ?? "";
       continue;
@@ -355,7 +362,7 @@ export async function convertDomNode(
           textDecorationColor: ownStyle.textDecorationColor,
           textDecorationStyle: ownStyle.textDecorationStyle,
           textTransform: ownStyle.textTransform,
-          transform: ownStyle.transform as any,
+          transform: ownStyle.transform,
           textShadows: ownStyle.textShadows,
         }), [], {
           textContent: normalized,
@@ -394,7 +401,7 @@ export async function convertDomNode(
         textDecorationColor: ownStyle.textDecorationColor,
         textDecorationStyle: ownStyle.textDecorationStyle,
         textTransform: ownStyle.textTransform,
-        transform: ownStyle.transform as any,
+        transform: ownStyle.transform,
         textShadows: ownStyle.textShadows,
       }), [], {
         textContent: normalized,
@@ -419,7 +426,7 @@ export async function convertDomNode(
   return new LayoutNode(ownStyle, layoutChildren, options);
 }
 
-function resolveSvgIntrinsicSize(svg: SvgRootNode, element: Element): { width: number; height: number } {
+function resolveSvgIntrinsicSize(svg: SvgRootNode, element: SvgElement): { width: number; height: number } {
   let width = svg.width;
   let height = svg.height;
   if (svg.viewBox) {

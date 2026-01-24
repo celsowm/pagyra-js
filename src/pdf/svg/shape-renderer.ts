@@ -27,13 +27,13 @@ import type { RadialGradient } from "../../css/parsers/gradient-parser.js";
 function isLinearGradientPaint(value: unknown): value is LinearGradient {
   if (typeof value !== "object" || value === null) return false;
   const candidate = value as Partial<LinearGradient>;
-  return candidate.type === "linear" && Array.isArray((candidate as any).stops);
+  return candidate.type === "linear" && Array.isArray(candidate.stops);
 }
 
 function isRadialGradientPaint(value: unknown): value is RadialGradient {
   if (typeof value !== "object" || value === null) return false;
   const candidate = value as Partial<RadialGradient>;
-  return candidate.type === "radial" && typeof (candidate as any).r === "number";
+  return candidate.type === "radial" && typeof candidate.r === "number";
 }
 
 export function renderRect(node: SvgRectNode, style: SvgStyle, context: SvgRenderContext): void {
@@ -313,7 +313,7 @@ function resolveGradientPaint(paint: unknown, context?: SvgRenderContext): Linea
     const trimmed = paint.trim();
     const urlMatch = trimmed.match(/^url\(\s*#([^)\s]+)\s*\)$/i);
     if (urlMatch && context) {
-      const defs = (context as any).defs as Map<string, any> | undefined;
+      const defs = context.defs;
       if (defs) {
         const node = defs.get(urlMatch[1]);
         if (node && (node.type === "lineargradient" || node.type === "radialgradient")) {

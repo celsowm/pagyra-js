@@ -3,6 +3,8 @@ import type { UnifiedFont } from "../../fonts/types.js";
 import type { FontRegistry, FontResource } from "../font/font-registry.js";
 import type { ImageRenderer } from "./image-renderer.js";
 import type { GraphicsStateManager } from "./graphics-state-manager.js";
+import type { TtfFontMetrics } from "../../types/fonts.js";
+import type { BitmapMask } from "../font/rasterizer.js";
 import { CoordinateTransformer } from "../utils/coordinate-transformer.js";
 import { getGlyphMask } from "../font/glyph-cache.js";
 import { blurAlpha } from "../font/blur.js";
@@ -21,7 +23,7 @@ export interface TextShadowRenderContext {
 }
 
 export class TextShadowRenderer {
-  private readonly runShadowCache = new Map<string, { alias: string; image: any }>();
+  private readonly runShadowCache = new Map<string, { alias: string; image: { src: string; width: number; height: number; format: string; channels: number; bitsPerComponent: number; data: ArrayBuffer } }>();
 
   constructor(
     private readonly coordinateTransformer: CoordinateTransformer,
@@ -42,7 +44,7 @@ export class TextShadowRenderer {
     // Prefer glyph-run supplied metrics (add outline hook) and fall back to embedder lookup.
     const glyphMetrics = run.glyphs ? mergeMetricsWithOutline(run.glyphs.font) : null;
     const embedder = this.fontRegistry.getEmbedder ? this.fontRegistry.getEmbedder() : undefined;
-    const faceMetrics = glyphMetrics ?? (embedder ? embedder.getMetrics((font as any).baseFont) : null);
+    const faceMetrics = glyphMetrics ?? (embedder ? embedder.getMetrics((font as { baseFont: string }).baseFont) : null);
 
     const wordSpacingCmd = appliedWordSpacing ? `${formatNumber(wordSpacingPt)} Tw` : undefined;
     const resetWordSpacingCmd = appliedWordSpacing ? "0 Tw" : undefined;
@@ -60,12 +62,12 @@ export class TextShadowRenderer {
         }
 
         const supersample = 4;
-        const glyphMasks: Array<{ mask: any; pos: { x: number; y: number } }> = [];
+        const glyphMasks: Array<{ mask: BitmapMask; pos: { x: number; y: number } }> = [];
         for (let gi = 0; gi < run.glyphs.glyphIds.length; gi++) {
           const gid = run.glyphs.glyphIds[gi];
           const pos = run.glyphs.positions[gi] ?? { x: 0, y: 0 };
           try {
-            const gm = getGlyphMask(faceMetrics as any, gid, fontSizePx, supersample, 0);
+            const gm = getGlyphMask(faceMetrics as TtfFontMetrics, gid, fontSizePx, supersample, 0);
             if (!gm) continue;
             glyphMasks.push({ mask: gm, pos });
           } catch {
@@ -136,7 +138,7 @@ export class TextShadowRenderer {
               const b8 = Math.round(normalizeChannel(sh.color.b) * 255);
               const shadowAlpha = sh.color.a ?? 1;
 
-              const cacheKey = `${run.text}|${(font as any).baseFont}|size:${fontSizePx}|blur:${Math.round(blurPx)}|color:${r8},${g8},${b8},${shadowAlpha}|ss:${supersample}`;
+              const cacheKey = `${run.text}|${font.baseFont}|size:${fontSizePx}|blur:${Math.round(blurPx)}|color:${r8},${g8},${b8},${shadowAlpha}|ss:${supersample}`;
               let resAlias: string | undefined;
               const cached = this.runShadowCache.get(cacheKey);
               if (cached) {
@@ -149,11 +151,11 @@ export class TextShadowRenderer {
                   rgba[j + 2] = b8;
                   rgba[j + 3] = Math.round(alphaBuf[i] * shadowAlpha);
                 }
-                const img: any = {
-                  src: `internal:shadow:run:${(font as any).resourceName}:${Math.round(Math.random() * 1e9)}`,
+                const img = {
+                  src: `internal:shadow:run:${(font as { resourceName: string }).resourceName}:${Math.round(Math.random() * 1e9)}`,
                   width: combinedW,
                   height: combinedH,
-                  format: "png",
+                  format: "png" as const,
                   channels: 4,
                   bitsPerComponent: 8,
                   data: rgba.buffer,
@@ -286,13 +288,13 @@ export class TextShadowRenderer {
 }
 
 // Merge UnifiedFont metrics with its outline provider so glyph rasterization can work.
-function mergeMetricsWithOutline(font: UnifiedFont | undefined | null): any | null {
+function mergeMetricsWithOutline(font: UnifiedFont | undefined | null): TtfFontMetrics | null {
   if (!font?.metrics || !font.program?.getGlyphOutline) {
     return null;
   }
   return {
     metrics: font.metrics.metrics,
-    glyphMetrics: font.metrics.glyphMetrics,
+    glyphMetrics: new Map(font.metrics.glyphMetrics),
     cmap: font.metrics.cmap,
     headBBox: font.metrics.headBBox,
     getGlyphOutline: font.program.getGlyphOutline,

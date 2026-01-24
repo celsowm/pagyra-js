@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest";
 import { parseElement } from "../../src/svg/parser.js";
 import { renderPath } from "../../src/pdf/svg/shape-renderer.js";
 import { createDefaultStyle, deriveStyle } from "../../src/pdf/svg/style-computer.js";

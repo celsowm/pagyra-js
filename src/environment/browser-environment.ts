@@ -3,6 +3,7 @@
  * Uses fetch for loading and DecompressionStream for inflateRaw (with a guard).
  */
 import type { Compression, Environment, ResourceLoader } from "./environment.js";
+import type { ExtendedGlobalThis } from "../types/core.js";
 
 class BrowserLoader implements ResourceLoader {
   async load(source: string): Promise<ArrayBuffer> {
@@ -14,7 +15,7 @@ class BrowserLoader implements ResourceLoader {
   }
 }
 
-const DecompressionStreamCtor: typeof DecompressionStream | undefined = (globalThis as any).DecompressionStream;
+const DecompressionStreamCtor: typeof DecompressionStream | undefined = (globalThis as ExtendedGlobalThis).DecompressionStream;
 
 class BrowserCompression implements Compression {
   async inflateRaw(data: Uint8Array): Promise<Uint8Array> {

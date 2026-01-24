@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest";
 import { computeBackgroundTileRects } from "../../src/pdf/utils/background-tiles.js";
 import type { Rect } from "../../src/pdf/types.js";
 

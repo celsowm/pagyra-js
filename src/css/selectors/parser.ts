@@ -119,7 +119,7 @@ export function parseSelector(selector: string): Part[] | null {
     const c = s[i];
     if (c === ' ' || c === '>' || c === '+' || c === '~') {
       if (c === ' ') { while (s[i] === ' ') i++; tokens.push(' '); }
-      else { tokens.push(c as any); i++; if (s[i] === ' ') i++; }
+      else { tokens.push(c as '>' | '+' | '~'); i++; if (s[i] === ' ') i++; }
       continue;
     }
     let j = i, depthSq = 0, depthPar = 0;
@@ -152,7 +152,7 @@ export function parseSelector(selector: string): Part[] | null {
       let p = k - 1;
       // se houver espaços encadeados, tratamos como um único '
       while (p >= 0 && tokens[p] === ' ') { comb = ' '; p--; break; }
-      if (p >= 0 && typeof tokens[p] === 'string' && tokens[p] !== ' ') comb = tokens[p] as any;
+      if (p >= 0 && typeof tokens[p] === 'string' && tokens[p] !== ' ') comb = tokens[p] as '>' | '+' | '~';
 
       const part = { simple: t, combinatorToLeft: comb };
       parts.push(part);

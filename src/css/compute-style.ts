@@ -1,7 +1,8 @@
 // src/css/compute-style.ts
 
-import { type DomEl, type CssRuleEntry } from "../html/css/parse-css.js";
+import { type CssRuleEntry } from "../html/css/parse-css.js";
 import { type UnitParsers } from "../units/units.js";
+import type { SvgElement } from "../types/core.js";
 import {
   ComputedStyle,
   type StyleProperties,
@@ -120,7 +121,7 @@ const RELATIVE_FONT_SIZE_TAG_SCALE: Record<string, number> = {
 // resolveTrackSizeInputToAbsolute and resolveTrackDefinitionsInput now in layout-property-resolver.ts
 
 export function computeStyleForElement(
-  element: DomEl,
+  element: SvgElement,
   cssRules: CssRuleEntry[],
   parentStyle: ComputedStyle,
   units: UnitParsers,

@@ -184,11 +184,11 @@ export function resolveGradientPaint(paint: unknown): import("../../css/parsers/
 function isLinearGradientPaint(value: unknown): value is import("../../css/parsers/gradient-parser.js").LinearGradient {
   if (typeof value !== "object" || value === null) return false;
   const candidate = value as Partial<import("../../css/parsers/gradient-parser.js").LinearGradient>;
-  return candidate.type === "linear" && Array.isArray((candidate as any).stops);
+  return candidate.type === "linear" && Array.isArray(candidate.stops);
 }
 
 function isRadialGradientPaint(value: unknown): value is import("../../css/parsers/gradient-parser.js").RadialGradient {
   if (typeof value !== "object" || value === null) return false;
   const candidate = value as Partial<import("../../css/parsers/gradient-parser.js").RadialGradient>;
-  return candidate.type === "radial" && typeof (candidate as any).r === "number";
+  return candidate.type === "radial" && typeof candidate.r === "number";
 }

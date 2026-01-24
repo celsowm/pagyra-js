@@ -14,6 +14,8 @@ export { createToUnicodeCMapText } from "./to-unicode.js";
 
 const TYPICAL_STEM_V = 80;
 
+type MutableFontFaceDef = Omit<FontFaceDef, "data"> & { data?: ArrayBuffer };
+
 export interface EmbeddedFont {
   readonly resourceName: string;
   readonly ref: PdfObjectRef;
@@ -81,7 +83,7 @@ export class FontEmbedder {
           const decoded = await decodeWoff(fontData);
           ttfBuffer = reconstructTtf(decoded);
           fontData = new Uint8Array(ttfBuffer);
-          (face as any).data = ttfBuffer;
+          (face as MutableFontFaceDef).data = ttfBuffer;
         } else if (format === "woff2") {
           const { decodeWoff2 } = await import("../../fonts/woff2/decoder.js");
           const decoded = await decodeWoff2(fontData);
@@ -89,7 +91,7 @@ export class FontEmbedder {
           const ttfCopy = decoded.ttfBuffer.slice();
           ttfBuffer = ttfCopy.buffer;
           fontData = new Uint8Array(ttfBuffer);
-          (face as any).data = ttfBuffer;
+          (face as MutableFontFaceDef).data = ttfBuffer;
         } else {
           ttfBuffer = face.data!;
         }
@@ -385,7 +387,6 @@ export async function getEmbeddedFont(name: "NotoSans-Regular" | "DejaVuSans", d
   const existing = embedder['embeddedFonts'].get(name);
   if (existing) return existing;
 
-  // @ts-expect-error: TypeScript complains about private method, but this is intentional for testing
   const embedded = embedder['embedFont'](face);
   if (embedded) {
     embedder['embeddedFonts'].set(name, embedded);

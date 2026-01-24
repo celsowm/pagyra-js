@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest";
 import { renderTreeForHtml, collectRuns } from "../helpers/render-utils.js";
 
 describe("inline fragment layout", () => {

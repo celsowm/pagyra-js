@@ -1,10 +1,10 @@
-import { beforeAll, describe, expect, it } from "vitest";
 import { registerAllPropertyParsers } from "../../src/css/parsers/register-parsers.js";
 import { parseClipPath } from "../../src/css/parsers/clip-path-parser.js";
 import type { StyleAccumulator } from "../../src/css/style.js";
 import { computeStyleForElement } from "../../src/css/compute-style.js";
 import { ComputedStyle } from "../../src/css/style.js";
 import { makeUnitParsers } from "../../src/units/units.js";
+import type { DomElement } from "../../src/types/core.js";
 
 describe("clip-path parser", () => {
   beforeAll(() => {
@@ -41,7 +41,9 @@ describe("clip-path parser", () => {
   });
 
   it("propagates clip-path through computeStyleForElement", () => {
-    const element = {
+    const element: DomElement = {
+      nodeType: 1,
+      nodeName: "DIV",
       tagName: "div",
       getAttribute(name: string) {
         if (name === "style") {
@@ -49,6 +51,17 @@ describe("clip-path parser", () => {
         }
         return null;
       },
+      hasAttribute(name: string) {
+        return name === "style";
+      },
+      querySelectorAll(_selectors: string) {
+        return [];
+      },
+      parentElement: null,
+      firstElementChild: null,
+      lastElementChild: null,
+      nextElementSibling: null,
+      previousElementSibling: null,
     };
 
     const style = computeStyleForElement(

@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest";
 import { renderRuns, renderTreeForHtml, collectBoxes, collectRuns } from "../helpers/render-utils.js";
 
 const TAN_20 = Math.tan((20 * Math.PI) / 180);

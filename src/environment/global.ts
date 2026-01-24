@@ -3,11 +3,14 @@
  * Use this to avoid threading Environment through every call when bootstrapping.
  */
 import type { Environment } from "./environment.js";
+import type { ExtendedGlobalThis } from "../types/core.js";
 
 export function setGlobalEnvironment(env: Environment): void {
-  (globalThis as any).__PAGYRA_ENV__ = env;
+  const global = globalThis as ExtendedGlobalThis;
+  global.__PAGYRA_ENV__ = env;
 }
 
 export function getGlobalEnvironment(): Environment | undefined {
-  return (globalThis as any).__PAGYRA_ENV__ as Environment | undefined;
+  const global = globalThis as ExtendedGlobalThis;
+  return global.__PAGYRA_ENV__ as Environment | undefined;
 }

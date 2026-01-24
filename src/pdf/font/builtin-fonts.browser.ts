@@ -7,6 +7,12 @@ type FontSource = "assets" | "google";
 
 type BuiltinFace = Omit<FontFaceDef, "src" | "data"> & { file: string; google?: string };
 
+type GlobalFontConfig = {
+  __PAGYRA_FONT_BASE?: string;
+  __PAGYRA_FONT_SOURCE?: string;
+  __PAGYRA_USE_GOOGLE_FONTS?: boolean;
+};
+
 const BUILTIN_FACES: BuiltinFace[] = [
   // Sans: primary and UI-friendly
   { name: "Lato-Regular", family: "Lato", weight: 400, style: "normal", file: "woff2/lato/lato-latin-400-normal.woff2", google: "Lato" },
@@ -106,7 +112,8 @@ export async function loadBuiltinFontConfig(environment: Environment = new Brows
 }
 
 function computeBaseUrl(): string {
-  const globalBase = (globalThis as any).__PAGYRA_FONT_BASE;
+  const globalConfig = globalThis as GlobalFontConfig;
+  const globalBase = globalConfig.__PAGYRA_FONT_BASE;
   if (typeof globalBase === "string" && globalBase.trim().length > 0) {
     return ensureTrailingSlash(globalBase.trim());
   }
@@ -126,8 +133,9 @@ function ensureTrailingSlash(input: string): string {
 }
 
 function resolveFontSource(): FontSource {
-  const globalSource = (globalThis as any).__PAGYRA_FONT_SOURCE;
-  const legacyGoogle = (globalThis as any).__PAGYRA_USE_GOOGLE_FONTS;
+  const globalConfig = globalThis as GlobalFontConfig;
+  const globalSource = globalConfig.__PAGYRA_FONT_SOURCE;
+  const legacyGoogle = globalConfig.__PAGYRA_USE_GOOGLE_FONTS;
   if (typeof globalSource === "string") {
     const normalized = globalSource.toLowerCase();
     if (normalized === "google") return "google";

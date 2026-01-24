@@ -278,7 +278,7 @@ export function registerAllPropertyParsers(): void {
   // Transform (store as raw string for limited later use)
   registerPropertyParser("transform", (value, target) => {
     // store raw transform string
-    (target as any).transform = value;
+    target.transform = value;
   });
 
   // Background
