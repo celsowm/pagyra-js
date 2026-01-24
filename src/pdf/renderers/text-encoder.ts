@@ -30,9 +30,8 @@ function encodeIdentityText(text: string, font: FontResource): string {
     if (samples.length < 10) {
       samples.push({ char, codePoint, gid: glyphId });
     }
-    // For Identity-H encoding, write the Unicode code point, not the glyph ID
-    // The font's internal cmap will map Unicode -> Glyph ID during rendering
-    encoded += String.fromCharCode((codePoint >> 8) & 0xff, codePoint & 0xff);
+    // Identity-H expects CIDs (glyph IDs). CIDToGIDMap=/Identity means CID == glyph ID.
+    encoded += String.fromCharCode((glyphId >> 8) & 0xff, glyphId & 0xff);
   }
   if (samples.length > 0) {
     log("encoding", "debug", "Identity-H encoding samples", { font: font.baseFont, samples });
