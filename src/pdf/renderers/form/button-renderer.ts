@@ -2,7 +2,7 @@ import type { RenderBox, RGBA } from "../../types.js";
 import type { IFormRenderer, RenderContext, RenderCommands } from "./irenderer.js";
 import type { FormControlData, ButtonControlData } from "./types.js";
 import { formatNumber } from "../text-renderer-utils.js";
-import { encodeFormText, resolveFormFont } from "./text-utils.js";
+import { encodeFormText, resolveFormFont, resolveFormTextPosition } from "./text-utils.js";
 
 // const DEFAULT_BUTTON_PADDING_H = 20;
 const DEFAULT_BORDER_WIDTH = 1;
@@ -55,7 +55,7 @@ export class ButtonRenderer implements IFormRenderer {
     commands.push("S");
 
     const textX = xPt + widthPt / 2;
-    const textY = yPt + heightPt / 2 + fontSize * 0.35;
+    const { yPt: textY } = resolveFormTextPosition(node, fontSize, ct, "center");
 
     const textColor: RGBA = data.isDisabled 
       ? { r: 0.6, g: 0.6, b: 0.6, a: 1 }

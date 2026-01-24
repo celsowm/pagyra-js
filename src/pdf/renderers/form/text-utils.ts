@@ -25,3 +25,30 @@ export function resolveFormFont(node: RenderBox, fontProvider: FontProvider): Re
 export function encodeFormText(text: string, font: FontResource): string {
   return encodeTextPayload(text, font).encoded;
 }
+
+export function resolveFormTextPosition(
+  node: RenderBox,
+  fontSize: number,
+  coordinateTransformer: { convertPxToPt(value: number): number; pageOffsetPx: number; pageHeightPt: number },
+  mode: "center" | "top",
+): { xPt: number; yPt: number } {
+  const box = node.contentBox ?? node.borderBox;
+  const contentTop = box.y;
+  const contentHeight = box.height;
+  const lineHeight = fontSize * 1.2;
+  const ascent = fontSize * 0.8;
+
+  let baselinePx: number;
+  if (mode === "center") {
+    const lineTop = contentTop + Math.max(0, (contentHeight - lineHeight) / 2);
+    baselinePx = lineTop + ascent;
+  } else {
+    baselinePx = contentTop + ascent;
+  }
+
+  const localBaseline = baselinePx - coordinateTransformer.pageOffsetPx;
+  return {
+    xPt: coordinateTransformer.convertPxToPt(box.x),
+    yPt: coordinateTransformer.pageHeightPt - coordinateTransformer.convertPxToPt(localBaseline),
+  };
+}

@@ -4,7 +4,7 @@ import type { FormControlData, SelectControlData } from "./types.js";
 import { formatNumber } from "../text-renderer-utils.js";
 import { drawDropdownArrow } from "./shape-utils.js";
 import { formatPdfRgb } from "./color-utils.js";
-import { encodeFormText, resolveFormFont } from "./text-utils.js";
+import { encodeFormText, resolveFormFont, resolveFormTextPosition } from "./text-utils.js";
 
 // const DEFAULT_SELECT_HEIGHT = 34;
 const DROPDOWN_ARROW_SIZE = 12;
@@ -39,7 +39,6 @@ export class SelectRenderer implements IFormRenderer {
     const yPt = ct.pageHeightPt - ct.convertPxToPt(rect.y + rect.height);
     const widthPt = ct.convertPxToPt(rect.width);
     const heightPt = ct.convertPxToPt(rect.height);
-    const paddingPt = ct.convertPxToPt(padding);
     // const arrowWidthPt = ct.convertPxToPt(arrowWidth);
     // const arrowHeightPt = ct.convertPxToPt(arrowSize);
     const arrowX = rect.x + rect.width - padding - arrowSize;
@@ -66,8 +65,7 @@ export class SelectRenderer implements IFormRenderer {
     const selectedOption = data.options.find(o => o.selected) ?? data.options[0];
     if (selectedOption) {
       const textColor = node.color ?? { r: 0, g: 0, b: 0, a: 1 };
-      const textX = xPt + paddingPt;
-      const textY = yPt + paddingPt + ct.convertPxToPt(fontSize) * 0.35;
+      const { xPt: textX, yPt: textY } = resolveFormTextPosition(node, fontSize, ct, "center");
       
       commands.push("BT");
       commands.push(`/${font.resourceName} ${formatNumber(ct.convertPxToPt(fontSize))} Tf`);

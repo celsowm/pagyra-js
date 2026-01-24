@@ -3,10 +3,9 @@ import type { IFormRenderer, RenderContext, RenderCommands } from "./irenderer.j
 import type { FormControlData, InputControlData } from "./types.js";
 import { formatNumber } from "../text-renderer-utils.js";
 import { formatPdfRgb } from "./color-utils.js";
-import { encodeFormText, resolveFormFont } from "./text-utils.js";
+import { encodeFormText, resolveFormFont, resolveFormTextPosition } from "./text-utils.js";
 
 // const DEFAULT_INPUT_HEIGHT = 34;
-const DEFAULT_INPUT_PADDING = 10;
 const DEFAULT_BORDER_WIDTH = 1;
 
 export class InputTextRenderer implements IFormRenderer {
@@ -30,17 +29,15 @@ export class InputTextRenderer implements IFormRenderer {
     const ct = coordinateTransformer;
     
     const borderWidth = DEFAULT_BORDER_WIDTH;
-    const padding = DEFAULT_INPUT_PADDING;
     const { font, fontSize } = resolveFormFont(node, context.fontProvider);
     const rect = node.borderBox;
-    // const innerWidth = Math.max(0, rect.width - padding * 2 - borderWidth * 2);
-    // const innerHeight = Math.max(0, rect.height - padding * 2 - borderWidth * 2);
+    // const innerWidth = Math.max(0, rect.width - borderWidth * 2);
+    // const innerHeight = Math.max(0, rect.height - borderWidth * 2);
 
     const xPt = ct.convertPxToPt(rect.x);
     const yPt = ct.pageHeightPt - ct.convertPxToPt(rect.y + rect.height);
     const widthPt = ct.convertPxToPt(rect.width);
     const heightPt = ct.convertPxToPt(rect.height);
-    const paddingPt = ct.convertPxToPt(padding);
     const borderPt = ct.convertPxToPt(borderWidth);
     // const innerWidthPt = ct.convertPxToPt(innerWidth);
     // const innerHeightPt = ct.convertPxToPt(innerHeight);
@@ -66,8 +63,7 @@ export class InputTextRenderer implements IFormRenderer {
 
     if (data.value && data.value.length > 0) {
       const textColor = node.color ?? { r: 0, g: 0, b: 0, a: 1 };
-      const textX = xPt + paddingPt + borderPt;
-      const textY = yPt + paddingPt + borderPt + ct.convertPxToPt(fontSize) * 0.35;
+      const { xPt: textX, yPt: textY } = resolveFormTextPosition(node, fontSize, ct, "center");
       
       commands.push("BT");
       commands.push(`/${font.resourceName} ${formatNumber(ct.convertPxToPt(fontSize))} Tf`);
@@ -79,8 +75,7 @@ export class InputTextRenderer implements IFormRenderer {
       commands.push("ET");
     } else if (data.placeholder && data.placeholder.length > 0) {
       const placeholderColor = this.parseRgbaString("153, 153, 153") ?? { r: 0.6, g: 0.6, b: 0.6, a: 1 };
-      const textX = xPt + paddingPt + borderPt;
-      const textY = yPt + paddingPt + borderPt + ct.convertPxToPt(fontSize) * 0.35;
+      const { xPt: textX, yPt: textY } = resolveFormTextPosition(node, fontSize, ct, "center");
       
       commands.push("BT");
       commands.push(`/${font.resourceName} ${formatNumber(ct.convertPxToPt(fontSize))} Tf`);

@@ -3,9 +3,8 @@ import type { IFormRenderer, RenderContext, RenderCommands } from "./irenderer.j
 import type { FormControlData, TextareaControlData } from "./types.js";
 import { formatNumber } from "../text-renderer-utils.js";
 import { formatPdfRgb } from "./color-utils.js";
-import { encodeFormText, resolveFormFont } from "./text-utils.js";
+import { encodeFormText, resolveFormFont, resolveFormTextPosition } from "./text-utils.js";
 
-const DEFAULT_TEXTAREA_PADDING = 10;
 const DEFAULT_BORDER_WIDTH = 1;
 // const DEFAULT_TEXTAREA_ROWS = 3;
 const LINE_HEIGHT = 20;
@@ -31,7 +30,6 @@ export class TextareaRenderer implements IFormRenderer {
     const ct = coordinateTransformer;
     
     const rect = node.borderBox;
-    const padding = DEFAULT_TEXTAREA_PADDING;
     const borderWidth = DEFAULT_BORDER_WIDTH;
     const { font, fontSize } = resolveFormFont(node, context.fontProvider);
 
@@ -39,7 +37,6 @@ export class TextareaRenderer implements IFormRenderer {
     const yPt = ct.pageHeightPt - ct.convertPxToPt(rect.y + rect.height);
     const widthPt = ct.convertPxToPt(rect.width);
     const heightPt = ct.convertPxToPt(rect.height);
-    const paddingPt = ct.convertPxToPt(padding);
     const borderPt = ct.convertPxToPt(borderWidth);
 
     commands.push("q");
@@ -55,9 +52,8 @@ export class TextareaRenderer implements IFormRenderer {
     commands.push(`${formatNumber(xPt)} ${formatNumber(yPt)} ${formatNumber(widthPt)} ${formatNumber(heightPt)} re`);
     commands.push("S");
 
-    const textX = xPt + paddingPt + borderPt;
     const lineHeightPt = ct.convertPxToPt(LINE_HEIGHT);
-    const textY = yPt + paddingPt + borderPt + fontSize * 0.35;
+    const { xPt: textX, yPt: textY } = resolveFormTextPosition(node, fontSize, ct, "top");
 
     commands.push("BT");
     commands.push(`/${font.resourceName} ${formatNumber(ct.convertPxToPt(fontSize))} Tf`);
