@@ -53,14 +53,14 @@ export function parseSelector(selector: string): Part[] | null {
     while (rest.length) {
       const ch = rest[0];
       if (ch === '#') {
-        const m = /^#[^.#[-]:\s>+~]+/.exec(rest);
+        const m = /^#[^.#\[\]:\s>+~]+/.exec(rest);
         if (!m) break;
         id = m[0].slice(1);
         rest = rest.slice(m[0].length);
         continue;
       }
       if (ch === '.') {
-        const m = /^\.[^.#[-]:\s>+~]+/.exec(rest);
+        const m = /^\.[^.#\[\]:\s>+~]+/.exec(rest);
         if (!m) break;
         classes.push(m[0].slice(1));
         rest = rest.slice(m[0].length);
