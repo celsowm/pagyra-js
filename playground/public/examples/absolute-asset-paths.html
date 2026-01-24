@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Absolute Asset Paths (Root Only)</title>
+  <style>
+    body {
+      font-family: "AbsoluteRoboto", Arial, sans-serif;
+      margin: 20px;
+      line-height: 1.5;
+    }
+    .row {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      margin: 12px 0 20px;
+    }
+    .row img {
+      max-width: 140px;
+      border: 1px solid #ddd;
+      background: #f8f8f8;
+    }
+    svg {
+      border: 1px solid #ddd;
+      margin-top: 8px;
+    }
+    .note {
+      font-size: 14px;
+      color: #555;
+    }
+    @font-face {
+      font-family: "AbsoluteRoboto";
+      src: url("/assets/fonts/ttf/roboto/Roboto-Regular.ttf") format("truetype");
+      font-weight: 400;
+      font-style: normal;
+    }
+  </style>
+</head>
+<body>
+  <h1>Absolute Asset Paths</h1>
+  <p class="note">
+    This example uses absolute paths like <code>/images/duck.jpg</code> and
+    <code>/assets/fonts/...</code>. It only works when the playground is hosted
+    at the domain root.
+  </p>
+
+  <div class="row">
+    <img src="/images/duck.jpg" alt="Duck image from /images" />
+    <img src="/images/dice.png" alt="Dice image from /images" />
+    <img src="/assets/1.webp" alt="WebP image from /assets" />
+  </div>
+
+  <svg width="420" height="140" viewBox="0 0 420 140">
+    <defs>
+      <clipPath id="absClip"><circle cx="60" cy="60" r="50" /></clipPath>
+    </defs>
+    <image x="10" y="10" width="100" height="100" href="/images/duck.jpg" clip-path="url(#absClip)" />
+    <image x="140" y="10" width="100" height="100" href="/images/dice.png" />
+    <text x="10" y="130" font-size="12">Absolute: /images/duck.jpg</text>
+  </svg>
+
+  <p>Font check: The quick brown fox jumps over the lazy dog.</p>
+</body>
+</html>

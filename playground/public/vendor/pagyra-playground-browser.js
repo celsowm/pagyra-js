@@ -132457,7 +132457,6 @@ function reconstructGlyfTable(transformed, locaDstLength) {
       glyphStream.offset += consumed;
       const instructionSize = read255UShort(glyphStream);
       const bbox = haveBbox ? bboxStream.readBytes(8) : null;
-      const baseSize = 12 + 2 * nContours + instructionSize;
       const ptsBuf = storePoints(
         points,
         nContours,
@@ -133042,10 +133041,12 @@ var BrowserEnvironment = class {
 
 // src/environment/global.ts
 function setGlobalEnvironment(env) {
-  globalThis.__PAGYRA_ENV__ = env;
+  const global = globalThis;
+  global.__PAGYRA_ENV__ = env;
 }
 function getGlobalEnvironment() {
-  return globalThis.__PAGYRA_ENV__;
+  const global = globalThis;
+  return global.__PAGYRA_ENV__;
 }
 
 // node_modules/linkedom/esm/shared/symbols.js
@@ -142233,7 +142234,7 @@ function parseSelector2(selector) {
         continue;
       }
       if (ch === "[") {
-        const m = /^\[(\s*[-\w:]+\s*(?:([~|^$*]?=)\s*(?:"([^"]*)"|'([^']*)'|([^\]\s]+))\s*)?)\]/.exec(rest);
+        const m = /^\[(\s*[-\w:]+\s*(?:([~|^$*]?=)\s*(?:"([^"]*)"|'([^']*)'|([^\]-\s]+))\s*)?)\]/.exec(rest);
         if (!m) break;
         const name = m[1].match(/^[-\w:]+/)[0];
         const op = m[2] ?? "exists";
@@ -142384,8 +142385,10 @@ function createSelectorMatcher(selector) {
     return ok;
   }
   function getAttr(el, name) {
-    const value = el.getAttribute ? el.getAttribute(name) : null;
-    return value;
+    if (typeof el.getAttribute === "function") {
+      return el.getAttribute(name);
+    }
+    return null;
   }
   function matchAttr(el, cond) {
     const v = getAttr(el, cond.name);
@@ -142842,7 +142845,7 @@ function ptToPx(pt) {
 function pxToPt(px) {
   return px * (72 / DPI);
 }
-function makeUnitParsers(ctx) {
+function makeUnitParsers(_ctx) {
   return {
     parseLength: (value) => parseLength(value),
     parseLengthOrPercent: (value) => parseLengthOrPercent(value)
@@ -143071,7 +143074,7 @@ function createBaseDefaultsObject() {
     // Layout
     display: LayoutDefaults.getDisplay(),
     position: LayoutDefaults.getPosition(),
-    float: "none",
+    float: "none" /* None */,
     clear: LayoutDefaults.getClear(),
     overflowX: LayoutDefaults.getOverflowX(),
     overflowY: LayoutDefaults.getOverflowY(),
@@ -143762,6 +143765,8 @@ var ComputedStyle = class {
     this.fontWeight = data.fontWeight;
     this.fontStyle = data.fontStyle;
     this.fontVariant = data.fontVariant;
+    this.fontVariantNumeric = data.fontVariantNumeric;
+    this.content = data.content;
     this.clipPath = data.clipPath;
     this.objectFit = data.objectFit;
     this.zIndex = data.zIndex;
@@ -144998,6 +145003,35 @@ function applyTextTransform(text, transform) {
   }
 }
 
+// src/css/properties/typography.ts
+function parseFontVariantNumeric(value) {
+  const normalized = value.toLowerCase().trim();
+  if (normalized === "normal") {
+    return ["normal"];
+  }
+  const values = normalized.split(/\s+/);
+  const result = [];
+  const validValues = [
+    "tabular-nums",
+    "slashed-zero",
+    "ordinal",
+    "lining-nums",
+    "oldstyle-nums",
+    "proportional-nums",
+    "diagonal-fractions",
+    "stacked-fractions"
+  ];
+  for (const v of values) {
+    if (validValues.includes(v)) {
+      result.push(v);
+    }
+  }
+  return result.length > 0 ? result : ["normal"];
+}
+function hasFontVariantNumeric(values, check) {
+  return values.includes("normal") ? false : values.includes(check);
+}
+
 // src/layout/utils/text-metrics.ts
 var MONO_FAMILY_PATTERN = /(mono|code|courier|console)/i;
 var CHARACTER_WIDTH_FACTORS = {
@@ -145237,23 +145271,93 @@ function measureTextWithGlyphs(text, style, fontMetrics) {
   if (!fontMetrics) {
     return null;
   }
+  const unitsPerEm = fontMetrics.metrics.unitsPerEm;
+  const kerning = fontMetrics.kerning;
   let totalWidth = 0;
+  let prevGid = null;
+  let glyphCount = 0;
+  let spaceCount = 0;
+  const fontVariantNumeric = style.fontVariantNumeric ?? [];
+  const useTabularNums = hasFontVariantNumeric(fontVariantNumeric, "tabular-nums");
+  const useSlashedZero = hasFontVariantNumeric(fontVariantNumeric, "slashed-zero");
+  let maxDigitWidth = 0;
+  if (useTabularNums) {
+    for (let d = 0; d <= 9; d++) {
+      const codePoint = d + 48;
+      const glyphId = fontMetrics.cmap.getGlyphId(codePoint);
+      const glyphMetrics = fontMetrics.glyphMetrics.get(glyphId);
+      if (glyphMetrics) {
+        maxDigitWidth = Math.max(maxDigitWidth, glyphMetrics.advanceWidth);
+      }
+    }
+  }
   for (const char of text) {
     const codePoint = char.codePointAt(0);
     if (codePoint === void 0) {
       continue;
     }
-    const glyphId = fontMetrics.cmap.getGlyphId(codePoint);
-    const glyphMetrics = fontMetrics.glyphMetrics.get(glyphId);
+    let glyphId = fontMetrics.cmap.getGlyphId(codePoint);
+    let glyphMetrics = fontMetrics.glyphMetrics.get(glyphId);
+    if (useTabularNums && char >= "0" && char <= "9") {
+      const digitCodePoint = char.codePointAt(0);
+      if (digitCodePoint === void 0) {
+        if (glyphMetrics) {
+          totalWidth += glyphMetrics.advanceWidth;
+        }
+        if (prevGid !== null && kerning) {
+          const kernAdjust = kerning.get(prevGid)?.get(glyphId) ?? 0;
+          if (kernAdjust !== 0) {
+            totalWidth += kernAdjust;
+          }
+        }
+        prevGid = glyphId;
+        glyphCount += 1;
+        continue;
+      }
+      const digitGlyphId = fontMetrics.cmap.getGlyphId(digitCodePoint);
+      const digitGlyphMetrics = fontMetrics.glyphMetrics.get(digitGlyphId);
+      if (digitGlyphMetrics) {
+        totalWidth += maxDigitWidth;
+        prevGid = digitGlyphId;
+        glyphCount += 1;
+        continue;
+      } else {
+        if (glyphMetrics) {
+          totalWidth += glyphMetrics.advanceWidth;
+        }
+        if (prevGid !== null && kerning) {
+          const kernAdjust = kerning.get(prevGid)?.get(glyphId) ?? 0;
+          if (kernAdjust !== 0) {
+            totalWidth += kernAdjust;
+          }
+        }
+        prevGid = glyphId;
+        glyphCount += 1;
+        continue;
+      }
+    }
+    if (useSlashedZero && char === "0") {
+    }
     if (glyphMetrics) {
       totalWidth += glyphMetrics.advanceWidth;
     }
+    if (prevGid !== null && kerning) {
+      const kernAdjust = kerning.get(prevGid)?.get(glyphId) ?? 0;
+      if (kernAdjust !== 0) {
+        totalWidth += kernAdjust;
+      }
+    }
+    prevGid = glyphId;
+    glyphCount += 1;
+    if (char === " ") {
+      spaceCount += 1;
+    }
   }
-  const scale = style.fontSize / fontMetrics.metrics.unitsPerEm;
+  const scale = style.fontSize / unitsPerEm;
   const baseWidthPx = totalWidth * scale;
   const letterSpacing = style.letterSpacing ?? 0;
   const wordSpacing = style.wordSpacing ?? 0;
-  const spacingContribution = Math.max(text.length - 1, 0) * letterSpacing + countSpaces(text) * wordSpacing;
+  const spacingContribution = Math.max(glyphCount - 1, 0) * letterSpacing + spaceCount * wordSpacing;
   return baseWidthPx + spacingContribution;
 }
 function fontWeightWidthMultiplier(weight) {
@@ -145783,11 +145887,6 @@ function placeFloat(options) {
     attempts += 1;
   }
   return y + outerHeight;
-}
-
-// src/layout/inline/types.ts
-function isBoxItem(item) {
-  return item.kind === "box";
 }
 
 // src/pdf/font/ttf-lite.ts
@@ -146874,7 +146973,7 @@ function readValueRecord(table, offset, valueFormat) {
   let pos = offset;
   let xPlacement;
   let xAdvance;
-  const consume = (flag) => {
+  const consume = (_flag) => {
     const v = table.getInt16(pos, false);
     pos += 2;
     return v;
@@ -147982,6 +148081,11 @@ var BoundingBoxCalculator = class {
   }
 };
 
+// src/layout/inline/types.ts
+function isBoxItem(item) {
+  return item.kind === "box";
+}
+
 // src/layout/inline/font-baseline-calculator.ts
 var DEFAULT_ASCENT_RATIO = 0.75;
 function calculateBaseline(lineTop, fontSize, lineHeight, fontMetrics) {
@@ -148109,7 +148213,6 @@ var createLayoutDebug = (context) => {
 function layoutInlineFormattingContext(options) {
   const { container, inlineNodes, context, floatContext, contentX, contentWidth } = options;
   container.establishesIFC = true;
-  const layoutDebug = createLayoutDebug(context);
   const textAlign = container.style.display === "inline" /* Inline */ ? void 0 : resolveInlineTextAlign(container);
   const alignmentStrategy = getAlignmentStrategy(textAlign);
   const shouldApplyTextIndent = container.style.display !== "inline" /* Inline */;
@@ -150056,14 +150159,14 @@ function collectInlineParticipants2(node) {
     if (child.style.float !== "none" /* None */) {
       continue;
     }
-    if (!isInlineDisplay4(child.style.display)) {
+    if (!isInlineDisplay3(child.style.display)) {
       continue;
     }
     participants.push(child);
   }
   return participants;
 }
-function isInlineDisplay4(display) {
+function isInlineDisplay3(display) {
   switch (display) {
     case "inline" /* Inline */:
     case "inline-block" /* InlineBlock */:
@@ -150299,11 +150402,85 @@ var ImageLayoutStrategy = class {
   }
 };
 
+// src/layout/strategies/form.ts
+var DEFAULT_INPUT_WIDTH = 200;
+var DEFAULT_INPUT_HEIGHT = 34;
+var DEFAULT_TEXTAREA_WIDTH = 300;
+var DEFAULT_BUTTON_MIN_WIDTH = 100;
+var DEFAULT_BUTTON_HEIGHT = 40;
+var DEFAULT_SELECT_HEIGHT = 34;
+var DEFAULT_CHECKBOX_SIZE = 16;
+var FormLayoutStrategy = class {
+  constructor() {
+    this.formTags = /* @__PURE__ */ new Set(["input", "select", "textarea", "button"]);
+  }
+  canLayout(node) {
+    if (!node.tagName) return false;
+    return this.formTags.has(node.tagName.toLowerCase());
+  }
+  layout(node, context) {
+    const cb = containingBlock(node, context.env.viewport);
+    const tagName19 = node.tagName?.toLowerCase() ?? "";
+    const formControl = node.customData?.formControl;
+    let contentWidth;
+    let contentHeight;
+    switch (tagName19) {
+      case "input": {
+        const inputType = formControl?.inputType ?? "text";
+        if (inputType === "checkbox" || inputType === "radio") {
+          contentWidth = DEFAULT_CHECKBOX_SIZE;
+          contentHeight = DEFAULT_CHECKBOX_SIZE;
+        } else if (inputType === "hidden") {
+          contentWidth = 0;
+          contentHeight = 0;
+        } else {
+          contentWidth = resolveLength(node.style.width, cb.width, { auto: DEFAULT_INPUT_WIDTH });
+          contentHeight = resolveLength(node.style.height, cb.height, { auto: DEFAULT_INPUT_HEIGHT });
+        }
+        break;
+      }
+      case "select":
+        contentWidth = resolveLength(node.style.width, cb.width, { auto: DEFAULT_INPUT_WIDTH });
+        contentHeight = resolveLength(node.style.height, cb.height, { auto: DEFAULT_SELECT_HEIGHT });
+        break;
+      case "textarea": {
+        contentWidth = resolveLength(node.style.width, cb.width, { auto: DEFAULT_TEXTAREA_WIDTH });
+        const rows = formControl?.rows ?? 3;
+        contentHeight = resolveLength(node.style.height, cb.height, { auto: rows * 24 });
+        break;
+      }
+      case "button":
+        contentWidth = resolveLength(node.style.width, cb.width, { auto: DEFAULT_BUTTON_MIN_WIDTH });
+        contentHeight = resolveLength(node.style.height, cb.height, { auto: DEFAULT_BUTTON_HEIGHT });
+        break;
+      default:
+        contentWidth = DEFAULT_INPUT_WIDTH;
+        contentHeight = DEFAULT_INPUT_HEIGHT;
+    }
+    node.box.contentWidth = Math.max(0, contentWidth);
+    node.box.contentHeight = Math.max(0, contentHeight);
+    const horizontalExtras = horizontalNonContent(node, contentWidth);
+    node.box.borderBoxWidth = node.box.contentWidth + horizontalExtras;
+    const verticalExtras = verticalNonContent(node, contentWidth);
+    node.box.borderBoxHeight = node.box.contentHeight + verticalExtras;
+    node.box.x = cb.x;
+    node.box.y = cb.y;
+    const marginLeft = resolveLength(node.style.marginLeft, cb.width, { auto: "zero" });
+    const marginRight = resolveLength(node.style.marginRight, cb.width, { auto: "zero" });
+    node.box.usedMarginLeft = marginLeft;
+    node.box.usedMarginRight = marginRight;
+    node.box.marginBoxWidth = node.box.borderBoxWidth + marginLeft + marginRight;
+    node.box.marginBoxHeight = node.box.borderBoxHeight + marginLeft + marginRight;
+    finalizeOverflow(node);
+  }
+};
+
 // src/layout/pipeline/default-engine.ts
 function createDefaultLayoutEngine() {
   const strategies = [
     new DisplayNoneStrategy(),
     new ImageLayoutStrategy(),
+    new FormLayoutStrategy(),
     new InlineLayoutStrategy(),
     new BlockLayoutStrategy(),
     new FlexLayoutStrategy(),
@@ -151069,7 +151246,7 @@ function resolveBackgroundPosition(position, area, width, height) {
   const y = resolvePositionComponent(position?.y, area.y, area.height - height, height, "y");
   return { x, y };
 }
-function resolvePositionComponent(value, start, available, size, axis) {
+function resolvePositionComponent(value, start, available, size, _axis) {
   if (!value || value === "left" || value === "top") {
     return start;
   }
@@ -151091,7 +151268,7 @@ function resolvePositionComponent(value, start, available, size, axis) {
       return start + px;
     }
   }
-  return axis === "x" ? start : start + available;
+  return _axis === "x" ? start : start + available;
 }
 function parseBackgroundSizeComponent(component, axisLength, intrinsic) {
   if (!component || component === "auto") {
@@ -151121,10 +151298,13 @@ function normalizeGradientGeometry(gradient, rect) {
   if (!gradient) {
     return void 0;
   }
-  if (gradient.type === "radial") {
+  if (isRadialGradient(gradient)) {
     return normalizeRadialGradient(gradient, rect);
   }
   return gradient;
+}
+function isRadialGradient(gradient) {
+  return gradient.type === "radial";
 }
 function normalizeRadialGradient(gradient, rect) {
   if (gradient.coordsUnits === "userSpace") {
@@ -151157,7 +151337,7 @@ function normalizeRadialGradient(gradient, rect) {
     coordsUnits: "ratio"
   };
 }
-function resolvePositionToPx(raw, length, fallbackPx, axis) {
+function resolvePositionToPx(raw, length, fallbackPx, _axis) {
   if (!Number.isFinite(length) || length <= 0) {
     return fallbackPx;
   }
@@ -151752,13 +151932,6 @@ function normalizeListStyleType(value) {
   return normalized.length > 0 ? normalized : void 0;
 }
 
-// src/pdf/transform-adapter.ts
-function svgMatrixToPdf(matrix) {
-  if (!matrix) return null;
-  const F = { a: 1, b: 0, c: 0, d: -1, e: 0, f: 0 };
-  return multiplyMatrices(multiplyMatrices(F, matrix), F);
-}
-
 // src/pdf/utils/node-text-run-factory.ts
 function buildNodeTextRuns(context) {
   const { node, children, borderBox, contentBox, textColor, decorations, transform, fallbackColor, fontResolver, textGradient } = context;
@@ -151786,10 +151959,6 @@ function applyTransformToTextRuns(runs, cssMatrix, originBox) {
   if (runs.length === 0) {
     return;
   }
-  const pdfMatrix = svgMatrixToPdf(cssMatrix);
-  if (!pdfMatrix) {
-    return;
-  }
   const baseOriginX = Number.isFinite(originBox.x) ? originBox.x : 0;
   const baseOriginY = Number.isFinite(originBox.y) ? originBox.y : 0;
   const originWidth = Number.isFinite(originBox.width) ? originBox.width : 0;
@@ -151801,7 +151970,7 @@ function applyTransformToTextRuns(runs, cssMatrix, originBox) {
   for (const run of runs) {
     const baseMatrix = run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
     const localMatrix = multiplyMatrices(toOrigin, baseMatrix);
-    const transformedLocal = multiplyMatrices(pdfMatrix, localMatrix);
+    const transformedLocal = multiplyMatrices(cssMatrix, localMatrix);
     run.lineMatrix = multiplyMatrices(fromOrigin, transformedLocal);
   }
 }
@@ -151868,17 +152037,18 @@ function applyWordSpacingToGlyphRun(glyphRun, text, wordSpacing) {
   if (!wordSpacing) {
     return;
   }
-  const additional = wordSpacing;
-  for (let idx = 0; idx < glyphRun.positions.length; idx++) {
-    const ch = text[idx];
-    if (ch === " " && idx < glyphRun.positions.length - 1) {
-      for (let j = idx + 1; j < glyphRun.positions.length; j++) {
-        glyphRun.positions[j] = {
-          x: glyphRun.positions[j].x + additional,
-          y: glyphRun.positions[j].y
-        };
-      }
+  let accumulatedSpacing = 0;
+  const len = glyphRun.positions.length;
+  for (let i = 0; i < len; i++) {
+    if (accumulatedSpacing > 0) {
+      glyphRun.positions[i].x += accumulatedSpacing;
     }
+    if (text.charCodeAt(i) === 32) {
+      accumulatedSpacing += wordSpacing;
+    }
+  }
+  if (accumulatedSpacing > 0) {
+    glyphRun.width = (glyphRun.width ?? 0) + accumulatedSpacing;
   }
 }
 function getKerningAdjustment(map, left, right) {
@@ -152016,6 +152186,13 @@ function convertNode(node, state, inheritedTextGradient) {
   };
   const rawTextAlign = resolveTextAlign(node);
   const textAlign = rawTextAlign === "left" || rawTextAlign === "center" || rawTextAlign === "right" || rawTextAlign === "justify" ? rawTextAlign : void 0;
+  const fontSnapshot = {
+    fontFamily: node.style.fontFamily,
+    fontWeight: node.style.fontWeight,
+    fontStyle: node.style.fontStyle,
+    fontSize: node.style.fontSize
+  };
+  const customData = node.customData || Object.values(fontSnapshot).some((value) => value !== void 0) ? { ...node.customData, ...fontSnapshot } : void 0;
   return {
     id,
     tagName: node.tagName,
@@ -152055,7 +152232,7 @@ function convertNode(node, state, inheritedTextGradient) {
     background,
     clipPath,
     image: imageRef,
-    customData: node.customData ? { ...node.customData } : void 0,
+    customData,
     textAlign,
     transform
   };
@@ -152873,9 +153050,9 @@ var PdfDocument = class {
 function initHeaderFooterContext(hf, pageSize, basePageBox) {
   return { hf, pageSize, baseBox: basePageBox };
 }
-function layoutHeaderFooterTrees(ctx, pxToPt3) {
-  const headerVariants = prepareVariants(ctx.hf, pxToPt3, "header");
-  const footerVariants = prepareVariants(ctx.hf, pxToPt3, "footer");
+function layoutHeaderFooterTrees(ctx, pxToPt2) {
+  const headerVariants = prepareVariants(ctx.hf, pxToPt2, "header");
+  const footerVariants = prepareVariants(ctx.hf, pxToPt2, "footer");
   const headerHeightPt = resolveVariantHeight(headerVariants);
   const footerHeightPt = resolveVariantHeight(footerVariants);
   const headerHeightPx = resolveVariantHeightPx(headerVariants);
@@ -152891,21 +153068,13 @@ function layoutHeaderFooterTrees(ctx, pxToPt3) {
     clipOverflow: ctx.hf.clipOverflow
   };
 }
-function adjustPageBoxForHf(baseBox, layout) {
-  return {
-    x: baseBox.x,
-    y: baseBox.y + layout.headerHeightPx,
-    width: baseBox.width,
-    height: Math.max(0, baseBox.height - layout.headerHeightPx - layout.footerHeightPx)
-  };
-}
 function pickHeaderVariant(layout, pageIndex, totalPages) {
   return pickVariant(layout.header, pageIndex, totalPages);
 }
 function pickFooterVariant(layout, pageIndex, totalPages) {
   return pickVariant(layout.footer, pageIndex, totalPages);
 }
-function prepareVariants(hf, pxToPt3, position) {
+function prepareVariants(hf, pxToPt2, position) {
   const maxHeightPx = position === "header" ? hf.maxHeaderHeightPx ?? 0 : hf.maxFooterHeightPx ?? 0;
   const createVariant = (content) => {
     if (!content) {
@@ -152913,7 +153082,7 @@ function prepareVariants(hf, pxToPt3, position) {
     }
     return {
       content,
-      maxHeightPt: pxToPt3(maxHeightPx),
+      maxHeightPt: pxToPt2(maxHeightPx),
       maxHeightPx
     };
   };
@@ -154010,8 +154179,17 @@ function parseZIndex(value, target) {
 }
 
 // src/css/parsers/font-parser.ts
-function parseFontFamily2(value, target) {
-  target.fontFamily = value;
+function parseFontVariant(value, target) {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "inherit") {
+    return;
+  }
+  if (normalized === "normal" || normalized === "small-caps") {
+    target.fontVariant = normalized;
+  }
+}
+function parseFontVariantNumeric2(value, target) {
+  target.fontVariantNumeric = parseFontVariantNumeric(value);
 }
 function parseFontStyle(value, target) {
   const normalized = value.trim().toLowerCase();
@@ -154028,14 +154206,8 @@ function parseFontWeight(value, target, _units, inheritedFontWeight) {
     target.fontWeight = parsed;
   }
 }
-function parseFontVariant(value, target) {
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "inherit") {
-    return;
-  }
-  if (normalized === "normal" || normalized === "small-caps") {
-    target.fontVariant = normalized;
-  }
+function parseFontFamily2(value, target) {
+  target.fontFamily = value;
 }
 
 // src/css/parsers/position-parser.ts
@@ -154392,6 +154564,119 @@ function parseListStyleType(value, target) {
     return;
   }
   target.listStyleType = LIST_STYLE_KEYWORD_MAP[normalized] ?? normalized;
+}
+
+// src/css/parsers/content-parser.ts
+function parseContent(value, target) {
+  const normalized = value.trim();
+  if (normalized === "none" || normalized === "inherit") {
+    target.content = void 0;
+    return;
+  }
+  const parsed = parseContentValue(normalized);
+  if (parsed.length > 0) {
+    target.content = parsed;
+  }
+}
+function parseContentValue(value) {
+  const result = [];
+  let i = 0;
+  while (i < value.length) {
+    if (value[i] === '"' || value[i] === "'") {
+      const quoteChar = value[i];
+      let str = "";
+      i++;
+      while (i < value.length && value[i] !== quoteChar) {
+        if (value[i] === "\\" && i + 1 < value.length) {
+          const next = value[i + 1];
+          if (next === "n") {
+            str += "\n";
+            i += 2;
+          } else if (next === "t") {
+            str += "	";
+            i += 2;
+          } else if (next === quoteChar) {
+            str += quoteChar;
+            i += 2;
+          } else if (next === "\\") {
+            str += "\\";
+            i += 2;
+          } else {
+            if ((next === "x" || next === "u") && i + 3 < value.length) {
+              const hex = value.slice(i + 2, i + 4);
+              if (/^[0-9A-Fa-f]{2}$/.test(hex)) {
+                str += String.fromCharCode(parseInt(hex, 16));
+                i += 4;
+                continue;
+              }
+            }
+            str += next;
+            i += 2;
+          }
+        } else {
+          str += value[i];
+          i++;
+        }
+      }
+      i++;
+      result.push({ type: "string", value: str });
+      continue;
+    }
+    if (value.slice(i).startsWith("counter(")) {
+      const match = /^counter\(\s*([a-zA-Z_][a-zA-Z0-9_-]*)\s*(?:,\s*(decimal|lower-roman|upper-roman|lower-alpha|upper-alpha))?\s*\)/i.exec(value.slice(i));
+      if (match) {
+        result.push({
+          type: "counter",
+          counter: match[1],
+          style: match[2]
+        });
+        i += match[0].length;
+        continue;
+      }
+    }
+    if (value.slice(i).startsWith("counters(")) {
+      const match = /^counters\(\s*([a-zA-Z_][a-zA-Z0-9_-]*)\s*,\s*(["'])(.*)\2\s*(?:,\s*(decimal|lower-roman|upper-roman|lower-alpha|upper-alpha))?\s*\)/i.exec(value.slice(i));
+      if (match) {
+        result.push({
+          type: "counter",
+          counter: match[1],
+          style: match[4]
+        });
+        i += match[0].length;
+        continue;
+      }
+    }
+    if (value.slice(i).startsWith("attr(")) {
+      const match = /^attr\(\s*([a-zA-Z_][a-zA-Z0-9_-]*)\s*\)/i.exec(value.slice(i));
+      if (match) {
+        result.push({ type: "attr", attribute: match[1] });
+        i += match[0].length;
+        continue;
+      }
+    }
+    if (value.slice(i).startsWith("open-quote")) {
+      result.push({ type: "open-quote" });
+      i += 10;
+      continue;
+    }
+    if (value.slice(i).startsWith("close-quote")) {
+      result.push({ type: "close-quote" });
+      i += 11;
+      continue;
+    }
+    if (value.slice(i).startsWith("no-open-quote")) {
+      result.push({ type: "no-open-quote" });
+      i += 14;
+      continue;
+    }
+    if (value.slice(i).startsWith("no-close-quote")) {
+      result.push({ type: "no-close-quote" });
+      i += 15;
+      continue;
+    }
+    i++;
+  }
+  return result;
 }
 
 // src/css/parsers/gradient-parser.ts
@@ -155133,7 +155418,7 @@ function parseClipLength(token) {
   if (typeof parsed === "number") {
     return { unit: "px", value: parsed };
   }
-  if (typeof parsed === "object" && parsed.unit === "percent") {
+  if (typeof parsed === "object" && parsed.kind === "absolute" && parsed.unit === "percent") {
     return { unit: "percent", value: parsed.value };
   }
   return void 0;
@@ -155469,6 +155754,7 @@ function registerAllPropertyParsers() {
   registerPropertyParser("font-family", parseFontFamily2);
   registerPropertyParser("font-style", parseFontStyle);
   registerPropertyParser("font-variant", parseFontVariant);
+  registerPropertyParser("font-variant-numeric", parseFontVariantNumeric2);
   registerPropertyParser("font-weight", parseFontWeight);
   registerPropertyParser("position", parsePosition);
   registerPropertyParser("top", parseTop);
@@ -155488,6 +155774,7 @@ function registerAllPropertyParsers() {
   registerPropertyParser("word-wrap", parseWordWrap);
   registerPropertyParser("text-shadow", parseTextShadow);
   registerPropertyParser("list-style-type", parseListStyleType);
+  registerPropertyParser("content", parseContent);
   registerPropertyParser("transform", (value, target) => {
     target.transform = value;
   });
@@ -156230,7 +156517,7 @@ var JpegDecoder = class _JpegDecoder extends BaseDecoder {
 async function defaultInflateRaw(data) {
   if (typeof DecompressionStream !== "undefined") {
     const ds = new DecompressionStream("deflate-raw");
-    const stream = new Blob([data]).stream().pipeThrough(ds);
+    const stream = new Blob([data.buffer]).stream().pipeThrough(ds);
     const out = await new Response(stream).arrayBuffer();
     return new Uint8Array(out);
   } else {
@@ -156241,7 +156528,7 @@ async function defaultInflateRaw(data) {
 async function defaultInflateZlib(data) {
   if (typeof DecompressionStream !== "undefined") {
     const ds = new DecompressionStream("deflate");
-    const stream = new Blob([data]).stream().pipeThrough(ds);
+    const stream = new Blob([data.buffer]).stream().pipeThrough(ds);
     const out = await new Response(stream).arrayBuffer();
     return new Uint8Array(out);
   } else {
@@ -157461,16 +157748,26 @@ var ParserRegistry = class {
 };
 
 // src/svg/parser.ts
+function isNativeElement(value) {
+  return typeof value === "object" && value !== null && "tagName" in value && "getAttribute" in value && "nodeType" in value;
+}
+function toNativeElement(element) {
+  if (isNativeElement(element)) {
+    return element;
+  }
+  return element;
+}
 function parseSvg(element, options = {}) {
   const warn = options.warn ?? (() => {
   });
-  if (element.tagName.toLowerCase() !== "svg") {
+  const nativeElement = toNativeElement(element);
+  if (nativeElement.tagName.toLowerCase() !== "svg") {
     warn("Expected <svg> root element.");
     return null;
   }
   const context = { warn };
   const registry = options.registry ?? defaultParserRegistry;
-  const parsed = registry.parse(element, context);
+  const parsed = registry.parse(nativeElement, context);
   if (!parsed || parsed.type !== "svg") {
     warn("Unable to parse <svg> element.");
     return null;
@@ -157479,7 +157776,7 @@ function parseSvg(element, options = {}) {
 }
 function parseElement(element, context, registry) {
   const reg = registry ?? defaultParserRegistry;
-  return reg.parse(element, context);
+  return reg.parse(toNativeElement(element), context);
 }
 function parseSvgRoot(element, context) {
   const base = createContainerBase(element, "svg", context);
@@ -157487,8 +157784,8 @@ function parseSvgRoot(element, context) {
     return null;
   }
   const viewBox = parseViewBox(element.getAttribute("viewBox"));
-  const width = parseLength4(element.getAttribute("width"));
-  const height = parseLength4(element.getAttribute("height"));
+  const width = parseLength3(element.getAttribute("width"));
+  const height = parseLength3(element.getAttribute("height"));
   return {
     ...base,
     type: "svg",
@@ -157522,12 +157819,12 @@ function parseRect(element) {
   return {
     ...common,
     type: "rect",
-    x: parseLength4(element.getAttribute("x")),
-    y: parseLength4(element.getAttribute("y")),
-    width: parseLength4(element.getAttribute("width")),
-    height: parseLength4(element.getAttribute("height")),
-    rx: parseLength4(element.getAttribute("rx")),
-    ry: parseLength4(element.getAttribute("ry"))
+    x: parseLength3(element.getAttribute("x")),
+    y: parseLength3(element.getAttribute("y")),
+    width: parseLength3(element.getAttribute("width")),
+    height: parseLength3(element.getAttribute("height")),
+    rx: parseLength3(element.getAttribute("rx")),
+    ry: parseLength3(element.getAttribute("ry"))
   };
 }
 function parseCircle(element) {
@@ -157535,9 +157832,9 @@ function parseCircle(element) {
   return {
     ...common,
     type: "circle",
-    cx: parseLength4(element.getAttribute("cx")),
-    cy: parseLength4(element.getAttribute("cy")),
-    r: parseLength4(element.getAttribute("r"))
+    cx: parseLength3(element.getAttribute("cx")),
+    cy: parseLength3(element.getAttribute("cy")),
+    r: parseLength3(element.getAttribute("r"))
   };
 }
 function parseEllipse(element) {
@@ -157545,10 +157842,10 @@ function parseEllipse(element) {
   return {
     ...common,
     type: "ellipse",
-    cx: parseLength4(element.getAttribute("cx")),
-    cy: parseLength4(element.getAttribute("cy")),
-    rx: parseLength4(element.getAttribute("rx")),
-    ry: parseLength4(element.getAttribute("ry"))
+    cx: parseLength3(element.getAttribute("cx")),
+    cy: parseLength3(element.getAttribute("cy")),
+    rx: parseLength3(element.getAttribute("rx")),
+    ry: parseLength3(element.getAttribute("ry"))
   };
 }
 function parseLine(element) {
@@ -157556,10 +157853,10 @@ function parseLine(element) {
   return {
     ...common,
     type: "line",
-    x1: parseLength4(element.getAttribute("x1")),
-    y1: parseLength4(element.getAttribute("y1")),
-    x2: parseLength4(element.getAttribute("x2")),
-    y2: parseLength4(element.getAttribute("y2"))
+    x1: parseLength3(element.getAttribute("x1")),
+    y1: parseLength3(element.getAttribute("y1")),
+    x2: parseLength3(element.getAttribute("x2")),
+    y2: parseLength3(element.getAttribute("y2"))
   };
 }
 function parsePath(element) {
@@ -157597,9 +157894,9 @@ function parseText(element) {
     ...common,
     type: "text",
     text,
-    x: parseLength4(element.getAttribute("x")),
-    y: parseLength4(element.getAttribute("y")),
-    fontSize: parseLength4(element.getAttribute("font-size")),
+    x: parseLength3(element.getAttribute("x")),
+    y: parseLength3(element.getAttribute("y")),
+    fontSize: parseLength3(element.getAttribute("font-size")),
     fontFamily: element.getAttribute("font-family") ?? void 0,
     textAnchor: normalizeTextAnchor(element.getAttribute("text-anchor"))
   };
@@ -157660,7 +157957,7 @@ function collectCommon(element, type) {
     transformMatrix
   };
 }
-function parseLength4(raw) {
+function parseLength3(raw) {
   if (!raw) {
     return void 0;
   }
@@ -157702,10 +157999,10 @@ function parseImage(element) {
   return {
     ...common,
     type: "image",
-    x: parseLength4(element.getAttribute("x")),
-    y: parseLength4(element.getAttribute("y")),
-    width: parseLength4(element.getAttribute("width")),
-    height: parseLength4(element.getAttribute("height")),
+    x: parseLength3(element.getAttribute("x")),
+    y: parseLength3(element.getAttribute("y")),
+    width: parseLength3(element.getAttribute("width")),
+    height: parseLength3(element.getAttribute("height")),
     href: element.getAttribute("href") || element.getAttribute("xlink:href") || void 0,
     preserveAspectRatio: element.getAttribute("preserveAspectRatio") || void 0
   };
@@ -157715,10 +158012,10 @@ function parseUse(element) {
   return {
     ...common,
     type: "use",
-    x: parseLength4(element.getAttribute("x")),
-    y: parseLength4(element.getAttribute("y")),
-    width: parseLength4(element.getAttribute("width")),
-    height: parseLength4(element.getAttribute("height")),
+    x: parseLength3(element.getAttribute("x")),
+    y: parseLength3(element.getAttribute("y")),
+    width: parseLength3(element.getAttribute("width")),
+    height: parseLength3(element.getAttribute("height")),
     href: element.getAttribute("href") || element.getAttribute("xlink:href") || void 0
   };
 }
@@ -157740,10 +158037,10 @@ function parseLinearGradient2(element, context) {
   return {
     ...common,
     type: "lineargradient",
-    x1: parseLength4(element.getAttribute("x1")) ?? 0,
-    y1: parseLength4(element.getAttribute("y1")) ?? 0,
-    x2: parseLength4(element.getAttribute("x2")) ?? 1,
-    y2: parseLength4(element.getAttribute("y2")) ?? 0,
+    x1: parseLength3(element.getAttribute("x1")) ?? 0,
+    y1: parseLength3(element.getAttribute("y1")) ?? 0,
+    x2: parseLength3(element.getAttribute("x2")) ?? 1,
+    y2: parseLength3(element.getAttribute("y2")) ?? 0,
     gradientUnits: element.getAttribute("gradientUnits") === "userSpaceOnUse" ? "userSpaceOnUse" : "objectBoundingBox",
     spreadMethod: normalizeSpreadMethod(element.getAttribute("spreadMethod")),
     stops
@@ -157755,11 +158052,11 @@ function parseRadialGradient2(element, context) {
   return {
     ...common,
     type: "radialgradient",
-    cx: parseLength4(element.getAttribute("cx")) ?? 0.5,
-    cy: parseLength4(element.getAttribute("cy")) ?? 0.5,
-    r: parseLength4(element.getAttribute("r")) ?? 0.5,
-    fx: parseLength4(element.getAttribute("fx")),
-    fy: parseLength4(element.getAttribute("fy")),
+    cx: parseLength3(element.getAttribute("cx")) ?? 0.5,
+    cy: parseLength3(element.getAttribute("cy")) ?? 0.5,
+    r: parseLength3(element.getAttribute("r")) ?? 0.5,
+    fx: parseLength3(element.getAttribute("fx")),
+    fy: parseLength3(element.getAttribute("fy")),
     gradientUnits: element.getAttribute("gradientUnits") === "userSpaceOnUse" ? "userSpaceOnUse" : "objectBoundingBox",
     spreadMethod: normalizeSpreadMethod(element.getAttribute("spreadMethod")),
     stops
@@ -157854,6 +158151,181 @@ defaultParserRegistry.register("clippath", parseClipPath2);
 defaultParserRegistry.register("lineargradient", parseLinearGradient2);
 defaultParserRegistry.register("radialgradient", parseRadialGradient2);
 
+// src/dom/form-registry.ts
+var FormRegistry = class {
+  constructor() {
+    this.elements = /* @__PURE__ */ new Map();
+    this.registerDefaults();
+  }
+  registerDefaults() {
+    this.elements.set("input", {
+      tagName: "input",
+      isFormControl: true,
+      attributeExtractors: ["type", "value", "checked", "disabled", "placeholder", "name", "id", "min", "max", "step", "accept", "multiple", "readonly", "required"]
+    });
+    this.elements.set("select", {
+      tagName: "select",
+      isFormControl: true,
+      attributeExtractors: ["multiple", "disabled", "name", "id", "required"]
+    });
+    this.elements.set("textarea", {
+      tagName: "textarea",
+      isFormControl: true,
+      attributeExtractors: ["rows", "cols", "disabled", "placeholder", "name", "id", "maxlength", "minlength", "readonly", "required", "wrap"]
+    });
+    this.elements.set("button", {
+      tagName: "button",
+      isFormControl: true,
+      attributeExtractors: ["type", "disabled", "name", "id", "value"]
+    });
+  }
+  register(tagName19, config) {
+    this.elements.set(tagName19.toLowerCase(), config);
+  }
+  getConfig(tagName19) {
+    return this.elements.get(tagName19.toLowerCase());
+  }
+  isFormElement(tagName19) {
+    const config = this.getConfig(tagName19);
+    return config?.isFormControl ?? false;
+  }
+};
+var defaultFormRegistry = new FormRegistry();
+function extractInputType(typeAttr) {
+  const normalized = (typeAttr || "text").toLowerCase();
+  const validTypes = [
+    "text",
+    "password",
+    "email",
+    "number",
+    "tel",
+    "url",
+    "search",
+    "date",
+    "time",
+    "color",
+    "range",
+    "checkbox",
+    "radio",
+    "file",
+    "hidden"
+  ];
+  return validTypes.includes(normalized) ? normalized : "text";
+}
+function extractButtonType(typeAttr) {
+  const normalized = (typeAttr || "button").toLowerCase();
+  const validTypes = ["submit", "reset", "button"];
+  return validTypes.includes(normalized) ? normalized : "button";
+}
+function extractBooleanAttribute(element, attrName) {
+  return element.hasAttribute?.(attrName) === true && element.getAttribute(attrName) !== "false";
+}
+function extractSelectOptions(element) {
+  const options = [];
+  const optionElements = element.querySelectorAll?.("option") ?? [];
+  for (const option of optionElements) {
+    options.push({
+      value: option.getAttribute("value") ?? option.textContent ?? "",
+      text: option.textContent ?? "",
+      selected: extractBooleanAttribute(option, "selected"),
+      disabled: extractBooleanAttribute(option, "disabled")
+    });
+  }
+  return options;
+}
+function extractFormControlData(element, tagName19) {
+  const config = defaultFormRegistry.getConfig(tagName19);
+  if (!config) return null;
+  const isDisabled = extractBooleanAttribute(element, "disabled");
+  const name = element.getAttribute("name") ?? void 0;
+  const id = element.getAttribute("id") ?? void 0;
+  const isRequired = extractBooleanAttribute(element, "required");
+  switch (tagName19.toLowerCase()) {
+    case "input": {
+      const typeAttr = element.getAttribute("type");
+      const inputType = extractInputType(typeAttr);
+      const value = element.getAttribute("value") ?? void 0;
+      const placeholder = element.getAttribute("placeholder") ?? void 0;
+      const isChecked = inputType === "checkbox" || inputType === "radio" ? extractBooleanAttribute(element, "checked") : void 0;
+      const min = element.getAttribute("min") ?? void 0;
+      const max = element.getAttribute("max") ?? void 0;
+      const step = element.getAttribute("step") ?? void 0;
+      const accept = inputType === "file" ? element.getAttribute("accept") ?? void 0 : void 0;
+      const isMultiple = inputType === "file" ? extractBooleanAttribute(element, "multiple") : void 0;
+      const readonly = extractBooleanAttribute(element, "readonly");
+      return {
+        kind: "input",
+        inputType,
+        value,
+        placeholder,
+        isChecked,
+        isDisabled,
+        isRequired,
+        name,
+        id,
+        min,
+        max,
+        step,
+        accept,
+        multiple: isMultiple,
+        readonly
+      };
+    }
+    case "select": {
+      const isMultiple = extractBooleanAttribute(element, "multiple");
+      const options = extractSelectOptions(element);
+      return {
+        kind: "select",
+        options,
+        isMultiple,
+        isDisabled,
+        isRequired,
+        name,
+        id
+      };
+    }
+    case "textarea": {
+      const rows = parseInt(element.getAttribute("rows") || "3", 10);
+      const cols = parseInt(element.getAttribute("cols") || "20", 10);
+      const value = element.getAttribute("value") ?? element.textContent ?? "";
+      const placeholder = element.getAttribute("placeholder") ?? void 0;
+      const maxlength = parseInt(element.getAttribute("maxlength") || "0", 10) || void 0;
+      const minlength = parseInt(element.getAttribute("minlength") || "0", 10) || void 0;
+      const wrap = element.getAttribute("wrap") || "soft";
+      const readonly = extractBooleanAttribute(element, "readonly");
+      return {
+        kind: "textarea",
+        value,
+        placeholder,
+        rows,
+        cols,
+        maxlength,
+        minlength,
+        wrap,
+        isDisabled,
+        isRequired,
+        name,
+        id,
+        readonly
+      };
+    }
+    case "button": {
+      const buttonType = extractButtonType(element.getAttribute("type"));
+      const value = element.getAttribute("value") ?? element.textContent ?? "";
+      return {
+        kind: "button",
+        buttonType,
+        value,
+        isDisabled,
+        name,
+        id
+      };
+    }
+    default:
+      return null;
+  }
+}
+
 // src/html/dom-converter.ts
 function findMeaningfulSibling(start, direction) {
   let current2 = start;
@@ -157880,7 +158352,7 @@ function hasMeaningfulPreviousSibling(node) {
 function hasMeaningfulNextSibling(node) {
   return findMeaningfulSibling(node.nextSibling, "next") !== null;
 }
-function isInlineDisplay5(display) {
+function isInlineDisplay4(display) {
   return display === "inline" /* Inline */ || display === "inline-block" /* InlineBlock */ || display === "inline-flex" /* InlineFlex */ || display === "inline-grid" /* InlineGrid */ || display === "inline-table" /* InlineTable */;
 }
 function shouldPreserveCollapsedWhitespace(children, style) {
@@ -157888,7 +158360,7 @@ function shouldPreserveCollapsedWhitespace(children, style) {
     return true;
   }
   const lastChild = children.length > 0 ? children[children.length - 1] : null;
-  return !!lastChild && isInlineDisplay5(lastChild.style.display);
+  return !!lastChild && isInlineDisplay4(lastChild.style.display);
 }
 function extractCssUrl(raw) {
   const trimmed = raw.trim();
@@ -157970,7 +158442,8 @@ async function hydrateBackgroundImages(style, context) {
   }
 }
 async function convertDomNode(node, cssRules, parentStyle, context) {
-  log("dom-converter", "debug", `convertDomNode - entering function for node type: ${node.nodeType}, tagName: ${node.tagName || "text node"}`);
+  const extendedNode = node;
+  log("dom-converter", "debug", `convertDomNode - entering function for node type: ${node.nodeType}, tagName: ${extendedNode.tagName || "text node"}`);
   if (node.nodeType === node.TEXT_NODE) {
     const raw = node.textContent ?? "";
     const collapsed = raw.replace(/\s+/g, " ").normalize("NFC");
@@ -158068,9 +158541,8 @@ async function convertDomNode(node, cssRules, parentStyle, context) {
           root: svgRoot,
           intrinsicWidth: intrinsic.width,
           intrinsicHeight: intrinsic.height,
-          // Propagate resource roots so SVG rendering can resolve image hrefs
-          resourceBaseDir: context && context.resourceBaseDir,
-          assetRootDir: context && context.assetRootDir
+          resourceBaseDir: context?.resourceBaseDir,
+          assetRootDir: context?.assetRootDir
         }
       }
     });
@@ -158088,6 +158560,21 @@ async function convertDomNode(node, cssRules, parentStyle, context) {
     });
     return new LayoutNode(textStyle, [], { textContent: "\n" });
   }
+  if (defaultFormRegistry.isFormElement(tagName19)) {
+    const formControlData = extractFormControlData(element, tagName19);
+    if (formControlData) {
+      const ownStyle2 = computeStyleForElement(element, cssRules, parentStyle, context.units, context.rootFontSize);
+      await hydrateBackgroundImages(ownStyle2, context);
+      const options2 = { tagName: tagName19 };
+      const id2 = element.getAttribute("id");
+      if (id2) {
+        options2.customData = { id: id2, formControl: formControlData };
+      } else {
+        options2.customData = { formControl: formControlData };
+      }
+      return new LayoutNode(ownStyle2, [], options2);
+    }
+  }
   const ownStyle = computeStyleForElement(element, cssRules, parentStyle, context.units, context.rootFontSize);
   await hydrateBackgroundImages(ownStyle, context);
   log("dom-converter", "debug", "convertDomNode - computed style backgroundLayers:", ownStyle.backgroundLayers);
@@ -158096,7 +158583,11 @@ async function convertDomNode(node, cssRules, parentStyle, context) {
   }
   const layoutChildren = [];
   let textBuf = "";
-  for (const child of Array.from(element.childNodes)) {
+  const childNodes = element.childNodes;
+  if (!childNodes) {
+    return new LayoutNode(ownStyle, [], { tagName: tagName19 });
+  }
+  for (const child of Array.from(childNodes)) {
     if (child.nodeType === child.TEXT_NODE) {
       textBuf += child.textContent ?? "";
       continue;
@@ -159881,7 +160372,7 @@ function resolveGradientPaint(paint, context) {
   if (isLinearGradientPaint(paint) || isRadialGradientPaint(paint)) return paint;
   if (typeof paint === "string") {
     const trimmed = paint.trim();
-    const urlMatch = trimmed.match(/^url\(\s*#([^\)\s]+)\s*\)$/i);
+    const urlMatch = trimmed.match(/^url\(\s*#([^)\s]+)\s*\)$/i);
     if (urlMatch && context) {
       const defs = context.defs;
       if (defs) {
@@ -160127,11 +160618,10 @@ async function renderSvgBox(painter, box, environment) {
 }
 function collectDefs(node, map) {
   if (!node) return;
-  const id = node.id;
-  if (id && typeof id === "string") {
-    map.set(id, node);
+  if (node.id && typeof node.id === "string") {
+    map.set(node.id, node);
   }
-  if (node.children && Array.isArray(node.children)) {
+  if ("children" in node && Array.isArray(node.children)) {
     for (const child of node.children) {
       collectDefs(child, map);
     }
@@ -160215,6 +160705,7 @@ async function renderImage(node, _style, context) {
     return;
   }
   let imageInfo;
+  let resolvedHref = hrefAttr;
   const imageService = ImageService.getInstance(context.environment);
   try {
     if (hrefAttr.startsWith("data:")) {
@@ -160241,9 +160732,8 @@ async function renderImage(node, _style, context) {
         return;
       }
       const base = hrefAttr.startsWith("/") ? context.assetRootDir ?? context.resourceBaseDir : context.resourceBaseDir ?? context.assetRootDir;
-      const resolved = resolver(hrefAttr, base);
-      imageInfo = await imageService.loadImage(resolved);
-      node._resolvedHref = resolved;
+      resolvedHref = resolver(hrefAttr, base);
+      imageInfo = await imageService.loadImage(resolvedHref);
     }
   } catch (err) {
     console.debug("Failed to load SVG image", hrefAttr, err instanceof Error ? err.message : err);
@@ -160259,7 +160749,7 @@ async function renderImage(node, _style, context) {
   }
   const rect = { x: p1.x, y: p1.y, width: p2.x - p1.x, height: p2.y - p1.y };
   const imageRef = {
-    src: node._resolvedHref ?? hrefAttr,
+    src: resolvedHref,
     width: imageInfo.width,
     height: imageInfo.height,
     format: imageInfo.format,
@@ -160481,6 +160971,683 @@ function computeBorderSideStrokes(borderBox, borderWidth, borderStyle, color, _r
   return result;
 }
 
+// src/pdf/renderers/text-renderer-utils.ts
+function normalizeChannel(value) {
+  if (value > 1) {
+    return value / 255;
+  }
+  return value;
+}
+function formatNumber2(value) {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+  return Number.isInteger(value) ? value.toString() : value.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
+}
+function fillColorCommand(color, graphicsStateManager) {
+  const r = formatNumber2(normalizeChannel(color.r));
+  const g = formatNumber2(normalizeChannel(color.g));
+  const b = formatNumber2(normalizeChannel(color.b));
+  const alpha = color.a ?? 1;
+  if (alpha < 1 && graphicsStateManager) {
+    const stateName = graphicsStateManager.ensureFillAlphaState(alpha);
+    return `/${stateName} gs
+${r} ${g} ${b} rg`;
+  }
+  return `${r} ${g} ${b} rg`;
+}
+
+// src/pdf/renderers/form/color-utils.ts
+function formatPdfRgb(color) {
+  const r = formatNumber2(normalizeChannel(color.r));
+  const g = formatNumber2(normalizeChannel(color.g));
+  const b = formatNumber2(normalizeChannel(color.b));
+  return `${r} ${g} ${b}`;
+}
+
+// src/pdf/renderers/text-encoder.ts
+function encodeTextPayload(text, font) {
+  if (font.isBase14) {
+    return { encoded: encodeAndEscapePdfText(text, "WinAnsi"), scheme: "WinAnsi" };
+  }
+  return { encoded: encodeIdentityText(text, font), scheme: "Identity-H" };
+}
+function encodeIdentityText(text, font) {
+  const metrics = font.metrics;
+  if (!metrics) {
+    return encodeAndEscapePdfText(text, "WinAnsi");
+  }
+  let encoded = "";
+  const samples = [];
+  for (const char of text) {
+    const codePoint = char.codePointAt(0);
+    if (codePoint === void 0) {
+      continue;
+    }
+    const glyphId = metrics.cmap.getGlyphId(codePoint);
+    if (samples.length < 10) {
+      samples.push({ char, codePoint, gid: glyphId });
+    }
+    encoded += String.fromCharCode(glyphId >> 8 & 255, glyphId & 255);
+  }
+  if (samples.length > 0) {
+    log("encoding", "debug", "Identity-H encoding samples", { font: font.baseFont, samples });
+  }
+  return escapePdfLiteral(encoded);
+}
+
+// src/pdf/renderers/form/text-utils.ts
+function resolveFormFont(node, fontProvider) {
+  const customData = node.customData ?? {};
+  const fontFamily = typeof customData.fontFamily === "string" ? customData.fontFamily : void 0;
+  const fontWeight = typeof customData.fontWeight === "number" ? customData.fontWeight : void 0;
+  const fontStyle = typeof customData.fontStyle === "string" ? customData.fontStyle : void 0;
+  const customFontSize = typeof customData.fontSize === "number" && Number.isFinite(customData.fontSize) ? customData.fontSize : void 0;
+  const fontSize = customFontSize ?? node.textRuns[0]?.fontSize ?? 14;
+  const font = fontProvider.ensureFontResourceSync(fontFamily, fontWeight, fontStyle);
+  return { font, fontSize };
+}
+function encodeFormText(text, font) {
+  return encodeTextPayload(text, font).encoded;
+}
+function resolveFormTextPosition(node, fontSize, coordinateTransformer, mode) {
+  const box = node.contentBox ?? node.borderBox;
+  const contentTop = box.y;
+  const contentHeight = box.height;
+  const lineHeight = fontSize * 1.2;
+  const ascent = fontSize * 0.8;
+  let baselinePx;
+  if (mode === "center") {
+    const lineTop = contentTop + Math.max(0, (contentHeight - lineHeight) / 2);
+    baselinePx = lineTop + ascent;
+  } else {
+    baselinePx = contentTop + ascent;
+  }
+  const localBaseline = baselinePx - coordinateTransformer.pageOffsetPx;
+  return {
+    xPt: coordinateTransformer.convertPxToPt(box.x),
+    yPt: coordinateTransformer.pageHeightPt - coordinateTransformer.convertPxToPt(localBaseline)
+  };
+}
+
+// src/pdf/renderers/form/input-text-renderer.ts
+var DEFAULT_BORDER_WIDTH2 = 1;
+var InputTextRenderer = class {
+  constructor() {
+    this.elementType = "input-text";
+  }
+  canRender(node) {
+    const data = this.getFormControlDataInternal(node);
+    return data !== null && ["text", "password", "email", "number", "tel", "url", "search"].includes(data.inputType);
+  }
+  render(node, context) {
+    const commands = [];
+    const shadings = /* @__PURE__ */ new Map();
+    const data = this.getFormControlDataInternal(node);
+    if (!data) {
+      return { commands, shadings };
+    }
+    const { coordinateTransformer } = context;
+    const ct = coordinateTransformer;
+    const borderWidth = DEFAULT_BORDER_WIDTH2;
+    const { font, fontSize } = resolveFormFont(node, context.fontProvider);
+    const rect = node.borderBox;
+    const xPt = ct.convertPxToPt(rect.x);
+    const yPt = ct.pageHeightPt - ct.convertPxToPt(rect.y + rect.height);
+    const widthPt = ct.convertPxToPt(rect.width);
+    const heightPt = ct.convertPxToPt(rect.height);
+    const borderPt = ct.convertPxToPt(borderWidth);
+    commands.push("q");
+    const bgColor = this.parseColor(node.background?.color) ?? { r: 1, g: 1, b: 1, a: 1 };
+    commands.push(`${formatPdfRgb(bgColor)} rg`);
+    commands.push(`${formatNumber2(xPt)} ${formatNumber2(yPt)} ${formatNumber2(widthPt)} ${formatNumber2(heightPt)} re`);
+    commands.push("f");
+    const borderColor = this.parseColor(node.borderColor) ?? { r: 0.7, g: 0.7, b: 0.7, a: 1 };
+    commands.push(`${formatPdfRgb(borderColor)} RG`);
+    commands.push(`${formatNumber2(borderPt)} w`);
+    commands.push(`${formatNumber2(xPt)} ${formatNumber2(yPt)} ${formatNumber2(widthPt)} ${formatNumber2(heightPt)} re`);
+    commands.push("S");
+    if (data.isDisabled) {
+      commands.push(`${formatNumber2(xPt)} ${formatNumber2(yPt)} ${formatNumber2(widthPt)} ${formatNumber2(heightPt)} re`);
+      commands.push(`${formatPdfRgb(bgColor)} rg`);
+      commands.push("f");
+    }
+    if (data.value && data.value.length > 0) {
+      const textColor = node.color ?? { r: 0, g: 0, b: 0, a: 1 };
+      const { xPt: textX, yPt: textY } = resolveFormTextPosition(node, fontSize, ct, "center");
+      commands.push("BT");
+      commands.push(`/${font.resourceName} ${formatNumber2(ct.convertPxToPt(fontSize))} Tf`);
+      commands.push(`${formatPdfRgb(textColor)} rg`);
+      commands.push(`${formatNumber2(textX)} ${formatNumber2(textY)} Td`);
+      const encodedValue = encodeFormText(data.value, font);
+      commands.push(`(${encodedValue}) Tj`);
+      commands.push("ET");
+    } else if (data.placeholder && data.placeholder.length > 0) {
+      const placeholderColor = this.parseRgbaString("153, 153, 153") ?? { r: 0.6, g: 0.6, b: 0.6, a: 1 };
+      const { xPt: textX, yPt: textY } = resolveFormTextPosition(node, fontSize, ct, "center");
+      commands.push("BT");
+      commands.push(`/${font.resourceName} ${formatNumber2(ct.convertPxToPt(fontSize))} Tf`);
+      commands.push(`${formatPdfRgb(placeholderColor)} rg`);
+      commands.push(`${formatNumber2(textX)} ${formatNumber2(textY)} Td`);
+      const encodedPlaceholder = encodeFormText(data.placeholder, font);
+      commands.push(`(${encodedPlaceholder}) Tj`);
+      commands.push("ET");
+    }
+    commands.push("Q");
+    return { commands, shadings };
+  }
+  getFormControlData(node) {
+    return this.getFormControlDataInternal(node);
+  }
+  getFormControlDataInternal(node) {
+    if (node.customData && "formControl" in node.customData) {
+      const formControl = node.customData.formControl;
+      if (formControl && typeof formControl === "object" && "kind" in formControl && formControl.kind === "input") {
+        return formControl;
+      }
+    }
+    return null;
+  }
+  parseColor(color) {
+    if (!color) return null;
+    if (typeof color === "object" && "r" in color) {
+      return color;
+    }
+    if (typeof color === "string") {
+      return this.parseRgbaString(color);
+    }
+    return null;
+  }
+  parseRgbaString(colorStr) {
+    const match = colorStr.match(/^rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+    if (!match) {
+      const hexMatch = colorStr.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+      if (hexMatch) {
+        return {
+          r: parseInt(hexMatch[1], 16) / 255,
+          g: parseInt(hexMatch[2], 16) / 255,
+          b: parseInt(hexMatch[3], 16) / 255,
+          a: 1
+        };
+      }
+      return null;
+    }
+    return {
+      r: parseInt(match[1]) / 255,
+      g: parseInt(match[2]) / 255,
+      b: parseInt(match[3]) / 255,
+      a: 1
+    };
+  }
+  // Note: text encoding handled by encodeFormText.
+};
+
+// src/pdf/renderers/form/shape-utils.ts
+function drawCheckbox(x, y, size, isChecked, color, strokeColor) {
+  const commands = [];
+  commands.push(`${formatNumber2(x)} ${formatNumber2(y)} ${formatNumber2(size)} ${formatNumber2(size)} re`);
+  if (isChecked) {
+    commands.push(`${formatPdfRgb(color)} rg`);
+    commands.push("f");
+  } else {
+    if (strokeColor) {
+      commands.push(`${formatPdfRgb(strokeColor)} RG`);
+    }
+    commands.push("S");
+  }
+  if (isChecked && strokeColor) {
+    const strokeSize = Math.max(1, size * 0.05);
+    commands.push(`${formatNumber2(x)} ${formatNumber2(y)} ${formatNumber2(size)} ${formatNumber2(size)} re`);
+    commands.push(`${formatPdfRgb(strokeColor)} RG`);
+    commands.push(`${formatNumber2(strokeSize)} w`);
+    commands.push("S");
+    commands.push(`${formatNumber2(x)} ${formatNumber2(y)} ${formatNumber2(size)} ${formatNumber2(size)} re`);
+    commands.push(`${formatPdfRgb(color)} rg`);
+    commands.push("f");
+  }
+  return commands;
+}
+function drawCheckmark(startX, startY, size, color) {
+  const commands = [];
+  const p1x = startX + size * 0.2;
+  const p1y = startY + size * 0.55;
+  const p2x = startX + size * 0.45;
+  const p2y = startY + size * 0.85;
+  const p3x = startX + size * 0.85;
+  const p3y = startY + size * 0.3;
+  commands.push(`${formatNumber2(p1x)} ${formatNumber2(p1y)} m`);
+  commands.push(`${formatNumber2(p2x)} ${formatNumber2(p2y)} l`);
+  commands.push(`${formatNumber2(p3x)} ${formatNumber2(p3y)} l`);
+  commands.push("h");
+  commands.push(`${formatPdfRgb(color)} rg`);
+  commands.push("f");
+  return commands;
+}
+function drawRadio(x, y, size, isChecked, fillColor, strokeColor) {
+  const commands = [];
+  const radius = size / 2;
+  const centerX = x + radius;
+  const centerY = y + radius;
+  const strokeW = strokeColor ? Math.max(1, size * 0.06) : 0;
+  const innerRadius = radius - strokeW - 1;
+  commands.push(`${formatNumber2(centerX)} ${formatNumber2(centerY)} ${formatNumber2(radius)} ${formatNumber2(radius)} c`);
+  commands.push("h");
+  if (strokeColor) {
+    commands.push(`${formatPdfRgb(strokeColor)} RG`);
+    commands.push(`${formatNumber2(strokeW)} w`);
+    commands.push("S");
+  }
+  if (isChecked) {
+    commands.push(`${formatNumber2(centerX)} ${formatNumber2(centerY)} ${formatNumber2(innerRadius)} ${formatNumber2(innerRadius)} c`);
+    commands.push("h");
+    commands.push(`${formatPdfRgb(fillColor)} rg`);
+    commands.push("f");
+  }
+  return commands;
+}
+function drawDropdownArrow(x, y, width, color) {
+  const commands = [];
+  const halfWidth = width / 2;
+  const height = width * 0.6;
+  const tipX = x + halfWidth;
+  const tipY = y + height * 0.3;
+  const leftX = x + width * 0.15;
+  const rightX = x + width * 0.85;
+  const baseY = y + height;
+  commands.push(`${formatNumber2(tipX)} ${formatNumber2(tipY)} m`);
+  commands.push(`${formatNumber2(rightX)} ${formatNumber2(baseY)} l`);
+  commands.push(`${formatNumber2(leftX)} ${formatNumber2(baseY)} l`);
+  commands.push("h");
+  commands.push(`${formatPdfRgb(color)} rg`);
+  commands.push("f");
+  return commands;
+}
+
+// src/pdf/renderers/form/checkbox-renderer.ts
+var DEFAULT_CHECKBOX_SIZE2 = 16;
+var CheckboxRenderer = class {
+  constructor() {
+    this.elementType = "checkbox";
+  }
+  canRender(node) {
+    const data = this.getFormControlDataInternal(node);
+    return data !== null && data.inputType === "checkbox";
+  }
+  render(node, context) {
+    const commands = [];
+    const shadings = /* @__PURE__ */ new Map();
+    const data = this.getFormControlDataInternal(node);
+    if (!data) {
+      return { commands, shadings };
+    }
+    const { coordinateTransformer } = context;
+    const ct = coordinateTransformer;
+    const rect = node.borderBox;
+    const size = Math.min(rect.width, rect.height, DEFAULT_CHECKBOX_SIZE2);
+    const x = rect.x + (rect.width - size) / 2;
+    const y = rect.y + (rect.height - size) / 2;
+    const xPt = ct.convertPxToPt(x);
+    const yPt = ct.pageHeightPt - ct.convertPxToPt(y + size);
+    const sizePt = ct.convertPxToPt(size);
+    const borderColor = node.borderColor ?? { r: 0.6, g: 0.6, b: 0.6, a: 1 };
+    const checkColor = { r: 0.2, g: 0.4, b: 0.8, a: 1 };
+    commands.push("q");
+    const fillCommands = drawCheckbox(xPt, yPt, sizePt, data.isChecked ?? false, checkColor, borderColor);
+    commands.push(...fillCommands);
+    if (data.isChecked) {
+      const checkX = xPt + sizePt * 0.15;
+      const checkY = yPt + sizePt * 0.35;
+      const checkSize = sizePt * 0.7;
+      const checkCommands = drawCheckmark(checkX, checkY, checkSize, { r: 1, g: 1, b: 1, a: 1 });
+      commands.push(...checkCommands);
+    }
+    commands.push("Q");
+    return { commands, shadings };
+  }
+  getFormControlData(node) {
+    return this.getFormControlDataInternal(node);
+  }
+  getFormControlDataInternal(node) {
+    if (node.customData && "formControl" in node.customData) {
+      const formControl = node.customData.formControl;
+      if (formControl && typeof formControl === "object" && "kind" in formControl && formControl.kind === "input") {
+        return formControl;
+      }
+    }
+    return null;
+  }
+};
+
+// src/pdf/renderers/form/radio-renderer.ts
+var DEFAULT_RADIO_SIZE = 16;
+var RadioRenderer = class {
+  constructor() {
+    this.elementType = "radio";
+  }
+  canRender(node) {
+    const data = this.getFormControlDataInternal(node);
+    return data !== null && data.inputType === "radio";
+  }
+  render(node, context) {
+    const commands = [];
+    const shadings = /* @__PURE__ */ new Map();
+    const data = this.getFormControlDataInternal(node);
+    if (!data) {
+      return { commands, shadings };
+    }
+    const { coordinateTransformer } = context;
+    const ct = coordinateTransformer;
+    const rect = node.borderBox;
+    const size = Math.min(rect.width, rect.height, DEFAULT_RADIO_SIZE);
+    const x = rect.x + (rect.width - size) / 2;
+    const y = rect.y + (rect.height - size) / 2;
+    const xPt = ct.convertPxToPt(x);
+    const yPt = ct.pageHeightPt - ct.convertPxToPt(y + size);
+    const sizePt = ct.convertPxToPt(size);
+    const borderColor = node.borderColor ?? { r: 0.6, g: 0.6, b: 0.6, a: 1 };
+    const fillColor = { r: 0.2, g: 0.4, b: 0.8, a: 1 };
+    commands.push("q");
+    const fillCommands = drawRadio(xPt, yPt, sizePt, data.isChecked ?? false, fillColor, borderColor);
+    commands.push(...fillCommands);
+    commands.push("Q");
+    return { commands, shadings };
+  }
+  getFormControlData(node) {
+    return this.getFormControlDataInternal(node);
+  }
+  getFormControlDataInternal(node) {
+    if (node.customData && "formControl" in node.customData) {
+      const formControl = node.customData.formControl;
+      if (formControl && typeof formControl === "object" && "kind" in formControl && formControl.kind === "input") {
+        return formControl;
+      }
+    }
+    return null;
+  }
+};
+
+// src/pdf/renderers/form/select-renderer.ts
+var DROPDOWN_ARROW_SIZE = 12;
+var SelectRenderer = class {
+  constructor() {
+    this.elementType = "select";
+  }
+  canRender(node) {
+    const data = this.getFormControlDataInternal(node);
+    return data !== null && data.kind === "select";
+  }
+  render(node, context) {
+    const commands = [];
+    const shadings = /* @__PURE__ */ new Map();
+    const data = this.getFormControlDataInternal(node);
+    if (!data) {
+      return { commands, shadings };
+    }
+    const { coordinateTransformer } = context;
+    const ct = coordinateTransformer;
+    const rect = node.borderBox;
+    const { font, fontSize } = resolveFormFont(node, context.fontProvider);
+    const padding = 10;
+    const arrowSize = DROPDOWN_ARROW_SIZE;
+    const xPt = ct.convertPxToPt(rect.x);
+    const yPt = ct.pageHeightPt - ct.convertPxToPt(rect.y + rect.height);
+    const widthPt = ct.convertPxToPt(rect.width);
+    const heightPt = ct.convertPxToPt(rect.height);
+    const arrowX = rect.x + rect.width - padding - arrowSize;
+    const arrowY = rect.y + rect.height / 2 - arrowSize / 2;
+    commands.push("q");
+    const bgColor = node.background?.color ?? { r: 1, g: 1, b: 1, a: 1 };
+    commands.push(`${formatPdfRgb(bgColor)} rg`);
+    commands.push(`${formatNumber2(xPt)} ${formatNumber2(yPt)} ${formatNumber2(widthPt)} ${formatNumber2(heightPt)} re`);
+    commands.push("f");
+    const borderColor = node.borderColor ?? { r: 0.7, g: 0.7, b: 0.7, a: 1 };
+    commands.push(`${formatPdfRgb(borderColor)} RG`);
+    commands.push("1 w");
+    commands.push(`${formatNumber2(xPt)} ${formatNumber2(yPt)} ${formatNumber2(widthPt)} ${formatNumber2(heightPt)} re`);
+    commands.push("S");
+    const arrowCommands = drawDropdownArrow(arrowX, arrowY, arrowSize, { r: 0.4, g: 0.4, b: 0.4, a: 1 });
+    commands.push(...arrowCommands);
+    const selectedOption = data.options.find((o) => o.selected) ?? data.options[0];
+    if (selectedOption) {
+      const textColor = node.color ?? { r: 0, g: 0, b: 0, a: 1 };
+      const { xPt: textX, yPt: textY } = resolveFormTextPosition(node, fontSize, ct, "center");
+      commands.push("BT");
+      commands.push(`/${font.resourceName} ${formatNumber2(ct.convertPxToPt(fontSize))} Tf`);
+      commands.push(`${formatPdfRgb(textColor)} rg`);
+      commands.push(`${formatNumber2(textX)} ${formatNumber2(textY)} Td`);
+      const encodedText = encodeFormText(selectedOption.text, font);
+      commands.push(`(${encodedText}) Tj`);
+      commands.push("ET");
+    }
+    commands.push("Q");
+    return { commands, shadings };
+  }
+  getFormControlData(node) {
+    return this.getFormControlDataInternal(node);
+  }
+  getFormControlDataInternal(node) {
+    if (node.customData && "formControl" in node.customData) {
+      const formControl = node.customData.formControl;
+      if (formControl && typeof formControl === "object" && "kind" in formControl && formControl.kind === "select") {
+        return formControl;
+      }
+    }
+    return null;
+  }
+  // Note: text encoding handled by encodeFormText.
+};
+
+// src/pdf/renderers/form/textarea-renderer.ts
+var DEFAULT_BORDER_WIDTH3 = 1;
+var LINE_HEIGHT = 20;
+var TextareaRenderer = class {
+  constructor() {
+    this.elementType = "textarea";
+  }
+  canRender(node) {
+    const data = this.getFormControlDataInternal(node);
+    return data !== null && data.kind === "textarea";
+  }
+  render(node, context) {
+    const commands = [];
+    const shadings = /* @__PURE__ */ new Map();
+    const data = this.getFormControlDataInternal(node);
+    if (!data) {
+      return { commands, shadings };
+    }
+    const { coordinateTransformer } = context;
+    const ct = coordinateTransformer;
+    const rect = node.borderBox;
+    const borderWidth = DEFAULT_BORDER_WIDTH3;
+    const { font, fontSize } = resolveFormFont(node, context.fontProvider);
+    const xPt = ct.convertPxToPt(rect.x);
+    const yPt = ct.pageHeightPt - ct.convertPxToPt(rect.y + rect.height);
+    const widthPt = ct.convertPxToPt(rect.width);
+    const heightPt = ct.convertPxToPt(rect.height);
+    const borderPt = ct.convertPxToPt(borderWidth);
+    commands.push("q");
+    const bgColor = node.background?.color ?? { r: 1, g: 1, b: 1, a: 1 };
+    commands.push(`${formatPdfRgb(bgColor)} rg`);
+    commands.push(`${formatNumber2(xPt)} ${formatNumber2(yPt)} ${formatNumber2(widthPt)} ${formatNumber2(heightPt)} re`);
+    commands.push("f");
+    const borderColor = node.borderColor ?? { r: 0.7, g: 0.7, b: 0.7, a: 1 };
+    commands.push(`${formatPdfRgb(borderColor)} RG`);
+    commands.push(`${formatNumber2(borderPt)} w`);
+    commands.push(`${formatNumber2(xPt)} ${formatNumber2(yPt)} ${formatNumber2(widthPt)} ${formatNumber2(heightPt)} re`);
+    commands.push("S");
+    const lineHeightPt = ct.convertPxToPt(LINE_HEIGHT);
+    const { xPt: textX, yPt: textY } = resolveFormTextPosition(node, fontSize, ct, "top");
+    commands.push("BT");
+    commands.push(`/${font.resourceName} ${formatNumber2(ct.convertPxToPt(fontSize))} Tf`);
+    commands.push(`${lineHeightPt} TL`);
+    if (data.value && data.value.length > 0) {
+      const textColor = node.color ?? { r: 0, g: 0, b: 0, a: 1 };
+      commands.push(`${formatPdfRgb(textColor)} rg`);
+      commands.push(`${formatNumber2(textX)} ${formatNumber2(textY)} Td`);
+      const lines = data.value.split("\n");
+      for (let i = 0; i < lines.length; i++) {
+        if (i > 0) {
+          commands.push(`0 ${formatNumber2(-lineHeightPt)} Td`);
+        }
+        const encodedLine = encodeFormText(lines[i], font);
+        commands.push(`(${encodedLine}) Tj`);
+      }
+    } else if (data.placeholder && data.placeholder.length > 0) {
+      const placeholderColor = { r: 0.6, g: 0.6, b: 0.6, a: 1 };
+      commands.push(`${formatPdfRgb(placeholderColor)} rg`);
+      commands.push(`${formatNumber2(textX)} ${formatNumber2(textY)} Td`);
+      const encodedPlaceholder = encodeFormText(data.placeholder, font);
+      commands.push(`(${encodedPlaceholder}) Tj`);
+    }
+    commands.push("ET");
+    commands.push("Q");
+    return { commands, shadings };
+  }
+  getFormControlData(node) {
+    return this.getFormControlDataInternal(node);
+  }
+  getFormControlDataInternal(node) {
+    if (node.customData && "formControl" in node.customData) {
+      const formControl = node.customData.formControl;
+      if (formControl && typeof formControl === "object" && "kind" in formControl && formControl.kind === "textarea") {
+        return formControl;
+      }
+    }
+    return null;
+  }
+  // Note: text encoding handled by encodeFormText.
+};
+
+// src/pdf/renderers/form/button-renderer.ts
+var DEFAULT_BORDER_WIDTH4 = 1;
+var ButtonRenderer = class {
+  constructor() {
+    this.elementType = "button";
+  }
+  canRender(node) {
+    const data = this.getFormControlDataInternal(node);
+    return data !== null && data.kind === "button";
+  }
+  render(node, context) {
+    const commands = [];
+    const shadings = /* @__PURE__ */ new Map();
+    const data = this.getFormControlDataInternal(node);
+    if (!data) {
+      return { commands, shadings };
+    }
+    const { coordinateTransformer } = context;
+    const ct = coordinateTransformer;
+    const rect = node.borderBox;
+    const borderWidth = DEFAULT_BORDER_WIDTH4;
+    const { font, fontSize } = resolveFormFont(node, context.fontProvider);
+    const xPt = ct.convertPxToPt(rect.x);
+    const yPt = ct.pageHeightPt - ct.convertPxToPt(rect.y + rect.height);
+    const widthPt = ct.convertPxToPt(rect.width);
+    const heightPt = ct.convertPxToPt(rect.height);
+    const borderPt = ct.convertPxToPt(borderWidth);
+    commands.push("q");
+    const bgColor = this.getButtonBackgroundColor(data.buttonType, data.isDisabled);
+    commands.push(`${bgColor.r.toFixed(3)} ${bgColor.g.toFixed(3)} ${bgColor.b.toFixed(3)} rg`);
+    commands.push(`${formatNumber2(xPt)} ${formatNumber2(yPt)} ${formatNumber2(widthPt)} ${formatNumber2(heightPt)} re`);
+    commands.push("f");
+    const borderColor = data.isDisabled ? { r: 0.8, g: 0.8, b: 0.8, a: 1 } : { r: 0.4, g: 0.4, b: 0.4, a: 1 };
+    commands.push(`${borderColor.r.toFixed(3)} ${borderColor.g.toFixed(3)} ${borderColor.b.toFixed(3)} RG`);
+    commands.push(`${formatNumber2(borderPt)} w`);
+    commands.push(`${formatNumber2(xPt)} ${formatNumber2(yPt)} ${formatNumber2(widthPt)} ${formatNumber2(heightPt)} re`);
+    commands.push("S");
+    const textX = xPt + widthPt / 2;
+    const { yPt: textY } = resolveFormTextPosition(node, fontSize, ct, "center");
+    const textColor = data.isDisabled ? { r: 0.6, g: 0.6, b: 0.6, a: 1 } : { r: 1, g: 1, b: 1, a: 1 };
+    commands.push("BT");
+    commands.push(`/${font.resourceName} ${formatNumber2(ct.convertPxToPt(fontSize))} Tf`);
+    commands.push(`${textColor.r.toFixed(3)} ${textColor.g.toFixed(3)} ${textColor.b.toFixed(3)} rg`);
+    const buttonText = this.getButtonText(data);
+    const encodedText = encodeFormText(buttonText, font);
+    commands.push(`1 0 0 0 ${formatNumber2(textX)} ${formatNumber2(textY)} Tm`);
+    commands.push(`(${encodedText}) Tj`);
+    commands.push("ET");
+    commands.push("Q");
+    return { commands, shadings };
+  }
+  getFormControlData(node) {
+    return this.getFormControlDataInternal(node);
+  }
+  getFormControlDataInternal(node) {
+    if (node.customData && "formControl" in node.customData) {
+      const formControl = node.customData.formControl;
+      if (formControl && typeof formControl === "object" && "kind" in formControl && formControl.kind === "button") {
+        return formControl;
+      }
+    }
+    return null;
+  }
+  getButtonBackgroundColor(buttonType, isDisabled) {
+    if (isDisabled) {
+      return { r: 0.9, g: 0.9, b: 0.9, a: 1 };
+    }
+    switch (buttonType) {
+      case "submit":
+        return { r: 0.2, g: 0.5, b: 0.2, a: 1 };
+      case "reset":
+        return { r: 0.8, g: 0.3, b: 0.2, a: 1 };
+      default:
+        return { r: 0.4, g: 0.4, b: 0.5, a: 1 };
+    }
+  }
+  getButtonText(data) {
+    if (data.value && data.value.length > 0) {
+      return data.value;
+    }
+    switch (data.buttonType) {
+      case "submit":
+        return "Submit";
+      case "reset":
+        return "Reset";
+      default:
+        return "Button";
+    }
+  }
+  // Note: text encoding handled by encodeFormText.
+};
+
+// src/pdf/renderers/form/factory.ts
+var FormRendererFactory = class {
+  constructor(renderers) {
+    if (renderers && renderers.length > 0) {
+      this.renderers = renderers;
+    } else {
+      this.renderers = [
+        new InputTextRenderer(),
+        new CheckboxRenderer(),
+        new RadioRenderer(),
+        new SelectRenderer(),
+        new TextareaRenderer(),
+        new ButtonRenderer()
+      ];
+    }
+  }
+  getRenderer(node) {
+    const renderer = this.renderers.find((r) => r.canRender(node));
+    if (!renderer) {
+      throw new Error(`No form renderer found for node kind: ${node.kind}, tagName: ${node.tagName}`);
+    }
+    return renderer;
+  }
+  canRender(node) {
+    return this.renderers.some((r) => r.canRender(node));
+  }
+  render(node, context) {
+    const renderer = this.getRenderer(node);
+    return renderer.render(node, context);
+  }
+  getFormControlData(node) {
+    const renderer = this.renderers.find((r) => r.canRender(node));
+    if (!renderer) return null;
+    return renderer.getFormControlData(node);
+  }
+};
+var defaultFormRendererFactory = new FormRendererFactory();
+
 // src/pdf/renderer/box-painter.ts
 async function paintBoxAtomic(painter, box) {
   log("paint", "debug", `paintBoxAtomic: ${box.tagName} id:${box.id} opacity:${box.opacity}`, { id: box.id, opacity: box.opacity });
@@ -160505,6 +161672,8 @@ async function paintBoxAtomic(painter, box) {
     await renderSvgBox(painter, box, painter.environment);
   } else if (box.image) {
     painter.drawImage(box.image, box.contentBox);
+  } else if (defaultFormRendererFactory.canRender(box)) {
+    painter.renderFormControl(box);
   }
   await paintText(painter, box);
   if (hasClip) {
@@ -160564,7 +161733,12 @@ function paintBackground(painter, box) {
     const tiles = computeBackgroundTileRects(gradientRect, clipRect, repeatMode);
     for (const tile of tiles) {
       const radius = rectEquals(tile, clipRect) || rectEquals(tile, gradient.originRect) ? paintArea.radius : zeroRadius();
-      painter.fillRoundedRect(tile, radius, gradient.gradient);
+      const g = gradient.gradient;
+      if (g.type === "radial") {
+        painter.fillRoundedRect(tile, radius, g);
+      } else {
+        painter.fillRoundedRect(tile, radius, g);
+      }
     }
   }
   if (background.image) {
@@ -160695,7 +161869,7 @@ async function renderHeaderFooterHtml(options) {
   const baseParentStyle = new ComputedStyle();
   const rootFontSize = baseParentStyle.fontSize;
   let rootStyle = computeStyleForElement(rootElement, cssRules, baseParentStyle, units, rootFontSize);
-  if (isInlineDisplay6(rootStyle.display)) {
+  if (isInlineDisplay5(rootStyle.display)) {
     rootStyle.display = "block" /* Block */;
   }
   const rootLayout = new LayoutNode(rootStyle, [], { tagName: rootElement?.tagName?.toLowerCase() });
@@ -160793,7 +161967,7 @@ function normalizeHtmlFragment(html) {
   }
   return `<!doctype html><html><head></head><body>${html}</body></html>`;
 }
-function isInlineDisplay6(display) {
+function isInlineDisplay5(display) {
   return display === "inline" /* Inline */ || display === "inline-block" /* InlineBlock */ || display === "inline-flex" /* InlineFlex */ || display === "inline-grid" /* InlineGrid */ || display === "inline-table" /* InlineTable */;
 }
 function calculateTreeHeight(root) {
@@ -161216,6 +162390,243 @@ function needsUnicode(text) {
   return false;
 }
 
+// src/css/font-face-parser.ts
+function parseFontFaces(stylesheets) {
+  const facesByFamily = /* @__PURE__ */ new Map();
+  for (const face of stylesheets.fontFaces ?? []) {
+    const family = normalizeToken(face.family);
+    if (!family) {
+      continue;
+    }
+    const list = facesByFamily.get(family) ?? [];
+    list.push(face);
+    facesByFamily.set(family, list);
+  }
+  return { facesByFamily };
+}
+function selectFaceForWeight(faces, requestedWeight) {
+  let bestFace;
+  let smallestDiff = Number.POSITIVE_INFINITY;
+  for (const face of faces) {
+    const faceWeight = parseFaceWeight(face.weight, requestedWeight);
+    if (faceWeight === null) {
+      if (!bestFace) {
+        bestFace = face;
+      }
+      continue;
+    }
+    const diff = Math.abs(faceWeight - requestedWeight);
+    if (diff < smallestDiff) {
+      smallestDiff = diff;
+      bestFace = face;
+    }
+  }
+  return bestFace ?? faces[0];
+}
+function parseFamilyList(value) {
+  if (!value) {
+    return [];
+  }
+  return value.split(",").map((token) => stripQuotes2(token.trim())).filter((token) => token.length > 0);
+}
+function isItalicStyle(style) {
+  if (!style) {
+    return false;
+  }
+  const normalized = style.toLowerCase();
+  return normalized === "italic" || normalized === "oblique";
+}
+function normalizeToken(value) {
+  if (!value) {
+    return "";
+  }
+  return stripQuotes2(value).trim().toLowerCase();
+}
+function stripQuotes2(value) {
+  if (value.startsWith('"') && value.endsWith('"') || value.startsWith("'") && value.endsWith("'")) {
+    return value.slice(1, -1);
+  }
+  return value;
+}
+function baseFontFromFace(face, aliases2) {
+  const localName = extractLocalSource(face.src);
+  if (localName) {
+    const normalized = normalizeToken(localName);
+    const alias = aliases2.get(normalized);
+    if (alias) {
+      return alias;
+    }
+  }
+  const familyAlias = aliases2.get(normalizeToken(face.family));
+  if (familyAlias) {
+    return familyAlias;
+  }
+  return null;
+}
+function extractLocalSource(srcList) {
+  for (const src of srcList) {
+    const match = src.match(/local\(([^)]+)\)/i);
+    if (match) {
+      return stripQuotes2(match[1].trim());
+    }
+  }
+  return null;
+}
+function parseFaceWeight(value, fallback) {
+  if (typeof value === "number") {
+    return normalizeFontWeight(value);
+  }
+  if (typeof value !== "string") {
+    return null;
+  }
+  const parts = value.split(/\s+/).filter(Boolean);
+  if (parts.length > 1) {
+    const parsedWeights = parts.map((part) => parseFontWeightValue(part, fallback)).filter((weight) => weight !== void 0).map((weight) => normalizeFontWeight(weight));
+    if (parsedWeights.length === 0) {
+      return null;
+    }
+    return parsedWeights.reduce((closest, candidate) => {
+      const candidateDiff = Math.abs(candidate - fallback);
+      const closestDiff = Math.abs(closest - fallback);
+      return candidateDiff < closestDiff ? candidate : closest;
+    }, parsedWeights[0]);
+  }
+  const parsed = parseFontWeightValue(value, fallback);
+  if (parsed === void 0) {
+    return null;
+  }
+  return normalizeFontWeight(parsed);
+}
+
+// src/pdf/font/resolvers/weight-style-applicator.ts
+function applyWeightToBaseFont(baseFont, weight, style) {
+  const wantsItalic = isItalicStyle(style);
+  const wantsBold = isBoldFontWeight(weight);
+  const base14Family = detectBase14Family(baseFont);
+  if (base14Family) {
+    const variants = BASE14_FAMILY_VARIANTS[base14Family];
+    const currentVariant = classifyBase14Variant(baseFont);
+    const targetVariant = wantsBold && wantsItalic ? "boldItalic" : wantsBold ? "bold" : wantsItalic ? "italic" : "normal";
+    if (currentVariant === targetVariant) {
+      return baseFont;
+    }
+    return variants[targetVariant];
+  }
+  let result = baseFont;
+  if (wantsItalic && !/-italic$/i.test(result) && !/-oblique$/i.test(result)) {
+    result = `${result}-Italic`;
+  }
+  if (wantsBold && !/-bold$/i.test(result)) {
+    if (/-italic$/i.test(result)) {
+      result = result.replace(/-italic$/i, "");
+    } else if (/-oblique$/i.test(result)) {
+      result = result.replace(/-oblique$/i, "");
+    }
+    return wantsItalic ? `${result}-BoldItalic` : `${result}-Bold`;
+  }
+  return result;
+}
+
+// src/pdf/font/resolvers/family-resolver.ts
+function buildAliasedFamilyStack(family, defaultStack = []) {
+  const baseStack = family ? parseFamilyList(family) : defaultStack;
+  return baseStack.flatMap((f) => {
+    const normalized = normalizeToken(f);
+    const alias = BASE_FONT_ALIASES.get(normalized);
+    const generic = GENERIC_FAMILIES.get(normalized);
+    return [f, alias, generic].filter((x) => !!x);
+  });
+}
+
+// src/pdf/font/resolvers/base-font-mapper.ts
+var DEFAULT_FONT = "Times New Roman";
+function resolveBaseFont(family, weight, style, allowEmbeddedAlias, facesByFamily) {
+  const faces = facesByFamily.get(family);
+  if (faces && faces.length > 0) {
+    const selectedFace = selectFaceForWeight(faces, weight);
+    if (selectedFace) {
+      const base = baseFontFromFace(selectedFace, BASE_FONT_ALIASES);
+      if (base) {
+        return applyWeightToBaseFont(base, weight, style);
+      }
+    }
+  }
+  if (!allowEmbeddedAlias) {
+    const base14Fallback = BASE14_FALLBACKS.get(family);
+    if (base14Fallback) {
+      return applyWeightToBaseFont(base14Fallback, weight, style);
+    }
+  }
+  const alias = BASE_FONT_ALIASES.get(family);
+  if (alias) {
+    const isAliasBase14 = BASE14_VARIANT_LOOKUP.has(alias.toLowerCase());
+    if (allowEmbeddedAlias || isAliasBase14) {
+      return applyWeightToBaseFont(alias, weight, style);
+    }
+  }
+  const generic = GENERIC_FAMILIES.get(family);
+  if (generic) {
+    return applyWeightToBaseFont(generic, weight, style);
+  }
+  return applyWeightToBaseFont(DEFAULT_FONT, weight, style);
+}
+
+// src/pdf/font/managers/font-resource-manager.ts
+var FontResourceManager = class {
+  constructor(doc) {
+    this.doc = doc;
+    this.fontsByFamilyWeight = /* @__PURE__ */ new Map();
+    this.fontsByBaseFont = /* @__PURE__ */ new Map();
+    this.aliasCounter = 1;
+  }
+  /**
+   * Retrieve a cached FontResource by its unique key.
+   */
+  getCached(key2) {
+    return this.fontsByFamilyWeight.get(key2);
+  }
+  /**
+   * Cache a FontResource by its unique key.
+   */
+  setCached(key2, resource) {
+    this.fontsByFamilyWeight.set(key2, resource);
+  }
+  /**
+   * Ensure a FontResource exists for a given base font name.
+   * 
+   * If the resource already exists in the cache, it is returned.
+   * Otherwise, a new standard font resource is registered with the PDF document.
+   */
+  ensureBaseFontResource(baseFont) {
+    const existing = this.fontsByBaseFont.get(baseFont);
+    if (existing) {
+      return existing;
+    }
+    const ref = this.doc.registerStandardFont(baseFont);
+    const alias = `F${this.aliasCounter++}`;
+    const BASE14_FAMILIES = /* @__PURE__ */ new Set([
+      "Helvetica",
+      "Helvetica-Bold",
+      "Helvetica-Oblique",
+      "Helvetica-BoldOblique",
+      "Times-Roman",
+      "Times-Bold",
+      "Times-Italic",
+      "Times-BoldItalic",
+      "Courier",
+      "Courier-Bold",
+      "Courier-Oblique",
+      "Courier-BoldOblique",
+      "Symbol",
+      "ZapfDingbats"
+    ]);
+    const isBase14 = BASE14_FAMILIES.has(baseFont);
+    const resource = { baseFont, resourceName: alias, ref, isBase14 };
+    this.fontsByBaseFont.set(baseFont, resource);
+    return resource;
+  }
+};
+
 // src/pdf/font/font-subset.ts
 function createPdfFontSubset(options) {
   const { baseName, fontMetrics, fontProgram, usedGlyphIds } = options;
@@ -161490,243 +162901,6 @@ var PdfFontRegistry = class {
   }
 };
 
-// src/css/font-face-parser.ts
-function parseFontFaces(stylesheets) {
-  const facesByFamily = /* @__PURE__ */ new Map();
-  for (const face of stylesheets.fontFaces ?? []) {
-    const family = normalizeToken(face.family);
-    if (!family) {
-      continue;
-    }
-    const list = facesByFamily.get(family) ?? [];
-    list.push(face);
-    facesByFamily.set(family, list);
-  }
-  return { facesByFamily };
-}
-function selectFaceForWeight(faces, requestedWeight) {
-  let bestFace;
-  let smallestDiff = Number.POSITIVE_INFINITY;
-  for (const face of faces) {
-    const faceWeight = parseFaceWeight(face.weight, requestedWeight);
-    if (faceWeight === null) {
-      if (!bestFace) {
-        bestFace = face;
-      }
-      continue;
-    }
-    const diff = Math.abs(faceWeight - requestedWeight);
-    if (diff < smallestDiff) {
-      smallestDiff = diff;
-      bestFace = face;
-    }
-  }
-  return bestFace ?? faces[0];
-}
-function parseFamilyList(value) {
-  if (!value) {
-    return [];
-  }
-  return value.split(",").map((token) => stripQuotes2(token.trim())).filter((token) => token.length > 0);
-}
-function isItalicStyle(style) {
-  if (!style) {
-    return false;
-  }
-  const normalized = style.toLowerCase();
-  return normalized === "italic" || normalized === "oblique";
-}
-function normalizeToken(value) {
-  if (!value) {
-    return "";
-  }
-  return stripQuotes2(value).trim().toLowerCase();
-}
-function stripQuotes2(value) {
-  if (value.startsWith('"') && value.endsWith('"') || value.startsWith("'") && value.endsWith("'")) {
-    return value.slice(1, -1);
-  }
-  return value;
-}
-function baseFontFromFace(face, aliases2) {
-  const localName = extractLocalSource(face.src);
-  if (localName) {
-    const normalized = normalizeToken(localName);
-    const alias = aliases2.get(normalized);
-    if (alias) {
-      return alias;
-    }
-  }
-  const familyAlias = aliases2.get(normalizeToken(face.family));
-  if (familyAlias) {
-    return familyAlias;
-  }
-  return null;
-}
-function extractLocalSource(srcList) {
-  for (const src of srcList) {
-    const match = src.match(/local\(([^)]+)\)/i);
-    if (match) {
-      return stripQuotes2(match[1].trim());
-    }
-  }
-  return null;
-}
-function parseFaceWeight(value, fallback) {
-  if (typeof value === "number") {
-    return normalizeFontWeight(value);
-  }
-  if (typeof value !== "string") {
-    return null;
-  }
-  const parts = value.split(/\s+/).filter(Boolean);
-  if (parts.length > 1) {
-    const parsedWeights = parts.map((part) => parseFontWeightValue(part, fallback)).filter((weight) => weight !== void 0).map((weight) => normalizeFontWeight(weight));
-    if (parsedWeights.length === 0) {
-      return null;
-    }
-    return parsedWeights.reduce((closest, candidate) => {
-      const candidateDiff = Math.abs(candidate - fallback);
-      const closestDiff = Math.abs(closest - fallback);
-      return candidateDiff < closestDiff ? candidate : closest;
-    }, parsedWeights[0]);
-  }
-  const parsed = parseFontWeightValue(value, fallback);
-  if (parsed === void 0) {
-    return null;
-  }
-  return normalizeFontWeight(parsed);
-}
-
-// src/pdf/font/resolvers/weight-style-applicator.ts
-function applyWeightToBaseFont(baseFont, weight, style) {
-  const wantsItalic = isItalicStyle(style);
-  const wantsBold = isBoldFontWeight(weight);
-  const base14Family = detectBase14Family(baseFont);
-  if (base14Family) {
-    const variants = BASE14_FAMILY_VARIANTS[base14Family];
-    const currentVariant = classifyBase14Variant(baseFont);
-    const targetVariant = wantsBold && wantsItalic ? "boldItalic" : wantsBold ? "bold" : wantsItalic ? "italic" : "normal";
-    if (currentVariant === targetVariant) {
-      return baseFont;
-    }
-    return variants[targetVariant];
-  }
-  let result = baseFont;
-  if (wantsItalic && !/-italic$/i.test(result) && !/-oblique$/i.test(result)) {
-    result = `${result}-Italic`;
-  }
-  if (wantsBold && !/-bold$/i.test(result)) {
-    if (/-italic$/i.test(result)) {
-      result = result.replace(/-italic$/i, "");
-    } else if (/-oblique$/i.test(result)) {
-      result = result.replace(/-oblique$/i, "");
-    }
-    return wantsItalic ? `${result}-BoldItalic` : `${result}-Bold`;
-  }
-  return result;
-}
-
-// src/pdf/font/resolvers/family-resolver.ts
-function buildAliasedFamilyStack(family, defaultStack = []) {
-  const baseStack = family ? parseFamilyList(family) : defaultStack;
-  return baseStack.flatMap((f) => {
-    const normalized = normalizeToken(f);
-    const alias = BASE_FONT_ALIASES.get(normalized);
-    const generic = GENERIC_FAMILIES.get(normalized);
-    return [f, alias, generic].filter((x) => !!x);
-  });
-}
-
-// src/pdf/font/resolvers/base-font-mapper.ts
-var DEFAULT_FONT = "Times New Roman";
-function resolveBaseFont(family, weight, style, allowEmbeddedAlias, facesByFamily) {
-  const faces = facesByFamily.get(family);
-  if (faces && faces.length > 0) {
-    const selectedFace = selectFaceForWeight(faces, weight);
-    if (selectedFace) {
-      const base = baseFontFromFace(selectedFace, BASE_FONT_ALIASES);
-      if (base) {
-        return applyWeightToBaseFont(base, weight, style);
-      }
-    }
-  }
-  if (!allowEmbeddedAlias) {
-    const base14Fallback = BASE14_FALLBACKS.get(family);
-    if (base14Fallback) {
-      return applyWeightToBaseFont(base14Fallback, weight, style);
-    }
-  }
-  const alias = BASE_FONT_ALIASES.get(family);
-  if (alias) {
-    const isAliasBase14 = BASE14_VARIANT_LOOKUP.has(alias.toLowerCase());
-    if (allowEmbeddedAlias || isAliasBase14) {
-      return applyWeightToBaseFont(alias, weight, style);
-    }
-  }
-  const generic = GENERIC_FAMILIES.get(family);
-  if (generic) {
-    return applyWeightToBaseFont(generic, weight, style);
-  }
-  return applyWeightToBaseFont(DEFAULT_FONT, weight, style);
-}
-
-// src/pdf/font/managers/font-resource-manager.ts
-var FontResourceManager = class {
-  constructor(doc) {
-    this.doc = doc;
-    this.fontsByFamilyWeight = /* @__PURE__ */ new Map();
-    this.fontsByBaseFont = /* @__PURE__ */ new Map();
-    this.aliasCounter = 1;
-  }
-  /**
-   * Retrieve a cached FontResource by its unique key.
-   */
-  getCached(key2) {
-    return this.fontsByFamilyWeight.get(key2);
-  }
-  /**
-   * Cache a FontResource by its unique key.
-   */
-  setCached(key2, resource) {
-    this.fontsByFamilyWeight.set(key2, resource);
-  }
-  /**
-   * Ensure a FontResource exists for a given base font name.
-   * 
-   * If the resource already exists in the cache, it is returned.
-   * Otherwise, a new standard font resource is registered with the PDF document.
-   */
-  ensureBaseFontResource(baseFont) {
-    const existing = this.fontsByBaseFont.get(baseFont);
-    if (existing) {
-      return existing;
-    }
-    const ref = this.doc.registerStandardFont(baseFont);
-    const alias = `F${this.aliasCounter++}`;
-    const BASE14_FAMILIES = /* @__PURE__ */ new Set([
-      "Helvetica",
-      "Helvetica-Bold",
-      "Helvetica-Oblique",
-      "Helvetica-BoldOblique",
-      "Times-Roman",
-      "Times-Bold",
-      "Times-Italic",
-      "Times-BoldItalic",
-      "Courier",
-      "Courier-Bold",
-      "Courier-Oblique",
-      "Courier-BoldOblique",
-      "Symbol",
-      "ZapfDingbats"
-    ]);
-    const isBase14 = BASE14_FAMILIES.has(baseFont);
-    const resource = { baseFont, resourceName: alias, ref, isBase14 };
-    this.fontsByBaseFont.set(baseFont, resource);
-    return resource;
-  }
-};
-
 // src/pdf/font/managers/subset-resource-manager.ts
 var DEFAULT_STEM_V = 80;
 var SubsetResourceManager = class {
@@ -161985,9 +163159,9 @@ function preflightFontsForPdfa(_registry) {
 
 // src/pdf/utils/coordinate-transformer.ts
 var CoordinateTransformer = class {
-  constructor(pageHeightPt, pxToPt3, pageOffsetPx = 0) {
+  constructor(pageHeightPt, pxToPt2, pageOffsetPx = 0) {
     this.pageHeightPt = pageHeightPt;
-    this.pxToPt = pxToPt3;
+    this.pxToPt = pxToPt2;
     this.pageOffsetPx = pageOffsetPx;
   }
   get pageHeightPx() {
@@ -162008,32 +163182,6 @@ var CoordinateTransformer = class {
     return this.ptToPx(value);
   }
 };
-
-// src/pdf/renderers/text-renderer-utils.ts
-function normalizeChannel(value) {
-  if (value > 1) {
-    return value / 255;
-  }
-  return value;
-}
-function formatNumber2(value) {
-  if (!Number.isFinite(value)) {
-    return "0";
-  }
-  return Number.isInteger(value) ? value.toString() : value.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
-}
-function fillColorCommand(color, graphicsStateManager) {
-  const r = formatNumber2(normalizeChannel(color.r));
-  const g = formatNumber2(normalizeChannel(color.g));
-  const b = formatNumber2(normalizeChannel(color.b));
-  const alpha = color.a ?? 1;
-  if (alpha < 1 && graphicsStateManager) {
-    const stateName = graphicsStateManager.ensureFillAlphaState(alpha);
-    return `/${stateName} gs
-${r} ${g} ${b} rg`;
-  }
-  return `${r} ${g} ${b} rg`;
-}
 
 // src/pdf/font/rasterizer.ts
 function flattenQuadratic(p0, p1, p2, tol, out) {
@@ -162582,7 +163730,7 @@ function mergeMetricsWithOutline(font) {
   }
   return {
     metrics: font.metrics.metrics,
-    glyphMetrics: font.metrics.glyphMetrics,
+    glyphMetrics: new Map(font.metrics.glyphMetrics),
     cmap: font.metrics.cmap,
     headBBox: font.metrics.headBBox,
     getGlyphOutline: font.program.getGlyphOutline
@@ -162917,37 +164065,6 @@ function fontSupportsText(font, text, requiresUnicode) {
   return true;
 }
 
-// src/pdf/renderers/text-encoder.ts
-function encodeTextPayload(text, font) {
-  if (font.isBase14) {
-    return { encoded: encodeAndEscapePdfText(text, "WinAnsi"), scheme: "WinAnsi" };
-  }
-  return { encoded: encodeIdentityText(text, font), scheme: "Identity-H" };
-}
-function encodeIdentityText(text, font) {
-  const metrics = font.metrics;
-  if (!metrics) {
-    return encodeAndEscapePdfText(text, "WinAnsi");
-  }
-  let encoded = "";
-  const samples = [];
-  for (const char of text) {
-    const codePoint = char.codePointAt(0);
-    if (codePoint === void 0) {
-      continue;
-    }
-    const glyphId = metrics.cmap.getGlyphId(codePoint);
-    if (samples.length < 10) {
-      samples.push({ char, codePoint, gid: glyphId });
-    }
-    encoded += String.fromCharCode(codePoint >> 8 & 255, codePoint & 255);
-  }
-  if (samples.length > 0) {
-    log("encoding", "debug", "Identity-H encoding samples", { font: font.baseFont, samples });
-  }
-  return escapePdfLiteral(encoded);
-}
-
 // src/pdf/utils/glyph-run-renderer.ts
 function drawGlyphRun(run, subset, xPt, yPt, fontSizePt, color, graphicsStateManager, wordSpacingPt = 0, options) {
   const commands = [];
@@ -162956,7 +164073,14 @@ function drawGlyphRun(run, subset, xPt, yPt, fontSizePt, color, graphicsStateMan
   }
   commands.push("BT");
   commands.push(`${subset.name} ${formatNumber2(fontSizePt)} Tf`);
-  commands.push(`${formatNumber2(xPt)} ${formatNumber2(yPt)} Td`);
+  if (options?.tm) {
+    const { a, b, c, d, e, f } = options.tm;
+    commands.push(
+      `${formatNumber2(a)} ${formatNumber2(b)} ${formatNumber2(c)} ${formatNumber2(d)} ${formatNumber2(e)} ${formatNumber2(f)} Tm`
+    );
+  } else {
+    commands.push(`${formatNumber2(xPt)} ${formatNumber2(yPt)} Td`);
+  }
   const appliedWordSpacing = wordSpacingPt !== 0;
   if (appliedWordSpacing) {
     commands.push(`${formatNumber2(wordSpacingPt)} Tw`);
@@ -163562,6 +164686,13 @@ function transformForRect(rect, coordinateTransformer, transformContext) {
   return `${formatNumber4(scaleX)} 0 0 ${formatNumber4(-scaleY)} ${formatNumber4(translateX)} ${formatNumber4(translateY)} cm`;
 }
 
+// src/pdf/transform-adapter.ts
+function svgMatrixToPdf(matrix) {
+  if (!matrix) return null;
+  const F = { a: 1, b: 0, c: 0, d: -1, e: 0, f: 0 };
+  return multiplyMatrices(multiplyMatrices(F, matrix), F);
+}
+
 // src/pdf/renderers/text-renderer.ts
 var PINK = "\x1B[38;5;205m";
 var RESET_COLOR = "\x1B[0m";
@@ -163648,22 +164779,12 @@ var TextRenderer = class {
       text: run.text.slice(0, 64),
       glyphCount: glyphRun.glyphIds.length
     });
-    const Tm = run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
-    if (!run.lineMatrix) {
-      log("paint", "debug", "Run provided without lineMatrix, using identity fallback", {
-        text: run.text.slice(0, 32),
-        fontFamily: run.fontFamily
-      });
-    }
-    const localBaseline = Tm.f - this.coordinateTransformer.pageOffsetPx;
-    const y = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localBaseline);
-    const x = this.coordinateTransformer.convertPxToPt(Tm.e);
+    const textMatrix = buildPdfTextMatrix(run, this.coordinateTransformer);
     log("paint", "debug", "drawing text run with glyphs", {
       text: run.text.slice(0, 32),
       glyphIds: glyphRun.glyphIds.slice(0, 10),
       fontSizePt,
-      x,
-      y
+      matrix: textMatrix
     });
     let normalizedText = run.text;
     if (run.fontVariant === "small-caps") {
@@ -163679,7 +164800,7 @@ var TextRenderer = class {
         run,
         font,
         encoded,
-        Tm,
+        Tm: run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 },
         fontSizePt,
         fontSizePx: run.fontSize,
         wordSpacingPt,
@@ -163718,13 +164839,13 @@ var TextRenderer = class {
         const glyphPatternCommands = drawGlyphRun(
           glyphRun,
           subsetResource.subset,
-          x,
-          y,
+          0,
+          0,
           fontSizePt,
           color,
           this.graphicsStateManager,
           wordSpacingPt,
-          { skipColor: true }
+          { skipColor: true, tm: textMatrix }
         );
         if (glyphPatternCommands.length > 0) {
           this.commands.push(...usePattern, ...glyphPatternCommands, "Q");
@@ -163738,12 +164859,13 @@ var TextRenderer = class {
     const glyphCommands = drawGlyphRun(
       glyphRun,
       subsetResource.subset,
-      x,
-      y,
+      0,
+      0,
       fontSizePt,
       color,
       this.graphicsStateManager,
-      wordSpacingPt
+      wordSpacingPt,
+      { tm: textMatrix }
     );
     this.commands.push(...glyphCommands);
     if (run.decorations) {
@@ -163795,6 +164917,44 @@ var TextRenderer = class {
     };
   }
 };
+function buildPdfTextMatrix(run, transformer) {
+  const base = run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+  if (!run.lineMatrix) {
+    log("paint", "debug", "Run provided without lineMatrix, using identity fallback", {
+      text: run.text.slice(0, 32),
+      fontFamily: run.fontFamily
+    });
+  }
+  const offsetPx = transformer.pageOffsetPx;
+  const local = {
+    a: base.a,
+    b: base.b,
+    c: base.c,
+    d: base.d,
+    e: base.e,
+    f: base.f - offsetPx
+  };
+  const hasLinear = Math.abs(local.a - 1) > 1e-6 || Math.abs(local.b) > 1e-6 || Math.abs(local.c) > 1e-6 || Math.abs(local.d - 1) > 1e-6;
+  if (!hasLinear) {
+    return {
+      a: 1,
+      b: 0,
+      c: 0,
+      d: 1,
+      e: transformer.convertPxToPt(local.e),
+      f: transformer.pageHeightPt - transformer.convertPxToPt(local.f)
+    };
+  }
+  const pdfPx = svgMatrixToPdf(local) ?? { a: 1, b: 0, c: 0, d: 1, e: local.e, f: local.f };
+  return {
+    a: pdfPx.a,
+    b: pdfPx.b,
+    c: pdfPx.c,
+    d: pdfPx.d,
+    e: transformer.convertPxToPt(pdfPx.e),
+    f: transformer.convertPxToPt(pdfPx.f + transformer.pageHeightPx)
+  };
+}
 function computeGlyphRunFromText(metrics, text, fontSize, letterSpacing, css) {
   const glyphIds = [];
   const positions = [];
@@ -164926,9 +166086,9 @@ var ResultCombiner = class {
 // src/pdf/page-painter.ts
 init_glyph_atlas();
 var PagePainter = class {
-  constructor(pageHeightPt, pxToPt3, fontRegistry, pageOffsetPx = 0, environment) {
+  constructor(pageHeightPt, pxToPt2, fontRegistry, pageOffsetPx = 0, environment) {
     this.clipDepth = 0;
-    this.coordinateTransformer = new CoordinateTransformer(pageHeightPt, pxToPt3, pageOffsetPx);
+    this.coordinateTransformer = new CoordinateTransformer(pageHeightPt, pxToPt2, pageOffsetPx);
     this.graphicsStateManager = new GraphicsStateManager();
     this.imageRenderer = new ImageRenderer(this.coordinateTransformer);
     this.textRenderer = new TextRenderer(this.coordinateTransformer, fontRegistry, this.imageRenderer, this.graphicsStateManager);
@@ -164938,6 +166098,7 @@ var PagePainter = class {
     this.transformScopeManager = new TransformScopeManager(this.coordinateTransformer, this.shapeRenderer);
     this.resultCombiner = new ResultCombiner(this.textRenderer, this.imageRenderer, this.shapeRenderer, this.graphicsStateManager);
     this.environment = environment;
+    this.fontRegistry = fontRegistry;
   }
   get pageHeightPx() {
     return this.coordinateTransformer.pageHeightPx;
@@ -165040,6 +166201,19 @@ var PagePainter = class {
   convertPxToPt(value) {
     return this.coordinateTransformer.convertPxToPt(value);
   }
+  renderFormControl(box) {
+    const formRenderer = defaultFormRendererFactory.getRenderer(box);
+    const context = {
+      coordinateTransformer: this.coordinateTransformer,
+      graphicsStateManager: this.graphicsStateManager,
+      fontResolver: {
+        resolveFont: (family, _weight, _style) => family
+      },
+      fontProvider: this.fontRegistry
+    };
+    const result = formRenderer.render(box, context);
+    this.shapeRenderer.pushRawCommands(result.commands);
+  }
   beginOpacityScope(opacity) {
     if (opacity >= 1) return;
     const state = this.graphicsStateManager.ensureFillAlphaState(opacity);
@@ -165079,7 +166253,7 @@ async function paintLayoutPage({
   pageNumber,
   totalPages,
   pageSize,
-  pxToPt: pxToPt3,
+  pxToPt: pxToPt2,
   pageWidthPx,
   pageHeightPx,
   fontRegistry,
@@ -165091,7 +166265,7 @@ async function paintLayoutPage({
   headerFooterCss,
   environment
 }) {
-  const painter = new PagePainter(pageSize.heightPt, pxToPt3, fontRegistry, pageTree.pageOffsetY, environment);
+  const painter = new PagePainter(pageSize.heightPt, pxToPt2, fontRegistry, pageTree.pageOffsetY, environment);
   const headerVariant = pickHeaderVariant(headerFooterLayout, pageNumber, totalPages);
   const footerVariant = pickFooterVariant(headerFooterLayout, pageNumber, totalPages);
   paintPageBackground(painter, pageBackground, pageWidthPx, pageHeightPx, pageTree.pageOffsetY);
@@ -165223,7 +166397,8 @@ async function loadBuiltinFontConfig(environment = new BrowserEnvironment()) {
   }
 }
 function computeBaseUrl() {
-  const globalBase = globalThis.__PAGYRA_FONT_BASE;
+  const globalConfig = globalThis;
+  const globalBase = globalConfig.__PAGYRA_FONT_BASE;
   if (typeof globalBase === "string" && globalBase.trim().length > 0) {
     return ensureTrailingSlash(globalBase.trim());
   }
@@ -165241,8 +166416,9 @@ function ensureTrailingSlash(input) {
   return input.endsWith("/") ? input : `${input}/`;
 }
 function resolveFontSource() {
-  const globalSource = globalThis.__PAGYRA_FONT_SOURCE;
-  const legacyGoogle = globalThis.__PAGYRA_USE_GOOGLE_FONTS;
+  const globalConfig = globalThis;
+  const globalSource = globalConfig.__PAGYRA_FONT_SOURCE;
+  const legacyGoogle = globalConfig.__PAGYRA_USE_GOOGLE_FONTS;
   if (typeof globalSource === "string") {
     const normalized = globalSource.toLowerCase();
     if (normalized === "google") return "google";
@@ -165401,7 +166577,7 @@ var DEFAULT_PAGE_SIZE2 = { widthPt: 595.28, heightPt: 841.89 };
 async function renderPdf(layout, options = {}) {
   const fontConfig = options.fontConfig ?? await loadBuiltinFontConfig();
   const pageSize = options.pageSize ?? derivePageSize(layout);
-  const pxToPt3 = createPxToPt(layout.dpiAssumption);
+  const pxToPt2 = createPxToPt(layout.dpiAssumption);
   const ptToPx2 = createPtToPx(layout.dpiAssumption);
   const doc = new PdfDocument(options.metadata ?? {});
   const fontRegistry = initFontSystem(doc, layout.css);
@@ -165417,10 +166593,9 @@ async function renderPdf(layout, options = {}) {
     bottom: 0,
     left: 0
   };
-  const baseContentBox = computeBaseContentBox(layout.root, pageSize, pxToPt3);
+  const baseContentBox = computeBaseContentBox(layout.root, pageSize, pxToPt2);
   const hfContext = initHeaderFooterContext(layout.hf, pageSize, baseContentBox);
-  const hfLayout = layoutHeaderFooterTrees(hfContext, pxToPt3);
-  const adjustedContentBox = adjustPageBoxForHf(baseContentBox, hfLayout);
+  const hfLayout = layoutHeaderFooterTrees(hfContext, pxToPt2);
   const effectiveContentHeightPx = pageHeightPx - hfLayout.headerHeightPx - hfLayout.footerHeightPx;
   const paginationHeight = effectiveContentHeightPx > 0 ? effectiveContentHeightPx : pageHeightPx;
   const pages = paginateTree(layout.root, { pageHeight: paginationHeight });
@@ -165438,7 +166613,7 @@ async function renderPdf(layout, options = {}) {
       pageNumber,
       totalPages,
       pageSize,
-      pxToPt: pxToPt3,
+      pxToPt: pxToPt2,
       pageWidthPx,
       pageHeightPx,
       fontRegistry,
@@ -165491,9 +166666,9 @@ function derivePageSize(layout) {
   const heightPt = layout.root.contentBox.height > 0 ? createPxToPt(layout.dpiAssumption)(layout.root.contentBox.height) : DEFAULT_PAGE_SIZE2.heightPt;
   return { widthPt, heightPt };
 }
-function computeBaseContentBox(root, pageSize, pxToPt3) {
-  const widthPx = root.contentBox.width > 0 ? root.contentBox.width : pageSize.widthPt / pxToPt3(1);
-  const heightPx = root.contentBox.height > 0 ? root.contentBox.height : pageSize.heightPt / pxToPt3(1);
+function computeBaseContentBox(root, pageSize, pxToPt2) {
+  const widthPx = root.contentBox.width > 0 ? root.contentBox.width : pageSize.widthPt / pxToPt2(1);
+  const heightPx = root.contentBox.height > 0 ? root.contentBox.height : pageSize.heightPt / pxToPt2(1);
   return {
     x: root.contentBox.x,
     y: root.contentBox.y,
@@ -165676,7 +166851,6 @@ async function prepareHtmlRender(options) {
   const { html, css, viewportWidth, viewportHeight, pageWidth, pageHeight, margins, debug = false, debugLevel, debugCats, headerFooter } = options;
   const normalizedHtml = normalizeHtmlInput(html);
   setViewportSize(viewportWidth, viewportHeight);
-  const isNode2 = typeof process !== "undefined" && !!process.versions?.node;
   const resourceBaseDir = options.resourceBaseDir ?? options.assetRootDir ?? "";
   const assetRootDir = options.assetRootDir ?? resourceBaseDir;
   const environment = options.environment ?? new NodeEnvironment(assetRootDir);
@@ -165696,7 +166870,8 @@ async function prepareHtmlRender(options) {
   log("html-to-pdf", "debug", `prepareHtmlRender - document children count: ${document.childNodes.length}`);
   for (let i = 0; i < document.childNodes.length; i++) {
     const child = document.childNodes[i];
-    log("html-to-pdf", "debug", `prepareHtmlRender - document child ${i}: ${child.nodeType}, ${child.tagName || "text node"}`);
+    const tagName19 = child.nodeType === child.ELEMENT_NODE ? child.tagName : "text node";
+    log("html-to-pdf", "debug", `prepareHtmlRender - document child ${i}: ${child.nodeType}, ${tagName19}`);
   }
   log("parse", "debug", "DOM parsed", { hasBody: !!document.body });
   let mergedCss = css || "";
@@ -165735,7 +166910,7 @@ async function prepareHtmlRender(options) {
   } else {
     rootStyle = computeStyleForElement(processChildrenOf, cssRules, documentElementStyle, units, rootFontSize);
   }
-  if (isInlineDisplay7(rootStyle.display)) {
+  if (isInlineDisplay6(rootStyle.display)) {
     rootStyle.display = "block" /* Block */;
   }
   const rootLayout = new LayoutNode(rootStyle, [], { tagName: processChildrenOf?.tagName?.toLowerCase() });
@@ -165743,7 +166918,8 @@ async function prepareHtmlRender(options) {
   if (processChildrenOf) {
     log("html-to-pdf", "debug", `prepareHtmlRender - processing children of: ${processChildrenOf.tagName}, count: ${processChildrenOf.childNodes.length}`);
     for (const child of Array.from(processChildrenOf.childNodes)) {
-      log("html-to-pdf", "debug", `prepareHtmlRender - processing child: ${child.tagName || "text node"}, type: ${child.nodeType}`);
+      const childTagName = child.nodeType === child.ELEMENT_NODE ? child.tagName : "text node";
+      log("html-to-pdf", "debug", `prepareHtmlRender - processing child: ${childTagName}, type: ${child.nodeType}`);
       if (child.nodeType === child.ELEMENT_NODE) {
         const tagName19 = child.tagName.toLowerCase();
         if (tagName19 === "head" || tagName19 === "meta" || tagName19 === "title" || tagName19 === "link" || tagName19 === "script") {
@@ -165917,6 +167093,11 @@ async function loadFontData(src, resourceBaseDir, assetRootDir, environment) {
       }
       return await response.arrayBuffer();
     }
+    if (/^file:/i.test(target)) {
+      const localPath = fileURLToPath(target);
+      const fontDataBuffer2 = await environment.loader.load(localPath);
+      return fontDataBuffer2;
+    }
     const resolved = environment.resolveLocal ? environment.resolveLocal(target, resourceBaseDir) : resolveLocalPath(target, resourceBaseDir, assetRootDir);
     const fontDataBuffer = await environment.loader.load(resolved);
     return fontDataBuffer;
@@ -165925,7 +167106,7 @@ async function loadFontData(src, resourceBaseDir, assetRootDir, environment) {
     return null;
   }
 }
-function isInlineDisplay7(display) {
+function isInlineDisplay6(display) {
   return display === "inline" /* Inline */ || display === "inline-block" /* InlineBlock */ || display === "inline-flex" /* InlineFlex */ || display === "inline-grid" /* InlineGrid */ || display === "inline-table" /* InlineTable */;
 }
 function normalizeHtmlInput(html) {

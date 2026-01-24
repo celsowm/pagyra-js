@@ -56,6 +56,11 @@
     "htmlUrl": "examples/image-showcase.html"
   },
   {
+    "id": "absolute-asset-paths",
+    "label": "Absolute Asset Paths (root only)",
+    "htmlUrl": "examples/absolute-asset-paths.html"
+  },
+  {
     "id": "bold-strike-example",
     "label": "Bold and Strike Typography Example",
     "htmlUrl": "examples/bold-strike-example.html"

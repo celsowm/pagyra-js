@@ -27,7 +27,8 @@
     "playground": "tsx playground/server.ts",
     "playground:browser": "tsx scripts/playground-browser-server.ts",
     "playground:render": "tsx scripts/render-playground-example.ts --debug-level debug --debug-cats 'layout,paint,pdf'",
-    "build:browser": "tsx scripts/build-browser-bundle.ts --target dist --sourcemap --minify"
+    "build:browser": "tsx scripts/build-browser-bundle.ts --target dist --sourcemap --minify",
+    "playground:pages": "tsx scripts/playground-pages-preview.ts"
   },
   "devDependencies": {
     "@types/css": "^0.0.36",
