@@ -1,4 +1,0 @@
-# Ignore vendor and compression directories
-vendor/**
-src/compression/**
-_ext/**

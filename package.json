@@ -2,8 +2,8 @@
   "name": "pagyra-js",
   "version": "0.0.4",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
   "browser": {
     "node:path": false,
     "node:url": false,
@@ -21,7 +21,7 @@
   "scripts": {
     "build": "tsc",
     "check": "tsc --noEmit",
-    "start": "node ./dist/index.js",
+    "start": "npm run playground",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "test": "vitest run",
     "lint": "eslint src tests --ext .ts,.js",
