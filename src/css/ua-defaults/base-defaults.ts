@@ -17,7 +17,7 @@ import type { LengthLike } from "../length.js";
 import { AUTO_LENGTH } from "../length.js";
 import { createNormalLineHeight, DEFAULT_NORMAL_LINE_HEIGHT } from "../line-height.js";
 import { remToPx, emToPx } from "../unit-conversion.js";
-import type { StyleProperties } from "../style.js";
+import type { StyleDefaults } from "./types.js";
 
 /**
  * Typography defaults - handles all font and text related properties.
@@ -168,7 +168,7 @@ export class TextLayoutDefaults {
  * Base object used by BrowserDefaults as a starting point for all elements.
  * This keeps construction logic separate from element-specific maps.
  */
-export function createBaseDefaultsObject(): Partial<StyleProperties> {
+export function createBaseDefaultsObject(): StyleDefaults {
   const baseFontSize = TypographyDefaults.getBaseFontSize();
   return {
     // Typography

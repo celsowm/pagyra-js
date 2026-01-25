@@ -14,11 +14,12 @@ import { applyDeclarationsToStyle } from "./apply-declarations.js";
 import { normalizeFontWeight } from './font-weight.js';
 import { FloatMode, Display } from "./enums.js";
 import { log } from "../logging/debug.js";
-import { cloneLineHeight, lineHeightEquals, resolveLineHeightInput } from "./line-height.js";
+import { cloneLineHeight, createNormalLineHeight, lineHeightEquals, resolveLineHeightInput } from "./line-height.js";
 import { parseInlineStyle } from "./inline-style-parser.js";
 import { StyleInheritanceResolver } from "./style-inheritance.js";
 import { CssUnitResolver } from "./css-unit-resolver.js";
 import { LayoutPropertyResolver } from "./layout-property-resolver.js";
+import type { StyleDefaults } from "./ua-defaults/types.js";
 import {
   CustomPropertiesMap,
   extractCustomProperties,
@@ -117,6 +118,51 @@ const RELATIVE_FONT_SIZE_TAG_SCALE: Record<string, number> = {
   small: 0.8,
   big: 1.2,
 };
+
+function resolveDefaultsForComputedStyle(
+  defaults: StyleDefaults,
+  fontSize: number,
+  rootFontSize: number,
+): Partial<StyleProperties> {
+  const {
+    fontSize: defaultFontSize,
+    marginTop,
+    marginRight,
+    marginBottom,
+    marginLeft,
+    paddingTop,
+    paddingRight,
+    paddingBottom,
+    paddingLeft,
+    borderTop,
+    borderRight,
+    borderBottom,
+    borderLeft,
+    ...rest
+  } = defaults;
+
+  const resolved: Partial<StyleProperties> = { ...rest };
+  const resolveNumeric = (value: NumericLength | undefined): number | undefined =>
+    resolveNumberLike(value, fontSize, rootFontSize);
+
+  if (defaultFontSize !== undefined) {
+    resolved.fontSize = resolveNumeric(defaultFontSize) ?? fontSize;
+  }
+  if (marginTop !== undefined) resolved.marginTop = resolveNumeric(marginTop);
+  if (marginRight !== undefined) resolved.marginRight = resolveNumeric(marginRight);
+  if (marginBottom !== undefined) resolved.marginBottom = resolveNumeric(marginBottom);
+  if (marginLeft !== undefined) resolved.marginLeft = resolveNumeric(marginLeft);
+  if (paddingTop !== undefined) resolved.paddingTop = resolveNumeric(paddingTop);
+  if (paddingRight !== undefined) resolved.paddingRight = resolveNumeric(paddingRight);
+  if (paddingBottom !== undefined) resolved.paddingBottom = resolveNumeric(paddingBottom);
+  if (paddingLeft !== undefined) resolved.paddingLeft = resolveNumeric(paddingLeft);
+  if (borderTop !== undefined) resolved.borderTop = resolveNumeric(borderTop);
+  if (borderRight !== undefined) resolved.borderRight = resolveNumeric(borderRight);
+  if (borderBottom !== undefined) resolved.borderBottom = resolveNumeric(borderBottom);
+  if (borderLeft !== undefined) resolved.borderLeft = resolveNumeric(borderLeft);
+
+  return resolved;
+}
 
 // resolveTrackSizeInputToAbsolute and resolveTrackDefinitionsInput now in layout-property-resolver.ts
 
@@ -237,36 +283,13 @@ export function computeStyleForElement(
   // 5. Inline styles (already applied in aggregated)
   const elementDefinesFontWeight = elementDefaults.fontWeight !== undefined;
   const elementDefinesFontStyle = elementDefaults.fontStyle !== undefined;
-  const elementDefinesFontSize = mergedDefaults.fontSize !== baseDefaults.fontSize;
-  const elementDefinesLineHeight = !lineHeightEquals(mergedDefaults.lineHeight, baseDefaults.lineHeight);
+  const baseLineHeight = baseDefaults.lineHeight ?? createNormalLineHeight();
+  const mergedLineHeight = mergedDefaults.lineHeight ?? baseLineHeight;
+  const elementDefinesLineHeight = !lineHeightEquals(mergedLineHeight, baseLineHeight);
 
-  const styleOptions: Partial<StyleProperties> & { customProperties?: CustomPropertiesMap } = {
-    customProperties,
-    // Start with merged defaults
-    ...mergedDefaults,
-    // Override with inherited values
-    color: inherited.color,
-    fontSize: elementDefinesFontSize ? mergedDefaults.fontSize : inherited.fontSize,
-    lineHeight: cloneLineHeight(
-      elementDefinesLineHeight ? mergedDefaults.lineHeight : inherited.lineHeight,
-    ),
-    fontFamily: inherited.fontFamily,
-    fontStyle: elementDefinesFontStyle ? mergedDefaults.fontStyle : inherited.fontStyle,
-    fontWeight: elementDefinesFontWeight ? mergedDefaults.fontWeight : normalizeFontWeight(inherited.fontWeight),
-    overflowWrap: inherited.overflowWrap,
-    textIndent: inherited.textIndent ?? mergedDefaults.textIndent ?? 0,
-    textTransform: inherited.textTransform ?? "none",
-    letterSpacing: inherited.letterSpacing ?? mergedDefaults.letterSpacing,
-    listStyleType: inherited.listStyleType ?? mergedDefaults.listStyleType ?? "disc",
-    // Apply computed values
-    display,
-    float: floatValue ?? FloatMode.None,
-    borderModel: styleInit.borderModel ?? mergedDefaults.borderModel,
-  };
+  const rootFontReference = rootFontSize ?? parentStyle.fontSize;
 
-  const rootFontReference = rootFontSize ?? parentStyle.fontSize ?? mergedDefaults.fontSize;
-
-  const baseFontSize = styleOptions.fontSize ?? inherited.fontSize ?? mergedDefaults.fontSize;
+  const baseFontSize = inherited.fontSize;
   let computedFontSize: number = baseFontSize;
   if (styleInit.fontSize !== undefined) {
     const resolvedFontSize = resolveNumberLike(styleInit.fontSize, inherited.fontSize, rootFontReference);
@@ -283,7 +306,32 @@ export function computeStyleForElement(
       computedFontSize = (inherited.fontSize ?? 16) * relativeScale;
     }
   }
-  styleOptions.fontSize = computedFontSize;
+
+  const resolvedDefaults = resolveDefaultsForComputedStyle(mergedDefaults, computedFontSize, rootFontReference);
+
+  const styleOptions: Partial<StyleProperties> & { customProperties?: CustomPropertiesMap } = {
+    customProperties,
+    // Start with merged defaults
+    ...resolvedDefaults,
+    // Override with inherited values
+    color: inherited.color,
+    fontSize: computedFontSize,
+    lineHeight: cloneLineHeight(
+      elementDefinesLineHeight ? mergedLineHeight : inherited.lineHeight,
+    ),
+    fontFamily: inherited.fontFamily,
+    fontStyle: elementDefinesFontStyle ? mergedDefaults.fontStyle : inherited.fontStyle,
+    fontWeight: elementDefinesFontWeight ? mergedDefaults.fontWeight : normalizeFontWeight(inherited.fontWeight),
+    overflowWrap: inherited.overflowWrap,
+    textIndent: inherited.textIndent ?? mergedDefaults.textIndent ?? 0,
+    textTransform: inherited.textTransform ?? "none",
+    letterSpacing: inherited.letterSpacing ?? mergedDefaults.letterSpacing,
+    listStyleType: inherited.listStyleType ?? mergedDefaults.listStyleType ?? "disc",
+    // Apply computed values
+    display,
+    float: floatValue ?? FloatMode.None,
+    borderModel: styleInit.borderModel ?? mergedDefaults.borderModel,
+  };
 
   if (styleInit.lineHeight !== undefined) {
     styleOptions.lineHeight = resolveLineHeightInput(

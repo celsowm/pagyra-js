@@ -11,3 +11,4 @@
 
 ### Fixed
 - Apply justified spacing consistently across all inline fragments by marking the last line during inline layout and reusing it in PDF text-run generation.
+- Rebuild glyph runs when text rendering resolves to a fallback font, preventing missing list markers for circle/square bullets.

@@ -1,5 +1,4 @@
-import type { ElementDefaults } from "./types.js";
-import type { StyleProperties } from "../style.js";
+import type { ElementDefaults, StyleDefaults } from "./types.js";
 import { createBaseDefaultsObject } from "./base-defaults.js";
 import { cloneLineHeight } from "../line-height.js";
 
@@ -10,15 +9,15 @@ import { cloneLineHeight } from "../line-height.js";
  * - merging element-specific overrides into it
  */
 export class BrowserDefaults {
-  static createBaseDefaults(): Partial<StyleProperties> {
+  static createBaseDefaults(): StyleDefaults {
     return createBaseDefaultsObject();
   }
 
   static mergeElementDefaults(
-    baseDefaults: Partial<StyleProperties>,
+    baseDefaults: StyleDefaults,
     elementDefaults: Partial<ElementDefaults>,
-  ): Partial<StyleProperties> {
-    const merged: Partial<StyleProperties> = { ...baseDefaults };
+  ): StyleDefaults {
+    const merged: StyleDefaults = { ...baseDefaults };
 
     if (elementDefaults.fontSize !== undefined) {
       merged.fontSize = elementDefaults.fontSize;
@@ -126,13 +125,6 @@ export class BrowserDefaults {
     if (elementDefaults.textTransform !== undefined) {
       merged.textTransform = elementDefaults.textTransform;
     }
-    if (elementDefaults.borderCollapse !== undefined) {
-      merged.borderCollapse = elementDefaults.borderCollapse;
-    }
-    if (elementDefaults.borderSpacing !== undefined) {
-      merged.borderSpacing = elementDefaults.borderSpacing;
-    }
-
     return merged;
   }
 }

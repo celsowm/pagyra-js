@@ -18,6 +18,7 @@ import type { GlyphRun } from "../../layout/text-run.js";
 import type { UnifiedFont } from "../../fonts/types.js";
 import type { Matrix } from "../../geometry/matrix.js";
 import { svgMatrixToPdf } from "../transform-adapter.js";
+import { applyWordSpacingToGlyphRun, computeGlyphRun } from "../utils/node-text-run-factory.js";
 
 const PINK = "\x1b[38;5;205m";
 const RESET_COLOR = "\x1b[0m";
@@ -102,18 +103,13 @@ export class TextRenderer {
     const fontSizePt = this.coordinateTransformer.convertPxToPt(run.fontSize);
 
     let glyphRun = run.glyphs;
-    if (!glyphRun && font.metrics) {
-      glyphRun = computeGlyphRunFromText(
-        font.metrics,
-        run.text,
-        run.fontSize,
-        run.letterSpacing ?? 0,
-        {
-          family: run.fontFamily,
-          weight: run.fontWeight ?? 400,
-          style: (run.fontStyle as "normal" | "italic") ?? "normal",
-        }
-      );
+    const needsRebuild = !glyphRun || !glyphRunMatchesFont(glyphRun, font);
+    if (needsRebuild) {
+      const rebuilt = computeGlyphRunForFont(run, font);
+      if (rebuilt) {
+        glyphRun = rebuilt;
+        run.glyphs = rebuilt;
+      }
     }
 
     if (!glyphRun) {
@@ -337,35 +333,29 @@ function buildPdfTextMatrix(run: Run, transformer: CoordinateTransformer): Matri
   };
 }
 
-function computeGlyphRunFromText(
-  metrics: NonNullable<FontResource["metrics"]>,
-  text: string,
-  fontSize: number,
-  letterSpacing: number,
-  css: { family?: string; weight: number; style: "normal" | "italic" },
-): GlyphRun {
-  const glyphIds: number[] = [];
-  const positions: { x: number; y: number }[] = [];
-  const unitsPerEm = metrics.metrics.unitsPerEm;
-  let x = 0;
-
-  for (let i = 0; i < text.length; i++) {
-    const cp = text.codePointAt(i)!;
-    const gid = metrics.cmap.getGlyphId(cp);
-    glyphIds.push(gid);
-    positions.push({ x, y: 0 });
-    const advanceWidth = metrics.glyphMetrics.get(gid)?.advanceWidth ?? 0;
-    const advancePx = (advanceWidth / unitsPerEm) * fontSize + letterSpacing;
-    x += advancePx;
-    if (cp > 0xffff) i++;
+function computeGlyphRunForFont(run: Run, font: FontResource): GlyphRun | null {
+  const unifiedFont = buildUnifiedFontFromResource(run, font);
+  if (!unifiedFont) {
+    return null;
   }
+  const letterSpacing = run.letterSpacing ?? 0;
+  const glyphRun = computeGlyphRun(unifiedFont, run.text, run.fontSize, letterSpacing);
+  applyWordSpacingToGlyphRun(glyphRun, run.text, run.wordSpacing);
+  return glyphRun;
+}
 
-  const unifiedFont: UnifiedFont = {
+function buildUnifiedFontFromResource(run: Run, font: FontResource): UnifiedFont | null {
+  const metrics = font.metrics;
+  if (!metrics) {
+    return null;
+  }
+  return {
     metrics: {
       metrics: metrics.metrics,
       glyphMetrics: metrics.glyphMetrics,
       cmap: metrics.cmap,
       headBBox: metrics.headBBox,
+      kerning: metrics.kerning,
     },
     program: {
       sourceFormat: "ttf",
@@ -374,18 +364,20 @@ function computeGlyphRunFromText(
       getGlyphOutline: metrics.getGlyphOutline,
     },
     css: {
-      family: css.family ?? "",
-      weight: css.weight,
-      style: css.style,
+      family: run.fontFamily,
+      weight: run.fontWeight ?? 400,
+      style: (run.fontStyle as "normal" | "italic") ?? "normal",
     },
   };
+}
 
-  return {
-    font: unifiedFont,
-    glyphIds,
-    positions,
-    text,
-    fontSize,
-    width: x,
-  };
+function glyphRunMatchesFont(glyphRun: GlyphRun, font: FontResource): boolean {
+  if (!font.metrics) {
+    return true;
+  }
+  const metrics = glyphRun.font?.metrics;
+  if (!metrics) {
+    return false;
+  }
+  return font.metrics.cmap === metrics.cmap && font.metrics.glyphMetrics === metrics.glyphMetrics;
 }

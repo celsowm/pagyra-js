@@ -1,7 +1,9 @@
-import type { ComputedStyle, StyleProperties } from "./style.js";
+import type { ComputedStyle } from "./style.js";
 import type { LineHeightValue } from "./line-height.js";
+import type { OverflowWrap, TextTransform } from "./properties/typography.js";
 import { cloneLineHeight } from "./line-height.js";
 import type { LengthLike } from "./length.js";
+import type { StyleDefaults } from "./ua-defaults/types.js";
 
 /**
  * Inherited CSS properties passed from parent to child
@@ -18,9 +20,9 @@ export interface InheritedStyleProperties {
     textDecorationLine?: string;
     textDecorationColor?: string;
     textDecorationStyle?: string;
-    overflowWrap?: string;
+    overflowWrap?: OverflowWrap;
     textIndent: LengthLike;
-    textTransform: string;
+    textTransform: TextTransform;
     listStyleType: string;
 }
 
@@ -34,7 +36,7 @@ export class StyleInheritanceResolver {
      */
     static resolveInheritedProperties(
         parentStyle: ComputedStyle,
-        mergedDefaults: Partial<StyleProperties>
+        mergedDefaults: StyleDefaults
     ): InheritedStyleProperties {
         return {
             color: parentStyle.color ?? mergedDefaults.color,
