@@ -15,4 +15,5 @@ declare module 'rollup/parseAst' {
   }
 
   export function parseAst(code: string, options?: ParseAstOptions): Program;
+  export function parseAstAsync(code: string, options?: ParseAstOptions): Promise<Program>;
 }

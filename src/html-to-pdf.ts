@@ -19,7 +19,6 @@ import { setViewportSize } from "./css/apply-declarations.js";
 import {
   DEFAULT_PAGE_WIDTH_PX,
   DEFAULT_PAGE_HEIGHT_PX,
-  DEFAULT_PAGE_MARGINS_PX,
   resolvePageMarginsPx,
   sanitizeDimension,
   maxContentDimension,
@@ -85,6 +84,7 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   const viewportWidth = Math.min(sanitizeDimension(options.viewportWidth, maxContentWidth), maxContentWidth);
   const viewportHeight = Math.min(sanitizeDimension(options.viewportHeight, maxContentHeight), maxContentHeight);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { html, css, pageWidth: _, pageHeight: __, margins: ___, ...restOptions } = options;
   const { html: htmlInput, css: cssInput = "" } = { html, css: css, ...restOptions };
 
