@@ -22,3 +22,33 @@ export function decodeBase64ToUint8Array(base64: string): Uint8Array {
 
   return new Uint8Array(output);
 }
+
+/**
+ * Encode a Uint8Array to a base64 string without relying on Node Buffer.
+ */
+export function encodeUint8ArrayToBase64(bytes: Uint8Array): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  let output = "";
+  let buffer = 0;
+  let bits = 0;
+
+  for (let i = 0; i < bytes.length; i++) {
+    buffer = (buffer << 8) | bytes[i];
+    bits += 8;
+    while (bits >= 6) {
+      bits -= 6;
+      output += chars[(buffer >> bits) & 0x3f];
+    }
+  }
+
+  if (bits > 0) {
+    buffer = (buffer << (6 - bits));
+    output += chars[buffer & 0x3f];
+  }
+
+  while (output.length % 4 !== 0) {
+    output += "=";
+  }
+
+  return output;
+}

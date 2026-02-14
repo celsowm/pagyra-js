@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { inflateRawSync } from "node:zlib";
 import type { Compression, Environment, ResourceLoader } from "./environment.js";
 
@@ -13,6 +14,10 @@ class NodeLoader implements ResourceLoader {
         throw new Error(`Failed to fetch resource: ${source} (${res.status})`);
       }
       return await res.arrayBuffer();
+    }
+
+    if (/^file:/i.test(source)) {
+      source = fileURLToPath(source);
     }
 
     const resolved = this.baseDir ? path.resolve(this.baseDir, source) : source;
@@ -44,14 +49,15 @@ export class NodeEnvironment implements Environment {
 
   resolveLocal(source: string, base?: string): string {
     // URLs and data URIs pass through unchanged
-    if (/^(https?:)?\/\//i.test(source) || /^data:/i.test(source)) {
+    if (/^(https?:)?\/\//i.test(source) || /^data:/i.test(source) || /^file:/i.test(source)) {
       return source;
     }
     // Strip leading slash to treat as document-relative (not filesystem-absolute)
     // This ensures /images/duck.jpg resolves to {base}/images/duck.jpg, not C:\images\duck.jpg on Windows
     const normalized = source.startsWith('/') ? source.slice(1) : source;
-    const resolved = base ? path.resolve(base, normalized) : path.resolve(normalized);
-    return resolved;
+    const baseDir = base && /^file:/i.test(base) ? fileURLToPath(base) : base;
+    const resolved = baseDir ? path.resolve(baseDir, normalized) : path.resolve(normalized);
+    return pathToFileURL(resolved).toString();
   }
 
   now(): number {

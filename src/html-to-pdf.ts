@@ -32,7 +32,7 @@ import { loadBuiltinFontConfig } from "./pdf/font/builtin-fonts.js";
 import { Display } from "./css/enums.js";
 import type { Environment } from "./environment/environment.js";
 import { NodeEnvironment } from "./environment/node-environment.js";
-import { decodeBase64ToUint8Array } from "./utils/base64.js";
+import { decodeBase64ToUint8Array, encodeUint8ArrayToBase64 } from "./utils/base64.js";
 import type { SvgElement } from "./types/core.js";
 
 export interface RenderHtmlOptions {
@@ -72,6 +72,11 @@ export async function renderHtmlToPdf(options: RenderHtmlOptions): Promise<Uint8
     margins: prepared.margins,
     environment,
   });
+}
+
+export async function renderHtmlToPdfBase64(options: RenderHtmlOptions): Promise<string> {
+  const pdfBuffer = await renderHtmlToPdf(options);
+  return encodeUint8ArrayToBase64(pdfBuffer);
 }
 
 export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<PreparedRender> {
