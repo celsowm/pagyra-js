@@ -14,7 +14,10 @@ export class CmapParser implements CmapData {
     if (table.byteLength < 4) throw new Error("Truncated cmap header");
 
     const version = table.getUint16(0, false);
-    if (version !== 0) return; // only support version 0 for now
+    if (version !== 0 && version !== 1) {
+      console.warn(`Unsupported cmap version: ${version}`);
+      return; // only support version 0 or 1 for now
+    }
 
     const numSubtables = table.getUint16(2, false);
     const subtables: { platformId: number; encodingId: number; offset: number }[] = [];

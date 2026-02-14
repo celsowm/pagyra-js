@@ -84,17 +84,18 @@ export function createPdfFontSubset(options: PdfFontSubsetOptions): PdfFontSubse
     const unicodeMap = fontMetrics.cmap.unicodeMap;
 
     for (const gid of glyphIds) {
-        let unicode: number | undefined;
+        const unicodes: number[] = [];
         for (const [cp, mappedGid] of unicodeMap.entries()) {
             if (mappedGid === gid) {
-                unicode = cp;
-                break;
+                unicodes.push(cp);
             }
         }
-        if (unicode !== undefined) {
+        if (unicodes.length > 0) {
             const cid = gidToCharCode.get(gid);
             if (cid !== undefined) {
-                cmapEntries.push({ gid: cid, unicode });
+                for (const unicode of unicodes) {
+                    cmapEntries.push({ gid: cid, unicode });
+                }
             }
         }
     }

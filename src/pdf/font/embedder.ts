@@ -247,27 +247,35 @@ export class FontEmbedder {
     }
     log("font", "debug", "createToUnicodeCMap - sample entries", { samples });
 
-    const gidToUni = new Map<number, number>();
+    const gidToUni = new Map<number, number[]>();
     for (const [unicode, gid] of unicodeMap.entries()) {
-      if (!gidToUni.has(gid)) gidToUni.set(gid, unicode);
+      if (!gidToUni.has(gid)) {
+        gidToUni.set(gid, []);
+      }
+      gidToUni.get(gid)!.push(unicode);
     }
 
     // Debug: log sample gid->unicode mappings
     const gidSamples: Array<{ gid: number, unicode: number, char: string }> = [];
     let gidCount = 0;
-    for (const [gid, unicode] of gidToUni.entries()) {
-      if (gidCount < 20) {
+    for (const [gid, unicodes] of gidToUni.entries()) {
+      if (gidCount < 20 && unicodes.length > 0) {
+        const unicode = unicodes[0];
         gidSamples.push({ gid, unicode, char: String.fromCodePoint(unicode) });
       }
       gidCount++;
     }
     log("font", "debug", "createToUnicodeCMap - gid->unicode sample", { samples: gidSamples });
 
-    const entries = Array.from(gidToUni.entries())
-      .map(([gid, unicode]) => ({ gid, unicode }))
-      .sort((a, b) => a.gid - b.gid);
+    const entries: { gid: number; unicode: number }[] = [];
+    for (const [gid, unicodes] of gidToUni.entries()) {
+      for (const unicode of unicodes) {
+        entries.push({ gid, unicode });
+      }
+    }
 
-    const cmapText = createToUnicodeCMapText(entries);
+    const sortedEntries = entries.sort((a, b) => a.gid - b.gid);
+    const cmapText = createToUnicodeCMapText(sortedEntries);
     return this.doc.registerStream(new TextEncoder().encode(cmapText), {});
   }
 
@@ -296,18 +304,18 @@ export class FontEmbedder {
 
     // Handle font-family stacks like "'Times New Roman', Times, serif"
     const fontStack = faceName.split(",").map(f => f.trim().replace(/^["']|["']$/g, ""));
-    
+
     for (const fontName of fontStack) {
       const normalizedQuery = fontName.toLowerCase().trim();
-      
+
       // Try exact match with this font name
       const exactMatch = this.faceMetrics.get(fontName);
       if (exactMatch) return exactMatch;
-      
+
       // Check if this is an alias that maps to an embedded font
       const aliasedFont = BASE_FONT_ALIASES.get(normalizedQuery) || GENERIC_FAMILIES.get(normalizedQuery);
       const targetFamily = aliasedFont ? aliasedFont.toLowerCase() : normalizedQuery;
-      
+
       // Collect all faces matching the family
       const matchingFaces: FontFaceDef[] = [];
       for (const face of this.config.fontFaceDefs) {
@@ -316,7 +324,7 @@ export class FontEmbedder {
           matchingFaces.push(face);
         }
       }
-      
+
       // Pick the best face by weight and style
       if (matchingFaces.length > 0) {
         const bestFace = pickFaceByWeight(matchingFaces, fontWeight, wantsItalic);

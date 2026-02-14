@@ -16,7 +16,15 @@ import { convertDomNode } from "./html/dom-converter.js";
 import { applyPageVerticalMarginsWithHf, offsetRenderTree } from "./render/offset.js";
 import { applyTextLayoutAdjustments } from "./pdf/utils/text-layout-adjuster.js";
 import { setViewportSize } from "./css/apply-declarations.js";
-import { type PageMarginsPx } from "./units/page-utils.js";
+import {
+  DEFAULT_PAGE_WIDTH_PX,
+  DEFAULT_PAGE_HEIGHT_PX,
+  DEFAULT_PAGE_MARGINS_PX,
+  resolvePageMarginsPx,
+  sanitizeDimension,
+  maxContentDimension,
+  type PageMarginsPx,
+} from "./units/page-utils.js";
 import { computeStyleForElement } from "./css/compute-style.js";
 import type { HeaderFooterHTML } from "./pdf/types.js";
 import { FontEmbedder } from "./pdf/font/embedder.js";
@@ -30,12 +38,12 @@ import type { SvgElement } from "./types/core.js";
 
 export interface RenderHtmlOptions {
   html: string;
-  css: string;
-  viewportWidth: number;
-  viewportHeight: number;
-  pageWidth: number;
-  pageHeight: number;
-  margins: PageMarginsPx;
+  css?: string;
+  viewportWidth?: number;
+  viewportHeight?: number;
+  pageWidth?: number;
+  pageHeight?: number;
+  margins?: Partial<PageMarginsPx>;
   debug?: boolean;
   debugLevel?: LogLevel;
   debugCats?: string[];
@@ -68,14 +76,26 @@ export async function renderHtmlToPdf(options: RenderHtmlOptions): Promise<Uint8
 }
 
 export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<PreparedRender> {
-  const { html, css, viewportWidth, viewportHeight, pageWidth, pageHeight, margins, debug = false, debugLevel, debugCats, headerFooter } =
-    options;
-  const normalizedHtml = normalizeHtmlInput(html);
+  // Apply defaults for optional parameters
+  const pageWidth = sanitizeDimension(options.pageWidth, DEFAULT_PAGE_WIDTH_PX);
+  const pageHeight = sanitizeDimension(options.pageHeight, DEFAULT_PAGE_HEIGHT_PX);
+  const marginsPx = resolvePageMarginsPx(pageWidth, pageHeight);
+  const maxContentWidth = maxContentDimension(pageWidth, marginsPx.left + marginsPx.right);
+  const maxContentHeight = maxContentDimension(pageHeight, marginsPx.top + marginsPx.bottom);
+  const viewportWidth = Math.min(sanitizeDimension(options.viewportWidth, maxContentWidth), maxContentWidth);
+  const viewportHeight = Math.min(sanitizeDimension(options.viewportHeight, maxContentHeight), maxContentHeight);
+
+  const { html, css, pageWidth: _, pageHeight: __, margins: ___, ...restOptions } = options;
+  const { html: htmlInput, css: cssInput = "" } = { html, css: css, ...restOptions };
+
+  const { debug = false, debugLevel, debugCats, headerFooter, resourceBaseDir, assetRootDir, environment: envOverride } = options;
+
+  const normalizedHtml = normalizeHtmlInput(htmlInput);
 
   setViewportSize(viewportWidth, viewportHeight);
-  const resourceBaseDir = options.resourceBaseDir ?? options.assetRootDir ?? "";
-  const assetRootDir = options.assetRootDir ?? resourceBaseDir;
-  const environment = options.environment ?? new NodeEnvironment(assetRootDir);
+  const resourceBaseDirVal = resourceBaseDir ?? assetRootDir ?? "";
+  const assetRootDirVal = assetRootDir ?? resourceBaseDirVal;
+  const environment = envOverride ?? new NodeEnvironment(assetRootDirVal);
 
   if (debugLevel || debugCats) {
     configureDebug({ level: debugLevel ?? (debug ? "debug" : "info"), cats: debugCats });
@@ -84,10 +104,10 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   const unitCtx: UnitCtx = { viewport: { width: viewportWidth, height: viewportHeight } };
   const units = makeUnitParsers(unitCtx);
 
-  log('html-to-pdf', 'debug', `prepareHtmlRender - input html: ${html}`);
+  log('html-to-pdf', 'debug', `prepareHtmlRender - input html: ${htmlInput}`);
   let { document } = parseHTML(normalizedHtml);
   if (needsReparse(document)) {
-    document = parseHTML(wrapHtml(html)).document;
+    document = parseHTML(wrapHtml(htmlInput)).document;
   }
   log('html-to-pdf', 'debug', `prepareHtmlRender - parsed document body: ${document.body?.innerHTML || 'no body'}`);
   log('html-to-pdf', 'debug', `prepareHtmlRender - document.documentElement tagName: ${document.documentElement?.tagName}`);
@@ -100,7 +120,7 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   }
   log("parse", "debug", "DOM parsed", { hasBody: !!document.body });
 
-  let mergedCss = css || "";
+  let mergedCss = cssInput || "";
   const styleTags = Array.from(document.querySelectorAll("style"));
   for (const styleTag of styleTags) {
     if (styleTag.textContent) mergedCss += "\n" + styleTag.textContent;
@@ -109,7 +129,7 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   for (const linkTag of linkTags) {
     const href = linkTag.getAttribute("href");
     if (!href) continue;
-    const cssText = await loadStylesheetFromHref(href, resourceBaseDir, assetRootDir, environment);
+    const cssText = await loadStylesheetFromHref(href, resourceBaseDirVal, assetRootDirVal, environment);
     if (cssText) mergedCss += "\n" + cssText;
   }
   const { styleRules: cssRules, fontFaceRules } = parseCss(mergedCss);
@@ -152,7 +172,7 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   }
   const rootLayout = new LayoutNode(rootStyle, [], { tagName: processChildrenOf?.tagName?.toLowerCase() });
 
-  const conversionContext = { resourceBaseDir, assetRootDir, units, rootFontSize, environment };
+  const conversionContext = { resourceBaseDir: resourceBaseDirVal, assetRootDir: assetRootDirVal, units, rootFontSize, environment };
 
   if (processChildrenOf) {
     log('html-to-pdf', 'debug', `prepareHtmlRender - processing children of: ${processChildrenOf.tagName}, count: ${processChildrenOf.childNodes.length}`);
@@ -180,7 +200,7 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
     if (fontFamily && src) {
       const targetUrl = pickFontUrlFromSrc(src);
       if (targetUrl && options.fontConfig) {
-        const fontData = await loadFontData(targetUrl, resourceBaseDir, assetRootDir, environment);
+        const fontData = await loadFontData(targetUrl, resourceBaseDirVal, assetRootDirVal, environment);
         if (fontData) {
           const weightStr = fontFace.declarations["font-weight"] || "400";
           const styleStr = fontFace.declarations["font-style"] || "normal";
@@ -201,7 +221,7 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   if (options.fontConfig) {
     for (const face of options.fontConfig.fontFaceDefs) {
       if (!face.data && face.src) {
-        const loaded = await loadFontData(face.src, resourceBaseDir, assetRootDir, environment);
+        const loaded = await loadFontData(face.src, resourceBaseDirVal, assetRootDirVal, environment);
         if (loaded) {
           // Type assertion needed because face is readonly from fontFaceDefs
           (face as { data: ArrayBuffer }).data = loaded;
@@ -230,14 +250,14 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   // This pushes content below the header and reserves space for the footer
   applyPageVerticalMarginsWithHf(renderTree.root, {
     pageHeight,
-    margins,
+    margins: marginsPx,
     headerHeightPx,
     footerHeightPx,
   });
-  offsetRenderTree(renderTree.root, margins.left, 0, debug);
+  offsetRenderTree(renderTree.root, marginsPx.left, 0, debug);
 
   const pageSize = { widthPt: pxToPt(pageWidth), heightPt: pxToPt(pageHeight) };
-  return { layoutRoot: rootLayout, renderTree, pageSize, margins };
+  return { layoutRoot: rootLayout, renderTree, pageSize, margins: marginsPx };
 }
 
 async function loadStylesheetFromHref(href: string, resourceBaseDir: string, assetRootDir: string, environment: Environment): Promise<string> {
