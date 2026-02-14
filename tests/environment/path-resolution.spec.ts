@@ -4,12 +4,14 @@ import path from 'node:path';
 
 describe('Path Resolution', () => {
     describe('NodeEnvironment', () => {
+        const toPath = (p: string) => p.startsWith('file:') ? require('node:url').fileURLToPath(p) : p;
+
         it('resolves leading-slash paths relative to base', () => {
             const env = new NodeEnvironment();
             const base = path.resolve('/var/www/public');
             const resolved = env.resolveLocal('/images/duck.jpg', base);
             const expected = path.join(base, 'images', 'duck.jpg');
-            expect(path.normalize(resolved)).toBe(path.normalize(expected));
+            expect(path.normalize(toPath(resolved))).toBe(path.normalize(expected));
         });
 
         it('resolves relative paths normally', () => {
@@ -17,7 +19,7 @@ describe('Path Resolution', () => {
             const base = path.resolve('/var/www/public');
             const resolved = env.resolveLocal('images/duck.jpg', base);
             const expected = path.join(base, 'images', 'duck.jpg');
-            expect(path.normalize(resolved)).toBe(path.normalize(expected));
+            expect(path.normalize(toPath(resolved))).toBe(path.normalize(expected));
         });
 
         it('passes through HTTP URLs unchanged', () => {
@@ -41,19 +43,21 @@ describe('Path Resolution', () => {
         it('resolves paths without base using current directory', () => {
             const env = new NodeEnvironment();
             const resolved = env.resolveLocal('test.jpg');
-            expect(path.isAbsolute(resolved)).toBe(true);
-            expect(resolved).toContain('test.jpg');
+            const p = toPath(resolved);
+            expect(path.isAbsolute(p)).toBe(true);
+            expect(p).toContain('test.jpg');
         });
 
         it('strips leading slash even on Windows', () => {
             const env = new NodeEnvironment();
             const base = 'C:\\Users\\test\\public';
             const resolved = env.resolveLocal('/images/duck.jpg', base);
+            const p = toPath(resolved);
             // Should resolve to C:\Users\test\public\images\duck.jpg, not C:\images\duck.jpg
-            expect(resolved).toContain('public');
-            expect(resolved).toContain('images');
-            expect(resolved).toContain('duck.jpg');
-            expect(resolved).not.toBe(path.join('C:', 'images', 'duck.jpg'));
+            expect(p).toContain('public');
+            expect(p).toContain('images');
+            expect(p).toContain('duck.jpg');
+            expect(p).not.toBe(path.join('C:', 'images', 'duck.jpg'));
         });
     });
 

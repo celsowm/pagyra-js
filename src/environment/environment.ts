@@ -32,4 +32,12 @@ export interface Environment {
    * Get an environment variable.
    */
   getEnv(name: string): string | undefined;
+
+  // Path and URL utilities to avoid direct node:* imports in core modules
+  fileURLToPath?(url: string): string;
+  pathToFileURL?(path: string): string;
+  pathResolve?(...segments: string[]): string;
+  pathJoin?(...segments: string[]): string;
+  pathDirname?(p: string): string;
+  pathIsAbsolute?(p: string): boolean;
 }

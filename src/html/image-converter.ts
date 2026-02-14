@@ -1,6 +1,5 @@
 // src/html/image-converter.ts
 
-import path from "node:path";
 import { type DomEl, type CssRuleEntry } from "./css/parse-css.js";
 import { LayoutNode } from "../dom/node.js";
 import { ComputedStyle } from "../css/style.js";
@@ -42,14 +41,18 @@ export function resolveImageSource(src: string, context: ConversionContext): str
     return context.environment.resolveLocal(trimmed, context.resourceBaseDir || context.assetRootDir || undefined);
   }
   if (trimmed.startsWith("/")) {
-    const resolved = context.assetRootDir ? path.resolve(context.assetRootDir, `.${trimmed}`) : trimmed;
+    const resolved = (context.assetRootDir && context.environment?.pathResolve)
+      ? context.environment.pathResolve(context.assetRootDir, `.${trimmed}`)
+      : trimmed;
     log('image-converter', 'debug', "resolveImageSource - resolving absolute path:", { src, trimmed, assetRootDir: context.assetRootDir, resolved });
     return resolved;
   }
-  if (path.isAbsolute(trimmed)) {
+  if (context.environment?.pathIsAbsolute && context.environment.pathIsAbsolute(trimmed)) {
     return trimmed;
   }
-  return context.resourceBaseDir ? path.resolve(context.resourceBaseDir, trimmed) : trimmed;
+  return (context.resourceBaseDir && context.environment?.pathResolve)
+    ? context.environment.pathResolve(context.resourceBaseDir, trimmed)
+    : trimmed;
 }
 
 function isHttpUrl(value: string): boolean {

@@ -38,7 +38,11 @@ export interface RenderPdfOptions {
 }
 
 export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = {}): Promise<Uint8Array> {
-  const fontConfig = options.fontConfig ?? (await loadBuiltinFontConfig());
+  const { environment } = options;
+  if (!options.fontConfig && !environment) {
+    throw new Error("renderPdf requires an environment to load builtin fonts if fontConfig is not provided.");
+  }
+  const fontConfig = options.fontConfig ?? (await loadBuiltinFontConfig(environment!));
   const pageSize = options.pageSize ?? derivePageSize(layout);
   const pxToPt = createPxToPt(layout.dpiAssumption);
   const ptToPx = createPtToPx(layout.dpiAssumption);
@@ -92,23 +96,23 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
     const pageTree = pages[index];
     const pageNumber = index + 1;
 
-  const painterResult = await paintLayoutPage({
-    pageTree,
-    pageNumber,
-    totalPages,
-    pageSize,
-    pxToPt,
-    pageWidthPx,
-    pageHeightPx,
-    fontRegistry,
-    headerFooterLayout: hfLayout,
-    tokens,
-    headerFooterTextOptions,
-    pageBackground,
-    margins,
-    headerFooterCss: options.headerFooterCss,
-    environment: options.environment,
-  });
+    const painterResult = await paintLayoutPage({
+      pageTree,
+      pageNumber,
+      totalPages,
+      pageSize,
+      pxToPt,
+      pageWidthPx,
+      pageHeightPx,
+      fontRegistry,
+      headerFooterLayout: hfLayout,
+      tokens,
+      headerFooterTextOptions,
+      pageBackground,
+      margins,
+      headerFooterCss: options.headerFooterCss,
+      environment: options.environment,
+    });
 
     const resources = registerPageResources(doc, painterResult);
 

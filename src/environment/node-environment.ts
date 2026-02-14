@@ -67,4 +67,28 @@ export class NodeEnvironment implements Environment {
   getEnv(name: string): string | undefined {
     return process.env[name];
   }
+
+  fileURLToPath(url: string): string {
+    return fileURLToPath(url);
+  }
+
+  pathToFileURL(p: string): string {
+    return pathToFileURL(p).toString();
+  }
+
+  pathResolve(...segments: string[]): string {
+    return path.resolve(...segments);
+  }
+
+  pathJoin(...segments: string[]): string {
+    return path.join(...segments);
+  }
+
+  pathDirname(p: string): string {
+    return path.dirname(p);
+  }
+
+  pathIsAbsolute(p: string): boolean {
+    return path.isAbsolute(p);
+  }
 }

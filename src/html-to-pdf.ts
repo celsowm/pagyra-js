@@ -1,8 +1,6 @@
 // src/html-to-pdf.ts
 
 import { parseHTML } from "linkedom";
-import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
 import { type FontConfig } from "./types/fonts.js";
 import { configureDebug, log, type LogLevel } from "./logging/debug.js";
 import { parseCss } from "./html/css/parse-css.js";
@@ -265,6 +263,18 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   return { layoutRoot: rootLayout, renderTree, pageSize, margins: marginsPx };
 }
 
+function resolveLocalPath(target: string, resourceBaseDir: string, assetRootDir: string, environment: Environment): string {
+  let result = target;
+  if (result.startsWith("file://")) {
+    result = environment.fileURLToPath ? environment.fileURLToPath(result) : result;
+  } else if (result.startsWith("/")) {
+    result = environment.pathResolve ? environment.pathResolve(assetRootDir, `.${result}`) : result;
+  } else if (!(environment.pathIsAbsolute ? environment.pathIsAbsolute(result) : result.includes(":"))) {
+    result = environment.pathResolve ? environment.pathResolve(resourceBaseDir, result) : result;
+  }
+  return result;
+}
+
 async function loadStylesheetFromHref(href: string, resourceBaseDir: string, assetRootDir: string, environment: Environment): Promise<string> {
   const trimmed = href.trim();
   if (!trimmed) return "";
@@ -280,12 +290,12 @@ async function loadStylesheetFromHref(href: string, resourceBaseDir: string, ass
       return rewriteCssUrls(cssText, absoluteHref);
     }
 
-    const cssPath = environment.resolveLocal ? environment.resolveLocal(trimmed, resourceBaseDir) : resolveLocalPath(trimmed, resourceBaseDir, assetRootDir);
+    const cssPath = environment.resolveLocal ? environment.resolveLocal(trimmed, resourceBaseDir) : resolveLocalPath(trimmed, resourceBaseDir, assetRootDir, environment);
     const cssBuffer = await environment.loader.load(cssPath);
     const cssText = new TextDecoder("utf-8").decode(cssBuffer);
     const baseHref = /^https?:\/\//i.test(cssPath) || cssPath.startsWith("file:")
       ? cssPath
-      : pathToFileURL(cssPath).toString();
+      : (environment.pathToFileURL ? environment.pathToFileURL(cssPath) : cssPath);
     return rewriteCssUrls(cssText, baseHref);
   } catch (error) {
     log("parse", "warn", "Failed to load stylesheet", { href, error: error instanceof Error ? error.message : String(error) });
@@ -348,17 +358,6 @@ function normalizeFontStyle(styleStr: string): "normal" | "italic" {
   return normalized.includes("italic") || normalized.includes("oblique") ? "italic" : "normal";
 }
 
-function resolveLocalPath(target: string, resourceBaseDir: string, assetRootDir: string): string {
-  let result = target;
-  if (result.startsWith("file://")) {
-    result = fileURLToPath(result);
-  } else if (result.startsWith("/")) {
-    result = path.resolve(assetRootDir, `.${result}`);
-  } else if (!path.isAbsolute(result)) {
-    result = path.resolve(resourceBaseDir, result);
-  }
-  return result;
-}
 
 async function loadFontData(src: string, resourceBaseDir: string, assetRootDir: string, environment: Environment): Promise<ArrayBuffer | null> {
   const trimmed = src.trim();
@@ -393,12 +392,12 @@ async function loadFontData(src: string, resourceBaseDir: string, assetRootDir: 
     }
 
     if (/^file:/i.test(target)) {
-      const localPath = fileURLToPath(target);
+      const localPath = environment.fileURLToPath ? environment.fileURLToPath(target) : target;
       const fontDataBuffer = await environment.loader.load(localPath);
       return fontDataBuffer;
     }
 
-    const resolved = environment.resolveLocal ? environment.resolveLocal(target, resourceBaseDir) : resolveLocalPath(target, resourceBaseDir, assetRootDir);
+    const resolved = environment.resolveLocal ? environment.resolveLocal(target, resourceBaseDir) : resolveLocalPath(target, resourceBaseDir, assetRootDir, environment);
     const fontDataBuffer = await environment.loader.load(resolved);
     return fontDataBuffer;
   } catch (error) {

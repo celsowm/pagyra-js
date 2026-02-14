@@ -1,9 +1,6 @@
-import * as path from "node:path";
-import { fileURLToPath } from "node:url";
 import { log } from "../../logging/debug.js";
 import type { FontConfig, FontFaceDef } from "../../types/fonts.js";
 import type { Environment } from "../../environment/environment.js";
-import { NodeEnvironment } from "../../environment/node-environment.js";
 
 type BuiltinFace = Omit<FontFaceDef, "src" | "data"> & { file: string };
 
@@ -56,7 +53,7 @@ const BUILTIN_FACES: BuiltinFace[] = [
 let cachedConfig: FontConfig | null | undefined;
 let loading: Promise<FontConfig | null> | null = null;
 
-export async function loadBuiltinFontConfig(environment: Environment = new NodeEnvironment()): Promise<FontConfig | null> {
+export async function loadBuiltinFontConfig(environment: Environment): Promise<FontConfig | null> {
   if (loading) {
     return loading;
   }
@@ -67,11 +64,11 @@ export async function loadBuiltinFontConfig(environment: Environment = new NodeE
 
   loading = (async () => {
     try {
-      const baseDir = resolveFontsDir();
+      const baseDir = resolveFontsDir(environment);
       log('font', 'debug', "Builtin font baseDir:", baseDir);
       const faces: FontFaceDef[] = [];
       for (const face of BUILTIN_FACES) {
-        const filePath = path.join(baseDir, face.file);
+        const filePath = environment.pathJoin ? environment.pathJoin(baseDir, face.file) : `${baseDir}/${face.file}`;
         log('font', 'debug', "Loading font file:", filePath);
         try {
           const buffer = await environment.loader.load(filePath);
@@ -116,9 +113,16 @@ export async function loadBuiltinFontConfig(environment: Environment = new NodeE
   return loading;
 }
 
-function resolveFontsDir(): string {
-  const here = fileURLToPath(import.meta.url);
-  return path.resolve(path.dirname(here), "../../../assets/fonts");
+function resolveFontsDir(environment: Environment): string {
+  if (environment.getEnv && environment.getEnv("PAGYRA_FONTS_DIR")) {
+    return environment.getEnv("PAGYRA_FONTS_DIR")!;
+  }
+  // Try to use environment utilities for path resolution
+  if (environment.pathResolve && environment.pathDirname && environment.fileURLToPath) {
+    const here = environment.fileURLToPath(import.meta.url);
+    return environment.pathResolve(environment.pathDirname(here), "../../../assets/fonts");
+  }
+  return "assets/fonts"; // Fallback
 }
 
 function isNodeRuntime(): boolean {

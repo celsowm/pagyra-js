@@ -76,4 +76,45 @@ export class BrowserEnvironment implements Environment {
   getEnv(_name: string): string | undefined {
     return undefined;
   }
+
+  fileURLToPath(url: string): string {
+    if (url.startsWith("file://")) {
+      // Very crude browser-side file:// to path conversion.
+      // On Windows, file:///C:/path -> C:\path
+      // On Unix, file:///path -> /path
+      let p = url.slice(7);
+      if (p.startsWith("/") && /^[A-Z]:/i.test(p.slice(1))) {
+        p = p.slice(1);
+      }
+      return p.replace(/\//g, "/"); // Keep forward slashes as they are more browser-friendly
+    }
+    return url;
+  }
+
+  pathToFileURL(p: string): string {
+    try {
+      return new URL(`file://${p.startsWith("/") ? "" : "/"}${p}`).toString();
+    } catch {
+      return p;
+    }
+  }
+
+  pathResolve(...segments: string[]): string {
+    // Basic resolution for browser side: just join with slashes and normalize
+    return segments.filter(Boolean).join("/").replace(/\/+/g, "/");
+  }
+
+  pathJoin(...segments: string[]): string {
+    return segments.filter(Boolean).join("/").replace(/\/+/g, "/");
+  }
+
+  pathDirname(p: string): string {
+    const parts = p.split("/");
+    if (parts.length <= 1) return ".";
+    return parts.slice(0, -1).join("/") || "/";
+  }
+
+  pathIsAbsolute(p: string): boolean {
+    return p.startsWith("/") || /^[A-Z]:/i.test(p);
+  }
 }

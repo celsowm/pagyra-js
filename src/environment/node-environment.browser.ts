@@ -25,4 +25,22 @@ export class NodeEnvironment implements Environment {
   getEnv(_name: string): string | undefined {
     return undefined;
   }
+  fileURLToPath(): string {
+    throw new Error("NodeEnvironment fileURLToPath is not available in browser builds");
+  }
+  pathToFileURL(): string {
+    throw new Error("NodeEnvironment pathToFileURL is not available in browser builds");
+  }
+  pathResolve(): string {
+    throw new Error("NodeEnvironment pathResolve is not available in browser builds");
+  }
+  pathJoin(): string {
+    throw new Error("NodeEnvironment pathJoin is not available in browser builds");
+  }
+  pathDirname(): string {
+    throw new Error("NodeEnvironment pathDirname is not available in browser builds");
+  }
+  pathIsAbsolute(): boolean {
+    throw new Error("NodeEnvironment pathIsAbsolute is not available in browser builds");
+  }
 }

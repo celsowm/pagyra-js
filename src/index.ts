@@ -21,15 +21,7 @@ export function demoLayout(viewport: Viewport = { width: 800, height: 600 }): La
   return root;
 }
 
-import { fileURLToPath } from "node:url";
 import { log } from "./logging/debug.js";
 
-const isMain = fileURLToPath(import.meta.url) === process.argv[1];
-if (isMain) {
-  const tree = demoLayout();
-  log('INDEX', 'debug', "Root layout:", {
-    width: tree.box.contentWidth,
-    height: tree.box.contentHeight,
-    children: tree.children.length,
-  });
-}
+// Note: isMain block removed as it relied on node:url and process.argv,
+// which breaks browser compatibility. For CLI usage, use a separate entrypoint.
