@@ -20,6 +20,10 @@ const alias: Record<string, string> = {
   util: resolveProjectPath("src/shim/empty.ts"),
   "src/environment/node-environment.ts": resolveProjectPath("src/environment/node-environment.browser.ts"),
   "src/pdf/font/builtin-fonts.ts": resolveProjectPath("src/pdf/font/builtin-fonts.browser.ts"),
+  // Replace linkedom with browser DOM (uses native DOMParser)
+  linkedom: resolveProjectPath("src/shim/linkedom-browser.ts"),
+  // Replace css parser with browser-compatible version  
+  css: resolveProjectPath("src/shim/css-browser.ts"),
 };
 
 export interface BrowserBundleOptions {

@@ -2,8 +2,24 @@
   "name": "pagyra-js",
   "version": "0.0.5",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js",
+      "require": "./dist/src/index.cjs"
+    },
+    "./browser": {
+      "types": "./dist/src/browser-entry.d.ts",
+      "import": "./dist/src/browser-entry.js",
+      "default": "./dist/browser/pagyra.min.js"
+    },
+    "./package.json": "./package.json"
+  },
   "browser": {
     "node:path": false,
     "node:url": false,
@@ -37,16 +53,17 @@
     "@types/node": "^22.7.4",
     "@typescript-eslint/eslint-plugin": "^8.46.4",
     "@typescript-eslint/parser": "^8.46.4",
-    "css": "^3.0.0",
     "esbuild": "^0.21.5",
     "eslint": "^9.39.1",
     "express": "^4.21.2",
-    "linkedom": "^0.16.11",
     "pdf-parse": "^2.4.5",
     "playwright": "^1.57.0",
     "tsx": "^4.7.1",
     "typescript": "^5.9.0",
     "vitest": "^1.6.0"
   },
-  "dependencies": {}
+  "dependencies": {
+    "css": "^3.0.0",
+    "linkedom": "^0.16.11"
+  }
 }
