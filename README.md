@@ -182,6 +182,8 @@ interface FontConfig {
 }
 ```
 
+For a detailed guide on how to work with custom fonts in Vite and browser environments, see [Embedding Fonts](docs/font-embedding.md).
+
 ## Development
 
 ### Project Structure

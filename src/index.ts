@@ -1,6 +1,7 @@
 export * from "./core.js";
 export * from "./html-to-pdf.js";
 export * from "./svg/index.js";
+export * from "./types/fonts.js";
 
 import { LayoutNode } from "./dom/node.js";
 import { ComputedStyle } from "./css/style.js";
@@ -21,7 +22,6 @@ export function demoLayout(viewport: Viewport = { width: 800, height: 600 }): La
   return root;
 }
 
-import { log } from "./logging/debug.js";
 
 // Note: isMain block removed as it relied on node:url and process.argv,
 // which breaks browser compatibility. For CLI usage, use a separate entrypoint.
