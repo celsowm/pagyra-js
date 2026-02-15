@@ -32,7 +32,9 @@
     "url": false,
     "util": false,
     "./src/pdf/font/builtin-fonts.js": "./src/pdf/font/builtin-fonts.browser.js",
-    "./src/environment/node-environment.js": "./src/environment/node-environment.browser.js"
+    "./src/environment/node-environment.js": "./src/environment/node-environment.browser.js",
+    "./dist/src/pdf/font/builtin-fonts.js": "./dist/src/pdf/font/builtin-fonts.browser.js",
+    "./dist/src/environment/node-environment.js": "./dist/src/environment/node-environment.browser.js"
   },
   "scripts": {
     "build": "tsc && tsx scripts/copy-brotli-vendor.ts && tsx scripts/build-browser-bundle.ts --target dist --sourcemap --minify",
