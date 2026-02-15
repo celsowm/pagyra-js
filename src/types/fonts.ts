@@ -57,6 +57,10 @@ export class TtfFontMetrics {
     /**
      * Optional kerning map (left GID -> right GID -> adjustment in font units).
      */
-    public readonly kerning?: KerningMap
-  ) {}
+    public readonly kerning?: KerningMap,
+    /**
+     * Optional hook that returns raw table data by its 4-character tag.
+     */
+    public readonly getRawTableData?: (tag: string) => Uint8Array | null
+  ) { }
 }

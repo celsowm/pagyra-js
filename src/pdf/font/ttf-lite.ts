@@ -34,7 +34,8 @@ export function parseTtfBuffer(buffer: ArrayBuffer): TtfFontMetrics {
   const kerning = mergeKerningMaps(parseKerningTable(parser), parseGposKerning(parser));
 
   const glyfProvider = createGlyfOutlineProvider(parser);
-  return new TtfFontMetrics(metrics, glyphMetrics, cmap, headBBox, glyfProvider, kerning);
+  const getRawTableData = (tag: string) => parser.getRawTableDataString(tag);
+  return new TtfFontMetrics(metrics, glyphMetrics, cmap, headBBox, glyfProvider, kerning, getRawTableData);
 }
 
 /**

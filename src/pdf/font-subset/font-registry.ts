@@ -24,7 +24,7 @@ export class PdfFontRegistry {
     // Counter for generating unique font resource names
     private fontCounter = 0;
 
-    constructor(private readonly encoding: "identity" | "sequential" = "identity") {}
+    constructor(private readonly encoding: "identity" | "sequential" = "identity") { }
 
     /**
      * Generates a stable key for a UnifiedFont.

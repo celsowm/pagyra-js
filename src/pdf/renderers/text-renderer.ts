@@ -146,23 +146,6 @@ export class TextRenderer {
     const wordSpacingPt = this.coordinateTransformer.convertPxToPt(wordSpacingPx);
     const appliedWordSpacing = wordSpacingPx !== 0 && wordSpacingPt !== 0;
 
-    // Shadows use the base font resource (non-subset) for compatibility with Identity-H encoding
-    this.registerFont(font);
-    if (run.textShadows && run.textShadows.length > 0) {
-      const shadowCommands = await this.shadowRenderer.render({
-        run,
-        font,
-        encoded,
-        Tm: run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 },
-        fontSizePt,
-        fontSizePx: run.fontSize,
-        wordSpacingPt,
-        appliedWordSpacing,
-        fontResourceName: font.resourceName,
-      });
-      this.commands.push(...shadowCommands);
-    }
-
     const subsetResource = this.fontRegistry.ensureSubsetForGlyphRun(glyphRun, font);
     this.registerSubsetFont(subsetResource.alias, subsetResource.ref);
 
@@ -211,6 +194,23 @@ export class TextRenderer {
           return;
         }
       }
+    }
+
+    if (run.textShadows && run.textShadows.length > 0) {
+      const shadowCommands = await this.shadowRenderer.render({
+        run,
+        font,
+        encoded,
+        Tm: run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 },
+        fontSizePt,
+        fontSizePx: run.fontSize,
+        wordSpacingPt,
+        appliedWordSpacing,
+        fontResourceName: font.resourceName,
+        subset: subsetResource.subset,
+        subsetAlias: subsetResource.alias
+      });
+      this.commands.push(...shadowCommands);
     }
 
     const glyphCommands = drawGlyphRun(
@@ -362,6 +362,7 @@ function buildUnifiedFontFromResource(run: Run, font: FontResource): UnifiedFont
       unitsPerEm: metrics.metrics.unitsPerEm,
       glyphCount: metrics.glyphMetrics.size,
       getGlyphOutline: metrics.getGlyphOutline,
+      getRawTableData: metrics.getRawTableData,
     },
     css: {
       family: run.fontFamily,

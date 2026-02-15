@@ -85,13 +85,27 @@ export class SubsetResourceManager {
             ]
             : [-1000, -1000, 1000, 1000];
 
-        const fontFile = font.embedded?.subset ?? subset.fontFile;
+        // Ensure we use the subset font file if available, falling back to full font only if subset is empty
+        const fontFile = (subset.fontFile && subset.fontFile.length > 0) ? subset.fontFile : (font.embedded?.subset ?? new Uint8Array(0));
+
         if (!fontFile || fontFile.length === 0) {
             log("font", "warn", "missing-font-file-for-subset", { baseFont: font.baseFont, alias: subset.name });
             return font.ref;
         }
 
-        const { DW, W } = computeWidths(metrics);
+        // Use widths from subset if available, otherwise compute from metrics
+        let DW = 1000;
+        let W: (number | number[])[] = [];
+
+        if (subset.widths && subset.widths.length > 0) {
+            // For sequential subsets starting at CID 0
+            W = [subset.firstChar, subset.widths];
+        } else {
+            const result = computeWidths(metrics);
+            DW = result.DW;
+            W = result.W;
+        }
+
         const subsetTag = subset.name.startsWith("/") ? subset.name.slice(1) : subset.name;
         const subsetBaseName = `${subsetTag}+${font.baseFont}`;
 

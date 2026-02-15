@@ -20,6 +20,8 @@ export interface TextShadowRenderContext {
   wordSpacingPt: number;
   appliedWordSpacing: boolean;
   fontResourceName?: string;
+  subset?: { gidMap: Map<number, number> };
+  subsetAlias?: string;
 }
 
 export class TextShadowRenderer {
@@ -30,11 +32,11 @@ export class TextShadowRenderer {
     private readonly fontRegistry: FontRegistry,
     private readonly imageRenderer?: ImageRenderer,
     private readonly graphicsStateManager?: GraphicsStateManager,
-  ) {}
+  ) { }
 
   async render(context: TextShadowRenderContext): Promise<string[]> {
     const commands: string[] = [];
-    const { run, font, encoded, Tm, fontSizePt, fontSizePx, wordSpacingPt, appliedWordSpacing, fontResourceName } = context;
+    const { run, font, encoded, Tm, fontSizePt, fontSizePx, wordSpacingPt, appliedWordSpacing, fontResourceName, subset, subsetAlias } = context;
     if (!run.textShadows || run.textShadows.length === 0) {
       return commands;
     }
@@ -48,17 +50,20 @@ export class TextShadowRenderer {
 
     const wordSpacingCmd = appliedWordSpacing ? `${formatNumber(wordSpacingPt)} Tw` : undefined;
     const resetWordSpacingCmd = appliedWordSpacing ? "0 Tw" : undefined;
-    const fontName = fontResourceName ?? font.resourceName;
+
+    // If we have a subset, we use its alias and re-encode the text to match its CIDs
+    const fontName = subsetAlias ?? fontResourceName ?? font.resourceName;
+    const finalEncoded = subset ? encodeSubsetText(run, subset) : encoded;
 
     if (this.imageRenderer && needsRaster) {
       if (run.glyphs && faceMetrics) {
-        try {
-          const pages = (await import("../font/glyph-atlas.js")).globalGlyphAtlas.getPages();
-          if (pages && pages.length > 0) {
-            this.imageRenderer.registerAtlasPages(pages);
-          }
-        } catch {
-          // ignore
+        // ... (rasterization logic stays the same)
+        // Note: rasterization uses faceMetrics which doesn't trigger font realization
+        // unless font.ref is accessed, but here we use font.baseFont or glyphs already in memory.
+
+        const pages = (await import("../font/glyph-atlas.js")).globalGlyphAtlas.getPages();
+        if (pages && pages.length > 0) {
+          this.imageRenderer.registerAtlasPages(pages);
         }
 
         const supersample = 4;
@@ -91,7 +96,6 @@ export class TextShadowRenderer {
             if (gx1 > maxX) maxX = gx1;
             if (gy1 > maxY) maxY = gy1;
           }
-          // Pad the bounding box to leave room for blur bleed.
           const bleedPad = Math.ceil(maxBlurPx * 2);
           minX = Math.floor(minX - bleedPad);
           minY = Math.floor(minY - bleedPad);
@@ -125,9 +129,7 @@ export class TextShadowRenderer {
             }
 
             for (const sh of run.textShadows) {
-              if (!sh || !sh.color) {
-                continue;
-              }
+              if (!sh || !sh.color) continue;
               const blurPx = Math.max(0, sh.blur ?? 0);
               const clampedCombined = combinedAlpha instanceof Uint8ClampedArray ? combinedAlpha : new Uint8ClampedArray(combinedAlpha);
               const rawAlphaBuf = blurPx > 0 ? blurAlpha(clampedCombined, combinedW, combinedH, blurPx) : clampedCombined;
@@ -182,72 +184,14 @@ export class TextShadowRenderer {
               );
             }
           }
-        }
-
-        // If we failed to build any glyph masks (e.g., missing outlines), fall back to vector shadows.
-        if (glyphMasks.length === 0) {
-          this.appendVectorShadowLayers(commands, run, font, encoded, Tm, fontSizePt, fontName, wordSpacingCmd, resetWordSpacingCmd);
+        } else {
+          this.appendVectorShadowLayers(commands, run, font, finalEncoded, Tm, fontSizePt, fontName, wordSpacingCmd, resetWordSpacingCmd);
         }
       } else {
-        if (needsRaster && this.imageRenderer) {
-          try {
-            for (const sh of run.textShadows) {
-              if (!sh || !sh.color) continue;
-              const offsetX = sh.offsetX ?? 0;
-              const offsetY = sh.offsetY ?? 0;
-              const blurPx = Math.max(0, sh.blur ?? 0);
-              const baseAlpha = sh.color.a ?? 1;
-
-              const samples: { dx: number; dy: number; weight: number }[] = [];
-              if (blurPx <= 1) {
-                samples.push({ dx: 0, dy: 0, weight: 1 });
-              } else {
-                const centerW = 0.38;
-                const orthoW = 0.12;
-                const diagW = (1 - (centerW + 4 * orthoW)) / 4;
-                const radius = blurPx / 2;
-                samples.push({ dx: 0, dy: 0, weight: centerW });
-                samples.push({ dx: -radius, dy: 0, weight: orthoW });
-                samples.push({ dx: radius, dy: 0, weight: orthoW });
-                samples.push({ dx: 0, dy: -radius, weight: orthoW });
-                samples.push({ dx: 0, dy: radius, weight: orthoW });
-                samples.push({ dx: -radius, dy: -radius, weight: diagW });
-                samples.push({ dx: radius, dy: -radius, weight: diagW });
-                samples.push({ dx: -radius, dy: radius, weight: diagW });
-                samples.push({ dx: radius, dy: radius, weight: diagW });
-              }
-
-              for (const s of samples) {
-                const sx = s.dx;
-                const sy = s.dy;
-                const sampleAlpha = baseAlpha * s.weight;
-                const sampleColor = { r: sh.color.r, g: sh.color.g, b: sh.color.b, a: sampleAlpha };
-
-                const shadowX = this.coordinateTransformer.convertPxToPt(Tm.e + offsetX + sx);
-                const shadowLocalBaseline = Tm.f - this.coordinateTransformer.pageOffsetPx + offsetY + sy;
-                const shadowYPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(shadowLocalBaseline);
-
-                const shadowSequence: string[] = ["q", fillColorCommand(sampleColor, this.graphicsStateManager), "BT"];
-                if (wordSpacingCmd) shadowSequence.push(wordSpacingCmd);
-                shadowSequence.push(
-                  `/${fontName} ${formatNumber(fontSizePt)} Tf`,
-                  `${formatNumber(Tm.a)} ${formatNumber(Tm.b)} ${formatNumber(Tm.c)} ${formatNumber(Tm.d)} ${formatNumber(shadowX)} ${formatNumber(shadowYPt)} Tm`,
-                  `(${encoded}) Tj`,
-                );
-                if (resetWordSpacingCmd) shadowSequence.push(resetWordSpacingCmd);
-                shadowSequence.push("ET", "Q");
-                commands.push(...shadowSequence);
-              }
-            }
-          } catch {
-            this.appendVectorShadowLayers(commands, run, font, encoded, Tm, fontSizePt, fontName, wordSpacingCmd, resetWordSpacingCmd);
-          }
-        } else {
-          this.appendVectorShadowLayers(commands, run, font, encoded, Tm, fontSizePt, fontName, wordSpacingCmd, resetWordSpacingCmd);
-        }
+        this.appendVectorShadowLayers(commands, run, font, finalEncoded, Tm, fontSizePt, fontName, wordSpacingCmd, resetWordSpacingCmd);
       }
     } else {
-      this.appendVectorShadowLayers(commands, run, font, encoded, Tm, fontSizePt, fontName, wordSpacingCmd, resetWordSpacingCmd);
+      this.appendVectorShadowLayers(commands, run, font, finalEncoded, Tm, fontSizePt, fontName, wordSpacingCmd, resetWordSpacingCmd);
     }
 
     return commands;
@@ -256,7 +200,7 @@ export class TextShadowRenderer {
   private appendVectorShadowLayers(
     commands: string[],
     run: Run,
-    font: FontResource,
+    _font: FontResource,
     encoded: string,
     Tm: TextMatrix,
     fontSizePt: number,
@@ -266,9 +210,7 @@ export class TextShadowRenderer {
   ): void {
     const shadows = run.textShadows ?? [];
     for (const sh of shadows) {
-      if (!sh || !sh.color) {
-        continue;
-      }
+      if (!sh || !sh.color) continue;
       const shadowX = this.coordinateTransformer.convertPxToPt(Tm.e + (sh.offsetX ?? 0));
       const shadowLocalBaseline = Tm.f - this.coordinateTransformer.pageOffsetPx + (sh.offsetY ?? 0);
       const shadowYPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(shadowLocalBaseline);
@@ -285,6 +227,25 @@ export class TextShadowRenderer {
       commands.push(...shadowSequence);
     }
   }
+}
+
+function encodeSubsetText(run: Run, subset: { gidMap: Map<number, number> }): string {
+  const glyphRun = run.glyphs;
+  if (!glyphRun) return "";
+  let encoded = "";
+  for (const gid of glyphRun.glyphIds) {
+    const subsetGid = subset.gidMap.get(gid) ?? 0;
+    // Sequential subset CIDs are 2-bytes big-endian
+    encoded += String.fromCharCode((subsetGid >> 8) & 0xff, subsetGid & 0xff);
+  }
+
+  // We need escapePdfLiteral but it's not imported here yet. 
+  // We can use a local simple version or import it.
+  return escapePdfLiteral(encoded);
+}
+
+function escapePdfLiteral(text: string): string {
+  return text.replace(/([()\\])/g, "\\$1");
 }
 
 // Merge UnifiedFont metrics with its outline provider so glyph rasterization can work.

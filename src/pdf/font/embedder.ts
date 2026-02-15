@@ -143,6 +143,29 @@ export class FontEmbedder {
   private embedFont(face: FontFaceDef): EmbeddedFont | null {
     const metrics = this.faceMetrics.get(face.name);
     if (!metrics) return null;
+
+    const fullFontData = new Uint8Array(face.data!);
+    const resourceName = `F${this.embeddedFonts.size + 1}`;
+    let realizedRef: PdfObjectRef | undefined;
+
+    const self = this;
+    const embedded: EmbeddedFont = {
+      resourceName,
+      baseFont: face.name,
+      metrics,
+      subset: fullFontData,
+      get ref() {
+        if (!realizedRef) {
+          realizedRef = self.realizeFont(face, metrics, resourceName);
+        }
+        return realizedRef;
+      }
+    };
+
+    return embedded;
+  }
+
+  private realizeFont(face: FontFaceDef, metrics: TtfFontMetrics, resourceName: string): PdfObjectRef {
     const unitsPerEm = metrics.metrics.unitsPerEm;
     const scaleTo1000 = (v: number) => Math.round((v / unitsPerEm) * 1000);
 
@@ -151,17 +174,10 @@ export class FontEmbedder {
       const hb = metrics.headBBox;
       fontBBox = [scaleTo1000(hb[0]), scaleTo1000(hb[1]), scaleTo1000(hb[2]), scaleTo1000(hb[3])];
     } else {
-      // Fallback if headBBox is missing
       fontBBox = [-1000, -1000, 1000, 1000];
     }
 
-    // Register the font file stream
-    // We need the full font data here. In the initialize method we updated face.data
-    // but here we need to access it.
-    // Since we can't easily change the interface, we'll assume face.data is the source.
-    // If it was converted to TTF in initialize, face.data (casted) holds the TTF buffer.
     const fullFontData = new Uint8Array(face.data!);
-    // FontFile2 streams require only /Length (PdfDocument adds it); avoid Type1-specific Length1 headers.
     const fontFileRef = this.doc.registerStream(fullFontData, {});
 
     const fontDescriptor: FontDescriptor = {
@@ -179,12 +195,8 @@ export class FontEmbedder {
     };
 
     const fontDescriptorRef = this.doc.register(fontDescriptor);
-
-    // Compute DW and compressed W
     const { DW, W } = computeWidths(metrics);
 
-    // Create CID font dictionary (include DW)
-    // CID fonts must declare string-valued CIDSystemInfo entries per PDF spec.
     const cidFontDict: CIDFontDictionary = {
       Type: "/Font",
       Subtype: "/CIDFontType2",
@@ -197,18 +209,12 @@ export class FontEmbedder {
       FontDescriptor: fontDescriptorRef,
       DW,
       W,
-      // Rely on built-in Identity CIDToGID mapping to keep font dictionaries simple/compatible.
       CIDToGIDMap: "/Identity"
     };
 
     const cidFontRef = this.doc.register(cidFontDict);
-
-    // Create Unicode mapping (ToUnicode CMap)
     const toUnicodeRef = this.createToUnicodeCMap(metrics);
 
-    // Create Type0 font dictionary
-    // Per PDF spec, Type0 BaseFont should include the CMap suffix (e.g. "-Identity-H")
-    // to make the composite font name unambiguous for parsers/renderers.
     const type0Font: FontDictionary = {
       Type: "/Font",
       Subtype: "/Type0",
@@ -218,15 +224,7 @@ export class FontEmbedder {
       ToUnicode: toUnicodeRef
     };
 
-    const fontRef = this.doc.register(type0Font);
-
-    return {
-      resourceName: `F${this.embeddedFonts.size + 1}`,
-      ref: fontRef,
-      baseFont: face.name,
-      metrics,
-      subset: fullFontData
-    };
+    return this.doc.register(type0Font);
   }
 
 

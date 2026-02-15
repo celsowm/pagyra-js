@@ -13,51 +13,34 @@ import {
   isItalicStyle,
   normalizeToken,
 } from "../../css/font-face-parser.js";
-// import {
-//   BASE_FONT_ALIASES,
-//   GENERIC_FAMILIES,
-//   BASE14_FALLBACKS,
-//   BASE14_FAMILY_VARIANTS,
-//   BASE14_VARIANT_LOOKUP,
-//   detectBase14Family,
-//   classifyBase14Variant,
-//   type Base14Family,
-//   type Base14Variant,
-// } from "./font-config.js";
 import { applyWeightToBaseFont } from "./resolvers/weight-style-applicator.js";
 import { buildAliasedFamilyStack } from "./resolvers/family-resolver.js";
 import { resolveBaseFont } from "./resolvers/base-font-mapper.js";
 import { FontResourceManager } from "./managers/font-resource-manager.js";
 import { SubsetResourceManager, type SubsetFontResource } from "./managers/subset-resource-manager.js";
 
-// const DEFAULT_STEM_V = 80;
-
 export type PdfFont = {
   name: string;
   baseName?: string;    // for Base14 (Helvetica, etc.)
   isBase14: boolean;
-  // ... extend as needed
 };
 
 export function getBase14(family: "Helvetica" | "Times-Roman" | "Courier"): PdfFont {
   return { isBase14: true, baseName: family, name: family };
 }
 
-// Note: getFontForText needs access to doc and config, so we'll modify the signature
 export function getFontForText(_requestedFamily: string, text: string, _doc: PdfDocument, _config: FontConfig): PdfFont {
   if (needsUnicode(text)) {
-    // For now, use a simplified approach - we'll assume NotoSans-Regular is available
-    // In a full implementation, you'd initialize the embedder properly
     const fontName = "NotoSans-Regular";
     log("font", "info", "font-path", { base14: false, family: fontName, encoding: "Identity-H" });
     return { isBase14: false, name: fontName };
   }
-  const f = getBase14("Helvetica"); // fallback
+  const f = getBase14("Helvetica");
   log("font", "info", "font-path", { base14: true, family: f.baseName, encoding: "WinAnsi" });
   return f;
 }
 
-const DEFAULT_FONT = "Times New Roman"; // Use embedded TTF font instead of base14
+const DEFAULT_FONT = "Times New Roman";
 
 export interface FontResource {
   readonly baseFont: string;
@@ -67,8 +50,6 @@ export interface FontResource {
   readonly metrics?: TtfFontMetrics;
   readonly embedded?: EmbeddedFont;
 }
-
-
 
 export class FontRegistry {
   private readonly facesByFamily = new Map<string, CSSFontFace[]>();
@@ -99,11 +80,11 @@ export class FontRegistry {
         const resource: FontResource = {
           baseFont: embedded.baseFont,
           resourceName: embedded.resourceName,
-          ref: embedded.ref,
+          get ref() { return embedded.ref; },
           isBase14: false,
           metrics: embedded.metrics,
           embedded,
-        };
+        } as FontResource;
         this.fontResourceManager.setCached(familyKey, resource);
         return resource;
       }
@@ -114,7 +95,6 @@ export class FontRegistry {
     return resolved;
   }
 
-  // New method to get embedder reference
   getEmbedder(): FontEmbedder | null {
     return this.embedder;
   }
@@ -136,19 +116,16 @@ export class FontRegistry {
 
     if (this.embedder && this.fontConfig) {
       const familyStack = buildAliasedFamilyStack(family, this.fontConfig?.defaultStack);
-
-      // Note: embedder.ensureFont is synchronous in its implementation (it uses pre-loaded data)
-      // even though the interface might not explicitly say so, we know it returns EmbeddedFont | null immediately.
       const embedded = this.embedder.ensureFont(familyStack, normalizedWeight, style);
       if (embedded) {
         const resource: FontResource = {
           baseFont: embedded.baseFont,
           resourceName: embedded.resourceName,
-          ref: embedded.ref,
+          get ref() { return embedded.ref; },
           isBase14: false,
           metrics: embedded.metrics,
           embedded,
-        };
+        } as FontResource;
         this.fontResourceManager.setCached(familyKey, resource);
         return resource;
       }
@@ -162,8 +139,6 @@ export class FontRegistry {
   ensureSubsetForGlyphRun(glyphRun: GlyphRun, font: FontResource): SubsetFontResource {
     return this.subsetResourceManager.ensureSubsetForGlyphRun(glyphRun, font);
   }
-
-
 
   private ensureStandardFontResource(family: string | undefined, weight: number, style?: string): FontResource {
     const candidates = [...parseFamilyList(family), DEFAULT_FONT];
@@ -193,8 +168,6 @@ export class FontRegistry {
     return fallback;
   }
 
-
-
   private makeFamilyKey(family: string | undefined, weight: number, style?: string): string {
     return this.familyWeightKey(normalizeToken(family), weight, style);
   }
@@ -204,9 +177,6 @@ export class FontRegistry {
     const styleToken = isItalicStyle(style) ? "_italic" : "";
     return `${familyToken}@${fontWeightCacheKey(weight)}${styleToken}`;
   }
-
-
-
 
   async initializeEmbedder(fontConfig: FontConfig): Promise<void> {
     this.fontConfig = fontConfig;
@@ -228,7 +198,6 @@ export function initFontSystem(doc: PdfDocument, stylesheets: StyleSheets): Font
 
 export async function ensureFontSubset(registry: FontRegistry, run: Run): Promise<FontResource> {
   const font = await registry.ensureFontResource(run.fontFamily, run.fontWeight, run.fontStyle);
-  // === diagnóstico cirúrgico: caminho de fonte ===
   log("font", "info", "font-path", {
     base14: font.isBase14 === true,
     family: font.baseFont,
@@ -239,7 +208,6 @@ export async function ensureFontSubset(registry: FontRegistry, run: Run): Promis
 
 export function ensureFontSubsetSync(registry: FontRegistry, run: Run): FontResource {
   const font = registry.ensureFontResourceSync(run.fontFamily, run.fontWeight, run.fontStyle);
-  // === diagnóstico cirúrgico: caminho de fonte ===
   log("font", "info", "font-path", {
     base14: font.isBase14 === true,
     family: font.baseFont,
@@ -249,9 +217,7 @@ export function ensureFontSubsetSync(registry: FontRegistry, run: Run): FontReso
 }
 
 export function finalizeFontSubsets(_registry: FontRegistry): void {
-  // Actual font materialization happens during PdfDocument.finalize().
 }
 
 export function preflightFontsForPdfa(_registry: FontRegistry): void {
-  // Placeholder for PDF/A validations.
 }

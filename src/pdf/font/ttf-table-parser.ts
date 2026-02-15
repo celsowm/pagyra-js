@@ -129,4 +129,12 @@ export class TtfTableParser {
     if (offset + 4 > table.byteLength) throw new Error("Read beyond table bounds (getUint32)");
     return table.getUint32(offset, false); // big-endian
   }
+
+  getRawTableDataString(tagStr: string): Uint8Array | null {
+    const tag = tagStr.split('').reduce((acc, char) => (acc << 8) | char.charCodeAt(0), 0) >>> 0;
+    const entry = this.tableDirectory.get(tag);
+    if (!entry) return null;
+
+    return new Uint8Array(this.dataView.buffer, this.dataView.byteOffset + entry.offset, entry.length);
+  }
 }
