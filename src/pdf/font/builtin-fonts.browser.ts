@@ -122,7 +122,7 @@ function computeBaseUrl(): string {
     return `${origin}assets/fonts/`;
   }
   try {
-    return new URL("../../assets/fonts/", import.meta.url).toString();
+    return new URL(/* @vite-ignore */ "../../assets/fonts/", import.meta.url).toString();
   } catch {
     return "/assets/fonts/";
   }
