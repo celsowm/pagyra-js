@@ -1,4 +1,3 @@
-import { readFileSync } from "fs";
 import { TtfFontMetrics } from "../../types/fonts.js";
 import { TtfTableParser } from "./ttf-table-parser.js";
 import { parseGlobalMetrics } from "./ttf-global-metrics.js";
@@ -36,12 +35,6 @@ export function parseTtfBuffer(buffer: ArrayBuffer): TtfFontMetrics {
 
   const glyfProvider = createGlyfOutlineProvider(parser);
   return new TtfFontMetrics(metrics, glyphMetrics, cmap, headBBox, glyfProvider, kerning);
-}
-
-export function parseTtfFont(filePath: string): TtfFontMetrics {
-  const buffer = readFileSync(filePath);
-  const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-  return parseTtfBuffer(arrayBuffer);
 }
 
 /**
