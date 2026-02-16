@@ -66,6 +66,7 @@ export async function paintLayoutPage({
         pageHeightPx,
         fontRegistry,
         pageOffsetY: pageTree.pageOffsetY,
+        clipOverflow: headerFooterLayout.clipOverflow,
         css: headerFooterCss,
         environment,
         resourceBaseDir,

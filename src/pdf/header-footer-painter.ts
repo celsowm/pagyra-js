@@ -3,6 +3,7 @@ import type { PagePainter } from "./page-painter.js";
 import type { HeaderFooterVariant } from "./header-footer-layout.js";
 import type { FontRegistry } from "./font/font-registry.js";
 import { applyPlaceholders } from "./header-footer-tokens.js";
+import type { PathCommand } from "./renderers/shape-renderer.js";
 import {
   renderHeaderFooterHtml,
   paintRenderedHeaderFooter,
@@ -22,6 +23,8 @@ export interface HeaderFooterPaintContext {
   fontRegistry: FontRegistry;
   /** Page offset Y for coordinate transformation */
   pageOffsetY: number;
+  /** Whether header/footer paint should be clipped to max height area */
+  clipOverflow?: boolean;
   /** Optional CSS for header/footer styling */
   css?: string;
   /** Platform environment (Node/browser) */
@@ -87,7 +90,7 @@ async function paintHeaderFooterWithContext(
   totalPages: number,
   context: HeaderFooterPaintContext,
 ): Promise<void> {
-  const { margins, pageWidthPx, pageHeightPx, fontRegistry, pageOffsetY, css, resourceBaseDir, assetRootDir } = context;
+  const { margins, pageWidthPx, pageHeightPx, fontRegistry, pageOffsetY, clipOverflow = false, css, resourceBaseDir, assetRootDir } = context;
 
   // Calculate content width (page width minus left and right margins)
   const contentWidthPx = pageWidthPx - margins.left - margins.right;
@@ -121,15 +124,32 @@ async function paintHeaderFooterWithContext(
 
         if (rendered) {
           log("layout", "debug", "Header rendered successfully", { heightPx: rendered.heightPx });
-          // Header is positioned at the top margin area
-          await paintRenderedHeaderFooter(
-            painter,
-            rendered,
-            margins.left,
-            margins.top,
-            fontRegistry,
-            pageOffsetY,
-          );
+          const headerY = margins.top;
+          const shouldClip = clipOverflow && header.maxHeightPx > 0 && contentWidthPx > 0;
+          if (shouldClip) {
+            const clipPath = buildRectClipPath({
+              x: margins.left,
+              y: headerY + pageOffsetY,
+              width: contentWidthPx,
+              height: header.maxHeightPx,
+            });
+            painter.beginClipPath(clipPath);
+          }
+          try {
+            // Header is positioned at the top margin area
+            await paintRenderedHeaderFooter(
+              painter,
+              rendered,
+              margins.left,
+              headerY,
+              fontRegistry,
+              pageOffsetY,
+            );
+          } finally {
+            if (shouldClip) {
+              painter.endClipPath();
+            }
+          }
         }
       } catch (err) {
         log("layout", "warn", "Failed to render header HTML", { error: err });
@@ -158,14 +178,30 @@ async function paintHeaderFooterWithContext(
         if (rendered) {
           // Footer is positioned at the bottom of the page
           const footerY = pageHeightPx - margins.bottom - footer.maxHeightPx;
-          await paintRenderedHeaderFooter(
-            painter,
-            rendered,
-            margins.left,
-            footerY,
-            fontRegistry,
-            pageOffsetY,
-          );
+          const shouldClip = clipOverflow && footer.maxHeightPx > 0 && contentWidthPx > 0;
+          if (shouldClip) {
+            const clipPath = buildRectClipPath({
+              x: margins.left,
+              y: footerY + pageOffsetY,
+              width: contentWidthPx,
+              height: footer.maxHeightPx,
+            });
+            painter.beginClipPath(clipPath);
+          }
+          try {
+            await paintRenderedHeaderFooter(
+              painter,
+              rendered,
+              margins.left,
+              footerY,
+              fontRegistry,
+              pageOffsetY,
+            );
+          } finally {
+            if (shouldClip) {
+              painter.endClipPath();
+            }
+          }
         }
       } catch (err) {
         log("layout", "warn", "Failed to render footer HTML", { error: err });
@@ -213,4 +249,18 @@ function stringify(content: unknown): string {
     return String(content());
   }
   return JSON.stringify(content);
+}
+
+function buildRectClipPath(rect: { x: number; y: number; width: number; height: number }): PathCommand[] {
+  const x = rect.x;
+  const y = rect.y;
+  const right = rect.x + rect.width;
+  const bottom = rect.y + rect.height;
+  return [
+    { type: "moveTo", x, y },
+    { type: "lineTo", x: right, y },
+    { type: "lineTo", x: right, y: bottom },
+    { type: "lineTo", x, y: bottom },
+    { type: "closePath" },
+  ];
 }
