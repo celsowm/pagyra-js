@@ -112,6 +112,50 @@ const pdfBytes = await renderHtmlToPdf({
 });
 ```
 
+### Header and Footer Example
+
+```typescript
+import { renderHtmlToPdf } from 'pagyra-js';
+
+const headerHtml = `
+  <div style="border-bottom: 1px solid #ccc; padding-bottom: 8px;">
+    <img
+      src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR42mP8/5+hHgAHggJ/P95syQAAAABJRU5ErkJggg=="
+      alt="logo"
+      style="height: 48px; width: 48px;"
+    />
+    <span>My Report</span>
+  </div>
+`;
+
+const footerHtml = `
+  <div style="border-top: 1px solid #ccc; padding-top: 8px; font-size: 12px;">
+    Page {{pageNumber}} / {{totalPages}}
+  </div>
+`;
+
+const pdfBytes = await renderHtmlToPdf({
+  html: '<p>Main content goes here.</p>',
+  css: 'body { font-family: Arial; }',
+  headerFooter: {
+    headerHtml,
+    footerHtml,
+
+    // Optional: if omitted, Pagyra auto-measures header/footer content height.
+    // maxHeaderHeightPx: 80,
+    // maxFooterHeightPx: 40,
+
+    // Optional: draw header/footer over the content instead of under it.
+    // layerMode: 'over'
+  }
+});
+```
+
+Notes:
+- `headerHtml` and `footerHtml` are full HTML fragments (can include images, including base64).
+- If `maxHeaderHeightPx` / `maxFooterHeightPx` are not provided, Pagyra auto-computes them from rendered header/footer content.
+- You can also use per-page variants: `headerFirstHtml`, `headerEvenHtml`, `headerOddHtml` (same for footer).
+
 ## API Reference
 
 ### Main Functions
@@ -140,6 +184,15 @@ Converts HTML to PDF and returns the PDF as a Uint8Array.
 - `assetRootDir`: Asset root directory (optional)
 - `headerFooter`: Header/footer configuration (optional)
 - `environment`: Environment abstraction (Node/browser, optional - defaults to Node environment)
+
+`headerFooter` accepts:
+- `headerHtml`, `footerHtml`: default header/footer HTML
+- `headerFirstHtml`, `footerFirstHtml`: first-page variants
+- `headerEvenHtml`, `footerEvenHtml`: even-page variants
+- `headerOddHtml`, `footerOddHtml`: odd-page variants
+- `maxHeaderHeightPx`, `maxFooterHeightPx`: reserved space in pixels (optional, auto-measured if omitted)
+- `layerMode`: `"under"` (default) or `"over"`
+- `clipOverflow`, `fontFamily`, `placeholders` (advanced)
 
 **Note:** While the TypeScript interface requires all parameters, in practice only `html` is truly mandatory. The playground server demonstrates how to compute reasonable defaults for other parameters using helper functions like `sanitizeDimension()` and `resolvePageMarginsPx()`.
 

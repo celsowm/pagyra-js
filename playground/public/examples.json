@@ -57,6 +57,12 @@
     "headerUrl": "examples/lorem-dice-header-header.html"
   },
   {
+    "id": "base64-header-simple-paragraph",
+    "label": "Base64 Header + Simple Paragraph",
+    "htmlUrl": "examples/base64-header-simple-paragraph.html",
+    "headerUrl": "examples/base64-header-simple-paragraph-header.html"
+  },
+  {
     "id": "image-showcase",
     "label": "Image Showcase with Duck.jpg",
     "htmlUrl": "examples/image-showcase.html"

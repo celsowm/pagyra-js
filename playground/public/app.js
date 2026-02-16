@@ -56,6 +56,7 @@ const DEFAULT_PAGE_MARGINS_PX = {
 };
 const DEFAULT_PAGE_WIDTH_PX = PAGE_DIMENSIONS.widthPx;
 const DEFAULT_PAGE_HEIGHT_PX = PAGE_DIMENSIONS.heightPx;
+const DEFAULT_HEADER_FOOTER_MAX_HEIGHT_PX = 64;
 const PLAYGROUND_MODE = (window.__PLAYGROUND_MODE ?? "node").toLowerCase();
 const IS_BROWSER_MODE = PLAYGROUND_MODE === "browser";
 
@@ -134,15 +135,74 @@ function computeBrowserResourceBase(documentPath) {
   }
 }
 
-function buildHeaderFooter(headerHtml, footerHtml) {
+function waitForImageLoad(img) {
+  return new Promise((resolve) => {
+    if (img.complete) {
+      resolve();
+      return;
+    }
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    img.addEventListener("load", done, { once: true });
+    img.addEventListener("error", done, { once: true });
+    window.setTimeout(done, 250);
+  });
+}
+
+async function estimateHtmlHeightPx(html, widthPx, fallbackPx) {
+  if (!html) {
+    return 0;
+  }
+
+  const host = document.createElement("div");
+  host.style.position = "fixed";
+  host.style.left = "-100000px";
+  host.style.top = "0";
+  host.style.width = `${Math.max(1, Math.floor(widthPx))}px`;
+  host.style.visibility = "hidden";
+  host.style.pointerEvents = "none";
+  host.style.zIndex = "-1";
+  host.innerHTML = html;
+
+  document.body.appendChild(host);
+  try {
+    const images = Array.from(host.querySelectorAll("img"));
+    if (images.length > 0) {
+      await Promise.all(images.map(waitForImageLoad));
+    }
+    const measured = Math.ceil(host.getBoundingClientRect().height);
+    return Math.max(fallbackPx, measured || 0);
+  } finally {
+    host.remove();
+  }
+}
+
+async function resolveHeaderFooterHeights(headerHtml, footerHtml, contentWidthPx) {
+  const [headerMaxHeightPx, footerMaxHeightPx] = await Promise.all([
+    headerHtml
+      ? estimateHtmlHeightPx(headerHtml, contentWidthPx, DEFAULT_HEADER_FOOTER_MAX_HEIGHT_PX)
+      : Promise.resolve(0),
+    footerHtml
+      ? estimateHtmlHeightPx(footerHtml, contentWidthPx, DEFAULT_HEADER_FOOTER_MAX_HEIGHT_PX)
+      : Promise.resolve(0),
+  ]);
+
+  return { headerMaxHeightPx, footerMaxHeightPx };
+}
+
+function buildHeaderFooter(headerHtml, footerHtml, heights) {
   const headerFooter = {};
   if (headerHtml) {
     headerFooter.headerHtml = headerHtml;
-    headerFooter.maxHeaderHeightPx = headerFooter.maxHeaderHeightPx ?? 64;
+    headerFooter.maxHeaderHeightPx = heights?.headerMaxHeightPx || DEFAULT_HEADER_FOOTER_MAX_HEIGHT_PX;
   }
   if (footerHtml) {
     headerFooter.footerHtml = footerHtml;
-    headerFooter.maxFooterHeightPx = headerFooter.maxFooterHeightPx ?? 64;
+    headerFooter.maxFooterHeightPx = heights?.footerMaxHeightPx || DEFAULT_HEADER_FOOTER_MAX_HEIGHT_PX;
   }
   return Object.keys(headerFooter).length ? headerFooter : undefined;
 }
@@ -390,12 +450,15 @@ async function renderPdf() {
   const maxContentHeight = maxContentDimension(sanitizedPageHeight, margins.top + margins.bottom);
   const viewportWidth = Math.min(sanitizeDimension(viewport.width, maxContentWidth), maxContentWidth);
   const viewportHeight = Math.min(sanitizeDimension(viewport.height, maxContentHeight), maxContentHeight);
-  const headerFooter = buildHeaderFooter(headerHtml, footerHtml);
+  const headerFooterHeights = await resolveHeaderFooterHeights(headerHtml, footerHtml, maxContentWidth);
+  const headerFooter = buildHeaderFooter(headerHtml, footerHtml, headerFooterHeights);
   const serverPayload = {
     html,
     css,
     headerHtml: headerHtml || undefined,
     footerHtml: footerHtml || undefined,
+    headerMaxHeightPx: headerFooter?.maxHeaderHeightPx,
+    footerMaxHeightPx: headerFooter?.maxFooterHeightPx,
     viewportWidth,
     viewportHeight,
     pageWidth: sanitizedPageWidth,

@@ -22,6 +22,8 @@ interface RenderRequestBody {
   documentPath?: string;
   headerHtml?: string;
   footerHtml?: string;
+  headerMaxHeightPx?: number;
+  footerMaxHeightPx?: number;
   debugLevel?: LogLevel;
   debugCats?: string[];
 }
@@ -75,6 +77,12 @@ app.post("/render", async (req: express.Request, res: express.Response) => {
 
     const headerHtml = typeof body.headerHtml === "string" ? body.headerHtml.trim() : "";
     const footerHtml = typeof body.footerHtml === "string" ? body.footerHtml.trim() : "";
+    const headerMaxHeightPx = Number.isFinite(body.headerMaxHeightPx)
+      ? Math.max(Number(body.headerMaxHeightPx), 0)
+      : undefined;
+    const footerMaxHeightPx = Number.isFinite(body.footerMaxHeightPx)
+      ? Math.max(Number(body.footerMaxHeightPx), 0)
+      : undefined;
     const levelCandidate = typeof body.debugLevel === "string" ? (body.debugLevel.toLowerCase() as LogLevel) : undefined;
     const allowedLevels: LogLevel[] = ["trace", "debug", "info", "warn", "error"];
     let debugLevel: LogLevel = levelCandidate && allowedLevels.includes(levelCandidate) ? levelCandidate : "info";
@@ -83,11 +91,11 @@ app.post("/render", async (req: express.Request, res: express.Response) => {
     const headerFooter: Partial<HeaderFooterHTML> = {};
     if (headerHtml) {
       headerFooter.headerHtml = headerHtml;
-      headerFooter.maxHeaderHeightPx = headerFooter.maxHeaderHeightPx ?? 64;
+      headerFooter.maxHeaderHeightPx = headerMaxHeightPx ?? 64;
     }
     if (footerHtml) {
       headerFooter.footerHtml = footerHtml;
-      headerFooter.maxFooterHeightPx = headerFooter.maxFooterHeightPx ?? 64;
+      headerFooter.maxFooterHeightPx = footerMaxHeightPx ?? 64;
     }
 
     // If categories are selected, the user likely wants to see debug output for them.
