@@ -51,6 +51,12 @@
     "htmlUrl": "examples/multi-page-lorem.html"
   },
   {
+    "id": "lorem-dice-header",
+    "label": "Lorem Ipsum + Dice Header",
+    "htmlUrl": "examples/lorem-dice-header.html",
+    "headerUrl": "examples/lorem-dice-header-header.html"
+  },
+  {
     "id": "image-showcase",
     "label": "Image Showcase with Duck.jpg",
     "htmlUrl": "examples/image-showcase.html"

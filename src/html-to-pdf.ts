@@ -61,6 +61,8 @@ export interface PreparedRender {
 
 export async function renderHtmlToPdf(options: RenderHtmlOptions): Promise<Uint8Array> {
   const environment = options.environment ?? new NodeEnvironment(options.assetRootDir ?? options.resourceBaseDir);
+  const resolvedResourceBaseDir = options.resourceBaseDir ?? options.assetRootDir ?? "";
+  const resolvedAssetRootDir = options.assetRootDir ?? resolvedResourceBaseDir;
   const resolvedFontConfig = options.fontConfig ?? (await loadBuiltinFontConfig(environment));
   const preparedOptions = resolvedFontConfig ? { ...options, fontConfig: resolvedFontConfig, environment } : { ...options, environment };
   const prepared = await prepareHtmlRender(preparedOptions);
@@ -69,6 +71,8 @@ export async function renderHtmlToPdf(options: RenderHtmlOptions): Promise<Uint8
     fontConfig: resolvedFontConfig ?? undefined,
     margins: prepared.margins,
     environment,
+    resourceBaseDir: resolvedResourceBaseDir,
+    assetRootDir: resolvedAssetRootDir,
   });
 }
 
@@ -278,6 +282,13 @@ function resolveLocalPath(target: string, resourceBaseDir: string, assetRootDir:
   return result;
 }
 
+function selectLocalBase(target: string, resourceBaseDir: string, assetRootDir: string): string {
+  if (target.trim().startsWith("/")) {
+    return assetRootDir || resourceBaseDir;
+  }
+  return resourceBaseDir || assetRootDir;
+}
+
 async function loadStylesheetFromHref(href: string, resourceBaseDir: string, assetRootDir: string, environment: Environment): Promise<string> {
   const trimmed = href.trim();
   if (!trimmed) return "";
@@ -293,7 +304,10 @@ async function loadStylesheetFromHref(href: string, resourceBaseDir: string, ass
       return rewriteCssUrls(cssText, absoluteHref);
     }
 
-    const cssPath = environment.resolveLocal ? environment.resolveLocal(trimmed, resourceBaseDir) : resolveLocalPath(trimmed, resourceBaseDir, assetRootDir, environment);
+    const localBase = selectLocalBase(trimmed, resourceBaseDir, assetRootDir);
+    const cssPath = environment.resolveLocal
+      ? environment.resolveLocal(trimmed, localBase || undefined)
+      : resolveLocalPath(trimmed, resourceBaseDir, assetRootDir, environment);
     const cssBuffer = await environment.loader.load(cssPath);
     const cssText = new TextDecoder("utf-8").decode(cssBuffer);
     const baseHref = /^https?:\/\//i.test(cssPath) || cssPath.startsWith("file:")
@@ -400,7 +414,10 @@ async function loadFontData(src: string, resourceBaseDir: string, assetRootDir: 
       return fontDataBuffer;
     }
 
-    const resolved = environment.resolveLocal ? environment.resolveLocal(target, resourceBaseDir) : resolveLocalPath(target, resourceBaseDir, assetRootDir, environment);
+    const localBase = selectLocalBase(target, resourceBaseDir, assetRootDir);
+    const resolved = environment.resolveLocal
+      ? environment.resolveLocal(target, localBase || undefined)
+      : resolveLocalPath(target, resourceBaseDir, assetRootDir, environment);
     const fontDataBuffer = await environment.loader.load(resolved);
     return fontDataBuffer;
   } catch (error) {

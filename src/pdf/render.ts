@@ -35,6 +35,10 @@ export interface RenderPdfOptions {
   readonly headerFooterCss?: string;
   /** Platform environment (Node/browser) for resource loading during paint */
   readonly environment?: Environment;
+  /** Resource base directory for document-relative paths */
+  readonly resourceBaseDir?: string;
+  /** Asset root directory for absolute paths like /images/foo.png */
+  readonly assetRootDir?: string;
 }
 
 export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = {}): Promise<Uint8Array> {
@@ -112,6 +116,8 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
       margins,
       headerFooterCss: options.headerFooterCss,
       environment: options.environment,
+      resourceBaseDir: options.resourceBaseDir,
+      assetRootDir: options.assetRootDir,
     });
 
     const resources = registerPageResources(doc, painterResult);

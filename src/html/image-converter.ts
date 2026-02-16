@@ -37,15 +37,28 @@ export function resolveImageSource(src: string, context: ConversionContext): str
   } catch {
     // Not an absolute URL, fall through to filesystem resolution
   }
-  if (context.environment?.resolveLocal) {
-    return context.environment.resolveLocal(trimmed, context.resourceBaseDir || context.assetRootDir || undefined);
-  }
   if (trimmed.startsWith("/")) {
+    if (context.environment?.resolveLocal) {
+      const resolved = context.environment.resolveLocal(
+        trimmed,
+        context.assetRootDir || context.resourceBaseDir || undefined,
+      );
+      log('image-converter', 'debug', "resolveImageSource - resolving absolute path via resolveLocal:", {
+        src,
+        trimmed,
+        assetRootDir: context.assetRootDir,
+        resolved,
+      });
+      return resolved;
+    }
     const resolved = (context.assetRootDir && context.environment?.pathResolve)
       ? context.environment.pathResolve(context.assetRootDir, `.${trimmed}`)
       : trimmed;
     log('image-converter', 'debug', "resolveImageSource - resolving absolute path:", { src, trimmed, assetRootDir: context.assetRootDir, resolved });
     return resolved;
+  }
+  if (context.environment?.resolveLocal) {
+    return context.environment.resolveLocal(trimmed, context.resourceBaseDir || context.assetRootDir || undefined);
   }
   if (context.environment?.pathIsAbsolute && context.environment.pathIsAbsolute(trimmed)) {
     return trimmed;

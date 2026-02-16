@@ -26,6 +26,10 @@ export interface HeaderFooterPaintContext {
   css?: string;
   /** Platform environment (Node/browser) */
   environment?: Environment;
+  /** Resource base directory for document-relative paths */
+  resourceBaseDir?: string;
+  /** Asset root directory for absolute paths like /images/foo.png */
+  assetRootDir?: string;
 }
 
 /**
@@ -83,7 +87,7 @@ async function paintHeaderFooterWithContext(
   totalPages: number,
   context: HeaderFooterPaintContext,
 ): Promise<void> {
-  const { margins, pageWidthPx, pageHeightPx, fontRegistry, pageOffsetY, css } = context;
+  const { margins, pageWidthPx, pageHeightPx, fontRegistry, pageOffsetY, css, resourceBaseDir, assetRootDir } = context;
 
   // Calculate content width (page width minus left and right margins)
   const contentWidthPx = pageWidthPx - margins.left - margins.right;
@@ -107,6 +111,8 @@ async function paintHeaderFooterWithContext(
           css,
           widthPx: contentWidthPx,
           maxHeightPx: header.maxHeightPx,
+          resourceBaseDir,
+          assetRootDir,
           tokens,
           pageNumber: pageIndex,
           totalPages,
@@ -141,6 +147,8 @@ async function paintHeaderFooterWithContext(
           css,
           widthPx: contentWidthPx,
           maxHeightPx: footer.maxHeightPx,
+          resourceBaseDir,
+          assetRootDir,
           tokens,
           pageNumber: pageIndex,
           totalPages,

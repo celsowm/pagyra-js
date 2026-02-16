@@ -26,6 +26,10 @@ export interface PagePaintInput {
   readonly headerFooterCss?: string;
   /** Platform environment (Node/browser) for resource loading during paint */
   readonly environment?: Environment;
+  /** Resource base directory for document-relative paths */
+  readonly resourceBaseDir?: string;
+  /** Asset root directory for absolute paths like /images/foo.png */
+  readonly assetRootDir?: string;
 }
 
 export async function paintLayoutPage({
@@ -44,6 +48,8 @@ export async function paintLayoutPage({
   margins,
   headerFooterCss,
   environment,
+  resourceBaseDir,
+  assetRootDir,
 }: PagePaintInput): Promise<PainterResult> {
   const painter = new PagePainter(pageSize.heightPt, pxToPt, fontRegistry, pageTree.pageOffsetY, environment);
 
@@ -62,6 +68,8 @@ export async function paintLayoutPage({
         pageOffsetY: pageTree.pageOffsetY,
         css: headerFooterCss,
         environment,
+        resourceBaseDir,
+        assetRootDir,
       }
     : undefined;
 
