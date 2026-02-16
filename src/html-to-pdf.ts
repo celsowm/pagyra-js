@@ -108,9 +108,12 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   const units = makeUnitParsers(unitCtx);
 
   log('html-to-pdf', 'debug', `prepareHtmlRender - input html: ${htmlInput}`);
-  let { document } = parseHTML(normalizedHtml);
+  let document = parseDocument(normalizedHtml);
   if (needsReparse(document)) {
-    document = parseHTML(wrapHtml(htmlInput)).document;
+    document = parseDocument(wrapHtml(htmlInput));
+  }
+  if (!document) {
+    throw new Error("Failed to parse HTML into a document");
   }
   log('html-to-pdf', 'debug', `prepareHtmlRender - parsed document body: ${document.body?.innerHTML || 'no body'}`);
   log('html-to-pdf', 'debug', `prepareHtmlRender - document.documentElement tagName: ${document.documentElement?.tagName}`);
@@ -428,10 +431,45 @@ function wrapHtml(html: string): string {
   return `<!doctype html><html><head></head><body>${html}</body></html>`;
 }
 
-function needsReparse(document: Document): boolean {
-  const docEl = document.documentElement?.tagName;
+function parseDocument(html: string): Document | undefined {
+  const parsed = parseHTML(html) as unknown;
+  if (!parsed || typeof parsed !== "object") {
+    return undefined;
+  }
+  if (isDocumentLike(parsed)) {
+    return parsed;
+  }
+  let maybeDocument: unknown;
+  try {
+    maybeDocument = (parsed as { document?: unknown }).document;
+  } catch {
+    maybeDocument = undefined;
+  }
+  if (isDocumentLike(maybeDocument)) {
+    return maybeDocument;
+  }
+  return undefined;
+}
+
+function isDocumentLike(value: unknown): value is Document {
+  if (!value || typeof value !== "object") return false;
+  return "querySelectorAll" in value && "childNodes" in value;
+}
+
+function needsReparse(document: Document | undefined): boolean {
+  if (!document) return true;
+  let docEl: string | undefined;
+  try {
+    docEl = document.documentElement?.tagName;
+  } catch {
+    return true;
+  }
   const docIsHtml = docEl?.toUpperCase() === "HTML";
   if (!docIsHtml) return true;
-  if (!document.body) return true;
+  try {
+    if (!document.body) return true;
+  } catch {
+    return true;
+  }
   return false;
 }
