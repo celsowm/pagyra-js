@@ -295,13 +295,11 @@ function subsetFont(fontProgram: FontProgram, glyphIds: number[], encoding: "ide
     newLoca.writeUint32(newGlyf.byteLength());
 
     // 2. MAXP
-    const newMaxp = new BinaryWriter();
-    newMaxp.writeBytes(new Uint8Array(maxp.buffer, maxp.byteOffset, 6));
-    const maxpView = new DataView(newMaxp.getData().buffer);
+    const maxpLength = maxp.byteLength > 6 ? 6 + Math.min(maxp.byteLength - 6, 26) : maxp.byteLength;
+    const newMaxpBytes = new Uint8Array(maxpLength);
+    newMaxpBytes.set(new Uint8Array(maxp.buffer, maxp.byteOffset, maxpLength));
+    const maxpView = new DataView(newMaxpBytes.buffer, newMaxpBytes.byteOffset, newMaxpBytes.byteLength);
     maxpView.setUint16(4, maxGidToEmit + 1, false);
-    if (maxp.byteLength > 6) {
-        newMaxp.writeBytes(new Uint8Array(maxp.buffer, maxp.byteOffset + 6, Math.min(maxp.byteLength - 6, 26)));
-    }
 
     // 3. HMTX
     const newHmtx = new BinaryWriter();
@@ -336,9 +334,9 @@ function subsetFont(fontProgram: FontProgram, glyphIds: number[], encoding: "ide
     }
 
     // 4. HHEA
-    const newHhea = new BinaryWriter();
-    newHhea.writeBytes(new Uint8Array(hhea));
-    const newHheaView = new DataView(newHhea.getData().buffer);
+    const newHheaBytes = new Uint8Array(hhea.byteLength);
+    newHheaBytes.set(new Uint8Array(hhea.buffer, hhea.byteOffset, hhea.byteLength));
+    const newHheaView = new DataView(newHheaBytes.buffer, newHheaBytes.byteOffset, newHheaBytes.byteLength);
     newHheaView.setUint16(34, maxGidToEmit + 1, false);
 
     // 5. CMAP (Minimal Dummy)
@@ -362,24 +360,25 @@ function subsetFont(fontProgram: FontProgram, glyphIds: number[], encoding: "ide
     newCmap.writeUint16(0);
     newCmap.writeUint16(0);
     const endCmap = newCmap.byteLength();
-    const cmapView = new DataView(newCmap.getData().buffer);
+    const newCmapBytes = newCmap.getData();
+    const cmapView = new DataView(newCmapBytes.buffer, newCmapBytes.byteOffset, newCmapBytes.byteLength);
     cmapView.setUint16(startCmap + 2, endCmap - startCmap, false);
 
     // 6. HEAD
-    const newHead = new BinaryWriter();
-    newHead.writeBytes(new Uint8Array(head));
-    const newHeadView = new DataView(newHead.getData().buffer);
+    const newHeadBytes = new Uint8Array(head.byteLength);
+    newHeadBytes.set(new Uint8Array(head.buffer, head.byteOffset, head.byteLength));
+    const newHeadView = new DataView(newHeadBytes.buffer, newHeadBytes.byteOffset, newHeadBytes.byteLength);
     newHeadView.setUint16(50, 1, false);
     newHeadView.setUint32(8, 0, false);
 
     const tables: [string, Uint8Array][] = [
-        ["head", newHead.getData()],
-        ["hhea", newHhea.getData()],
-        ["maxp", newMaxp.getData()],
+        ["head", newHeadBytes],
+        ["hhea", newHheaBytes],
+        ["maxp", newMaxpBytes],
         ["hmtx", newHmtx.getData()],
         ["loca", newLoca.getData()],
         ["glyf", newGlyf.getData()],
-        ["cmap", newCmap.getData()]
+        ["cmap", newCmapBytes]
     ];
     if (OS2) tables.push(["OS/2", new Uint8Array(OS2)]);
 
@@ -414,7 +413,7 @@ function subsetFont(fontProgram: FontProgram, glyphIds: number[], encoding: "ide
     }
 
     const ttfBytes = fullTtf.getData();
-    const ttfView = new DataView(ttfBytes.buffer);
+    const ttfView = new DataView(ttfBytes.buffer, ttfBytes.byteOffset, ttfBytes.byteLength);
     const fileChecksum = calculateChecksum(ttfBytes);
     const adjustment = (0xB1B0AFBA - fileChecksum) >>> 0;
 

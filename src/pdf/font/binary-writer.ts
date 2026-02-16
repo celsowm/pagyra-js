@@ -75,7 +75,7 @@ export class BinaryWriter {
     }
 
     getData(): Uint8Array {
-        return this.buffer.slice(0, this.offset);
+        return this.buffer.subarray(0, this.offset);
     }
 
     byteLength(): number {
