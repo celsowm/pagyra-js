@@ -47,13 +47,23 @@ export class ImageRegistry {
         bitsPerComponent: number;
         data: Uint8Array;
     }): PdfObjectRef {
+        const expectedColorSpace =
+            image.channels === 1
+                ? "DeviceGray"
+                : "DeviceRGB";
+        const expectsSoftMask = image.format === "png" && image.channels === 4;
+        const expectedBitsPerComponent = expectsSoftMask ? 8 : image.bitsPerComponent;
+
         // Deduplicate by src when provided
         if (image.src) {
             for (const existing of this.images) {
                 if (
                     existing.src === image.src &&
                     existing.width === image.width &&
-                    existing.height === image.height
+                    existing.height === image.height &&
+                    existing.colorSpace === expectedColorSpace &&
+                    existing.bitsPerComponent === expectedBitsPerComponent &&
+                    Boolean(existing.sMask) === expectsSoftMask
                 ) {
                     return existing.ref;
                 }
@@ -61,17 +71,11 @@ export class ImageRegistry {
         }
 
         // Handle PNG with alpha channel - split into RGB + SMask
-        if (image.format === "png" && image.channels === 4) {
+        if (expectsSoftMask) {
             return this.registerPngWithAlpha(image);
         }
 
         // Regular image registration
-        const colorSpace =
-            image.channels === 1
-                ? "DeviceGray"
-                : image.channels === 3
-                    ? "DeviceRGB"
-                    : "DeviceRGB";
         const filter = image.format === "jpeg" ? "DCTDecode" : undefined;
         const ref: PdfObjectRef = { objectNumber: -1 };
 
@@ -80,7 +84,7 @@ export class ImageRegistry {
             src: image.src,
             width: image.width,
             height: image.height,
-            colorSpace,
+            colorSpace: expectedColorSpace,
             bitsPerComponent: image.bitsPerComponent,
             filter,
             data: image.data.slice(),
