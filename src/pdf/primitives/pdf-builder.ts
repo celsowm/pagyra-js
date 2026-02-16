@@ -298,7 +298,7 @@ export class PdfBuilder {
         pushObject: (body: string | Uint8Array | unknown, ref?: PdfObjectRef | null) => PdfObjectRef
     ): PdfObjectRef[] {
         const annotationRefs: PdfObjectRef[] = [];
-        for (const annotation of page.annotations) {
+        for (const annotation of page.annotations ?? []) {
             const annotRef = pushObject(annotation);
             annotationRefs.push(annotRef);
         }
@@ -351,23 +351,29 @@ export class PdfBuilder {
         catalogRef: PdfObjectRef,
         infoRef: PdfObjectRef | null
     ): Uint8Array {
-        const xrefEntries: string[] = ["0000000000 65535 f \n"];
         const chunks: Uint8Array[] = [header];
         let offset = header.length;
+        const size = this.refManager.getObjectCount();
+
+        // Index xref entries by objectNumber (not by write order)
+        const xrefEntries: string[] = new Array(size).fill("0000000000 00000 f \n");
+        xrefEntries[0] = "0000000000 65535 f \n";
 
         // Write all objects
         for (const object of objects) {
             const objectHeader = encodeBinaryString(`${object.ref.objectNumber} 0 obj\n`);
             const objectFooter = encodeBinaryString("\nendobj\n");
             const objectBuffer = concatBytes([objectHeader, object.body, objectFooter]);
-            xrefEntries.push(formatXref(offset));
+            const objNum = object.ref.objectNumber;
+            if (objNum > 0 && objNum < size) {
+                xrefEntries[objNum] = formatXref(offset);
+            }
             chunks.push(objectBuffer);
             offset += objectBuffer.length;
         }
 
         // Write cross-reference table and trailer
         const xrefStart = offset;
-        const size = this.refManager.getObjectCount();
         const trailerBody = encodeBinaryString(
             `xref\n0 ${size}\n${xrefEntries.join("")}trailer\n${serializeTrailer(size, catalogRef, infoRef)}\nstartxref\n${xrefStart}\n%%EOF\n`
         );

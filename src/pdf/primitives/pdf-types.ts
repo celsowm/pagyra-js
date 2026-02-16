@@ -30,7 +30,7 @@ export interface PdfPage {
     height: number;
     contents: string;
     resources: PdfResources;
-    annotations: string[];
+    annotations?: string[];
 }
 
 export interface PdfResources {
