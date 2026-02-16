@@ -75,15 +75,11 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
   const hfContext = initHeaderFooterContext(layout.hf, pageSize, baseContentBox);
   const hfLayout = layoutHeaderFooterTrees(hfContext, pxToPt);
 
-  // Adjust content area to exclude header/footer heights
-  // This implements the Word/mPDF behavior where headers and footers
-  // reduce the available content area
-  // const adjustedContentBox = adjustPageBoxForHf(baseContentBox, hfLayout);
-
-  // Calculate effective page height for pagination
-  // When headers/footers are present, the content area is reduced
-  const effectiveContentHeightPx = pageHeightPx - hfLayout.headerHeightPx - hfLayout.footerHeightPx;
-  const paginationHeight = effectiveContentHeightPx > 0 ? effectiveContentHeightPx : pageHeightPx;
+  // Content coordinates are already remapped to full-page Y-space in prepareHtmlRender
+  // (including margins/header/footer reservations), so pagination must slice by physical
+  // page height. Using "usable content height" here causes page offsets to drift and can
+  // place stray line fragments at the top of the next page.
+  const paginationHeight = pageHeightPx;
 
   const pages = paginateTree(layout.root, { pageHeight: paginationHeight });
   const totalPages = pages.length;

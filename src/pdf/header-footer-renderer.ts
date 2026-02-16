@@ -242,8 +242,9 @@ export async function paintRenderedHeaderFooter(
   const fontResolver = new FontRegistryResolver(fontRegistry);
   await enrichTreeWithGlyphRuns(clonedRoot, fontResolver);
 
-  // Offset the tree to the correct position
-  offsetRenderTree(clonedRoot, xOffsetPx, yOffsetPx - pageOffsetY, false);
+  // Position header/footer in document-space for the current page. The page painter
+  // will subtract pageOffsetY when converting to local page coordinates.
+  offsetRenderTree(clonedRoot, xOffsetPx, yOffsetPx + pageOffsetY, false);
 
   // Paint all boxes
   const stack: RenderBox[] = [clonedRoot];
