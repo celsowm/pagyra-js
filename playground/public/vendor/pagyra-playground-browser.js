@@ -128705,6 +128705,18 @@ function log(cat, level, msg, obj) {
 }
 
 // src/shim/css-browser.ts
+function extractDeclarations(style) {
+  const declarations = [];
+  for (let j = 0; j < style.length; j++) {
+    const prop = style[j];
+    declarations.push({
+      type: "declaration",
+      property: prop,
+      value: style.getPropertyValue(prop)
+    });
+  }
+  return declarations;
+}
 function parse(cssText) {
   const style = document.createElement("style");
   style.textContent = cssText;
@@ -128715,46 +128727,33 @@ function parse(cssText) {
     const cssRules = sheet.cssRules || [];
     for (let i = 0; i < cssRules.length; i++) {
       const rule = cssRules[i];
-      if (rule.type === CSSRule.STYLE_RULE) {
-        const styleRule = rule;
-        const declarations = [];
-        const styleObj = styleRule.style;
-        for (let j = 0; j < styleObj.length; j++) {
-          const prop = styleObj[j];
-          declarations.push({
-            property: prop,
-            value: styleObj.getPropertyValue(prop)
-          });
-        }
+      if (rule instanceof CSSStyleRule) {
+        const selectors = rule.selectorText.split(",").map((s) => s.trim()).filter(Boolean);
         rules.push({
-          type: styleRule.type,
-          selectors: [styleRule.selectorText],
-          declarations
+          type: "rule",
+          selectors,
+          declarations: extractDeclarations(rule.style)
         });
-      } else if (rule.type === CSSRule.MEDIA_RULE) {
-        const mediaRule = rule;
+      } else if (rule instanceof CSSFontFaceRule) {
+        rules.push({
+          type: "font-face",
+          declarations: extractDeclarations(rule.style)
+        });
+      } else if (rule instanceof CSSMediaRule) {
         const mediaRules = [];
-        for (let k = 0; k < mediaRule.cssRules.length; k++) {
-          const mediaStyleRule = mediaRule.cssRules[k];
-          if (mediaStyleRule.type === CSSRule.STYLE_RULE) {
-            const declarations = [];
-            const styleObj = mediaStyleRule.style;
-            for (let j = 0; j < styleObj.length; j++) {
-              const prop = styleObj[j];
-              declarations.push({
-                property: prop,
-                value: styleObj.getPropertyValue(prop)
-              });
-            }
+        for (let k = 0; k < rule.cssRules.length; k++) {
+          const inner = rule.cssRules[k];
+          if (inner instanceof CSSStyleRule) {
+            const selectors = inner.selectorText.split(",").map((s) => s.trim()).filter(Boolean);
             mediaRules.push({
-              type: mediaStyleRule.type,
-              selectors: [mediaStyleRule.selectorText],
-              declarations
+              type: "rule",
+              selectors,
+              declarations: extractDeclarations(inner.style)
             });
           }
         }
         rules.push({
-          type: rule.type,
+          type: "media",
           media: rule.conditionText,
           rules: mediaRules
         });
@@ -138934,17 +138933,19 @@ var ImageRegistry = class {
     this.images = [];
   }
   register(image) {
+    const expectedColorSpace = image.channels === 1 ? "DeviceGray" : "DeviceRGB";
+    const expectsSoftMask = image.format === "png" && image.channels === 4;
+    const expectedBitsPerComponent = expectsSoftMask ? 8 : image.bitsPerComponent;
     if (image.src) {
       for (const existing of this.images) {
-        if (existing.src === image.src && existing.width === image.width && existing.height === image.height) {
+        if (existing.src === image.src && existing.width === image.width && existing.height === image.height && existing.colorSpace === expectedColorSpace && existing.bitsPerComponent === expectedBitsPerComponent && Boolean(existing.sMask) === expectsSoftMask) {
           return existing.ref;
         }
       }
     }
-    if (image.format === "png" && image.channels === 4) {
+    if (expectsSoftMask) {
       return this.registerPngWithAlpha(image);
     }
-    const colorSpace = image.channels === 1 ? "DeviceGray" : image.channels === 3 ? "DeviceRGB" : "DeviceRGB";
     const filter = image.format === "jpeg" ? "DCTDecode" : void 0;
     const ref = { objectNumber: -1 };
     this.images.push({
@@ -138952,7 +138953,7 @@ var ImageRegistry = class {
       src: image.src,
       width: image.width,
       height: image.height,
-      colorSpace,
+      colorSpace: expectedColorSpace,
       bitsPerComponent: image.bitsPerComponent,
       filter,
       data: image.data.slice(),
@@ -144244,13 +144245,26 @@ function resolveImageSource(src, context) {
     return url.href;
   } catch {
   }
-  if (context.environment?.resolveLocal) {
-    return context.environment.resolveLocal(trimmed, context.resourceBaseDir || context.assetRootDir || void 0);
-  }
   if (trimmed.startsWith("/")) {
+    if (context.environment?.resolveLocal) {
+      const resolved2 = context.environment.resolveLocal(
+        trimmed,
+        context.assetRootDir || context.resourceBaseDir || void 0
+      );
+      log("image-converter", "debug", "resolveImageSource - resolving absolute path via resolveLocal:", {
+        src,
+        trimmed,
+        assetRootDir: context.assetRootDir,
+        resolved: resolved2
+      });
+      return resolved2;
+    }
     const resolved = context.assetRootDir && context.environment?.pathResolve ? context.environment.pathResolve(context.assetRootDir, `.${trimmed}`) : trimmed;
     log("image-converter", "debug", "resolveImageSource - resolving absolute path:", { src, trimmed, assetRootDir: context.assetRootDir, resolved });
     return resolved;
+  }
+  if (context.environment?.resolveLocal) {
+    return context.environment.resolveLocal(trimmed, context.resourceBaseDir || context.assetRootDir || void 0);
   }
   if (context.environment?.pathIsAbsolute && context.environment.pathIsAbsolute(trimmed)) {
     return trimmed;
@@ -148627,7 +148641,7 @@ async function paintRenderedHeaderFooter(painter, rendered, xOffsetPx, yOffsetPx
   const clonedRoot = cloneRenderBox(rendered.root);
   const fontResolver = new FontRegistryResolver(fontRegistry);
   await enrichTreeWithGlyphRuns(clonedRoot, fontResolver);
-  offsetRenderTree(clonedRoot, xOffsetPx, yOffsetPx - pageOffsetY, false);
+  offsetRenderTree(clonedRoot, xOffsetPx, yOffsetPx + pageOffsetY, false);
   const stack = [clonedRoot];
   while (stack.length > 0) {
     const box = stack.pop();
@@ -148709,7 +148723,7 @@ async function paintHeaderFooter(painter, header, footer, tokens, pageIndex, tot
   await paintHeaderFooterLegacy(painter, header, footer, tokens, pageIndex, totalPages, baseOptions);
 }
 async function paintHeaderFooterWithContext(painter, header, footer, tokens, pageIndex, totalPages, context) {
-  const { margins, pageWidthPx, pageHeightPx, fontRegistry, pageOffsetY, css } = context;
+  const { margins, pageWidthPx, pageHeightPx, fontRegistry, pageOffsetY, clipOverflow = false, css, resourceBaseDir, assetRootDir } = context;
   const contentWidthPx = pageWidthPx - margins.left - margins.right;
   log("layout", "debug", "paintHeaderFooterWithContext", {
     headerContent: header?.content ? String(header.content).slice(0, 100) : "none",
@@ -148728,6 +148742,8 @@ async function paintHeaderFooterWithContext(painter, header, footer, tokens, pag
           css,
           widthPx: contentWidthPx,
           maxHeightPx: header.maxHeightPx,
+          resourceBaseDir,
+          assetRootDir,
           tokens,
           pageNumber: pageIndex,
           totalPages,
@@ -148735,14 +148751,31 @@ async function paintHeaderFooterWithContext(painter, header, footer, tokens, pag
         });
         if (rendered) {
           log("layout", "debug", "Header rendered successfully", { heightPx: rendered.heightPx });
-          await paintRenderedHeaderFooter(
-            painter,
-            rendered,
-            margins.left,
-            margins.top,
-            fontRegistry,
-            pageOffsetY
-          );
+          const headerY = margins.top;
+          const shouldClip = clipOverflow && header.maxHeightPx > 0 && contentWidthPx > 0;
+          if (shouldClip) {
+            const clipPath = buildRectClipPath({
+              x: margins.left,
+              y: headerY + pageOffsetY,
+              width: contentWidthPx,
+              height: header.maxHeightPx
+            });
+            painter.beginClipPath(clipPath);
+          }
+          try {
+            await paintRenderedHeaderFooter(
+              painter,
+              rendered,
+              margins.left,
+              headerY,
+              fontRegistry,
+              pageOffsetY
+            );
+          } finally {
+            if (shouldClip) {
+              painter.endClipPath();
+            }
+          }
         }
       } catch (err) {
         log("layout", "warn", "Failed to render header HTML", { error: err });
@@ -148758,6 +148791,8 @@ async function paintHeaderFooterWithContext(painter, header, footer, tokens, pag
           css,
           widthPx: contentWidthPx,
           maxHeightPx: footer.maxHeightPx,
+          resourceBaseDir,
+          assetRootDir,
           tokens,
           pageNumber: pageIndex,
           totalPages,
@@ -148765,14 +148800,30 @@ async function paintHeaderFooterWithContext(painter, header, footer, tokens, pag
         });
         if (rendered) {
           const footerY = pageHeightPx - margins.bottom - footer.maxHeightPx;
-          await paintRenderedHeaderFooter(
-            painter,
-            rendered,
-            margins.left,
-            footerY,
-            fontRegistry,
-            pageOffsetY
-          );
+          const shouldClip = clipOverflow && footer.maxHeightPx > 0 && contentWidthPx > 0;
+          if (shouldClip) {
+            const clipPath = buildRectClipPath({
+              x: margins.left,
+              y: footerY + pageOffsetY,
+              width: contentWidthPx,
+              height: footer.maxHeightPx
+            });
+            painter.beginClipPath(clipPath);
+          }
+          try {
+            await paintRenderedHeaderFooter(
+              painter,
+              rendered,
+              margins.left,
+              footerY,
+              fontRegistry,
+              pageOffsetY
+            );
+          } finally {
+            if (shouldClip) {
+              painter.endClipPath();
+            }
+          }
         }
       } catch (err) {
         log("layout", "warn", "Failed to render footer HTML", { error: err });
@@ -148804,6 +148855,19 @@ function stringify(content) {
     return String(content());
   }
   return JSON.stringify(content);
+}
+function buildRectClipPath(rect) {
+  const x = rect.x;
+  const y = rect.y;
+  const right = rect.x + rect.width;
+  const bottom = rect.y + rect.height;
+  return [
+    { type: "moveTo", x, y },
+    { type: "lineTo", x: right, y },
+    { type: "lineTo", x: right, y: bottom },
+    { type: "lineTo", x, y: bottom },
+    { type: "closePath" }
+  ];
 }
 
 // src/pdf/stacking/build-stacking-contexts.ts
@@ -153158,7 +153222,9 @@ async function paintLayoutPage({
   pageBackground,
   margins,
   headerFooterCss,
-  environment
+  environment,
+  resourceBaseDir,
+  assetRootDir
 }) {
   const painter = new PagePainter(pageSize.heightPt, pxToPt2, fontRegistry, pageTree.pageOffsetY, environment);
   const headerVariant = pickHeaderVariant(headerFooterLayout, pageNumber, totalPages);
@@ -153170,8 +153236,11 @@ async function paintLayoutPage({
     pageHeightPx,
     fontRegistry,
     pageOffsetY: pageTree.pageOffsetY,
+    clipOverflow: headerFooterLayout.clipOverflow,
     css: headerFooterCss,
-    environment
+    environment,
+    resourceBaseDir,
+    assetRootDir
   } : void 0;
   if (headerFooterLayout.layerMode === "under" /* Under */) {
     await paintHeaderFooter(
@@ -153499,8 +153568,7 @@ async function renderPdf(layout, options = {}) {
   const baseContentBox = computeBaseContentBox(layout.root, pageSize, pxToPt2);
   const hfContext = initHeaderFooterContext(layout.hf, pageSize, baseContentBox);
   const hfLayout = layoutHeaderFooterTrees(hfContext, pxToPt2);
-  const effectiveContentHeightPx = pageHeightPx - hfLayout.headerHeightPx - hfLayout.footerHeightPx;
-  const paginationHeight = effectiveContentHeightPx > 0 ? effectiveContentHeightPx : pageHeightPx;
+  const paginationHeight = pageHeightPx;
   const pages = paginateTree(layout.root, { pageHeight: paginationHeight });
   const totalPages = pages.length;
   const tokens = computeHfTokens(layout.hf.placeholders ?? {}, totalPages, options.metadata);
@@ -153526,7 +153594,9 @@ async function renderPdf(layout, options = {}) {
       pageBackground,
       margins,
       headerFooterCss: options.headerFooterCss,
-      environment: options.environment
+      environment: options.environment,
+      resourceBaseDir: options.resourceBaseDir,
+      assetRootDir: options.assetRootDir
     });
     const resources = registerPageResources(doc, painterResult);
     doc.addPage({
@@ -153766,8 +153836,11 @@ function maxContentDimension(total, marginsSum) {
 }
 
 // src/html-to-pdf.ts
+var AUTO_HEADER_FOOTER_FALLBACK_PX = 64;
 async function renderHtmlToPdf(options) {
   const environment = options.environment ?? new NodeEnvironment(options.assetRootDir ?? options.resourceBaseDir);
+  const resolvedResourceBaseDir = options.resourceBaseDir ?? options.assetRootDir ?? "";
+  const resolvedAssetRootDir = options.assetRootDir ?? resolvedResourceBaseDir;
   const resolvedFontConfig = options.fontConfig ?? await loadBuiltinFontConfig(environment);
   const preparedOptions = resolvedFontConfig ? { ...options, fontConfig: resolvedFontConfig, environment } : { ...options, environment };
   const prepared = await prepareHtmlRender(preparedOptions);
@@ -153775,7 +153848,9 @@ async function renderHtmlToPdf(options) {
     pageSize: prepared.pageSize,
     fontConfig: resolvedFontConfig ?? void 0,
     margins: prepared.margins,
-    environment
+    environment,
+    resourceBaseDir: resolvedResourceBaseDir,
+    assetRootDir: resolvedAssetRootDir
   });
 }
 async function prepareHtmlRender(options) {
@@ -153794,6 +153869,15 @@ async function prepareHtmlRender(options) {
   const resourceBaseDirVal = resourceBaseDir ?? assetRootDir ?? "";
   const assetRootDirVal = assetRootDir ?? resourceBaseDirVal;
   const environment = envOverride ?? new NodeEnvironment(assetRootDirVal);
+  const resolvedHeaderFooter = await resolveHeaderFooterMaxHeights({
+    headerFooter,
+    pageWidthPx: pageWidth,
+    pageHeightPx: pageHeight,
+    margins: marginsPx,
+    resourceBaseDir: resourceBaseDirVal,
+    assetRootDir: assetRootDirVal,
+    environment
+  });
   if (debugLevel || debugCats) {
     configureDebug({ level: debugLevel ?? (debug ? "debug" : "info"), cats: debugCats });
   }
@@ -153912,10 +153996,10 @@ async function prepareHtmlRender(options) {
   }
   layoutTree(rootLayout, { width: viewportWidth, height: viewportHeight }, fontEmbedder);
   log("layout", "debug", "Layout complete");
-  const renderTree = buildRenderTree(rootLayout, { headerFooter });
+  const renderTree = buildRenderTree(rootLayout, { headerFooter: resolvedHeaderFooter });
   applyTextLayoutAdjustments(renderTree.root);
-  const headerHeightPx = headerFooter?.maxHeaderHeightPx ?? 0;
-  const footerHeightPx = headerFooter?.maxFooterHeightPx ?? 0;
+  const headerHeightPx = resolvedHeaderFooter?.maxHeaderHeightPx ?? 0;
+  const footerHeightPx = resolvedHeaderFooter?.maxFooterHeightPx ?? 0;
   applyPageVerticalMarginsWithHf(renderTree.root, {
     pageHeight,
     margins: marginsPx,
@@ -153937,6 +154021,12 @@ function resolveLocalPath(target, resourceBaseDir, assetRootDir, environment) {
   }
   return result;
 }
+function selectLocalBase(target, resourceBaseDir, assetRootDir) {
+  if (target.trim().startsWith("/")) {
+    return assetRootDir || resourceBaseDir;
+  }
+  return resourceBaseDir || assetRootDir;
+}
 async function loadStylesheetFromHref(href, resourceBaseDir, assetRootDir, environment) {
   const trimmed = href.trim();
   if (!trimmed) return "";
@@ -153950,7 +154040,8 @@ async function loadStylesheetFromHref(href, resourceBaseDir, assetRootDir, envir
       const cssText2 = await response.text();
       return rewriteCssUrls(cssText2, absoluteHref);
     }
-    const cssPath = environment.resolveLocal ? environment.resolveLocal(trimmed, resourceBaseDir) : resolveLocalPath(trimmed, resourceBaseDir, assetRootDir, environment);
+    const localBase = selectLocalBase(trimmed, resourceBaseDir, assetRootDir);
+    const cssPath = environment.resolveLocal ? environment.resolveLocal(trimmed, localBase || void 0) : resolveLocalPath(trimmed, resourceBaseDir, assetRootDir, environment);
     const cssBuffer = await environment.loader.load(cssPath);
     const cssText = new TextDecoder("utf-8").decode(cssBuffer);
     const baseHref = /^https?:\/\//i.test(cssPath) || cssPath.startsWith("file:") ? cssPath : environment.pathToFileURL ? environment.pathToFileURL(cssPath) : cssPath;
@@ -154041,7 +154132,8 @@ async function loadFontData(src, resourceBaseDir, assetRootDir, environment) {
       const fontDataBuffer2 = await environment.loader.load(localPath);
       return fontDataBuffer2;
     }
-    const resolved = environment.resolveLocal ? environment.resolveLocal(target, resourceBaseDir) : resolveLocalPath(target, resourceBaseDir, assetRootDir, environment);
+    const localBase = selectLocalBase(target, resourceBaseDir, assetRootDir);
+    const resolved = environment.resolveLocal ? environment.resolveLocal(target, localBase || void 0) : resolveLocalPath(target, resourceBaseDir, assetRootDir, environment);
     const fontDataBuffer = await environment.loader.load(resolved);
     return fontDataBuffer;
   } catch (error) {
@@ -154051,6 +154143,102 @@ async function loadFontData(src, resourceBaseDir, assetRootDir, environment) {
 }
 function isInlineDisplay6(display) {
   return display === "inline" /* Inline */ || display === "inline-block" /* InlineBlock */ || display === "inline-flex" /* InlineFlex */ || display === "inline-grid" /* InlineGrid */ || display === "inline-table" /* InlineTable */;
+}
+async function resolveHeaderFooterMaxHeights(options) {
+  const { headerFooter } = options;
+  if (!headerFooter) {
+    return void 0;
+  }
+  const resolved = { ...headerFooter };
+  const contentWidthPx = Math.max(1, options.pageWidthPx - options.margins.left - options.margins.right);
+  const measurementMaxHeightPx = Math.max(1, options.pageHeightPx - options.margins.top - options.margins.bottom);
+  if (!hasOwnProperty(headerFooter, "maxHeaderHeightPx")) {
+    const headerCandidates = collectHeaderVariants(headerFooter);
+    if (headerCandidates.length > 0) {
+      const measured = await measureMaxHeaderFooterVariantHeight({
+        variants: headerCandidates,
+        widthPx: contentWidthPx,
+        maxHeightPx: measurementMaxHeightPx,
+        resourceBaseDir: options.resourceBaseDir,
+        assetRootDir: options.assetRootDir,
+        environment: options.environment
+      });
+      resolved.maxHeaderHeightPx = measured > 0 ? measured : AUTO_HEADER_FOOTER_FALLBACK_PX;
+    }
+  }
+  if (!hasOwnProperty(headerFooter, "maxFooterHeightPx")) {
+    const footerCandidates = collectFooterVariants(headerFooter);
+    if (footerCandidates.length > 0) {
+      const measured = await measureMaxHeaderFooterVariantHeight({
+        variants: footerCandidates,
+        widthPx: contentWidthPx,
+        maxHeightPx: measurementMaxHeightPx,
+        resourceBaseDir: options.resourceBaseDir,
+        assetRootDir: options.assetRootDir,
+        environment: options.environment
+      });
+      resolved.maxFooterHeightPx = measured > 0 ? measured : AUTO_HEADER_FOOTER_FALLBACK_PX;
+    }
+  }
+  return resolved;
+}
+async function measureMaxHeaderFooterVariantHeight(options) {
+  const heights = await Promise.all(options.variants.map(async (html) => {
+    try {
+      const rendered = await renderHeaderFooterHtml({
+        html,
+        widthPx: options.widthPx,
+        maxHeightPx: options.maxHeightPx,
+        resourceBaseDir: options.resourceBaseDir,
+        assetRootDir: options.assetRootDir,
+        environment: options.environment
+      });
+      return rendered ? Math.ceil(rendered.heightPx) : 0;
+    } catch (error) {
+      log("layout", "warn", "Failed to auto-measure header/footer variant height", {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      return 0;
+    }
+  }));
+  return Math.max(0, ...heights);
+}
+function collectHeaderVariants(headerFooter) {
+  const values = [
+    headerFooter.headerHtml,
+    headerFooter.headerFirstHtml,
+    headerFooter.headerEvenHtml,
+    headerFooter.headerOddHtml
+  ];
+  return values.map(stringifyHeaderFooterContent).filter((value) => value.length > 0);
+}
+function collectFooterVariants(headerFooter) {
+  const values = [
+    headerFooter.footerHtml,
+    headerFooter.footerFirstHtml,
+    headerFooter.footerEvenHtml,
+    headerFooter.footerOddHtml
+  ];
+  return values.map(stringifyHeaderFooterContent).filter((value) => value.length > 0);
+}
+function stringifyHeaderFooterContent(content) {
+  if (content == null) {
+    return "";
+  }
+  if (typeof content === "string") {
+    return content;
+  }
+  if (typeof content === "function") {
+    try {
+      return String(content());
+    } catch {
+      return "";
+    }
+  }
+  return String(content);
+}
+function hasOwnProperty(target, key) {
+  return Object.prototype.hasOwnProperty.call(target, key);
 }
 function normalizeHtmlInput(html) {
   const hasHtmlTag = /<\s*html[\s>]/i.test(html);
@@ -154070,11 +154258,14 @@ function parseDocument(html) {
   if (isDocumentLike(parsed)) {
     return parsed;
   }
-  if ("document" in parsed) {
-    const maybeDocument = parsed.document;
-    if (isDocumentLike(maybeDocument)) {
-      return maybeDocument;
-    }
+  let maybeDocument;
+  try {
+    maybeDocument = parsed.document;
+  } catch {
+    maybeDocument = void 0;
+  }
+  if (isDocumentLike(maybeDocument)) {
+    return maybeDocument;
   }
   return void 0;
 }

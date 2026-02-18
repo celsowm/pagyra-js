@@ -1,21 +1,43 @@
 /**
  * Browser shim for css - provides CSS parsing using browser APIs
- * This replaces the Node.js css package in browser builds
+ * This replaces the Node.js css package in browser builds.
+ *
+ * The returned AST must match the shape produced by the Node.js `css` package
+ * so that parse-css.ts can consume it without any platform-specific branches.
  */
 
-interface CSSRule {
-  type: number;
+interface CSSDeclaration {
+  type: string;        // always "declaration"
+  property: string;
+  value: string;
+}
+
+interface CSSRuleNode {
+  type: string;        // "rule" | "font-face"
   selectors?: string[];
-  declarations?: Array<{ property: string; value: string }>;
-  rules?: CSSRule[];
+  declarations?: CSSDeclaration[];
+  rules?: CSSRuleNode[];
   media?: string;
 }
 
 interface CSSParseResult {
   type: string;
   stylesheet?: {
-    rules: CSSRule[];
+    rules: CSSRuleNode[];
   };
+}
+
+function extractDeclarations(style: CSSStyleDeclaration): CSSDeclaration[] {
+  const declarations: CSSDeclaration[] = [];
+  for (let j = 0; j < style.length; j++) {
+    const prop = style[j];
+    declarations.push({
+      type: "declaration",
+      property: prop,
+      value: style.getPropertyValue(prop),
+    });
+  }
+  return declarations;
 }
 
 /**
@@ -23,78 +45,73 @@ interface CSSParseResult {
  * Compatible with the Node.js css package's parse() function
  */
 export function parse(cssText: string): CSSParseResult {
-  const style = document.createElement('style');
+  const style = document.createElement("style");
   style.textContent = cssText;
   document.head.appendChild(style);
-  
+
   const sheet = style.sheet;
-  const rules: CSSRule[] = [];
-  
+  const rules: CSSRuleNode[] = [];
+
   if (sheet) {
     const cssRules = sheet.cssRules || [];
     for (let i = 0; i < cssRules.length; i++) {
       const rule = cssRules[i];
-      if (rule.type === CSSRule.STYLE_RULE) {
-        const styleRule = rule as CSSStyleRule;
-        const declarations: Array<{ property: string; value: string }> = [];
-        
-        const styleObj = styleRule.style;
-        for (let j = 0; j < styleObj.length; j++) {
-          const prop = styleObj[j];
-          declarations.push({
-            property: prop,
-            value: styleObj.getPropertyValue(prop)
-          });
-        }
-        
+
+      if (rule instanceof CSSStyleRule) {
+        // Split compound selectors so each gets its own entry, matching the
+        // node `css` package behaviour (it splits on commas).
+        const selectors = rule.selectorText
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+
         rules.push({
-          type: styleRule.type,
-          selectors: [styleRule.selectorText],
-          declarations
+          type: "rule",
+          selectors,
+          declarations: extractDeclarations(rule.style),
         });
-      } else if (rule.type === CSSRule.MEDIA_RULE) {
-        const mediaRule = rule as CSSMediaRule;
-        const mediaRules: CSSRule[] = [];
-        
-        for (let k = 0; k < mediaRule.cssRules.length; k++) {
-          const mediaStyleRule = mediaRule.cssRules[k] as CSSStyleRule;
-          if (mediaStyleRule.type === CSSRule.STYLE_RULE) {
-            const declarations: Array<{ property: string; value: string }> = [];
-            const styleObj = mediaStyleRule.style;
-            for (let j = 0; j < styleObj.length; j++) {
-              const prop = styleObj[j];
-              declarations.push({
-                property: prop,
-                value: styleObj.getPropertyValue(prop)
-              });
-            }
+      } else if (rule instanceof CSSFontFaceRule) {
+        rules.push({
+          type: "font-face",
+          declarations: extractDeclarations(rule.style),
+        });
+      } else if (rule instanceof CSSMediaRule) {
+        const mediaRules: CSSRuleNode[] = [];
+        for (let k = 0; k < rule.cssRules.length; k++) {
+          const inner = rule.cssRules[k];
+          if (inner instanceof CSSStyleRule) {
+            const selectors = inner.selectorText
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean);
+
             mediaRules.push({
-              type: mediaStyleRule.type,
-              selectors: [mediaStyleRule.selectorText],
-              declarations
+              type: "rule",
+              selectors,
+              declarations: extractDeclarations(inner.style),
             });
           }
         }
-        
+
         rules.push({
-          type: rule.type,
-          media: (rule as CSSMediaRule).conditionText,
-          rules: mediaRules
+          type: "media",
+          media: rule.conditionText,
+          rules: mediaRules,
         });
       }
     }
   }
-  
+
   document.head.removeChild(style);
-  
+
   return {
-    type: 'stylesheet',
+    type: "stylesheet",
     stylesheet: {
-      rules
-    }
+      rules,
+    },
   };
 }
 
 export default {
-  parse
+  parse,
 };
