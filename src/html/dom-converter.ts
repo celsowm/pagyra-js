@@ -117,12 +117,17 @@ async function loadBackgroundImage(
   try {
     let imageInfo: ImageInfo;
     if (isDataUri(resolvedSrc)) {
-      const match = resolvedSrc.match(/^data:image\/(.+);base64,(.+)$/);
-      if (!match) {
+      const comma = resolvedSrc.indexOf(",");
+      if (comma < 0) {
         log('dom-converter', 'warn', `Unsupported data URI format for background image: ${cssUrl}`);
         return null;
       }
-      const bytes = decodeBase64ToUint8Array(match[2]);
+      const meta = resolvedSrc.substring(5, comma);
+      const isBase64 = meta.endsWith(";base64");
+      const payload = resolvedSrc.substring(comma + 1);
+      const bytes = isBase64
+        ? decodeBase64ToUint8Array(payload)
+        : new TextEncoder().encode(decodeURIComponent(payload));
       const copy = bytes.slice();
       imageInfo = await imageService.decodeImage(copy.buffer);
     } else {

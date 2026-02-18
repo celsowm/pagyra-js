@@ -150,11 +150,16 @@ export async function convertImageElement(
       throw new Error(`Remote images are not supported (${resolvedSrc})`);
     }
     if (resolvedSrc.startsWith("data:")) {
-      const match = resolvedSrc.match(/^data:image\/(.+);base64,(.+)$/);
-      if (!match) {
+      const comma = resolvedSrc.indexOf(",");
+      if (comma < 0) {
         throw new Error("Invalid data URI");
       }
-      const bytes = decodeBase64ToUint8Array(match[2]);
+      const meta = resolvedSrc.substring(5, comma);
+      const isBase64 = meta.endsWith(";base64");
+      const payload = resolvedSrc.substring(comma + 1);
+      const bytes = isBase64
+        ? decodeBase64ToUint8Array(payload)
+        : new TextEncoder().encode(decodeURIComponent(payload));
       const copy = bytes.slice();
       imageInfo = await imageService.decodeImage(copy.buffer, {
         maxWidth: width,
