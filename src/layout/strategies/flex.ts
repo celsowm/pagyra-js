@@ -243,9 +243,14 @@ export class FlexLayoutStrategy implements LayoutStrategy {
     let containerMainSize: number;
     if (specifiedMain !== undefined) {
       containerMainSize = specifiedMain;
-    } else {
+    } else if (isRow) {
       const reference = Number.isFinite(cbMain) && cbMain > 0 ? cbMain : totalMainWithGaps;
       containerMainSize = Math.max(reference, totalMainWithGaps);
+    } else {
+      // For column flex containers with auto height, use content-based sizing.
+      // Falling back to containing block height incorrectly stretches the box
+      // to the page/viewport height in HTML->PDF flow layouts.
+      containerMainSize = totalMainWithGaps;
     }
 
     let containerCrossSize: number;
@@ -487,4 +492,3 @@ function offsetLayoutSubtree(node: LayoutNode, deltaX: number, deltaY: number): 
     }
   });
 }
-
