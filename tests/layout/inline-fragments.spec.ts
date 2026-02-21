@@ -22,4 +22,27 @@ describe("inline fragment layout", () => {
             expect(xPositions[i]).toBeGreaterThan(xPositions[i - 1]);
         }
     });
+
+    it("inherits font size and baseline for strong/em/a from parent text", async () => {
+        const html = '<p style="font-size: 20px; line-height: 1.5;">base <strong>forte</strong> <em>italico</em> <a href="https://pagyra.dev">link</a></p>';
+        const renderTree = await renderTreeForHtml(html);
+        const runs = collectRuns(renderTree.root).filter((r) =>
+            ["base", "forte", "italico", "link"].includes(r.text),
+        );
+
+        expect(runs).toHaveLength(4);
+
+        const baseRun = runs.find((r) => r.text === "base");
+        expect(baseRun).toBeDefined();
+
+        const baseFontSize = baseRun?.fontSize ?? 0;
+        const baseBaseline = baseRun?.lineMatrix?.f ?? 0;
+
+        for (const text of ["forte", "italico", "link"]) {
+            const run = runs.find((r) => r.text === text);
+            expect(run).toBeDefined();
+            expect(run?.fontSize).toBeCloseTo(baseFontSize, 4);
+            expect(run?.lineMatrix?.f).toBeCloseTo(baseBaseline, 4);
+        }
+    });
 });

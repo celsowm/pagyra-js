@@ -119,6 +119,16 @@ const RELATIVE_FONT_SIZE_TAG_SCALE: Record<string, number> = {
   big: 1.2,
 };
 
+function numericLengthEquals(a: NumericLength | undefined, b: NumericLength | undefined): boolean {
+  if (a === undefined || b === undefined) {
+    return a === b;
+  }
+  if (typeof a === "number" || typeof b === "number") {
+    return a === b;
+  }
+  return a.kind === b.kind && a.unit === b.unit && a.value === b.value;
+}
+
 function resolveDefaultsForComputedStyle(
   defaults: StyleDefaults,
   fontSize: number,
@@ -283,6 +293,9 @@ export function computeStyleForElement(
   // 5. Inline styles (already applied in aggregated)
   const elementDefinesFontWeight = elementDefaults.fontWeight !== undefined;
   const elementDefinesFontStyle = elementDefaults.fontStyle !== undefined;
+  const elementDefinesFontSize =
+    elementDefaults.fontSize !== undefined &&
+    !numericLengthEquals(elementDefaults.fontSize, baseDefaults.fontSize);
   const baseLineHeight = baseDefaults.lineHeight ?? createNormalLineHeight();
   const mergedLineHeight = mergedDefaults.lineHeight ?? baseLineHeight;
   const elementDefinesLineHeight = !lineHeightEquals(mergedLineHeight, baseLineHeight);
@@ -297,9 +310,11 @@ export function computeStyleForElement(
       computedFontSize = resolvedFontSize;
     }
   } else {
-    const resolvedFontSize = resolveNumberLike(mergedDefaults.fontSize, inherited.fontSize, rootFontReference);
-    if (resolvedFontSize !== undefined) {
-      computedFontSize = resolvedFontSize;
+    if (elementDefinesFontSize) {
+      const resolvedFontSize = resolveNumberLike(mergedDefaults.fontSize, inherited.fontSize, rootFontReference);
+      if (resolvedFontSize !== undefined) {
+        computedFontSize = resolvedFontSize;
+      }
     }
     const relativeScale = RELATIVE_FONT_SIZE_TAG_SCALE[tagName];
     if (relativeScale !== undefined) {
