@@ -112,6 +112,61 @@ const pdfBytes = await renderHtmlToPdf({
 });
 ```
 
+### Selawik Opt-in Example (TTF local)
+
+```typescript
+import path from 'node:path';
+import { renderHtmlToPdf } from 'pagyra-js';
+
+const css = `
+  @font-face {
+    font-family: 'Selawik';
+    src: url('ttf/selawik/selawkl.ttf') format('truetype');
+    font-weight: 300;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'Selawik';
+    src: url('ttf/selawik/selawksl.ttf') format('truetype');
+    font-weight: 300;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'Selawik';
+    src: url('ttf/selawik/selawk.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'Selawik';
+    src: url('ttf/selawik/selawksb.ttf') format('truetype');
+    font-weight: 600;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'Selawik';
+    src: url('ttf/selawik/selawkb.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+  }
+
+  body {
+    font-family: 'Selawik', 'DejaVu Sans', 'Arimo', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+`;
+
+const pdfBytes = await renderHtmlToPdf({
+  html: '<p>HTML→PDF Stress • sem JS • sem fixed/sticky</p>',
+  css,
+  resourceBaseDir: path.resolve(process.cwd(), 'assets/fonts'),
+  assetRootDir: path.resolve(process.cwd(), 'assets/fonts')
+});
+```
+
+Notes:
+- Pagyra does not load `.zip` files directly. Extract the archive and reference `.ttf` files in `@font-face`.
+- Keep symbol-capable fallbacks (`DejaVu Sans`, `Arimo`) for robust rendering of arrows, bullets, and similar glyphs.
+
 ### Header and Footer Example
 
 ```typescript

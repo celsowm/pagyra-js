@@ -6,13 +6,48 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Header Extract - HTML to PDF</title>
     <style>
+        @font-face {
+            font-family: "Selawik";
+            src: url("assets/fonts/ttf/selawik/selawkl.ttf") format("truetype");
+            font-weight: 300;
+            font-style: normal;
+        }
+
+        @font-face {
+            font-family: "Selawik";
+            src: url("assets/fonts/ttf/selawik/selawksl.ttf") format("truetype");
+            font-weight: 300;
+            font-style: normal;
+        }
+
+        @font-face {
+            font-family: "Selawik";
+            src: url("assets/fonts/ttf/selawik/selawk.ttf") format("truetype");
+            font-weight: 400;
+            font-style: normal;
+        }
+
+        @font-face {
+            font-family: "Selawik";
+            src: url("assets/fonts/ttf/selawik/selawksb.ttf") format("truetype");
+            font-weight: 600;
+            font-style: normal;
+        }
+
+        @font-face {
+            font-family: "Selawik";
+            src: url("assets/fonts/ttf/selawik/selawkb.ttf") format("truetype");
+            font-weight: 700;
+            font-style: normal;
+        }
+
         /* Variáveis essenciais para as cores e fontes */
         :root {
             --muted: #475569;
             --brandA: #7c3aed;
             --brandB: #06b6d4;
             --paper-w: 210mm;
-            --body-font: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
+            --body-font: "Selawik", "DejaVu Sans", "Arimo", system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
         }
 
         * {

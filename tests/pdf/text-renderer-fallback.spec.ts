@@ -5,6 +5,7 @@ import type { Run } from "../../src/pdf/types.js";
 import type { GlyphRun } from "../../src/layout/text-run.js";
 import type { UnifiedFont } from "../../src/fonts/types.js";
 import { TtfFontMetrics } from "../../src/types/fonts.js";
+import { TextFontResolver } from "../../src/pdf/renderers/text-font-resolver.js";
 
 describe("text renderer glyph fallback", () => {
   it("rebuilds glyph runs when the resolved font differs from the precomputed one", async () => {
@@ -116,5 +117,66 @@ describe("text renderer glyph fallback", () => {
 
     expect(run.glyphs?.glyphIds[0]).toBe(1);
     expect(run.glyphs?.font.metrics.cmap).toBe(presentMetrics.cmap);
+  });
+
+  it("tries default stack when requested family cannot render unicode glyph", async () => {
+    const arrow = "\u2192";
+    const arrowCp = arrow.codePointAt(0)!;
+    const baseMetrics = {
+      unitsPerEm: 1000,
+      ascender: 0,
+      descender: 0,
+      lineGap: 0,
+      capHeight: 0,
+      xHeight: 0,
+    };
+    const glyphMetrics = new Map([
+      [0, { advanceWidth: 500, leftSideBearing: 0 }],
+      [1, { advanceWidth: 500, leftSideBearing: 0 }],
+    ]);
+
+    const missingCmap = {
+      getGlyphId: (_codePoint: number) => 0,
+      hasCodePoint: (_codePoint: number) => false,
+      unicodeMap: new Map<number, number>(),
+    };
+    const presentCmap = {
+      getGlyphId: (_codePoint: number) => 1,
+      hasCodePoint: (_codePoint: number) => true,
+      unicodeMap: new Map<number, number>([[arrowCp, 1]]),
+    };
+
+    const primaryFont: FontResource = {
+      baseFont: "PrimaryFont",
+      resourceName: "F1",
+      ref: { objectNumber: 1 },
+      isBase14: false,
+      metrics: new TtfFontMetrics(baseMetrics, glyphMetrics, missingCmap),
+    };
+
+    const fallbackFont: FontResource = {
+      baseFont: "FallbackFont",
+      resourceName: "F2",
+      ref: { objectNumber: 2 },
+      isBase14: false,
+      metrics: new TtfFontMetrics(baseMetrics, glyphMetrics, presentCmap),
+    };
+
+    const fontRegistry = {
+      ensureFontResource: async (family?: string) => (family === "FallbackFont" ? fallbackFont : primaryFont),
+      getDefaultFontStack: () => ["FallbackFont"],
+      ensureSubsetForGlyphRun: () => {
+        throw new Error("ensureSubsetForGlyphRun should not be called in this test");
+      },
+    } as unknown as FontRegistry;
+
+    const resolver = new TextFontResolver(fontRegistry);
+    const resolved = await resolver.ensureFontResource({
+      fontFamily: "PrimaryFont",
+      text: `HTML${arrow}PDF`,
+    });
+
+    expect(resolved.baseFont).toBe("FallbackFont");
+    expect(resolved.metrics?.cmap.getGlyphId(arrowCp)).toBe(1);
   });
 });

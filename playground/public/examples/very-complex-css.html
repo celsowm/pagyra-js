@@ -5,12 +5,42 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Conversão HTML→PDF — Fluxo Puro (Sem JS)</title>
 <style>
+@font-face{
+  font-family:"Selawik";
+  src:url("../assets/fonts/ttf/selawik/selawkl.ttf") format("truetype");
+  font-weight:300;
+  font-style:normal;
+}
+@font-face{
+  font-family:"Selawik";
+  src:url("../assets/fonts/ttf/selawik/selawksl.ttf") format("truetype");
+  font-weight:300;
+  font-style:normal;
+}
+@font-face{
+  font-family:"Selawik";
+  src:url("../assets/fonts/ttf/selawik/selawk.ttf") format("truetype");
+  font-weight:400;
+  font-style:normal;
+}
+@font-face{
+  font-family:"Selawik";
+  src:url("../assets/fonts/ttf/selawik/selawksb.ttf") format("truetype");
+  font-weight:600;
+  font-style:normal;
+}
+@font-face{
+  font-family:"Selawik";
+  src:url("../assets/fonts/ttf/selawik/selawkb.ttf") format("truetype");
+  font-weight:700;
+  font-style:normal;
+}
 :root{
   --muted:#475569; --brandA:#7c3aed; --brandB:#06b6d4; --brandC:#22c55e;
   --ok:#10b981; --err:#ef4444; --warn:#f59e0b; --gap:20px; --radius:16px;
   --paper-w:210mm;
   --fs-hero: clamp(30px, 5vw, 58px); --fs-h2: clamp(20px, 3vw, 32px); --fs-base: 12pt;
-  --body-font: system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;
+  --body-font: "Selawik","DejaVu Sans","Arimo",system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;
   --mono: ui-monospace,Menlo,Consolas,"Courier New",monospace;
 }
 *{box-sizing:border-box}

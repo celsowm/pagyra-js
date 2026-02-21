@@ -23,6 +23,9 @@ export class PdfFontRegistry {
 
     // Counter for generating unique font resource names
     private fontCounter = 0;
+    private identityCounter = 0;
+    private readonly programIdentity = new WeakMap<object, number>();
+    private readonly cmapIdentity = new WeakMap<object, number>();
 
     constructor(private readonly encoding: "identity" | "sequential" = "identity") { }
 
@@ -31,14 +34,43 @@ export class PdfFontRegistry {
      * Uses CSS metadata if available, otherwise falls back to a generic key.
      */
     private fontKey(font: UnifiedFont): string {
+        const programToken = this.resolveProgramToken(font);
+        const cmapToken = this.resolveCmapToken(font);
+
         if (font.css) {
             const { family, weight, style } = font.css;
-            return `${family}|${weight}|${style}`;
+            return `${family}|${weight}|${style}|p:${programToken}|c:${cmapToken}`;
         }
 
         // Fallback: use unitsPerEm and ascender as a fingerprint
         const { unitsPerEm, ascender } = font.metrics.metrics;
-        return `_fallback_${unitsPerEm}_${ascender}`;
+        return `_fallback_${unitsPerEm}_${ascender}|p:${programToken}|c:${cmapToken}`;
+    }
+
+    private resolveProgramToken(font: UnifiedFont): string {
+        const rawAccessor = font.program.getRawTableData;
+        if (rawAccessor) {
+            return `raw-${this.identityFor(this.programIdentity, rawAccessor)}`;
+        }
+        return `shape-${font.program.sourceFormat}-${font.program.unitsPerEm}-${font.program.glyphCount}`;
+    }
+
+    private resolveCmapToken(font: UnifiedFont): string {
+        const cmap = font.metrics.cmap as unknown as object | undefined;
+        if (cmap) {
+            return `map-${this.identityFor(this.cmapIdentity, cmap)}`;
+        }
+        return `none-${font.program.unitsPerEm}-${font.program.glyphCount}`;
+    }
+
+    private identityFor(store: WeakMap<object, number>, key: object): number {
+        const existing = store.get(key);
+        if (existing !== undefined) {
+            return existing;
+        }
+        const next = ++this.identityCounter;
+        store.set(key, next);
+        return next;
     }
 
     /**
