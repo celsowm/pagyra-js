@@ -2,7 +2,7 @@ import { LayoutNode } from "../../dom/node.js";
 import { Display } from "../../css/enums.js";
 import { resolveLength, isAutoLength } from "../../css/length.js";
 import type { ImageInfo } from "../../image/types.js";
-import { containingBlock, horizontalNonContent, horizontalMargin } from "../utils/node-math.js";
+import { adjustForBoxSizing, containingBlock, horizontalNonContent, horizontalMargin } from "../utils/node-math.js";
 import type { LayoutContext, LayoutStrategy } from "../pipeline/strategy.js";
 
 /**
@@ -224,14 +224,14 @@ export class ImageLayoutStrategy implements LayoutStrategy {
     if (hasExplicitWidth) {
       const resolved = resolveLength(node.style.width, widthRef, { auto: "reference" });
       if (Number.isFinite(resolved) && resolved > 0) {
-        contentWidth = resolved;
+        contentWidth = adjustForBoxSizing(resolved, node.style.boxSizing, horizontalExtras);
       }
     }
 
     if (hasExplicitHeight) {
       const resolved = resolveLength(node.style.height, heightRef, { auto: "reference" });
       if (Number.isFinite(resolved) && resolved > 0) {
-        contentHeight = resolved;
+        contentHeight = adjustForBoxSizing(resolved, node.style.boxSizing, verticalExtras);
       }
     }
 
@@ -263,7 +263,7 @@ export class ImageLayoutStrategy implements LayoutStrategy {
     const lockAspectToHeight = hasIntrinsic && !hasExplicitWidth;
 
     if (node.style.maxWidth !== undefined && !isAutoLength(node.style.maxWidth)) {
-      const maxWidth = resolveLength(node.style.maxWidth, widthRef, { auto: "reference" });
+      const maxWidth = adjustForBoxSizing(resolveLength(node.style.maxWidth, widthRef, { auto: "reference" }), node.style.boxSizing, horizontalExtras);
       if (Number.isFinite(maxWidth) && maxWidth > 0 && contentWidth > maxWidth) {
         if (lockAspectToWidth && contentWidth > 0) {
           const scale = maxWidth / contentWidth;
@@ -274,7 +274,7 @@ export class ImageLayoutStrategy implements LayoutStrategy {
     }
 
     if (node.style.minWidth !== undefined && !isAutoLength(node.style.minWidth)) {
-      const minWidth = resolveLength(node.style.minWidth, widthRef, { auto: "zero" });
+      const minWidth = adjustForBoxSizing(resolveLength(node.style.minWidth, widthRef, { auto: "zero" }), node.style.boxSizing, horizontalExtras);
       if (Number.isFinite(minWidth) && minWidth > 0 && contentWidth < minWidth) {
         if (lockAspectToWidth && contentWidth > 0) {
           const scale = minWidth / contentWidth;
@@ -285,7 +285,11 @@ export class ImageLayoutStrategy implements LayoutStrategy {
     }
 
     if (node.style.maxHeight !== undefined && !isAutoLength(node.style.maxHeight)) {
-      const maxHeight = resolveLength(node.style.maxHeight, heightRef, { auto: "reference" });
+      const maxHeight = adjustForBoxSizing(
+        resolveLength(node.style.maxHeight, heightRef, { auto: "reference" }),
+        node.style.boxSizing,
+        verticalExtras,
+      );
       if (Number.isFinite(maxHeight) && maxHeight > 0 && contentHeight > maxHeight) {
         if (lockAspectToHeight && contentHeight > 0) {
           const scale = maxHeight / contentHeight;
@@ -296,7 +300,11 @@ export class ImageLayoutStrategy implements LayoutStrategy {
     }
 
     if (node.style.minHeight !== undefined && !isAutoLength(node.style.minHeight)) {
-      const minHeight = resolveLength(node.style.minHeight, heightRef, { auto: "zero" });
+      const minHeight = adjustForBoxSizing(
+        resolveLength(node.style.minHeight, heightRef, { auto: "zero" }),
+        node.style.boxSizing,
+        verticalExtras,
+      );
       if (Number.isFinite(minHeight) && minHeight > 0 && contentHeight < minHeight) {
         if (lockAspectToHeight && contentHeight > 0) {
           const scale = minHeight / contentHeight;

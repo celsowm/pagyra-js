@@ -12,7 +12,7 @@ import { resolveNumberLike, type LengthInput, type LengthLike, type NumericLengt
 import { ElementSpecificDefaults, BrowserDefaults } from "./browser-defaults.js";
 import { applyDeclarationsToStyle } from "./apply-declarations.js";
 import { normalizeFontWeight } from './font-weight.js';
-import { FloatMode, Display } from "./enums.js";
+import { BoxSizing, FloatMode, Display } from "./enums.js";
 import { log } from "../logging/debug.js";
 import { cloneLineHeight, createNormalLineHeight, lineHeightEquals, resolveLineHeightInput } from "./line-height.js";
 import { parseInlineStyle } from "./inline-style-parser.js";
@@ -350,6 +350,9 @@ export function computeStyleForElement(
     unitResolver.createNumberAssigner(setter)(value);
   };
 
+  if (styleInit.boxSizing !== undefined) {
+    styleOptions.boxSizing = styleInit.boxSizing === "border-box" ? BoxSizing.BorderBox : BoxSizing.ContentBox;
+  }
   if (styleInit.position !== undefined) styleOptions.position = styleInit.position;
   if (styleInit.top !== undefined) assignLength(styleInit.top, (v) => (styleOptions.top = v));
   if (styleInit.right !== undefined) assignLength(styleInit.right, (v) => (styleOptions.right = v));

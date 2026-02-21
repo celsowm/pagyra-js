@@ -2,7 +2,7 @@ import { BorderModel, Display } from "../../css/enums.js";
 import { LayoutNode } from "../../dom/node.js";
 import { log } from "../../logging/debug.js";
 import { resolveLength } from "../../css/length.js";
-import { containingBlock, horizontalNonContent, resolveWidthBlock, verticalNonContent } from "../utils/node-math.js";
+import { adjustForBoxSizing, containingBlock, horizontalNonContent, resolveWidthBlock, verticalNonContent } from "../utils/node-math.js";
 import type { LayoutContext, LayoutStrategy } from "../pipeline/strategy.js";
 import { layoutTableCell } from "../table/cell_layout.js";
 import { auditTableCell, debugTableCell } from "../table/diagnostics.js";
@@ -368,9 +368,18 @@ export class TableLayoutStrategy implements LayoutStrategy {
       }
     }
 
-    node.box.contentHeight = rowOffsets[numRows];
+    let resolvedContentHeight = rowOffsets[numRows];
+    const verticalExtras = verticalNonContent(node, cb.width);
+    if (node.style.height !== "auto" && node.style.height !== undefined) {
+      resolvedContentHeight = adjustForBoxSizing(
+        resolveLength(node.style.height, cb.height, { auto: "zero" }),
+        node.style.boxSizing,
+        verticalExtras,
+      );
+    }
+    node.box.contentHeight = Math.max(0, resolvedContentHeight);
     node.box.borderBoxWidth = node.box.contentWidth + horizontalNonContent(node, cb.width);
-    node.box.borderBoxHeight = node.box.contentHeight + verticalNonContent(node, cb.width);
+    node.box.borderBoxHeight = node.box.contentHeight + verticalExtras;
     node.box.scrollWidth = node.box.contentWidth;
     node.box.scrollHeight = node.box.contentHeight;
   }

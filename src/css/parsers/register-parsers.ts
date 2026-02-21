@@ -167,6 +167,14 @@ export function registerAllPropertyParsers(): void {
   }
   parsersRegistered = true;
 
+  // Box Sizing
+  registerPropertyParser("box-sizing", (value: string, target) => {
+    const lower = value.trim().toLowerCase();
+    if (lower === "border-box" || lower === "content-box") {
+      target.boxSizing = lower;
+    }
+  });
+
   // Display and Flex
   registerPropertyParser("display", parseDisplay);
   registerPropertyParser("justify-content", parseJustifyContent);

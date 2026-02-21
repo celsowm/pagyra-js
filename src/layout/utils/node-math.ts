@@ -1,5 +1,5 @@
 import { LayoutNode } from "../../dom/node.js";
-import { Display, FloatMode, OverflowMode, Position } from "../../css/enums.js";
+import { BoxSizing, Display, FloatMode, OverflowMode, Position } from "../../css/enums.js";
 import { clampMinMax, resolveLength, isAutoLength, type LengthLike } from "../../css/length.js";
 import type { ContainingBlock, Viewport } from "../../geometry/box.js";
 
@@ -39,6 +39,13 @@ export function resolveBoxMetrics(node: LayoutNode, widthRef: number, heightRef:
     contentBoxX: node.box.x + borderLeft + paddingLeft,
     contentBoxY: node.box.y + borderTop + paddingTop,
   };
+}
+
+export function adjustForBoxSizing(specifiedSize: number, boxSizing: BoxSizing, nonContentExtras: number): number {
+  if (boxSizing === BoxSizing.BorderBox) {
+    return Math.max(0, specifiedSize - nonContentExtras);
+  }
+  return specifiedSize;
 }
 
 export function horizontalNonContent(node: LayoutNode, reference: number): number {
@@ -167,6 +174,7 @@ export function containingBlock(node: LayoutNode, viewport: Viewport): Containin
 
 export function resolveWidthBlock(node: LayoutNode, containingBlockWidth: number): number {
   const style = node.style;
+  const hNonContent = horizontalNonContent(node, containingBlockWidth);
   const marginLeft = isAutoLength(style.marginLeft)
     ? 0
     : resolveLength(style.marginLeft, containingBlockWidth, { auto: "zero" });
@@ -175,16 +183,22 @@ export function resolveWidthBlock(node: LayoutNode, containingBlockWidth: number
     : resolveLength(style.marginRight, containingBlockWidth, { auto: "zero" });
   const available = Math.max(
     0,
-    containingBlockWidth - horizontalNonContent(node, containingBlockWidth) - marginLeft - marginRight,
+    containingBlockWidth - hNonContent - marginLeft - marginRight,
   );
   const width =
     style.width === "auto"
       ? available
-      : resolveLength(style.width, containingBlockWidth, {
-        auto: "reference",
-      });
-  const minWidth = style.minWidth ? resolveLength(style.minWidth, containingBlockWidth, { auto: "zero" }) : Number.NEGATIVE_INFINITY;
-  const maxWidth = style.maxWidth ? resolveLength(style.maxWidth, containingBlockWidth, { auto: "reference" }) : Number.POSITIVE_INFINITY;
+      : adjustForBoxSizing(
+          resolveLength(style.width, containingBlockWidth, { auto: "reference" }),
+          style.boxSizing,
+          hNonContent,
+        );
+  const minWidth = style.minWidth
+    ? adjustForBoxSizing(resolveLength(style.minWidth, containingBlockWidth, { auto: "zero" }), style.boxSizing, hNonContent)
+    : Number.NEGATIVE_INFINITY;
+  const maxWidth = style.maxWidth
+    ? adjustForBoxSizing(resolveLength(style.maxWidth, containingBlockWidth, { auto: "reference" }), style.boxSizing, hNonContent)
+    : Number.POSITIVE_INFINITY;
   return clampMinMax(width, minWidth, maxWidth);
 }
 

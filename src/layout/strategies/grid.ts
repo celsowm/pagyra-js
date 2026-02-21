@@ -3,6 +3,7 @@ import type { TrackDefinition, TrackSize } from "../../css/style.js";
 import { resolveLength } from "../../css/length.js";
 import type { LayoutContext, LayoutStrategy } from "../pipeline/strategy.js";
 import {
+  adjustForBoxSizing,
   containingBlock,
   horizontalMargin,
   horizontalNonContent,
@@ -228,7 +229,15 @@ export class GridLayoutStrategy implements LayoutStrategy {
 
     const totalRowGap = calculateTotalGap(rowGap, rowCount);
     const verticalExtras = verticalNonContent(node, node.box.contentWidth);
-    node.box.contentHeight = Math.max(0, contentHeight + totalRowGap);
+    let resolvedContentHeight = Math.max(0, contentHeight + totalRowGap);
+    if (node.style.height !== "auto" && node.style.height !== undefined) {
+      resolvedContentHeight = adjustForBoxSizing(
+        resolveLength(node.style.height, cb.height, { auto: "zero" }),
+        node.style.boxSizing,
+        verticalExtras,
+      );
+    }
+    node.box.contentHeight = Math.max(0, resolvedContentHeight);
     node.box.borderBoxHeight = node.box.contentHeight + verticalExtras;
     node.box.marginBoxHeight =
       node.box.borderBoxHeight +

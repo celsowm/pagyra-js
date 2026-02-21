@@ -2,6 +2,7 @@ import {
   AlignContent,
   AlignItems,
   BorderModel,
+  BoxSizing,
   ClearMode,
   Display,
   FloatMode,
@@ -121,6 +122,7 @@ export interface StyleAccumulator {
   paddingRight?: LengthInput;
   paddingBottom?: LengthInput;
   paddingLeft?: LengthInput;
+  boxSizing?: string;
   width?: LengthInput;
   minWidth?: LengthInput;
   height?: LengthInput;
@@ -201,6 +203,7 @@ export class ComputedStyle implements StyleProperties {
   textWrap: TextWrap;
   overflowWrap: OverflowWrap;
   writingMode: WritingMode;
+  boxSizing: BoxSizing;
   width: LengthLike;
   height: LengthLike;
   minWidth?: LengthLike;
@@ -303,6 +306,7 @@ export class ComputedStyle implements StyleProperties {
     this.overflowWrap = data.overflowWrap;
     this.textWrap = data.textWrap;
     this.writingMode = data.writingMode;
+    this.boxSizing = data.boxSizing;
     this.width = data.width;
     this.height = data.height;
     this.minWidth = data.minWidth;

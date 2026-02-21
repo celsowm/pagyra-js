@@ -2,6 +2,7 @@ import {
   AlignContent,
   AlignItems,
   BorderModel,
+  BoxSizing,
   ClearMode,
   Display,
   FloatMode,
@@ -216,6 +217,7 @@ export function createBaseDefaultsObject(): StyleDefaults {
     maxHeight: BoxModelDefaults.getMaxHeight(),
 
     // Layout
+    boxSizing: BoxSizing.ContentBox,
     display: LayoutDefaults.getDisplay(),
     position: LayoutDefaults.getPosition(),
     float: FloatMode.None,

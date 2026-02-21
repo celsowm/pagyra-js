@@ -1,6 +1,6 @@
 import { LayoutNode } from "../../dom/node.js";
 import type { LayoutContext, LayoutStrategy } from "../pipeline/strategy.js";
-import { containingBlock } from "../utils/node-math.js";
+import { adjustForBoxSizing, containingBlock } from "../utils/node-math.js";
 import { resolveLength } from "../../css/length.js";
 import { verticalNonContent, horizontalNonContent } from "../utils/node-math.js";
 import { finalizeOverflow } from "../utils/overflow.js";
@@ -16,6 +16,24 @@ const DEFAULT_CHECKBOX_SIZE = 16;
 export class FormLayoutStrategy implements LayoutStrategy {
   private readonly formTags = new Set(['input', 'select', 'textarea', 'button']);
 
+  private resolveExplicitOrAutoWidth(node: LayoutNode, cbWidth: number, autoValue: number, extras: number): number {
+    const hasExplicitWidth = node.style.width !== "auto" && node.style.width !== undefined;
+    if (!hasExplicitWidth) {
+      return autoValue;
+    }
+    const specified = resolveLength(node.style.width, cbWidth, { auto: autoValue });
+    return adjustForBoxSizing(specified, node.style.boxSizing, extras);
+  }
+
+  private resolveExplicitOrAutoHeight(node: LayoutNode, cbHeight: number, autoValue: number, extras: number): number {
+    const hasExplicitHeight = node.style.height !== "auto" && node.style.height !== undefined;
+    if (!hasExplicitHeight) {
+      return autoValue;
+    }
+    const specified = resolveLength(node.style.height, cbHeight, { auto: autoValue });
+    return adjustForBoxSizing(specified, node.style.boxSizing, extras);
+  }
+
   canLayout(node: LayoutNode): boolean {
     if (!node.tagName) return false;
     return this.formTags.has(node.tagName.toLowerCase());
@@ -28,6 +46,8 @@ export class FormLayoutStrategy implements LayoutStrategy {
 
     let contentWidth: number;
     let contentHeight: number;
+    const horizontalExtras = horizontalNonContent(node, cb.width);
+    const verticalExtras = verticalNonContent(node, cb.width);
 
     switch (tagName) {
       case 'input': {
@@ -39,27 +59,27 @@ export class FormLayoutStrategy implements LayoutStrategy {
           contentWidth = 0;
           contentHeight = 0;
         } else {
-          contentWidth = resolveLength(node.style.width, cb.width, { auto: DEFAULT_INPUT_WIDTH });
-          contentHeight = resolveLength(node.style.height, cb.height, { auto: DEFAULT_INPUT_HEIGHT });
+          contentWidth = this.resolveExplicitOrAutoWidth(node, cb.width, DEFAULT_INPUT_WIDTH, horizontalExtras);
+          contentHeight = this.resolveExplicitOrAutoHeight(node, cb.height, DEFAULT_INPUT_HEIGHT, verticalExtras);
         }
         break;
       }
 
       case 'select':
-        contentWidth = resolveLength(node.style.width, cb.width, { auto: DEFAULT_INPUT_WIDTH });
-        contentHeight = resolveLength(node.style.height, cb.height, { auto: DEFAULT_SELECT_HEIGHT });
+        contentWidth = this.resolveExplicitOrAutoWidth(node, cb.width, DEFAULT_INPUT_WIDTH, horizontalExtras);
+        contentHeight = this.resolveExplicitOrAutoHeight(node, cb.height, DEFAULT_SELECT_HEIGHT, verticalExtras);
         break;
 
       case 'textarea': {
-        contentWidth = resolveLength(node.style.width, cb.width, { auto: DEFAULT_TEXTAREA_WIDTH });
+        contentWidth = this.resolveExplicitOrAutoWidth(node, cb.width, DEFAULT_TEXTAREA_WIDTH, horizontalExtras);
         const rows = (formControl as { rows?: number } | undefined)?.rows ?? 3;
-        contentHeight = resolveLength(node.style.height, cb.height, { auto: rows * 24 });
+        contentHeight = this.resolveExplicitOrAutoHeight(node, cb.height, rows * 24, verticalExtras);
         break;
       }
 
       case 'button':
-        contentWidth = resolveLength(node.style.width, cb.width, { auto: DEFAULT_BUTTON_MIN_WIDTH });
-        contentHeight = resolveLength(node.style.height, cb.height, { auto: DEFAULT_BUTTON_HEIGHT });
+        contentWidth = this.resolveExplicitOrAutoWidth(node, cb.width, DEFAULT_BUTTON_MIN_WIDTH, horizontalExtras);
+        contentHeight = this.resolveExplicitOrAutoHeight(node, cb.height, DEFAULT_BUTTON_HEIGHT, verticalExtras);
         break;
 
       default:
@@ -70,10 +90,8 @@ export class FormLayoutStrategy implements LayoutStrategy {
     node.box.contentWidth = Math.max(0, contentWidth);
     node.box.contentHeight = Math.max(0, contentHeight);
 
-    const horizontalExtras = horizontalNonContent(node, contentWidth);
     node.box.borderBoxWidth = node.box.contentWidth + horizontalExtras;
 
-    const verticalExtras = verticalNonContent(node, contentWidth);
     node.box.borderBoxHeight = node.box.contentHeight + verticalExtras;
 
     node.box.x = cb.x;

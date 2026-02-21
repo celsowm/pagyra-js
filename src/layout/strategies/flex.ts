@@ -1,7 +1,7 @@
 import { LayoutNode } from "../../dom/node.js";
 import { AlignItems, Display, JustifyContent } from "../../css/enums.js";
 import type { LayoutContext, LayoutStrategy } from "../pipeline/strategy.js";
-import { containingBlock, resolveBoxMetrics } from "../utils/node-math.js";
+import { adjustForBoxSizing, containingBlock, resolveBoxMetrics } from "../utils/node-math.js";
 import { resolveLength, isAutoLength } from "../../css/length.js";
 import type { LengthLike } from "../../css/length.js";
 import type { FlexDirection, AlignSelfValue } from "../../css/style.js";
@@ -51,17 +51,25 @@ export class FlexLayoutStrategy implements LayoutStrategy {
     const isRow = isRowDirection(node.style.flexDirection);
     const cbMain = isRow ? cb.width : cb.height;
     const cbCross = isRow ? cb.height : cb.width;
-    const specifiedMain = resolveFlexSize(isRow ? node.style.width : node.style.height, cbMain);
-    const specifiedCross = resolveFlexSize(isRow ? node.style.height : node.style.width, cbCross);
+    // Resolve box metrics (padding/border)
+    const boxMetrics = resolveBoxMetrics(node, cb.width, cb.height);
+    const hExtras = boxMetrics.paddingLeft + boxMetrics.paddingRight + boxMetrics.borderLeft + boxMetrics.borderRight;
+    const vExtras = boxMetrics.paddingTop + boxMetrics.paddingBottom + boxMetrics.borderTop + boxMetrics.borderBottom;
+
+    let specifiedMain = resolveFlexSize(isRow ? node.style.width : node.style.height, cbMain);
+    let specifiedCross = resolveFlexSize(isRow ? node.style.height : node.style.width, cbCross);
+    if (specifiedMain !== undefined) {
+      specifiedMain = adjustForBoxSizing(specifiedMain, node.style.boxSizing, isRow ? hExtras : vExtras);
+    }
+    if (specifiedCross !== undefined) {
+      specifiedCross = adjustForBoxSizing(specifiedCross, node.style.boxSizing, isRow ? vExtras : hExtras);
+    }
 
     // Read gap properties for flex layout
     const rowGap = node.style.rowGap ?? 0;
     const columnGap = node.style.columnGap ?? 0;
     const gapCalculator = new GapCalculator({ rowGap, columnGap });
     const mainAxisGap = gapCalculator.getMainAxisGap(isRow);
-
-    // Resolve box metrics (padding/border)
-    const boxMetrics = resolveBoxMetrics(node, cb.width, cb.height);
 
     if (isRow) {
       node.box.contentWidth = resolveInitialDimension(specifiedMain, cbMain);
@@ -252,8 +260,13 @@ export class FlexLayoutStrategy implements LayoutStrategy {
 
     const minCrossValue = isRow ? node.style.minHeight : node.style.minWidth;
     const maxCrossValue = isRow ? node.style.maxHeight : node.style.maxWidth;
-    const minCross = minCrossValue !== undefined ? resolveLength(minCrossValue, cbCross, { auto: "zero" }) : undefined;
-    const maxCross = maxCrossValue !== undefined ? resolveLength(maxCrossValue, cbCross, { auto: "reference" }) : undefined;
+    const crossExtras = isRow ? vExtras : hExtras;
+    const minCross = minCrossValue !== undefined
+      ? adjustForBoxSizing(resolveLength(minCrossValue, cbCross, { auto: "zero" }), node.style.boxSizing, crossExtras)
+      : undefined;
+    const maxCross = maxCrossValue !== undefined
+      ? adjustForBoxSizing(resolveLength(maxCrossValue, cbCross, { auto: "reference" }), node.style.boxSizing, crossExtras)
+      : undefined;
 
     if (minCross !== undefined) {
       containerCrossSize = Math.max(containerCrossSize, minCross);

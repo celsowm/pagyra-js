@@ -124,4 +124,9 @@ export enum BorderModel {
 
 export type FlexDirection = "row" | "row-reverse" | "column" | "column-reverse";
 
+export enum BoxSizing {
+  ContentBox = "content-box",
+  BorderBox = "border-box",
+}
+
 export type AlignSelfValue = "auto" | AlignItems;

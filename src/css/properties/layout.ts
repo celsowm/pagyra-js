@@ -1,5 +1,5 @@
 import type { LengthLike } from "../length.js";
-import { Display, Position } from "../enums.js";
+import { BoxSizing, Display, Position } from "../enums.js";
 
 /**
  * Layout-related CSS properties.
@@ -14,6 +14,9 @@ export interface LayoutProperties {
 
     /** Stacking order */
     zIndex: number | "auto";
+
+    /** Box sizing model (content-box or border-box) */
+    boxSizing: BoxSizing;
 
     /** Element width */
     width: LengthLike;

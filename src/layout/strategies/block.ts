@@ -2,6 +2,7 @@ import { LayoutNode } from "../../dom/node.js";
 import { Display, FloatMode } from "../../css/enums.js";
 import type { LayoutContext, LayoutStrategy } from "../pipeline/strategy.js";
 import {
+  adjustForBoxSizing,
   containingBlock,
   establishesBFC,
   horizontalNonContent,
@@ -222,7 +223,12 @@ export class BlockLayoutStrategy implements LayoutStrategy {
     const effectiveCursor = Math.max(cursorY, floatBottom);
     node.box.contentHeight = Math.max(0, effectiveCursor - (node.box.y + borderTop) - paddingTop);
     if (node.style.height !== "auto") {
-      node.box.contentHeight = resolveLength(node.style.height, cb.height, { auto: "zero" });
+      const vertExtras = verticalNonContent(node, contentWidth);
+      node.box.contentHeight = adjustForBoxSizing(
+        resolveLength(node.style.height, cb.height, { auto: "zero" }),
+        node.style.boxSizing,
+        vertExtras,
+      );
     }
     const verticalExtras = verticalNonContent(node, contentWidth);
     node.box.borderBoxHeight = node.box.contentHeight + verticalExtras;
