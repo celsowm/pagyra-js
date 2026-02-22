@@ -1,6 +1,7 @@
 // src/css/compute-style.ts
 
 import { type CssRuleEntry } from "../html/css/parse-css.js";
+import type { CssPseudoElement } from "../html/css/parse-css.js";
 import { type UnitParsers } from "../units/units.js";
 import type { SvgElement } from "../types/core.js";
 import {
@@ -11,7 +12,7 @@ import { ElementSpecificDefaults, BrowserDefaults } from "./browser-defaults.js"
 import { applyDeclarationsToStyle } from "./apply-declarations.js";
 import { log } from "../logging/debug.js";
 import { StyleInheritanceResolver } from "./style-inheritance.js";
-import { resolveDeclarationsForElement } from "./compute-style/declarations.js";
+import { resolveDeclarationsForElement, resolveDeclarationsForPseudoElement } from "./compute-style/declarations.js";
 import { resolveDisplayForElement } from "./compute-style/display.js";
 import { applyStyleInitOverrides } from "./compute-style/overrides.js";
 import { applyTextDecorationOptions } from "./compute-style/decoration.js";
@@ -19,6 +20,7 @@ import { resolveDefaultsForComputedStyle } from "./compute-style/defaults.js";
 import { computeFontContext } from "./compute-style/font.js";
 import { mapFloatToMode } from "./compute-style/float.js";
 import { createBaseStyleOptions } from "./compute-style/base-options.js";
+import { Display } from "./enums.js";
 
 export function computeStyleForElement(
   element: SvgElement,
@@ -115,6 +117,80 @@ export function computeStyleForElement(
     };
     log("style", "debug", "element fontStyle", debugInfo);
   }
+
+  return new ComputedStyle(styleOptions);
+}
+
+export function computeStyleForPseudoElement(
+  element: SvgElement,
+  cssRules: CssRuleEntry[],
+  pseudoType: CssPseudoElement,
+  parentStyle: ComputedStyle,
+  units: UnitParsers,
+  rootFontSize?: number,
+): ComputedStyle {
+  const tagName = "span";
+
+  const baseDefaults = BrowserDefaults.createBaseDefaults();
+  const pseudoMergedDefaults = { ...baseDefaults, display: Display.Inline };
+  const inherited = StyleInheritanceResolver.resolveInheritedProperties(parentStyle, pseudoMergedDefaults);
+
+  const styleInit: StyleAccumulator = {};
+  const { resolvedDeclarations, customProperties } = resolveDeclarationsForPseudoElement(
+    element,
+    cssRules,
+    pseudoType,
+    parentStyle.customProperties,
+  );
+
+  applyDeclarationsToStyle(resolvedDeclarations, styleInit, units, inherited.fontWeight ?? pseudoMergedDefaults.fontWeight);
+
+  const display = resolveDisplayForElement(tagName, styleInit.display, pseudoMergedDefaults.display);
+  const floatValue = mapFloatToMode(styleInit.float);
+
+  const fontContext = computeFontContext(
+    tagName,
+    styleInit,
+    inherited,
+    {},
+    baseDefaults,
+    pseudoMergedDefaults,
+    parentStyle.fontSize,
+    rootFontSize,
+  );
+
+  const resolvedDefaults = resolveDefaultsForComputedStyle(
+    pseudoMergedDefaults,
+    fontContext.computedFontSize,
+    fontContext.rootFontReference,
+  );
+
+  const styleOptions = createBaseStyleOptions(
+    resolvedDefaults,
+    inherited,
+    fontContext,
+    pseudoMergedDefaults,
+    styleInit,
+    display,
+    floatValue,
+    customProperties,
+  );
+
+  applyStyleInitOverrides(
+    styleInit,
+    styleOptions,
+    pseudoMergedDefaults,
+    fontContext.computedFontSize,
+    fontContext.rootFontReference,
+  );
+
+  applyTextDecorationOptions(
+    styleOptions,
+    styleInit,
+    inherited,
+    pseudoMergedDefaults,
+    {},
+  );
 
   return new ComputedStyle(styleOptions);
 }

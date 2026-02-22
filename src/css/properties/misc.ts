@@ -1,5 +1,6 @@
 import { FloatMode, ClearMode, TableLayoutMode, BorderModel } from "../enums.js";
 import { CustomPropertiesMap } from "../custom-properties.js";
+import type { CounterIncrement, CounterReset } from "../../layout/counter.js";
 
 /**
  * Miscellaneous CSS properties.
@@ -41,4 +42,10 @@ export interface MiscProperties {
 
     /** CSS Custom Properties (Variables) */
     customProperties?: CustomPropertiesMap;
+
+    /** CSS counters reset declarations */
+    counterReset?: CounterReset[];
+
+    /** CSS counters increment declarations */
+    counterIncrement?: CounterIncrement[];
 }

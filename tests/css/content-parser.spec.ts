@@ -44,6 +44,14 @@ describe("content CSS property parsing", () => {
         expect(item.style).toBe("decimal");
     });
 
+    it("parses counter() with decimal-leading-zero style", () => {
+        const target: StyleAccumulator = {};
+        parseContent("counter(step, decimal-leading-zero)", target);
+        expect(target.content).toBeDefined();
+        const item = expectContentType(target.content![0], "counter");
+        expect(item.style).toBe("decimal-leading-zero");
+    });
+
     it("parses attr() function", () => {
         const target: StyleAccumulator = {};
         parseContent('attr(data-index)', target);
@@ -102,6 +110,13 @@ describe("formatCounterValue", () => {
         expect(formatCounterValue(1, "upper-alpha")).toBe("A");
         expect(formatCounterValue(26, "upper-alpha")).toBe("Z");
         expect(formatCounterValue(27, "upper-alpha")).toBe("AA");
+    });
+
+    it("formats decimal-leading-zero", () => {
+        expect(formatCounterValue(1, "decimal-leading-zero")).toBe("01");
+        expect(formatCounterValue(9, "decimal-leading-zero")).toBe("09");
+        expect(formatCounterValue(10, "decimal-leading-zero")).toBe("10");
+        expect(formatCounterValue(-1, "decimal-leading-zero")).toBe("-01");
     });
 });
 

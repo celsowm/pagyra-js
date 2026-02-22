@@ -134,6 +134,7 @@ import { parseOverflowWrap, parseWordWrap } from "./overflow-wrap-parser.js";
 import { parseTextShadow } from "./text-shadow-parser.js";
 import { parseListStyleType } from "./list-style-parser.js";
 import { parseContent } from "./content-parser.js";
+import { parseCounterIncrement, parseCounterReset } from "../../layout/counter.js";
 
 // Background
 import {
@@ -291,6 +292,12 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("text-shadow", parseTextShadow);
   registerPropertyParser("list-style-type", parseListStyleType);
   registerPropertyParser("content", parseContent);
+  registerPropertyParser("counter-reset", (value, target) => {
+    target.counterReset = parseCounterReset(value);
+  });
+  registerPropertyParser("counter-increment", (value, target) => {
+    target.counterIncrement = parseCounterIncrement(value);
+  });
   // Transform (store as raw string for limited later use)
   registerPropertyParser("transform", (value, target) => {
     // store raw transform string

@@ -39,15 +39,13 @@ export interface CounterIncrement {
 }
 
 export interface CounterContext {
-    getScopeId(): string;
-    getCounter(name: string): number;
+    getCounter(name: string, scopeId: string | null): number;
     registerScope(parentScopeId: string | null): string;
     resetCounter(name: string, value: number, scopeId: string): void;
     incrementCounter(name: string, value: number, scopeId: string): void;
 }
 
 let scopeCounter = 0;
-let globalCounter = 0;
 
 /**
  * Create a new counter scope
@@ -91,24 +89,24 @@ export function createCounterContext(): CounterContext {
         return 0;
     }
 
-    return {
-        getScopeId(): string {
-            return `global-${++globalCounter}`;
-        },
+    function findScopeWithCounter(scopeId: string | null, name: string): string | null {
+        let currentScopeId = scopeId;
+        while (currentScopeId !== null) {
+            const scopeCounters = counters.get(currentScopeId);
+            if (scopeCounters && scopeCounters.has(name)) {
+                return currentScopeId;
+            }
+            currentScopeId = scopeHierarchy.get(currentScopeId) ?? null;
+        }
+        return null;
+    }
 
-        getCounter(name: string): number {
-            // Get from the innermost active scope
-            let currentScopeId: string | null = null;
-            for (const [sid, parentId] of scopeHierarchy) {
-                if (parentId === null) {
-                    currentScopeId = sid;
-                }
+    return {
+        getCounter(name: string, scopeId: string | null): number {
+            if (!scopeId) {
+                return 0;
             }
-            if (!currentScopeId) {
-                // No scopes active, use global counter
-                return getEffectiveValue("global", name);
-            }
-            return getEffectiveValue(currentScopeId, name);
+            return getEffectiveValue(scopeId, name);
         },
 
         registerScope(parentScopeId: string | null): string {
@@ -125,8 +123,9 @@ export function createCounterContext(): CounterContext {
         },
 
         incrementCounter(name: string, value: number, scopeId: string): void {
-            ensureCounter(scopeId, name);
-            const scopeCounters = counters.get(scopeId)!;
+            const targetScopeId = findScopeWithCounter(scopeId, name) ?? scopeId;
+            ensureCounter(targetScopeId, name);
+            const scopeCounters = counters.get(targetScopeId)!;
             const current = scopeCounters.get(name) ?? 0;
             scopeCounters.set(name, current + value);
         },

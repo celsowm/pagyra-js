@@ -4,11 +4,13 @@ import { createSelectorMatcher, type DomLikeElement } from "../../css/selectors/
 import type { DomElement } from "../../types/core.js";
 
 export type DomEl = DomElement;
+export type CssPseudoElement = "::before" | "::after";
 
 export interface CssRuleEntry {
   selector: string;
   declarations: Record<string, string>;
   match: (el: DomLikeElement) => boolean;
+  pseudoElement?: CssPseudoElement;
 }
 
 export interface FontFaceRule {
@@ -52,12 +54,23 @@ export function buildCssRules(cssText: string): ParsedCss {
         }
       }
       for (const selector of selectors) {
-        const matcher = createSelectorMatcher(selector.trim());
-        if (!matcher) {
-          console.warn(`Invalid CSS selector: ${selector.trim()}`);
+        const trimmedSelector = selector.trim();
+        const parsedSelector = splitTerminalPseudoElement(trimmedSelector);
+        if (parsedSelector.unsupportedPseudo) {
+          console.warn(`Unsupported pseudo-element selector: ${trimmedSelector}`);
           continue;
         }
-        result.styleRules.push({ selector, declarations: { ...declarations }, match: matcher });
+        const matcher = createSelectorMatcher(parsedSelector.baseSelector);
+        if (!matcher) {
+          console.warn(`Invalid CSS selector: ${trimmedSelector}`);
+          continue;
+        }
+        result.styleRules.push({
+          selector,
+          declarations: { ...declarations },
+          match: matcher,
+          pseudoElement: parsedSelector.pseudoElement,
+        });
       }
     } else if (rule.type === "font-face") {
       const typedRule = rule as CssFontFaceRule;
@@ -80,6 +93,31 @@ export function buildCssRules(cssText: string): ParsedCss {
     }
   }
   return result;
+}
+
+function splitTerminalPseudoElement(selector: string): {
+  baseSelector: string;
+  pseudoElement?: CssPseudoElement;
+  unsupportedPseudo?: string;
+} {
+  const trimmed = selector.trim();
+  const supported = /(.*?)(::?before|::?after)\s*$/i.exec(trimmed);
+  if (supported) {
+    const pseudoRaw = supported[2].toLowerCase();
+    const pseudoElement: CssPseudoElement = pseudoRaw.endsWith("before") ? "::before" : "::after";
+    const baseSelector = (supported[1].trim() || "*");
+    return { baseSelector, pseudoElement };
+  }
+
+  const unsupported = /(.*?)(::[a-z-]+)\s*$/i.exec(trimmed);
+  if (unsupported) {
+    return {
+      baseSelector: unsupported[1].trim() || "*",
+      unsupportedPseudo: unsupported[2].toLowerCase(),
+    };
+  }
+
+  return { baseSelector: trimmed || "*" };
 }
 
 export function parseCss(cssText: string): ParsedCss {

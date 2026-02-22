@@ -33,6 +33,7 @@ import type { Environment } from "./environment/environment.js";
 import { NodeEnvironment } from "./environment/node-environment.js";
 import { decodeBase64ToUint8Array, encodeUint8ArrayToBase64 } from "./utils/base64.js";
 import type { SvgElement } from "./types/core.js";
+import { createCounterContext } from "./layout/counter.js";
 
 export interface RenderHtmlOptions {
   html: string;
@@ -194,7 +195,17 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   }
   const rootLayout = new LayoutNode(rootStyle, [], { tagName: processChildrenOf?.tagName?.toLowerCase() });
 
-  const conversionContext = { resourceBaseDir: resourceBaseDirVal, assetRootDir: assetRootDirVal, units, rootFontSize, environment };
+  const counterContext = createCounterContext();
+  const rootCounterScopeId = counterContext.registerScope(null);
+  const conversionContext = {
+    resourceBaseDir: resourceBaseDirVal,
+    assetRootDir: assetRootDirVal,
+    units,
+    rootFontSize,
+    environment,
+    counterContext,
+    rootCounterScopeId,
+  };
 
   if (processChildrenOf) {
     log('html-to-pdf', 'debug', `prepareHtmlRender - processing children of: ${processChildrenOf.tagName}, count: ${processChildrenOf.childNodes.length}`);

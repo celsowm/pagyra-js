@@ -34,6 +34,7 @@ import type { PagePainter } from "./page-painter.js";
 import { paintBoxAtomic } from "./renderer/box-painter.js";
 import { applyPlaceholders } from "./header-footer-tokens.js";
 import type { Environment } from "../environment/environment.js";
+import { createCounterContext } from "../layout/counter.js";
 
 export interface HeaderFooterRenderOptions {
   /** The HTML content for the header/footer */
@@ -129,7 +130,17 @@ export async function renderHeaderFooterHtml(
 
   const rootLayout = new LayoutNode(rootStyle, [], { tagName: rootElement?.tagName?.toLowerCase() });
 
-  const conversionContext = { resourceBaseDir: resolvedResourceBase, assetRootDir: resolvedAssetRoot, units, rootFontSize, environment };
+  const counterContext = createCounterContext();
+  const rootCounterScopeId = counterContext.registerScope(null);
+  const conversionContext = {
+    resourceBaseDir: resolvedResourceBase,
+    assetRootDir: resolvedAssetRoot,
+    units,
+    rootFontSize,
+    environment,
+    counterContext,
+    rootCounterScopeId,
+  };
 
   if (rootElement) {
     for (const child of Array.from(rootElement.childNodes)) {

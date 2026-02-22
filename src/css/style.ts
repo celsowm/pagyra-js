@@ -60,6 +60,7 @@ import type {
 import type { MiscProperties } from "./properties/misc.js";
 import type { ClipPath } from "./clip-path-types.js";
 import type { ContentValue } from "./parsers/content-parser.js";
+import type { CounterIncrement, CounterReset } from "../layout/counter.js";
 
 // Re-export types for convenience
 export type { NumericLength } from "./length.js";
@@ -139,6 +140,8 @@ export interface StyleAccumulator {
   fontVariant?: string;
   fontVariantNumeric?: FontVariantNumeric[];
   content?: ContentValue[];
+  counterReset?: CounterReset[];
+  counterIncrement?: CounterIncrement[];
   fontWeight?: number;
   letterSpacing?: number | RelativeLength;
   borderModel?: BorderModel;
@@ -252,6 +255,8 @@ export class ComputedStyle implements StyleProperties {
   fontVariant?: string;
   fontVariantNumeric?: FontVariantNumeric[];
   content?: ContentValue[];
+  counterReset?: CounterReset[];
+  counterIncrement?: CounterIncrement[];
   clipPath?: ClipPath;
   objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down";
   left?: LengthLike;
@@ -355,6 +360,8 @@ export class ComputedStyle implements StyleProperties {
     this.fontVariant = data.fontVariant;
     this.fontVariantNumeric = data.fontVariantNumeric;
     this.content = data.content;
+    this.counterReset = data.counterReset;
+    this.counterIncrement = data.counterIncrement;
     this.clipPath = data.clipPath;
     this.objectFit = data.objectFit;
     this.zIndex = data.zIndex;

@@ -9,7 +9,7 @@ import type { StyleAccumulator } from "../style.js";
  */
 export type ContentValue =
     | { type: "string"; value: string }
-    | { type: "counter"; counter: string; style?: "decimal" | "lower-roman" | "upper-roman" | "lower-alpha" | "upper-alpha" }
+    | { type: "counter"; counter: string; style?: CounterStyle }
     | { type: "attr"; attribute: string }
     | { type: "open-quote" }
     | { type: "close-quote" }
@@ -20,6 +20,13 @@ export type ContentValue =
  * Default quote pair if none specified
  */
 const DEFAULT_QUOTE_PAIR = ["\u201C", "\u201D"];
+export type CounterStyle =
+    | "decimal"
+    | "decimal-leading-zero"
+    | "lower-roman"
+    | "upper-roman"
+    | "lower-alpha"
+    | "upper-alpha";
 
 /**
  * Parse a CSS content property value into ContentValue[]
@@ -95,12 +102,12 @@ function parseContentValue(value: string): ContentValue[] {
 
         // Handle counter() function
         if (value.slice(i).startsWith("counter(")) {
-            const match = /^counter\(\s*([a-zA-Z_][a-zA-Z0-9_-]*)\s*(?:,\s*(decimal|lower-roman|upper-roman|lower-alpha|upper-alpha))?\s*\)/i.exec(value.slice(i));
+            const match = /^counter\(\s*([a-zA-Z_][a-zA-Z0-9_-]*)\s*(?:,\s*(decimal-leading-zero|decimal|lower-roman|upper-roman|lower-alpha|upper-alpha))?\s*\)/i.exec(value.slice(i));
             if (match) {
                 result.push({
                     type: "counter",
                     counter: match[1],
-                    style: match[2] as "decimal" | "lower-roman" | "upper-roman" | "lower-alpha" | "upper-alpha" | undefined,
+                    style: match[2] as CounterStyle | undefined,
                 });
                 i += match[0].length;
                 continue;
@@ -109,12 +116,12 @@ function parseContentValue(value: string): ContentValue[] {
 
         // Handle counters() function (plural - for nested counters)
         if (value.slice(i).startsWith("counters(")) {
-            const match = /^counters\(\s*([a-zA-Z_][a-zA-Z0-9_-]*)\s*,\s*(["'])(.*)\2\s*(?:,\s*(decimal|lower-roman|upper-roman|lower-alpha|upper-alpha))?\s*\)/i.exec(value.slice(i));
+            const match = /^counters\(\s*([a-zA-Z_][a-zA-Z0-9_-]*)\s*,\s*(["'])(.*)\2\s*(?:,\s*(decimal-leading-zero|decimal|lower-roman|upper-roman|lower-alpha|upper-alpha))?\s*\)/i.exec(value.slice(i));
             if (match) {
                 result.push({
                     type: "counter",
                     counter: match[1],
-                    style: match[4] as "decimal" | "lower-roman" | "upper-roman" | "lower-alpha" | "upper-alpha" | undefined,
+                    style: match[4] as CounterStyle | undefined,
                 });
                 i += match[0].length;
                 continue;
@@ -169,6 +176,11 @@ export function formatCounterValue(value: number, style?: string): string {
     }
 
     const lower = style.toLowerCase();
+    if (lower === "decimal-leading-zero") {
+        const sign = value < 0 ? "-" : "";
+        const abs = Math.abs(Math.trunc(value));
+        return `${sign}${String(abs).padStart(2, "0")}`;
+    }
 
     if (lower === "lower-roman") {
         return toRomanNumeral(value)?.toLowerCase() ?? String(value);

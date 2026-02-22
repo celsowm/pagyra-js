@@ -1,4 +1,5 @@
 import type { CssRuleEntry } from "../../html/css/parse-css.js";
+import type { CssPseudoElement } from "../../html/css/parse-css.js";
 import type { SvgElement } from "../../types/core.js";
 import { log } from "../../logging/debug.js";
 import { parseInlineStyle } from "../inline-style-parser.js";
@@ -25,10 +26,24 @@ function normalizeRuleDeclarations(declarations: Record<string, string>): Record
   return normalized;
 }
 
-function collectAggregatedDeclarations(element: SvgElement, cssRules: CssRuleEntry[]): Record<string, string> {
+function collectAggregatedDeclarations(
+  element: SvgElement,
+  cssRules: CssRuleEntry[],
+  options?: { pseudoElement?: CssPseudoElement; includeInlineStyle?: boolean },
+): Record<string, string> {
   const aggregated: Record<string, string> = {};
+  const targetPseudo = options?.pseudoElement;
+  const includeInlineStyle = options?.includeInlineStyle ?? true;
 
   for (const rule of cssRules) {
+    if (targetPseudo) {
+      if (rule.pseudoElement !== targetPseudo) {
+        continue;
+      }
+    } else if (rule.pseudoElement) {
+      continue;
+    }
+
     if (!rule.match(element)) {
       continue;
     }
@@ -39,11 +54,13 @@ function collectAggregatedDeclarations(element: SvgElement, cssRules: CssRuleEnt
     Object.assign(aggregated, normalizeRuleDeclarations(rule.declarations));
   }
 
-  const inlineStyle = parseInlineStyle(element.getAttribute("style") ?? "");
-  if (Object.keys(inlineStyle).length > 0) {
-    log("style", "debug", "inline style applied", { declarations: inlineStyle });
+  if (includeInlineStyle) {
+    const inlineStyle = parseInlineStyle(element.getAttribute("style") ?? "");
+    if (Object.keys(inlineStyle).length > 0) {
+      log("style", "debug", "inline style applied", { declarations: inlineStyle });
+    }
+    Object.assign(aggregated, inlineStyle);
   }
-  Object.assign(aggregated, inlineStyle);
 
   return aggregated;
 }
@@ -66,6 +83,30 @@ export function resolveDeclarationsForElement(
     count: customProperties.size,
     keys: customProperties.keys(),
   });
+
+  return {
+    resolvedDeclarations: resolveDeclarationsWithVariables(aggregated, customProperties),
+    customProperties,
+  };
+}
+
+export function resolveDeclarationsForPseudoElement(
+  element: SvgElement,
+  cssRules: CssRuleEntry[],
+  pseudoType: CssPseudoElement,
+  parentCustomProperties?: CustomPropertiesMap,
+): ResolvedDeclarationsResult {
+  const aggregated = collectAggregatedDeclarations(element, cssRules, {
+    pseudoElement: pseudoType,
+    includeInlineStyle: false,
+  });
+
+  let customProperties = parentCustomProperties
+    ? parentCustomProperties.clone()
+    : new CustomPropertiesMap();
+
+  const pseudoCustomProps = extractCustomProperties(aggregated);
+  customProperties = pseudoCustomProps.inherit(customProperties);
 
   return {
     resolvedDeclarations: resolveDeclarationsWithVariables(aggregated, customProperties),

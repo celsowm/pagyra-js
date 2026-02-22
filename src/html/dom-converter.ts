@@ -1,10 +1,10 @@
 // src/html/dom-converter.ts
 
-import { type DomEl, type CssRuleEntry } from "./css/parse-css.js";
+import { type DomEl, type CssPseudoElement, type CssRuleEntry } from "./css/parse-css.js";
 import { LayoutNode, type LayoutNodeOptions } from "../dom/node.js";
 import { ComputedStyle } from "../css/style.js";
 import { cloneLineHeight } from "../css/line-height.js";
-import { computeStyleForElement } from "../css/compute-style.js";
+import { computeStyleForElement, computeStyleForPseudoElement } from "../css/compute-style.js";
 import { convertImageElement, resolveImageSource, canLoadHttpResource, type ConversionContext } from "./image-converter.js";
 import { Display, WhiteSpace } from "../css/enums.js";
 import { parseSvg } from "../svg/parser.js";
@@ -15,6 +15,8 @@ import { log } from "../logging/debug.js";
 import { decodeBase64ToUint8Array } from "../utils/base64.js";
 import { defaultFormRegistry, extractFormControlData } from "../dom/form-registry.js";
 import type { ExtendedDomNode, SvgElement } from "../types/core.js";
+import { applyCounterIncrements, applyCounterResets } from "../layout/counter.js";
+import { evaluateContent } from "../css/parsers/content-parser.js";
 
 function findMeaningfulSibling(start: Node | null, direction: "previous" | "next"): Node | null {
   let current = start;
@@ -179,11 +181,114 @@ async function hydrateBackgroundImages(style: ComputedStyle, context: Conversion
   }
 }
 
+function createGeneratedTextNode(text: string, parentStyle: ComputedStyle): LayoutNode | null {
+  if (text.length === 0) {
+    return null;
+  }
+
+  const textStyle = new ComputedStyle({
+    display: Display.Inline,
+    color: parentStyle.color,
+    fontSize: parentStyle.fontSize,
+    lineHeight: cloneLineHeight(parentStyle.lineHeight),
+    fontFamily: parentStyle.fontFamily,
+    fontWeight: parentStyle.fontWeight,
+    fontStyle: parentStyle.fontStyle,
+    letterSpacing: parentStyle.letterSpacing,
+    wordSpacing: parentStyle.wordSpacing,
+    overflowWrap: parentStyle.overflowWrap,
+    whiteSpace: parentStyle.whiteSpace,
+    textDecorationLine: parentStyle.textDecorationLine,
+    textDecorationColor: parentStyle.textDecorationColor,
+    textDecorationStyle: parentStyle.textDecorationStyle,
+    textTransform: parentStyle.textTransform,
+    transform: parentStyle.transform,
+    textShadows: parentStyle.textShadows,
+  });
+
+  return new LayoutNode(textStyle, [], {
+    textContent: text,
+    customData: {
+      preserveLeadingSpace: true,
+      preserveTrailingSpace: true,
+    },
+  });
+}
+
+function registerCounterScopeForNode(
+  style: ComputedStyle,
+  context: ConversionContext,
+  parentScopeId: string | null,
+): string | undefined {
+  if (!context.counterContext) {
+    return undefined;
+  }
+  const scopeId = context.counterContext.registerScope(parentScopeId);
+  if (style.counterReset && style.counterReset.length > 0) {
+    applyCounterResets(context.counterContext, style.counterReset, scopeId);
+  }
+  if (style.counterIncrement && style.counterIncrement.length > 0) {
+    applyCounterIncrements(context.counterContext, style.counterIncrement, scopeId);
+  }
+  return scopeId;
+}
+
+async function synthesizePseudoElement(
+  element: DomEl,
+  pseudoType: CssPseudoElement,
+  cssRules: CssRuleEntry[],
+  parentStyle: ComputedStyle,
+  context: ConversionContext,
+  parentCounterScopeId: string | null,
+): Promise<LayoutNode | null> {
+  const pseudoStyle = computeStyleForPseudoElement(
+    element,
+    cssRules,
+    pseudoType,
+    parentStyle,
+    context.units,
+    context.rootFontSize,
+  );
+
+  if (!pseudoStyle.content) {
+    return null;
+  }
+
+  await hydrateBackgroundImages(pseudoStyle, context);
+
+  const pseudoScopeId = registerCounterScopeForNode(pseudoStyle, context, parentCounterScopeId);
+  const effectiveScopeId = pseudoScopeId ?? parentCounterScopeId;
+  const generatedText = evaluateContent(pseudoStyle.content, {
+    getCounter: (name) => context.counterContext?.getCounter(name, effectiveScopeId) ?? 0,
+    getAttribute: (name) => element.getAttribute(name),
+    quoteDepth: 0,
+  });
+
+  const children: LayoutNode[] = [];
+  const textNode = createGeneratedTextNode(generatedText, pseudoStyle);
+  if (textNode) {
+    children.push(textNode);
+  }
+
+  const pseudoNode = new LayoutNode(pseudoStyle, children, {
+    tagName: pseudoType,
+    customData: {
+      pseudoType: pseudoType === "::before" ? "before" : "after",
+    },
+  });
+  if (pseudoScopeId) {
+    pseudoNode.counterScopeId = pseudoScopeId;
+  }
+
+  return pseudoNode;
+}
+
 export async function convertDomNode(
   node: Node,
   cssRules: CssRuleEntry[],
   parentStyle: ComputedStyle,
   context: ConversionContext,
+  parentCounterScopeId: string | null = context.rootCounterScopeId ?? null,
 ): Promise<LayoutNode | null> {
   const extendedNode = node as unknown as ExtendedDomNode;
   log('dom-converter', 'debug', `convertDomNode - entering function for node type: ${node.nodeType}, tagName: ${extendedNode.tagName || 'text node'}`);
@@ -345,7 +450,21 @@ export async function convertDomNode(
   if (element.tagName.toLowerCase() === 'div' && element.getAttribute("style")?.includes('linear-gradient')) {
     log('dom-converter', 'debug', "Found div with gradient style!");
   }
+  const elementCounterScopeId = registerCounterScopeForNode(ownStyle, context, parentCounterScopeId) ?? undefined;
+  const currentScopeId = elementCounterScopeId ?? parentCounterScopeId;
+
   const layoutChildren: LayoutNode[] = [];
+  const beforePseudo = await synthesizePseudoElement(
+    element,
+    "::before",
+    cssRules,
+    ownStyle,
+    context,
+    currentScopeId,
+  );
+  if (beforePseudo) {
+    layoutChildren.push(beforePseudo);
+  }
   let textBuf = "";
 
   const childNodes = element.childNodes;
@@ -394,7 +513,7 @@ export async function convertDomNode(
       }
       textBuf = "";
     }
-    const sub = await convertDomNode(child, cssRules, ownStyle, context);
+    const sub = await convertDomNode(child, cssRules, ownStyle, context, currentScopeId);
     if (sub) layoutChildren.push(sub);
   }
   if (textBuf) {
@@ -433,6 +552,18 @@ export async function convertDomNode(
     }
   }
 
+  const afterPseudo = await synthesizePseudoElement(
+    element,
+    "::after",
+    cssRules,
+    ownStyle,
+    context,
+    currentScopeId,
+  );
+  if (afterPseudo) {
+    layoutChildren.push(afterPseudo);
+  }
+
   // Preserve the original HTML ID
   const id = element.getAttribute("id");
   const options: LayoutNodeOptions = { tagName };
@@ -443,7 +574,11 @@ export async function convertDomNode(
   if (id) {
     options.customData = { ...options.customData, id };
   }
-  return new LayoutNode(ownStyle, layoutChildren, options);
+  const layoutNode = new LayoutNode(ownStyle, layoutChildren, options);
+  if (elementCounterScopeId) {
+    layoutNode.counterScopeId = elementCounterScopeId;
+  }
+  return layoutNode;
 }
 
 function resolveSvgIntrinsicSize(svg: SvgRootNode, element: SvgElement): { width: number; height: number } {
