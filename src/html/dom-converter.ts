@@ -56,7 +56,19 @@ function isInlineDisplay(display: Display): boolean {
   );
 }
 
+function isGridOrFlexContainer(display: Display): boolean {
+  return (
+    display === Display.Grid ||
+    display === Display.InlineGrid ||
+    display === Display.Flex ||
+    display === Display.InlineFlex
+  );
+}
+
 function shouldPreserveCollapsedWhitespace(children: LayoutNode[], style: ComputedStyle): boolean {
+  if (isGridOrFlexContainer(style.display)) {
+    return false;
+  }
   if (style.whiteSpace === WhiteSpace.Pre || style.whiteSpace === WhiteSpace.PreWrap) {
     return true;
   }
@@ -184,6 +196,9 @@ export async function convertDomNode(
     const hasNext = hasMeaningfulNextSibling(node);
 
     if (trimmed.length === 0) {
+      if (isGridOrFlexContainer(parentStyle.display)) {
+        return null;
+      }
       const keepSpace = hasPrev && hasNext;
       if (!keepSpace) {
         return null;
