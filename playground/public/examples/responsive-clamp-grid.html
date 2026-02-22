@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Responsive Grid com clamp()</title>
+  <style>
+    body { 
+      margin: 0; 
+      display: grid;
+      grid-template-columns: clamp(150px, 20vw, 300px) 1fr; 
+      height: 100vh; 
+      font-family: sans-serif;
+    }
+    aside { 
+      background: #333; 
+      color: white; 
+      padding: 20px; 
+    }
+    main { 
+      display: flex;
+      flex-wrap: wrap; 
+      gap: clamp(10px, 5vw, 40px);
+      padding: calc(10px + 2%);
+    }
+
+    div { 
+      flex: 1 1 200px; 
+      height: 150px; 
+      background: #6c5ce7; 
+      border-radius: 8px;
+      font-size: clamp(1rem, 3vw, 2rem); 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <aside>Menu</aside>
+  <main>
+    <div>Card 1</div>
+    <div>Card 2</div>
+    <div>Card 3</div>
+  </main>
+</body>
+</html>

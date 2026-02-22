@@ -258,5 +258,10 @@
     "id": "fonts-demo",
     "label": "LoadedFont @font-face Demo",
     "htmlUrl": "examples/fonts-demo.html"
+  },
+  {
+    "id": "responsive-clamp-grid",
+    "label": "Responsive Grid com clamp() (pt-BR)",
+    "htmlUrl": "examples/responsive-clamp-grid.html"
   }
 ]
