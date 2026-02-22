@@ -33,7 +33,9 @@ export class ContentMeasurer {
         node: LayoutNode,
         referenceWidth: number,
         contentStartX: number,
+        containerHeight: number = referenceWidth,
     ): { width: number; leftOffset: number } {
+        const containerRefs = { containerWidth: referenceWidth, containerHeight };
         let minStart = Number.POSITIVE_INFINITY;
         let maxEnd = Number.NEGATIVE_INFINITY;
         let hasContent = false;
@@ -49,15 +51,15 @@ export class ContentMeasurer {
             const marginLeft =
                 child.box.usedMarginLeft !== undefined
                     ? child.box.usedMarginLeft
-                    : resolveLength(child.style.marginLeft, referenceWidth, { auto: "zero" });
+                    : resolveLength(child.style.marginLeft, referenceWidth, { auto: "zero", ...containerRefs });
             const marginRight =
                 child.box.usedMarginRight !== undefined
                     ? child.box.usedMarginRight
-                    : resolveLength(child.style.marginRight, referenceWidth, { auto: "zero" });
-            const borderLeft = resolveLength(child.style.borderLeft, referenceWidth, { auto: "zero" });
-            const borderRight = resolveLength(child.style.borderRight, referenceWidth, { auto: "zero" });
-            const paddingLeft = resolveLength(child.style.paddingLeft, referenceWidth, { auto: "zero" });
-            const paddingRight = resolveLength(child.style.paddingRight, referenceWidth, { auto: "zero" });
+                    : resolveLength(child.style.marginRight, referenceWidth, { auto: "zero", ...containerRefs });
+            const borderLeft = resolveLength(child.style.borderLeft, referenceWidth, { auto: "zero", ...containerRefs });
+            const borderRight = resolveLength(child.style.borderRight, referenceWidth, { auto: "zero", ...containerRefs });
+            const paddingLeft = resolveLength(child.style.paddingLeft, referenceWidth, { auto: "zero", ...containerRefs });
+            const paddingRight = resolveLength(child.style.paddingRight, referenceWidth, { auto: "zero", ...containerRefs });
 
             const borderBoxWidth = child.box.borderBoxWidth || Math.max(0, child.box.contentWidth + paddingLeft + paddingRight + borderLeft + borderRight);
             const marginBoxWidth = borderBoxWidth + marginLeft + marginRight;

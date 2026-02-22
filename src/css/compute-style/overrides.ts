@@ -4,7 +4,15 @@ import { normalizeFontWeight } from "../font-weight.js";
 import { CssUnitResolver } from "../css-unit-resolver.js";
 import { LayoutPropertyResolver } from "../layout-property-resolver.js";
 import { resolveLineHeightInput } from "../line-height.js";
-import { resolveNumberLike, type LengthInput, type LengthLike, type NumericLength } from "../length.js";
+import {
+  isClampNumericLength,
+  resolveClampNumericLength,
+  resolveNumberLike,
+  type ClampNumericLength,
+  type LengthInput,
+  type LengthLike,
+  type NumericLength,
+} from "../length.js";
 import type { StyleDefaults } from "../ua-defaults/types.js";
 
 function assignMarginWithFallback(
@@ -45,6 +53,16 @@ export function applyStyleInitOverrides(
     unitResolver.createLengthAssigner(setter)(value);
   };
   const assignNumberLength = (value: NumericLength, setter: (resolved: number) => void): void => {
+    unitResolver.createNumberAssigner(setter)(value);
+  };
+  const assignGapLength = (value: NumericLength | ClampNumericLength, setter: (resolved: number) => void): void => {
+    if (isClampNumericLength(value)) {
+      const resolved = resolveClampNumericLength(value, computedFontSize, rootFontReference);
+      if (resolved !== undefined) {
+        setter(resolved);
+      }
+      return;
+    }
     unitResolver.createNumberAssigner(setter)(value);
   };
 
@@ -176,10 +194,10 @@ export function applyStyleInitOverrides(
     styleOptions.autoFlow = styleInit.autoFlow;
   }
   if (styleInit.rowGap !== undefined) {
-    assignNumberLength(styleInit.rowGap, (v) => (styleOptions.rowGap = v));
+    assignGapLength(styleInit.rowGap, (v) => (styleOptions.rowGap = v));
   }
   if (styleInit.columnGap !== undefined) {
-    assignNumberLength(styleInit.columnGap, (v) => (styleOptions.columnGap = v));
+    assignGapLength(styleInit.columnGap, (v) => (styleOptions.columnGap = v));
   }
   if (styleInit.justifyContent !== undefined) styleOptions.justifyContent = styleInit.justifyContent;
   if (styleInit.alignItems !== undefined) styleOptions.alignItems = styleInit.alignItems;
@@ -187,6 +205,9 @@ export function applyStyleInitOverrides(
   if (styleInit.alignSelf !== undefined) styleOptions.alignSelf = styleInit.alignSelf;
   if (styleInit.flexDirection !== undefined) styleOptions.flexDirection = styleInit.flexDirection;
   if (styleInit.flexWrap !== undefined) styleOptions.flexWrap = styleInit.flexWrap;
+  if (styleInit.flexGrow !== undefined) styleOptions.flexGrow = styleInit.flexGrow;
+  if (styleInit.flexShrink !== undefined) styleOptions.flexShrink = styleInit.flexShrink;
+  if (styleInit.flexBasis !== undefined) assignLength(styleInit.flexBasis, (v) => (styleOptions.flexBasis = v));
   if (styleInit.textAlign !== undefined) styleOptions.textAlign = styleInit.textAlign;
   if (styleInit.textIndent !== undefined) assignLength(styleInit.textIndent, (v) => (styleOptions.textIndent = v));
   if (styleInit.textTransform !== undefined) styleOptions.textTransform = styleInit.textTransform;

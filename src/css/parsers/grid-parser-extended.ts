@@ -1,7 +1,8 @@
 // src/css/parsers/grid-parser-extended.ts
 
 import { parseGap as parseGapValue, parseGridTemplate } from "./grid-parser.js";
-import { parseLength } from "./length-parser.js";
+import { parseClampArgs, parseLength } from "./length-parser.js";
+import type { ClampNumericLength } from "../length.js";
 import type { GridAutoFlow, StyleAccumulator } from "../style.js";
 
 export function parseGridTemplateColumns(value: string, target: StyleAccumulator): void {
@@ -44,6 +45,17 @@ export function parseRowGap(value: string, target: StyleAccumulator): void {
   const parsed = parseLength(value);
   if (parsed !== undefined) {
     target.rowGap = parsed;
+    return;
+  }
+  const clampArgs = parseClampArgs(value);
+  if (clampArgs) {
+    const min = parseLength(clampArgs[0]);
+    const preferred = parseLength(clampArgs[1]);
+    const max = parseLength(clampArgs[2]);
+    if (min !== undefined && preferred !== undefined && max !== undefined) {
+      const clampValue: ClampNumericLength = { kind: "clamp", min, preferred, max };
+      target.rowGap = clampValue;
+    }
   }
 }
 
@@ -51,5 +63,16 @@ export function parseColumnGap(value: string, target: StyleAccumulator): void {
   const parsed = parseLength(value);
   if (parsed !== undefined) {
     target.columnGap = parsed;
+    return;
+  }
+  const clampArgs = parseClampArgs(value);
+  if (clampArgs) {
+    const min = parseLength(clampArgs[0]);
+    const preferred = parseLength(clampArgs[1]);
+    const max = parseLength(clampArgs[2]);
+    if (min !== undefined && preferred !== undefined && max !== undefined) {
+      const clampValue: ClampNumericLength = { kind: "clamp", min, preferred, max };
+      target.columnGap = clampValue;
+    }
   }
 }

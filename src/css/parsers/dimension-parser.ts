@@ -1,28 +1,9 @@
-import { parseLength, parseNumeric, parseClampArgs } from "./length-parser.js";
-import { percent } from "../length.js";
+import { parseLength, parseLengthOrPercent, parseNumeric, parseClampArgs } from "./length-parser.js";
 import type { LengthLike, RelativeLength, ClampNumericLength } from "../length.js";
 import type { StyleAccumulator } from "../style.js";
 import type { LineHeightInput } from "../line-height.js";
 
-const PERCENT_LENGTH_REGEX = /^(-?\d+(?:\.\d+)?)%$/;
-
 type LengthOrRelative = LengthLike | RelativeLength;
-
-function parseLengthOrPercent(value: string): LengthOrRelative | undefined {
-  const parsed = parseLength(value);
-  if (parsed !== undefined) {
-    return parsed;
-  }
-  const match = PERCENT_LENGTH_REGEX.exec(value.trim());
-  if (!match) {
-    return undefined;
-  }
-  const numeric = Number.parseFloat(match[1]);
-  if (Number.isNaN(numeric)) {
-    return undefined;
-  }
-  return percent(numeric / 100);
-}
 
 export function parseWidth(value: string, target: StyleAccumulator): void {
   const clampArgs = parseClampArgs(value);

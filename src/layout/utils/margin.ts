@@ -81,60 +81,80 @@ export function findLastMarginCollapsibleChild(node: LayoutNode): LayoutNode | u
   return undefined;
 }
 
-export function canCollapseMarginStart(node: LayoutNode, containingBlockWidth: number): boolean {
+export function canCollapseMarginStart(
+  node: LayoutNode,
+  containingBlockWidth: number,
+  containingBlockHeight: number = containingBlockWidth,
+): boolean {
   if (!isBlockLevel(node) || establishesBFC(node)) {
     return false;
   }
-  const paddingTop = resolveLength(node.style.paddingTop, containingBlockWidth, { auto: "zero" });
-  const borderTop = resolveLength(node.style.borderTop, containingBlockWidth, { auto: "zero" });
+  const containerRefs = { containerWidth: containingBlockWidth, containerHeight: containingBlockHeight };
+  const paddingTop = resolveLength(node.style.paddingTop, containingBlockHeight, { auto: "zero", ...containerRefs });
+  const borderTop = resolveLength(node.style.borderTop, containingBlockHeight, { auto: "zero", ...containerRefs });
   if (!isApproximatelyZero(paddingTop) || !isApproximatelyZero(borderTop)) {
     return false;
   }
   return findFirstMarginCollapsibleChild(node) !== undefined;
 }
 
-export function canCollapseMarginEnd(node: LayoutNode, containingBlockWidth: number): boolean {
+export function canCollapseMarginEnd(
+  node: LayoutNode,
+  containingBlockWidth: number,
+  containingBlockHeight: number = containingBlockWidth,
+): boolean {
   if (!isBlockLevel(node) || establishesBFC(node)) {
     return false;
   }
-  const paddingBottom = resolveLength(node.style.paddingBottom, containingBlockWidth, { auto: "zero" });
-  const borderBottom = resolveLength(node.style.borderBottom, containingBlockWidth, { auto: "zero" });
+  const containerRefs = { containerWidth: containingBlockWidth, containerHeight: containingBlockHeight };
+  const paddingBottom = resolveLength(node.style.paddingBottom, containingBlockHeight, { auto: "zero", ...containerRefs });
+  const borderBottom = resolveLength(node.style.borderBottom, containingBlockHeight, { auto: "zero", ...containerRefs });
   if (!isApproximatelyZero(paddingBottom) || !isApproximatelyZero(borderBottom)) {
     return false;
   }
   return findLastMarginCollapsibleChild(node) !== undefined;
 }
 
-export function effectiveMarginTop(node: LayoutNode, containingBlockWidth: number): number {
-  const ownMargin = resolveLength(node.style.marginTop, containingBlockWidth, { auto: "zero" });
+export function effectiveMarginTop(
+  node: LayoutNode,
+  containingBlockWidth: number,
+  containingBlockHeight: number = containingBlockWidth,
+): number {
+  const containerRefs = { containerWidth: containingBlockWidth, containerHeight: containingBlockHeight };
+  const ownMargin = resolveLength(node.style.marginTop, containingBlockHeight, { auto: "zero", ...containerRefs });
   if (!isBlockLevel(node)) {
     return ownMargin;
   }
-  if (!canCollapseMarginStart(node, containingBlockWidth)) {
+  if (!canCollapseMarginStart(node, containingBlockWidth, containingBlockHeight)) {
     return ownMargin;
   }
   const firstChild = findFirstMarginCollapsibleChild(node);
   if (!firstChild) {
     return ownMargin;
   }
-  const childContainingWidth = resolveWidthBlock(node, containingBlockWidth);
-  const childMargin = effectiveMarginTop(firstChild, childContainingWidth);
+  const childContainingWidth = resolveWidthBlock(node, containingBlockWidth, containingBlockHeight);
+  const childMargin = effectiveMarginTop(firstChild, childContainingWidth, containingBlockHeight);
   return collapseMarginSet([ownMargin, childMargin]);
 }
 
-export function effectiveMarginBottom(node: LayoutNode, containingBlockWidth: number): number {
-  const ownMargin = resolveLength(node.style.marginBottom, containingBlockWidth, { auto: "zero" });
+export function effectiveMarginBottom(
+  node: LayoutNode,
+  containingBlockWidth: number,
+  containingBlockHeight: number = containingBlockWidth,
+): number {
+  const containerRefs = { containerWidth: containingBlockWidth, containerHeight: containingBlockHeight };
+  const ownMargin = resolveLength(node.style.marginBottom, containingBlockHeight, { auto: "zero", ...containerRefs });
   if (!isBlockLevel(node)) {
     return ownMargin;
   }
-  if (!canCollapseMarginEnd(node, containingBlockWidth)) {
+  if (!canCollapseMarginEnd(node, containingBlockWidth, containingBlockHeight)) {
     return ownMargin;
   }
   const lastChild = findLastMarginCollapsibleChild(node);
   if (!lastChild) {
     return ownMargin;
   }
-  const childContainingWidth = resolveWidthBlock(node, containingBlockWidth);
-  const childMargin = effectiveMarginBottom(lastChild, childContainingWidth);
+  const childContainingWidth = resolveWidthBlock(node, containingBlockWidth, containingBlockHeight);
+  const childMargin = effectiveMarginBottom(lastChild, childContainingWidth, containingBlockHeight);
   return collapseMarginSet([ownMargin, childMargin]);
 }

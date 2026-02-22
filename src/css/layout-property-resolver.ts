@@ -14,25 +14,37 @@ export class LayoutPropertyResolver {
         fontSize: number,
         rootFontSize: number
     ): TrackSize {
-        if (track.kind === "fixed") {
-            return {
-                kind: "fixed",
-                size: resolveNumberLike(track.size, fontSize, rootFontSize) ?? 0,
-            };
+        switch (track.kind) {
+            case "fixed":
+                return {
+                    kind: "fixed",
+                    size: resolveNumberLike(track.size, fontSize, rootFontSize) ?? 0,
+                };
+            case "flex":
+                return {
+                    kind: "flex",
+                    flex: track.flex,
+                    min: resolveNumberLike(track.min, fontSize, rootFontSize),
+                    max: resolveNumberLike(track.max, fontSize, rootFontSize),
+                };
+            case "auto":
+                return {
+                    kind: "auto",
+                    min: resolveNumberLike(track.min, fontSize, rootFontSize),
+                    max: resolveNumberLike(track.max, fontSize, rootFontSize),
+                };
+            case "clamp":
+                return {
+                    kind: "clamp",
+                    min: resolveNumberLike(track.min, fontSize, rootFontSize) ?? 0,
+                    preferred: resolveNumberLike(track.preferred, fontSize, rootFontSize) ?? 0,
+                    max: resolveNumberLike(track.max, fontSize, rootFontSize) ?? 0,
+                };
+            default:
+                return {
+                    kind: "auto",
+                };
         }
-        if (track.kind === "flex") {
-            return {
-                kind: "flex",
-                flex: track.flex,
-                min: resolveNumberLike(track.min, fontSize, rootFontSize),
-                max: resolveNumberLike(track.max, fontSize, rootFontSize),
-            };
-        }
-        return {
-            kind: "auto",
-            min: resolveNumberLike(track.min, fontSize, rootFontSize),
-            max: resolveNumberLike(track.max, fontSize, rootFontSize),
-        };
     }
 
     /**

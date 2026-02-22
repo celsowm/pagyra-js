@@ -75,13 +75,18 @@ export function collectInlineParticipants(node: LayoutNode): LayoutNode[] {
  * Calculates the inline extent (start and end positions) of a node within its container.
  * Includes margins, borders, and padding in the calculation.
  */
-export function inlineExtentWithinContainer(node: LayoutNode, referenceWidth: number): { start: number; end: number } {
-    const marginLeft = resolveLength(node.style.marginLeft, referenceWidth, { auto: "zero" });
-    const marginRight = resolveLength(node.style.marginRight, referenceWidth, { auto: "zero" });
-    const paddingLeft = resolveLength(node.style.paddingLeft, referenceWidth, { auto: "zero" });
-    const paddingRight = resolveLength(node.style.paddingRight, referenceWidth, { auto: "zero" });
-    const borderLeft = resolveLength(node.style.borderLeft, referenceWidth, { auto: "zero" });
-    const borderRight = resolveLength(node.style.borderRight, referenceWidth, { auto: "zero" });
+export function inlineExtentWithinContainer(
+    node: LayoutNode,
+    referenceWidth: number,
+    containerHeight: number = referenceWidth,
+): { start: number; end: number } {
+    const containerRefs = { containerWidth: referenceWidth, containerHeight };
+    const marginLeft = resolveLength(node.style.marginLeft, referenceWidth, { auto: "zero", ...containerRefs });
+    const marginRight = resolveLength(node.style.marginRight, referenceWidth, { auto: "zero", ...containerRefs });
+    const paddingLeft = resolveLength(node.style.paddingLeft, referenceWidth, { auto: "zero", ...containerRefs });
+    const paddingRight = resolveLength(node.style.paddingRight, referenceWidth, { auto: "zero", ...containerRefs });
+    const borderLeft = resolveLength(node.style.borderLeft, referenceWidth, { auto: "zero", ...containerRefs });
+    const borderRight = resolveLength(node.style.borderRight, referenceWidth, { auto: "zero", ...containerRefs });
 
     const marginStart = node.box.x - paddingLeft - borderLeft - marginLeft;
     const width =

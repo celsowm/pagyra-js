@@ -16,11 +16,14 @@ import { getAlignmentStrategy } from "./text-alignment.js";
 import { BoundingBoxCalculator } from "./bounding-box-calculator.js";
 import { RunPlacer } from "./run-placer.js";
 import { createLayoutDebug } from "../debug.js";
+import { containingBlock } from "../utils/node-math.js";
 
 
 
 export function layoutInlineFormattingContext(options: InlineLayoutOptions): InlineLayoutResult {
     const { container, inlineNodes, context, floatContext, contentX, contentWidth } = options;
+    const cb = containingBlock(container, context.env.viewport);
+    const containerRefs = { containerWidth: cb.width, containerHeight: cb.height };
     container.establishesIFC = true;
 
     const textAlign = container.style.display === Display.Inline
@@ -29,7 +32,7 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
     const alignmentStrategy = getAlignmentStrategy(textAlign);
     const shouldApplyTextIndent = container.style.display !== Display.Inline;
     const resolvedTextIndent = shouldApplyTextIndent
-        ? resolveLength(container.style.textIndent, contentWidth, { auto: "zero" })
+        ? resolveLength(container.style.textIndent, contentWidth, { auto: "zero", ...containerRefs })
         : 0;
     let firstLineTextIndentPending = shouldApplyTextIndent && resolvedTextIndent !== 0;
 
@@ -268,7 +271,7 @@ function layoutInlineChildrenIfNeeded(
 
     let maxInlineEnd = 0;
     for (const child of inlineChildren) {
-        const extent = inlineExtentWithinContainer(child, containerWidth);
+        const extent = inlineExtentWithinContainer(child, containerWidth, containerWidth);
         maxInlineEnd = Math.max(maxInlineEnd, extent.end);
     }
 

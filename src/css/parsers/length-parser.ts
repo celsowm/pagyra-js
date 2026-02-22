@@ -2,9 +2,11 @@
 
 import { cmToPx, inToPx, mmToPx, pcToPx, ptToPx, qToPx } from "../../units/units.js";
 import { getViewportHeight, getViewportWidth } from "../viewport.js";
-import { percent, relativeLength, type RelativeLength } from "../length.js";
+import { percent, relativeLength, type CalcLength, type LengthInput, type RelativeLength } from "../length.js";
+import { parseCalcLength } from "./calc-parser.js";
 
 const PERCENT_LENGTH_REGEX = /^(-?\d+(?:\.\d+)?)%$/;
+const CONTAINER_QUERY_LENGTH_REGEX = /^(-?\d+(?:\.\d+)?)(cqw|cqh|cqi|cqb|cqmin|cqmax)$/i;
 
 export function parseLength(value: string): number | RelativeLength | undefined {
   if (!value) {
@@ -67,14 +69,41 @@ export function parseNumeric(value: string): number | RelativeLength | undefined
   return n;
 }
 
-export function parseLengthOrPercent(value: string): number | RelativeLength | ReturnType<typeof percent> | undefined {
+export function parseLengthOrPercent(
+  value: string,
+): number | RelativeLength | ReturnType<typeof percent> | CalcLength | undefined {
   const parsed = parseLength(value);
   if (parsed !== undefined) {
     return parsed;
   }
   const match = PERCENT_LENGTH_REGEX.exec(value.trim());
   if (!match) {
-    return undefined;
+    const cqMatch = CONTAINER_QUERY_LENGTH_REGEX.exec(value.trim());
+    if (cqMatch) {
+      const numeric = Number.parseFloat(cqMatch[1]);
+      if (Number.isNaN(numeric)) {
+        return undefined;
+      }
+      const ratio = numeric / 100;
+      const unit = cqMatch[2].toLowerCase();
+      switch (unit) {
+        case "cqw":
+          return { kind: "calc", px: 0, percent: 0, cqw: ratio };
+        case "cqh":
+          return { kind: "calc", px: 0, percent: 0, cqh: ratio };
+        case "cqi":
+          return { kind: "calc", px: 0, percent: 0, cqi: ratio };
+        case "cqb":
+          return { kind: "calc", px: 0, percent: 0, cqb: ratio };
+        case "cqmin":
+          return { kind: "calc", px: 0, percent: 0, cqmin: ratio };
+        case "cqmax":
+          return { kind: "calc", px: 0, percent: 0, cqmax: ratio };
+        default:
+          return undefined;
+      }
+    }
+    return parseCalcLength(value);
   }
   const numeric = Number.parseFloat(match[1]);
   if (Number.isNaN(numeric)) {
@@ -100,7 +129,7 @@ export function parseClampArgs(value: string): [string, string, string] | undefi
   return [parts[0].trim(), parts[1].trim(), parts[2].trim()];
 }
 
-export function parseLengthOrAuto(value: string): number | RelativeLength | "auto" | undefined {
+export function parseLengthOrAuto(value: string): LengthInput | undefined {
   if (!value) {
     return undefined;
   }
@@ -108,5 +137,5 @@ export function parseLengthOrAuto(value: string): number | RelativeLength | "aut
   if (normalized === "auto") {
     return "auto";
   }
-  return parseLength(normalized);
+  return parseLengthOrPercent(normalized);
 }

@@ -39,6 +39,70 @@ function allowsPreferredShrink(originalDisplay: Display, effectiveDisplay: Displ
   return originalDisplay === Display.Inline;
 }
 
+interface FlexItemMetrics {
+  node: LayoutNode;
+  mainMarginStart: number;
+  mainMarginEnd: number;
+  crossMarginStart: number;
+  crossMarginEnd: number;
+  mainSize: number;
+  crossSize: number;
+  mainContribution: number;
+  crossContribution: number;
+}
+
+interface FlexLine {
+  items: FlexItemMetrics[];
+  // Includes item contributions and explicit main-axis gaps between items.
+  mainSizeWithGaps: number;
+  // Max cross contribution among line items.
+  crossSize: number;
+}
+
+function buildFlexLines(items: FlexItemMetrics[], containerMainSize: number, mainAxisGap: number): FlexLine[] {
+  if (items.length === 0) {
+    return [];
+  }
+
+  const lines: FlexLine[] = [];
+  let current: FlexLine = { items: [], mainSizeWithGaps: 0, crossSize: 0 };
+
+  for (const item of items) {
+    const addition =
+      current.items.length === 0 ? item.mainContribution : mainAxisGap + item.mainContribution;
+    const shouldWrap =
+      current.items.length > 0 &&
+      containerMainSize > 0 &&
+      current.mainSizeWithGaps + addition > containerMainSize + 0.01;
+
+    if (shouldWrap) {
+      lines.push(current);
+      current = { items: [], mainSizeWithGaps: 0, crossSize: 0 };
+    }
+
+    if (current.items.length > 0) {
+      current.mainSizeWithGaps += mainAxisGap;
+    }
+    current.items.push(item);
+    current.mainSizeWithGaps += item.mainContribution;
+    current.crossSize = Math.max(current.crossSize, item.crossContribution);
+  }
+
+  if (current.items.length > 0) {
+    lines.push(current);
+  }
+
+  return lines;
+}
+
+function calculateLinesCrossSize(lines: FlexLine[], crossAxisGap: number): number {
+  if (lines.length === 0) {
+    return 0;
+  }
+  const totalLines = lines.reduce((sum, line) => sum + line.crossSize, 0);
+  return totalLines + calculateTotalGap(crossAxisGap, lines.length);
+}
+
 export class FlexLayoutStrategy implements LayoutStrategy {
   private readonly supportedDisplays = new Set<Display>([Display.Flex, Display.InlineFlex]);
 
@@ -48,6 +112,7 @@ export class FlexLayoutStrategy implements LayoutStrategy {
 
   layout(node: LayoutNode, context: LayoutContext): void {
     const cb = containingBlock(node, context.env.viewport);
+    const containerRefs = { containerWidth: cb.width, containerHeight: cb.height };
     const isRow = isRowDirection(node.style.flexDirection);
     const cbMain = isRow ? cb.width : cb.height;
     const cbCross = isRow ? cb.height : cb.width;
@@ -56,8 +121,8 @@ export class FlexLayoutStrategy implements LayoutStrategy {
     const hExtras = boxMetrics.paddingLeft + boxMetrics.paddingRight + boxMetrics.borderLeft + boxMetrics.borderRight;
     const vExtras = boxMetrics.paddingTop + boxMetrics.paddingBottom + boxMetrics.borderTop + boxMetrics.borderBottom;
 
-    let specifiedMain = resolveFlexSize(isRow ? node.style.width : node.style.height, cbMain);
-    let specifiedCross = resolveFlexSize(isRow ? node.style.height : node.style.width, cbCross);
+    let specifiedMain = resolveFlexSize(isRow ? node.style.width : node.style.height, cbMain, cb.width, cb.height);
+    let specifiedCross = resolveFlexSize(isRow ? node.style.height : node.style.width, cbCross, cb.width, cb.height);
     if (specifiedMain !== undefined) {
       specifiedMain = adjustForBoxSizing(specifiedMain, node.style.boxSizing, isRow ? hExtras : vExtras);
     }
@@ -94,18 +159,6 @@ export class FlexLayoutStrategy implements LayoutStrategy {
     node.box.scrollWidth = Math.max(node.box.scrollWidth, node.box.contentWidth);
     node.box.scrollHeight = Math.max(node.box.scrollHeight, node.box.contentHeight);
 
-    interface FlexItemMetrics {
-      node: LayoutNode;
-      mainMarginStart: number;
-      mainMarginEnd: number;
-      crossMarginStart: number;
-      crossMarginEnd: number;
-      mainSize: number;
-      crossSize: number;
-      mainContribution: number;
-      crossContribution: number;
-    }
-
     const alignContainer = node.style.alignItems ?? AlignItems.Stretch;
     const items: FlexItemMetrics[] = [];
     let totalMain = 0;
@@ -122,14 +175,27 @@ export class FlexLayoutStrategy implements LayoutStrategy {
       if (displayMutated) {
         child.style.display = blockifiedDisplay;
       }
+      const parentContentWidth = node.box.contentWidth;
+      const parentContentHeight = node.box.contentHeight;
 
       try {
+        const basisReference = isRow ? cb.width : cb.height;
+        const basis = resolveFlexSize(child.style.flexBasis, basisReference, cb.width, cb.height);
+        if (basis !== undefined) {
+          if (isRow) {
+            node.box.contentWidth = Math.max(0, basis);
+          } else {
+            node.box.contentHeight = Math.max(0, basis);
+          }
+        }
         context.layoutChild(child);
+        node.box.contentWidth = parentContentWidth;
+        node.box.contentHeight = parentContentHeight;
 
-        const marginLeft = resolveLength(child.style.marginLeft, cb.width, { auto: "zero" });
-        const marginRight = resolveLength(child.style.marginRight, cb.width, { auto: "zero" });
-        const marginTop = resolveLength(child.style.marginTop, cb.height, { auto: "zero" });
-        const marginBottom = resolveLength(child.style.marginBottom, cb.height, { auto: "zero" });
+        const marginLeft = resolveLength(child.style.marginLeft, cb.width, { auto: "zero", ...containerRefs });
+        const marginRight = resolveLength(child.style.marginRight, cb.width, { auto: "zero", ...containerRefs });
+        const marginTop = resolveLength(child.style.marginTop, cb.height, { auto: "zero", ...containerRefs });
+        const marginBottom = resolveLength(child.style.marginBottom, cb.height, { auto: "zero", ...containerRefs });
 
         const mainMarginStart = isRow ? marginLeft : marginTop;
         const mainMarginEnd = isRow ? marginRight : marginBottom;
@@ -137,19 +203,20 @@ export class FlexLayoutStrategy implements LayoutStrategy {
         const crossMarginEnd = isRow ? marginBottom : marginRight;
 
         let mainSize = isRow ? child.box.borderBoxWidth : child.box.borderBoxHeight;
+        const hasExplicitFlexBasis = resolveFlexSize(child.style.flexBasis, isRow ? cb.width : cb.height, cb.width, cb.height) !== undefined;
         const childDisplay = blockifiedDisplay;
         const allowPreferredShrink = allowsPreferredShrink(originalDisplay, childDisplay);
 
-        if (isRow && allowPreferredShrink && isAutoMainSize(child.style.width)) {
+        if (isRow && allowPreferredShrink && isAutoMainSize(child.style.width) && !hasExplicitFlexBasis) {
           const preferredContent = computePreferredInlineWidth(child);
           if (preferredContent !== undefined && preferredContent >= 0) {
             const minWidth =
               child.style.minWidth !== undefined
-                ? resolveLength(child.style.minWidth, cb.width, { auto: "zero" })
+                ? resolveLength(child.style.minWidth, cb.width, { auto: "zero", ...containerRefs })
                 : undefined;
             const maxWidth =
               child.style.maxWidth !== undefined
-                ? resolveLength(child.style.maxWidth, cb.width, { auto: "reference" })
+                ? resolveLength(child.style.maxWidth, cb.width, { auto: "reference", ...containerRefs })
                 : undefined;
             let targetContentWidth = preferredContent;
             if (minWidth !== undefined) {
@@ -159,10 +226,10 @@ export class FlexLayoutStrategy implements LayoutStrategy {
               targetContentWidth = Math.min(targetContentWidth, maxWidth);
             }
             if (targetContentWidth < child.box.contentWidth) {
-              const paddingLeft = resolveLength(child.style.paddingLeft, cb.width, { auto: "zero" });
-              const paddingRight = resolveLength(child.style.paddingRight, cb.width, { auto: "zero" });
-              const borderLeft = resolveLength(child.style.borderLeft, cb.width, { auto: "zero" });
-              const borderRight = resolveLength(child.style.borderRight, cb.width, { auto: "zero" });
+              const paddingLeft = resolveLength(child.style.paddingLeft, cb.width, { auto: "zero", ...containerRefs });
+              const paddingRight = resolveLength(child.style.paddingRight, cb.width, { auto: "zero", ...containerRefs });
+              const borderLeft = resolveLength(child.style.borderLeft, cb.width, { auto: "zero", ...containerRefs });
+              const borderRight = resolveLength(child.style.borderRight, cb.width, { auto: "zero", ...containerRefs });
               child.box.contentWidth = targetContentWidth;
               child.box.borderBoxWidth = targetContentWidth + paddingLeft + paddingRight + borderLeft + borderRight;
               child.box.marginBoxWidth = child.box.borderBoxWidth + marginLeft + marginRight;
@@ -180,17 +247,17 @@ export class FlexLayoutStrategy implements LayoutStrategy {
             const preferredContent = computePreferredInlineWidth(child);
             if (preferredContent !== undefined && preferredContent > 0) {
               const widthRef = cb.width;
-              const paddingLeft = resolveLength(child.style.paddingLeft, widthRef, { auto: "zero" });
-              const paddingRight = resolveLength(child.style.paddingRight, widthRef, { auto: "zero" });
-              const borderLeft = resolveLength(child.style.borderLeft, widthRef, { auto: "zero" });
-              const borderRight = resolveLength(child.style.borderRight, widthRef, { auto: "zero" });
+              const paddingLeft = resolveLength(child.style.paddingLeft, widthRef, { auto: "zero", ...containerRefs });
+              const paddingRight = resolveLength(child.style.paddingRight, widthRef, { auto: "zero", ...containerRefs });
+              const borderLeft = resolveLength(child.style.borderLeft, widthRef, { auto: "zero", ...containerRefs });
+              const borderRight = resolveLength(child.style.borderRight, widthRef, { auto: "zero", ...containerRefs });
               const minWidth =
                 child.style.minWidth !== undefined
-                  ? resolveLength(child.style.minWidth, widthRef, { auto: "zero" })
+                  ? resolveLength(child.style.minWidth, widthRef, { auto: "zero", ...containerRefs })
                   : undefined;
               const maxWidth =
                 child.style.maxWidth !== undefined
-                  ? resolveLength(child.style.maxWidth, widthRef, { auto: "reference" })
+                  ? resolveLength(child.style.maxWidth, widthRef, { auto: "reference", ...containerRefs })
                   : undefined;
               let targetContentWidth = Math.min(preferredContent, child.box.contentWidth);
               if (minWidth !== undefined) {
@@ -230,6 +297,8 @@ export class FlexLayoutStrategy implements LayoutStrategy {
         totalMain += mainContribution;
         maxCrossContribution = Math.max(maxCrossContribution, crossContribution);
       } finally {
+        node.box.contentWidth = parentContentWidth;
+        node.box.contentHeight = parentContentHeight;
         if (displayMutated) {
           child.style.display = originalDisplay;
         }
@@ -239,13 +308,15 @@ export class FlexLayoutStrategy implements LayoutStrategy {
     // Account for gaps in total main size
     const gapSpace = calculateTotalGap(mainAxisGap, items.length);
     const totalMainWithGaps = totalMain + gapSpace;
+    const wrapEnabled = isRow && node.style.flexWrap;
+    const crossAxisGap = gapCalculator.getCrossAxisGap(isRow);
 
     let containerMainSize: number;
     if (specifiedMain !== undefined) {
       containerMainSize = specifiedMain;
     } else if (isRow) {
       const reference = Number.isFinite(cbMain) && cbMain > 0 ? cbMain : totalMainWithGaps;
-      containerMainSize = Math.max(reference, totalMainWithGaps);
+      containerMainSize = wrapEnabled ? reference : Math.max(reference, totalMainWithGaps);
     } else {
       // For column flex containers with auto height, use content-based sizing.
       // Falling back to containing block height incorrectly stretches the box
@@ -253,24 +324,28 @@ export class FlexLayoutStrategy implements LayoutStrategy {
       containerMainSize = totalMainWithGaps;
     }
 
+    const lines = wrapEnabled ? buildFlexLines(items, containerMainSize, mainAxisGap) : [];
+    const wrappedCrossContribution = wrapEnabled ? calculateLinesCrossSize(lines, crossAxisGap) : 0;
+
     let containerCrossSize: number;
     if (specifiedCross !== undefined) {
-      containerCrossSize = Math.max(specifiedCross, maxCrossContribution);
+      const measuredCross = wrapEnabled ? wrappedCrossContribution : maxCrossContribution;
+      containerCrossSize = Math.max(specifiedCross, measuredCross);
     } else if (!isRow) {
       const referenceCross = Number.isFinite(cbCross) && cbCross > 0 ? cbCross : maxCrossContribution;
       containerCrossSize = Math.max(referenceCross, maxCrossContribution);
     } else {
-      containerCrossSize = maxCrossContribution;
+      containerCrossSize = wrapEnabled ? wrappedCrossContribution : maxCrossContribution;
     }
 
     const minCrossValue = isRow ? node.style.minHeight : node.style.minWidth;
     const maxCrossValue = isRow ? node.style.maxHeight : node.style.maxWidth;
     const crossExtras = isRow ? vExtras : hExtras;
     const minCross = minCrossValue !== undefined
-      ? adjustForBoxSizing(resolveLength(minCrossValue, cbCross, { auto: "zero" }), node.style.boxSizing, crossExtras)
+      ? adjustForBoxSizing(resolveLength(minCrossValue, cbCross, { auto: "zero", ...containerRefs }), node.style.boxSizing, crossExtras)
       : undefined;
     const maxCross = maxCrossValue !== undefined
-      ? adjustForBoxSizing(resolveLength(maxCrossValue, cbCross, { auto: "reference" }), node.style.boxSizing, crossExtras)
+      ? adjustForBoxSizing(resolveLength(maxCrossValue, cbCross, { auto: "reference", ...containerRefs }), node.style.boxSizing, crossExtras)
       : undefined;
 
     if (minCross !== undefined) {
@@ -283,33 +358,74 @@ export class FlexLayoutStrategy implements LayoutStrategy {
 
     const justify = node.style.justifyContent ?? JustifyContent.FlexStart;
     const align = alignContainer;
-    // Calculate justify spacing based on free space AFTER accounting for gaps
-    // This makes gap additive with justify-content spacing (per CSS Flexbox spec)
-    const freeSpaceAfterGaps = containerMainSize - totalMainWithGaps;
-    const { offset: initialOffset, gap: justifyGap } = resolveJustifySpacing(justify, freeSpaceAfterGaps, items.length);
+    if (wrapEnabled) {
+      let crossCursor = 0;
+      for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+        const line = lines[lineIndex];
+        const freeSpaceAfterGaps = containerMainSize - line.mainSizeWithGaps;
+        const { offset: initialOffset, gap: justifyGap } = resolveJustifySpacing(
+          justify,
+          freeSpaceAfterGaps,
+          line.items.length,
+        );
 
-    let cursor = initialOffset;
+        let mainCursor = initialOffset;
+        for (let index = 0; index < line.items.length; index++) {
+          const item = line.items[index];
+          const alignSelf = resolveItemAlignment(item.node.style.alignSelf, align);
+          const crossOffset = computeCrossOffset(
+            alignSelf,
+            line.crossSize,
+            item.crossSize,
+            item.crossMarginStart,
+            item.crossMarginEnd,
+          );
 
-    for (let index = 0; index < items.length; index++) {
-      const item = items[index];
-      const alignSelf = resolveItemAlignment(item.node.style.alignSelf, align);
-      const crossOffset = computeCrossOffset(alignSelf, containerCrossSize, item.crossSize, item.crossMarginStart, item.crossMarginEnd);
+          const previousX = item.node.box.x;
+          const previousY = item.node.box.y;
+          item.node.box.x = boxMetrics.contentBoxX + mainCursor + item.mainMarginStart;
+          item.node.box.y = boxMetrics.contentBoxY + crossCursor + crossOffset + item.crossMarginStart;
+          offsetLayoutSubtree(item.node, item.node.box.x - previousX, item.node.box.y - previousY);
 
-      const previousX = item.node.box.x;
-      const previousY = item.node.box.y;
-      if (isRow) {
-        item.node.box.x = boxMetrics.contentBoxX + cursor + item.mainMarginStart;
-        item.node.box.y = boxMetrics.contentBoxY + crossOffset + item.crossMarginStart;
-      } else {
-        item.node.box.x = boxMetrics.contentBoxX + crossOffset + item.crossMarginStart;
-        item.node.box.y = boxMetrics.contentBoxY + cursor + item.mainMarginStart;
+          mainCursor += item.mainContribution;
+          if (index < line.items.length - 1) {
+            mainCursor += mainAxisGap + justifyGap;
+          }
+        }
+
+        crossCursor += line.crossSize;
+        if (lineIndex < lines.length - 1) {
+          crossCursor += crossAxisGap;
+        }
       }
-      offsetLayoutSubtree(item.node, item.node.box.x - previousX, item.node.box.y - previousY);
+    } else {
+      // Calculate justify spacing based on free space AFTER accounting for gaps.
+      // This makes gap additive with justify-content spacing (per CSS Flexbox spec).
+      const freeSpaceAfterGaps = containerMainSize - totalMainWithGaps;
+      const { offset: initialOffset, gap: justifyGap } = resolveJustifySpacing(justify, freeSpaceAfterGaps, items.length);
 
-      cursor += item.mainContribution;
-      if (index < items.length - 1) {
-        // Apply explicit gap PLUS justify spacing (additive per spec)
-        cursor += mainAxisGap + justifyGap;
+      let cursor = initialOffset;
+      for (let index = 0; index < items.length; index++) {
+        const item = items[index];
+        const alignSelf = resolveItemAlignment(item.node.style.alignSelf, align);
+        const crossOffset = computeCrossOffset(alignSelf, containerCrossSize, item.crossSize, item.crossMarginStart, item.crossMarginEnd);
+
+        const previousX = item.node.box.x;
+        const previousY = item.node.box.y;
+        if (isRow) {
+          item.node.box.x = boxMetrics.contentBoxX + cursor + item.mainMarginStart;
+          item.node.box.y = boxMetrics.contentBoxY + crossOffset + item.crossMarginStart;
+        } else {
+          item.node.box.x = boxMetrics.contentBoxX + crossOffset + item.crossMarginStart;
+          item.node.box.y = boxMetrics.contentBoxY + cursor + item.mainMarginStart;
+        }
+        offsetLayoutSubtree(item.node, item.node.box.x - previousX, item.node.box.y - previousY);
+
+        cursor += item.mainContribution;
+        if (index < items.length - 1) {
+          // Apply explicit gap PLUS justify spacing (additive per spec).
+          cursor += mainAxisGap + justifyGap;
+        }
       }
     }
 
@@ -348,7 +464,12 @@ function resolveInitialDimension(specified: number | undefined, fallback: number
   return 0;
 }
 
-function resolveFlexSize(value: LengthLike | undefined, reference: number): number | undefined {
+function resolveFlexSize(
+  value: LengthLike | undefined,
+  reference: number,
+  containerWidth: number = reference,
+  containerHeight: number = reference,
+): number | undefined {
   if (value === undefined) {
     return undefined;
   }
@@ -358,7 +479,7 @@ function resolveFlexSize(value: LengthLike | undefined, reference: number): numb
   if (value === "auto" || isAutoLength(value)) {
     return undefined;
   }
-  return resolveLength(value, reference, { auto: "reference" });
+  return resolveLength(value, reference, { auto: "reference", containerWidth, containerHeight });
 }
 
 function resolveItemAlignment(alignSelf: AlignSelfValue | undefined, containerAlign: AlignItems): AlignItems {

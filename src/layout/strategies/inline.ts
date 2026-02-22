@@ -5,6 +5,7 @@ import { resolvedLineHeight } from "../../css/style.js";
 import type { LayoutContext, LayoutStrategy } from "../pipeline/strategy.js";
 import { FloatContext } from "../context/float-context.js";
 import { defaultInlineFormatter } from "../utils/inline-formatter.js";
+import { containingBlock } from "../utils/node-math.js";
 
 export class InlineLayoutStrategy implements LayoutStrategy {
   canLayout(node: LayoutNode): boolean {
@@ -12,20 +13,23 @@ export class InlineLayoutStrategy implements LayoutStrategy {
   }
 
   layout(node: LayoutNode, context: LayoutContext): void {
-    const refWidth = Math.max(context.env.viewport.width, 0);
-    const paddingLeft = resolveLength(node.style.paddingLeft, refWidth, { auto: "zero" });
-    const paddingRight = resolveLength(node.style.paddingRight, refWidth, { auto: "zero" });
-    const paddingTop = resolveLength(node.style.paddingTop, refWidth, { auto: "zero" });
-    const paddingBottom = resolveLength(node.style.paddingBottom, refWidth, { auto: "zero" });
-    const borderLeft = resolveLength(node.style.borderLeft, refWidth, { auto: "zero" });
-    const borderRight = resolveLength(node.style.borderRight, refWidth, { auto: "zero" });
-    const borderTop = resolveLength(node.style.borderTop, refWidth, { auto: "zero" });
-    const borderBottom = resolveLength(node.style.borderBottom, refWidth, { auto: "zero" });
+    const cb = containingBlock(node, context.env.viewport);
+    const refWidth = Math.max(cb.width || context.env.viewport.width, 0);
+    const refHeight = Math.max(cb.height || context.env.viewport.height, 0);
+    const containerRefs = { containerWidth: refWidth, containerHeight: refHeight };
+    const paddingLeft = resolveLength(node.style.paddingLeft, refWidth, { auto: "zero", ...containerRefs });
+    const paddingRight = resolveLength(node.style.paddingRight, refWidth, { auto: "zero", ...containerRefs });
+    const paddingTop = resolveLength(node.style.paddingTop, refHeight, { auto: "zero", ...containerRefs });
+    const paddingBottom = resolveLength(node.style.paddingBottom, refHeight, { auto: "zero", ...containerRefs });
+    const borderLeft = resolveLength(node.style.borderLeft, refWidth, { auto: "zero", ...containerRefs });
+    const borderRight = resolveLength(node.style.borderRight, refWidth, { auto: "zero", ...containerRefs });
+    const borderTop = resolveLength(node.style.borderTop, refHeight, { auto: "zero", ...containerRefs });
+    const borderBottom = resolveLength(node.style.borderBottom, refHeight, { auto: "zero", ...containerRefs });
 
-    const marginLeft = resolveLength(node.style.marginLeft, refWidth, { auto: "zero" });
-    const marginRight = resolveLength(node.style.marginRight, refWidth, { auto: "zero" });
-    const marginTop = resolveLength(node.style.marginTop, refWidth, { auto: "zero" });
-    const marginBottom = resolveLength(node.style.marginBottom, refWidth, { auto: "zero" });
+    const marginLeft = resolveLength(node.style.marginLeft, refWidth, { auto: "zero", ...containerRefs });
+    const marginRight = resolveLength(node.style.marginRight, refWidth, { auto: "zero", ...containerRefs });
+    const marginTop = resolveLength(node.style.marginTop, refHeight, { auto: "zero", ...containerRefs });
+    const marginBottom = resolveLength(node.style.marginBottom, refHeight, { auto: "zero", ...containerRefs });
 
     const horizontalExtras = paddingLeft + paddingRight + borderLeft + borderRight;
     const verticalExtras = paddingTop + paddingBottom + borderTop + borderBottom;
@@ -45,7 +49,7 @@ export class InlineLayoutStrategy implements LayoutStrategy {
       startY,
     });
 
-    const extent = measureInlineExtent(inlineNodes, refWidth, node.box.x + borderLeft + paddingLeft);
+    const extent = measureInlineExtent(inlineNodes, refWidth, refHeight, node.box.x + borderLeft + paddingLeft);
     const floatBottom = Math.max(floatContext.bottom("left"), floatContext.bottom("right"));
     const measuredHeight = Math.max(result.newCursorY, floatBottom) - startY;
 
@@ -93,19 +97,25 @@ function isInlineDisplay(display: Display): boolean {
   }
 }
 
-function measureInlineExtent(inlineNodes: LayoutNode[], referenceWidth: number, contentStartX: number): number {
+function measureInlineExtent(
+  inlineNodes: LayoutNode[],
+  referenceWidth: number,
+  containerHeight: number,
+  contentStartX: number,
+): number {
   if (inlineNodes.length === 0) {
     return 0;
   }
+  const containerRefs = { containerWidth: referenceWidth, containerHeight };
   let minStart = Number.POSITIVE_INFINITY;
   let maxEnd = Number.NEGATIVE_INFINITY;
   for (const node of inlineNodes) {
-    const marginLeft = resolveLength(node.style.marginLeft, referenceWidth, { auto: "zero" });
-    const marginRight = resolveLength(node.style.marginRight, referenceWidth, { auto: "zero" });
-    const paddingLeft = resolveLength(node.style.paddingLeft, referenceWidth, { auto: "zero" });
-    const paddingRight = resolveLength(node.style.paddingRight, referenceWidth, { auto: "zero" });
-    const borderLeft = resolveLength(node.style.borderLeft, referenceWidth, { auto: "zero" });
-    const borderRight = resolveLength(node.style.borderRight, referenceWidth, { auto: "zero" });
+    const marginLeft = resolveLength(node.style.marginLeft, referenceWidth, { auto: "zero", ...containerRefs });
+    const marginRight = resolveLength(node.style.marginRight, referenceWidth, { auto: "zero", ...containerRefs });
+    const paddingLeft = resolveLength(node.style.paddingLeft, referenceWidth, { auto: "zero", ...containerRefs });
+    const paddingRight = resolveLength(node.style.paddingRight, referenceWidth, { auto: "zero", ...containerRefs });
+    const borderLeft = resolveLength(node.style.borderLeft, referenceWidth, { auto: "zero", ...containerRefs });
+    const borderRight = resolveLength(node.style.borderRight, referenceWidth, { auto: "zero", ...containerRefs });
 
     const marginStart = node.box.x - paddingLeft - borderLeft - marginLeft;
     const width =

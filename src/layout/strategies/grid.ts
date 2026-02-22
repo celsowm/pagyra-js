@@ -28,6 +28,8 @@ function trackMinSize(track: TrackSize): number {
   switch (track.kind) {
     case "fixed":
       return Math.max(0, track.size);
+    case "clamp":
+      return Math.max(0, track.min);
     case "flex":
       return Math.max(0, track.min ?? 0);
     case "auto":
@@ -44,6 +46,14 @@ function trackFlex(track: TrackSize): number {
 function cloneTrackSize(track: TrackSize): TrackSize {
   if (track.kind === "fixed") {
     return { kind: "fixed", size: track.size };
+  }
+  if (track.kind === "clamp") {
+    return {
+      kind: "clamp",
+      min: track.min,
+      preferred: track.preferred,
+      max: track.max,
+    };
   }
   if (track.kind === "flex") {
     return {
@@ -118,6 +128,12 @@ function resolveColumnWidths(tracks: TrackSize[], contentWidth: number, columnGa
     switch (track.kind) {
       case "fixed":
         return Math.max(0, track.size);
+      case "clamp": {
+        const min = Math.max(0, track.min);
+        const max = Math.max(min, track.max);
+        const preferred = track.preferred;
+        return Math.max(min, Math.min(preferred, max));
+      }
       case "flex": {
         let size = minSizes[index];
         if (totalFlex > 0 && flexFactors[index] > 0) {
@@ -150,16 +166,17 @@ export class GridLayoutStrategy implements LayoutStrategy {
 
   layout(node: LayoutNode, context: LayoutContext): void {
     const cb = containingBlock(node, context.env.viewport);
-    const baseContentWidth = resolveWidthBlock(node, cb.width);
+    const containerRefs = { containerWidth: cb.width, containerHeight: cb.height };
+    const baseContentWidth = resolveWidthBlock(node, cb.width, cb.height);
     node.box.contentWidth = baseContentWidth;
-    const horizontalExtras = horizontalNonContent(node, baseContentWidth);
+    const horizontalExtras = horizontalNonContent(node, baseContentWidth, cb.height);
     node.box.borderBoxWidth = baseContentWidth + horizontalExtras;
-    node.box.marginBoxWidth = node.box.borderBoxWidth + horizontalMargin(node, baseContentWidth);
+    node.box.marginBoxWidth = node.box.borderBoxWidth + horizontalMargin(node, baseContentWidth, cb.height);
 
-    const paddingLeft = resolveLength(node.style.paddingLeft, baseContentWidth, { auto: "zero" });
-    const paddingTop = resolveLength(node.style.paddingTop, baseContentWidth, { auto: "zero" });
-    const borderLeft = resolveLength(node.style.borderLeft, baseContentWidth, { auto: "zero" });
-    const borderTop = resolveLength(node.style.borderTop, baseContentWidth, { auto: "zero" });
+    const paddingLeft = resolveLength(node.style.paddingLeft, baseContentWidth, { auto: "zero", ...containerRefs });
+    const paddingTop = resolveLength(node.style.paddingTop, cb.height, { auto: "zero", ...containerRefs });
+    const borderLeft = resolveLength(node.style.borderLeft, baseContentWidth, { auto: "zero", ...containerRefs });
+    const borderTop = resolveLength(node.style.borderTop, cb.height, { auto: "zero", ...containerRefs });
 
     const contentOriginX = node.box.x + borderLeft + paddingLeft;
     const contentOriginY = node.box.y + borderTop + paddingTop;
@@ -181,7 +198,7 @@ export class GridLayoutStrategy implements LayoutStrategy {
     const resolvedContentWidth = columnWidths.length > 0 ? Math.max(baseContentWidth, totalColumnWidth) : baseContentWidth;
     node.box.contentWidth = resolvedContentWidth;
     node.box.borderBoxWidth = resolvedContentWidth + horizontalExtras;
-    node.box.marginBoxWidth = node.box.borderBoxWidth + horizontalMargin(node, resolvedContentWidth);
+    node.box.marginBoxWidth = node.box.borderBoxWidth + horizontalMargin(node, resolvedContentWidth, cb.height);
 
     const columnOffsets = calculateTrackOffsets(columnWidths, columnGap);
 
@@ -228,11 +245,11 @@ export class GridLayoutStrategy implements LayoutStrategy {
     }
 
     const totalRowGap = calculateTotalGap(rowGap, rowCount);
-    const verticalExtras = verticalNonContent(node, node.box.contentWidth);
+    const verticalExtras = verticalNonContent(node, cb.height, cb.width);
     let resolvedContentHeight = Math.max(0, contentHeight + totalRowGap);
     if (node.style.height !== "auto" && node.style.height !== undefined) {
       resolvedContentHeight = adjustForBoxSizing(
-        resolveLength(node.style.height, cb.height, { auto: "zero" }),
+        resolveLength(node.style.height, cb.height, { auto: "zero", ...containerRefs }),
         node.style.boxSizing,
         verticalExtras,
       );
@@ -241,8 +258,8 @@ export class GridLayoutStrategy implements LayoutStrategy {
     node.box.borderBoxHeight = node.box.contentHeight + verticalExtras;
     node.box.marginBoxHeight =
       node.box.borderBoxHeight +
-      resolveLength(node.style.marginTop, node.box.contentWidth, { auto: "zero" }) +
-      resolveLength(node.style.marginBottom, node.box.contentWidth, { auto: "zero" });
+      resolveLength(node.style.marginTop, cb.height, { auto: "zero", ...containerRefs }) +
+      resolveLength(node.style.marginBottom, cb.height, { auto: "zero", ...containerRefs });
 
     node.box.scrollWidth = Math.max(node.box.contentWidth, totalColumnWidth);
     node.box.scrollHeight = node.box.contentHeight;
@@ -250,7 +267,7 @@ export class GridLayoutStrategy implements LayoutStrategy {
     if (columnWidths.length === 0) {
       node.box.contentWidth = baseContentWidth;
       node.box.borderBoxWidth = node.box.contentWidth + horizontalExtras;
-      node.box.marginBoxWidth = node.box.borderBoxWidth + horizontalMargin(node, node.box.contentWidth);
+      node.box.marginBoxWidth = node.box.borderBoxWidth + horizontalMargin(node, node.box.contentWidth, cb.height);
     }
   }
 }

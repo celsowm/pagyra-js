@@ -4,11 +4,49 @@ import type {
   RepeatTrackDefinitionInput,
   AutoRepeatTrackDefinitionInput,
   FlexTrackSizeInput,
+  ClampTrackSizeInput,
   NumericLength,
 } from "../style.js";
-import { parseLength } from "./length-parser.js";
+import type { ClampNumericLength } from "../length.js";
+import { parseClampArgs, parseLength } from "./length-parser.js";
+
+type GapLengthInput = NumericLength | ClampNumericLength;
 
 function tokenizeTrackList(value: string): string[] {
+  const tokens: string[] = [];
+  let buffer = "";
+  let depth = 0;
+
+  for (let i = 0; i < value.length; i++) {
+    const char = value[i];
+    if (char === "(") {
+      depth += 1;
+      buffer += char;
+      continue;
+    }
+    if (char === ")") {
+      depth = Math.max(0, depth - 1);
+      buffer += char;
+      continue;
+    }
+    if (/\s/.test(char) && depth === 0) {
+      if (buffer) {
+        tokens.push(buffer.trim());
+        buffer = "";
+      }
+      continue;
+    }
+    buffer += char;
+  }
+
+  if (buffer) {
+    tokens.push(buffer.trim());
+  }
+
+  return tokens;
+}
+
+function tokenizeSpaceSeparated(value: string): string[] {
   const tokens: string[] = [];
   let buffer = "";
   let depth = 0;
@@ -129,6 +167,22 @@ function parseTrackSize(token: string): TrackSizeInput | undefined {
     return { kind: "auto" };
   }
 
+  const clampArgs = parseClampArgs(token);
+  if (clampArgs) {
+    const min = parseLength(clampArgs[0]);
+    const preferred = parseLength(clampArgs[1]);
+    const max = parseLength(clampArgs[2]);
+    if (min !== undefined && preferred !== undefined && max !== undefined) {
+      const track: ClampTrackSizeInput = {
+        kind: "clamp",
+        min,
+        preferred,
+        max,
+      };
+      return track;
+    }
+  }
+
   const length = parseLength(normalized);
   if (length !== undefined) {
     return { kind: "fixed", size: length };
@@ -194,23 +248,45 @@ export function parseGridTemplate(value: string): TrackDefinitionInput[] | undef
   return tracks;
 }
 
-export function parseGap(value: string): { row: NumericLength; column: NumericLength } | undefined {
+function parseGapLengthValue(value: string): GapLengthInput | undefined {
+  const parsed = parseLength(value);
+  if (parsed !== undefined) {
+    return parsed;
+  }
+
+  const clampArgs = parseClampArgs(value);
+  if (!clampArgs) {
+    return undefined;
+  }
+
+  const min = parseLength(clampArgs[0]);
+  const preferred = parseLength(clampArgs[1]);
+  const max = parseLength(clampArgs[2]);
+  if (min === undefined || preferred === undefined || max === undefined) {
+    return undefined;
+  }
+  return {
+    kind: "clamp",
+    min,
+    preferred,
+    max,
+  };
+}
+
+export function parseGap(value: string): { row: GapLengthInput; column: GapLengthInput } | undefined {
   if (!value) {
     return undefined;
   }
-  const tokens = value
-    .split(/\s+/)
-    .map((token) => token.trim())
-    .filter((token) => token.length > 0);
+  const tokens = tokenizeSpaceSeparated(value.trim());
   if (tokens.length === 0) {
     return undefined;
   }
 
-  const first = parseLength(tokens[0]);
+  const first = parseGapLengthValue(tokens[0]);
   if (first === undefined) {
     return undefined;
   }
-  const second = tokens.length > 1 ? parseLength(tokens[1]) : undefined;
+  const second = tokens.length > 1 ? parseGapLengthValue(tokens[1]) : undefined;
   return {
     row: first,
     column: second ?? first,

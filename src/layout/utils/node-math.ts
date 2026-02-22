@@ -18,14 +18,15 @@ export interface BoxMetrics {
 
 export function resolveBoxMetrics(node: LayoutNode, widthRef: number, heightRef: number): BoxMetrics {
   const { style } = node;
-  const paddingLeft = resolveLength(style.paddingLeft, widthRef, { auto: "zero" });
-  const paddingRight = resolveLength(style.paddingRight, widthRef, { auto: "zero" });
-  const paddingTop = resolveLength(style.paddingTop, heightRef, { auto: "zero" });
-  const paddingBottom = resolveLength(style.paddingBottom, heightRef, { auto: "zero" });
-  const borderLeft = resolveLength(style.borderLeft, widthRef, { auto: "zero" });
-  const borderRight = resolveLength(style.borderRight, widthRef, { auto: "zero" });
-  const borderTop = resolveLength(style.borderTop, heightRef, { auto: "zero" });
-  const borderBottom = resolveLength(style.borderBottom, heightRef, { auto: "zero" });
+  const containerRefs = { containerWidth: widthRef, containerHeight: heightRef };
+  const paddingLeft = resolveLength(style.paddingLeft, widthRef, { auto: "zero", ...containerRefs });
+  const paddingRight = resolveLength(style.paddingRight, widthRef, { auto: "zero", ...containerRefs });
+  const paddingTop = resolveLength(style.paddingTop, heightRef, { auto: "zero", ...containerRefs });
+  const paddingBottom = resolveLength(style.paddingBottom, heightRef, { auto: "zero", ...containerRefs });
+  const borderLeft = resolveLength(style.borderLeft, widthRef, { auto: "zero", ...containerRefs });
+  const borderRight = resolveLength(style.borderRight, widthRef, { auto: "zero", ...containerRefs });
+  const borderTop = resolveLength(style.borderTop, heightRef, { auto: "zero", ...containerRefs });
+  const borderBottom = resolveLength(style.borderBottom, heightRef, { auto: "zero", ...containerRefs });
 
   return {
     paddingLeft,
@@ -48,34 +49,44 @@ export function adjustForBoxSizing(specifiedSize: number, boxSizing: BoxSizing, 
   return specifiedSize;
 }
 
-export function horizontalNonContent(node: LayoutNode, reference: number): number {
+export function horizontalNonContent(node: LayoutNode, reference: number, containerHeight: number = reference): number {
   const { style } = node;
+  const containerRefs = { containerWidth: reference, containerHeight };
   return (
-    resolveLength(style.paddingLeft, reference, { auto: "zero" }) +
-    resolveLength(style.paddingRight, reference, { auto: "zero" }) +
-    resolveLength(style.borderLeft, reference, { auto: "zero" }) +
-    resolveLength(style.borderRight, reference, { auto: "zero" })
+    resolveLength(style.paddingLeft, reference, { auto: "zero", ...containerRefs }) +
+    resolveLength(style.paddingRight, reference, { auto: "zero", ...containerRefs }) +
+    resolveLength(style.borderLeft, reference, { auto: "zero", ...containerRefs }) +
+    resolveLength(style.borderRight, reference, { auto: "zero", ...containerRefs })
   );
 }
 
-export function verticalNonContent(node: LayoutNode, reference: number): number {
+export function verticalNonContent(node: LayoutNode, reference: number, containerWidth: number = reference): number {
   const { style } = node;
+  const containerRefs = { containerWidth, containerHeight: reference };
   return (
-    resolveLength(style.paddingTop, reference, { auto: "zero" }) +
-    resolveLength(style.paddingBottom, reference, { auto: "zero" }) +
-    resolveLength(style.borderTop, reference, { auto: "zero" }) +
-    resolveLength(style.borderBottom, reference, { auto: "zero" })
+    resolveLength(style.paddingTop, reference, { auto: "zero", ...containerRefs }) +
+    resolveLength(style.paddingBottom, reference, { auto: "zero", ...containerRefs }) +
+    resolveLength(style.borderTop, reference, { auto: "zero", ...containerRefs }) +
+    resolveLength(style.borderBottom, reference, { auto: "zero", ...containerRefs })
   );
 }
 
-export function horizontalMargin(node: LayoutNode, reference: number): number {
+export function horizontalMargin(node: LayoutNode, reference: number, containerHeight: number = reference): number {
   const { style } = node;
-  return resolveLength(style.marginLeft, reference, { auto: "zero" }) + resolveLength(style.marginRight, reference, { auto: "zero" });
+  const containerRefs = { containerWidth: reference, containerHeight };
+  return (
+    resolveLength(style.marginLeft, reference, { auto: "zero", ...containerRefs }) +
+    resolveLength(style.marginRight, reference, { auto: "zero", ...containerRefs })
+  );
 }
 
-export function verticalMargin(node: LayoutNode, reference: number): number {
+export function verticalMargin(node: LayoutNode, reference: number, containerWidth: number = reference): number {
   const { style } = node;
-  return resolveLength(style.marginTop, reference, { auto: "zero" }) + resolveLength(style.marginBottom, reference, { auto: "zero" });
+  const containerRefs = { containerWidth, containerHeight: reference };
+  return (
+    resolveLength(style.marginTop, reference, { auto: "zero", ...containerRefs }) +
+    resolveLength(style.marginBottom, reference, { auto: "zero", ...containerRefs })
+  );
 }
 
 export function inFlow(node: LayoutNode): boolean {
@@ -150,19 +161,24 @@ export function containingBlock(node: LayoutNode, viewport: Viewport): Containin
   // This allows percentage heights like `height: 100%` on flex children
   // to resolve against a definite containing block height instead of 0.
   if (heightRef === 0 && parent.style.height !== "auto") {
-    const explicitHeight = resolveLength(parent.style.height, viewport.height, { auto: "reference" });
+    const explicitHeight = resolveLength(parent.style.height, viewport.height, {
+      auto: "reference",
+      containerWidth: viewport.width,
+      containerHeight: viewport.height,
+    });
     if (Number.isFinite(explicitHeight) && explicitHeight > 0) {
       heightRef = explicitHeight;
     }
   }
+  const containerRefs = { containerWidth: widthRef, containerHeight: heightRef };
   const xOffset =
     parent.box.x +
-    resolveLength(parent.style.paddingLeft, widthRef, { auto: "zero" }) +
-    resolveLength(parent.style.borderLeft, widthRef, { auto: "zero" });
+    resolveLength(parent.style.paddingLeft, widthRef, { auto: "zero", ...containerRefs }) +
+    resolveLength(parent.style.borderLeft, widthRef, { auto: "zero", ...containerRefs });
   const yOffset =
     parent.box.y +
-    resolveLength(parent.style.paddingTop, heightRef, { auto: "zero" }) +
-    resolveLength(parent.style.borderTop, heightRef, { auto: "zero" });
+    resolveLength(parent.style.paddingTop, heightRef, { auto: "zero", ...containerRefs }) +
+    resolveLength(parent.style.borderTop, heightRef, { auto: "zero", ...containerRefs });
 
   return {
     x: xOffset,
@@ -172,15 +188,20 @@ export function containingBlock(node: LayoutNode, viewport: Viewport): Containin
   };
 }
 
-export function resolveWidthBlock(node: LayoutNode, containingBlockWidth: number): number {
+export function resolveWidthBlock(
+  node: LayoutNode,
+  containingBlockWidth: number,
+  containingBlockHeight: number = containingBlockWidth,
+): number {
   const style = node.style;
-  const hNonContent = horizontalNonContent(node, containingBlockWidth);
+  const containerRefs = { containerWidth: containingBlockWidth, containerHeight: containingBlockHeight };
+  const hNonContent = horizontalNonContent(node, containingBlockWidth, containingBlockHeight);
   const marginLeft = isAutoLength(style.marginLeft)
     ? 0
-    : resolveLength(style.marginLeft, containingBlockWidth, { auto: "zero" });
+    : resolveLength(style.marginLeft, containingBlockWidth, { auto: "zero", ...containerRefs });
   const marginRight = isAutoLength(style.marginRight)
     ? 0
-    : resolveLength(style.marginRight, containingBlockWidth, { auto: "zero" });
+    : resolveLength(style.marginRight, containingBlockWidth, { auto: "zero", ...containerRefs });
   const available = Math.max(
     0,
     containingBlockWidth - hNonContent - marginLeft - marginRight,
@@ -189,15 +210,23 @@ export function resolveWidthBlock(node: LayoutNode, containingBlockWidth: number
     style.width === "auto"
       ? available
       : adjustForBoxSizing(
-          resolveLength(style.width, containingBlockWidth, { auto: "reference" }),
+          resolveLength(style.width, containingBlockWidth, { auto: "reference", ...containerRefs }),
           style.boxSizing,
           hNonContent,
         );
   const minWidth = style.minWidth
-    ? adjustForBoxSizing(resolveLength(style.minWidth, containingBlockWidth, { auto: "zero" }), style.boxSizing, hNonContent)
+    ? adjustForBoxSizing(
+        resolveLength(style.minWidth, containingBlockWidth, { auto: "zero", ...containerRefs }),
+        style.boxSizing,
+        hNonContent,
+      )
     : Number.NEGATIVE_INFINITY;
   const maxWidth = style.maxWidth
-    ? adjustForBoxSizing(resolveLength(style.maxWidth, containingBlockWidth, { auto: "reference" }), style.boxSizing, hNonContent)
+    ? adjustForBoxSizing(
+        resolveLength(style.maxWidth, containingBlockWidth, { auto: "reference", ...containerRefs }),
+        style.boxSizing,
+        hNonContent,
+      )
     : Number.POSITIVE_INFINITY;
   return clampMinMax(width, minWidth, maxWidth);
 }
@@ -207,12 +236,14 @@ export function resolveBlockAutoMargins(
   borderBoxWidth: number,
   marginLeft: LengthLike,
   marginRight: LengthLike,
+  containingBlockHeight: number = containingBlockWidth,
 ): { marginLeft: number; marginRight: number } {
+  const containerRefs = { containerWidth: containingBlockWidth, containerHeight: containingBlockHeight };
   const marginLeftAuto = isAutoLength(marginLeft);
   const marginRightAuto = isAutoLength(marginRight);
 
-  const resolvedMarginLeft = marginLeftAuto ? 0 : resolveLength(marginLeft, containingBlockWidth, { auto: "zero" });
-  const resolvedMarginRight = marginRightAuto ? 0 : resolveLength(marginRight, containingBlockWidth, { auto: "zero" });
+  const resolvedMarginLeft = marginLeftAuto ? 0 : resolveLength(marginLeft, containingBlockWidth, { auto: "zero", ...containerRefs });
+  const resolvedMarginRight = marginRightAuto ? 0 : resolveLength(marginRight, containingBlockWidth, { auto: "zero", ...containerRefs });
 
   let usedMarginLeft = resolvedMarginLeft;
   let usedMarginRight = resolvedMarginRight;

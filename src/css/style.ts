@@ -38,6 +38,7 @@ import type {
   FixedTrackSize,
   FlexTrackSize,
   AutoTrackSize,
+  ClampTrackSize,
   RepeatTrackDefinition,
   AutoRepeatTrackDefinition,
   TrackSizeInput,
@@ -45,6 +46,7 @@ import type {
   FixedTrackSizeInput,
   FlexTrackSizeInput,
   AutoTrackSizeInput,
+  ClampTrackSizeInput,
   RepeatTrackDefinitionInput,
   AutoRepeatTrackDefinitionInput,
 } from "./properties/grid.js";
@@ -71,6 +73,7 @@ export type {
   FixedTrackSize,
   FlexTrackSize,
   AutoTrackSize,
+  ClampTrackSize,
   RepeatTrackDefinition,
   AutoRepeatTrackDefinition,
   TrackSizeInput,
@@ -78,6 +81,7 @@ export type {
   FixedTrackSizeInput,
   FlexTrackSizeInput,
   AutoTrackSizeInput,
+  ClampTrackSizeInput,
   RepeatTrackDefinitionInput,
   AutoRepeatTrackDefinitionInput,
 };
@@ -153,12 +157,15 @@ export interface StyleAccumulator {
   alignSelf?: AlignSelfValue;
   flexDirection?: FlexDirection;
   flexWrap?: boolean;
+  flexGrow?: number;
+  flexShrink?: number;
+  flexBasis?: LengthInput;
   overflowWrap?: OverflowWrap;
   trackListColumns?: TrackDefinitionInput[];
   trackListRows?: TrackDefinitionInput[];
   autoFlow?: GridAutoFlow;
-  rowGap?: NumericLength;
-  columnGap?: NumericLength;
+  rowGap?: NumericLength | ClampNumericLength;
+  columnGap?: NumericLength | ClampNumericLength;
   zIndex?: number | "auto";
   top?: LengthInput;
   right?: LengthInput;

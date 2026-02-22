@@ -23,7 +23,8 @@ export class TableLayoutStrategy implements LayoutStrategy {
     });
 
     const cb = containingBlock(node, context.env.viewport);
-    node.box.contentWidth = resolveWidthBlock(node, cb.width);
+    const containerRefs = { containerWidth: cb.width, containerHeight: cb.height };
+    node.box.contentWidth = resolveWidthBlock(node, cb.width, cb.height);
     log("layout", "debug", "Table layout start", {
       table: node.tagName,
       availableWidth: cb.width,
@@ -106,7 +107,7 @@ export class TableLayoutStrategy implements LayoutStrategy {
 
     if (collapsedBorders) {
       const numericBorder = (value: LengthLike | undefined): number =>
-        resolveLength(value, node.box.contentWidth, { auto: "zero" });
+        resolveLength(value, node.box.contentWidth, { auto: "zero", ...containerRefs });
 
       // For collapsed borders, we need to:
       // 1. Collapse borders between adjacent cells (winner takes the shared border)
@@ -234,7 +235,7 @@ export class TableLayoutStrategy implements LayoutStrategy {
         const rowSpan = Math.min(this.cellRowSpan(cell), numRows - r);
         const spannedWidth = this.sumColumns(colWidths, c, colSpan);
 
-        const boxMetrics = this.resolveCellBoxMetrics(cell, spannedWidth);
+        const boxMetrics = this.resolveCellBoxMetrics(cell, spannedWidth, cb.height);
         const cellAvailableWidth =
           spannedWidth - boxMetrics.borderLeft - boxMetrics.borderRight - boxMetrics.paddingLeft - boxMetrics.paddingRight;
         cell.box.x = 0;
@@ -301,7 +302,7 @@ export class TableLayoutStrategy implements LayoutStrategy {
           const spanWidth = colOffsets[c + colSpan] - colOffsets[c];
           const spanHeight = rowOffsets[r + rowSpan] - rowOffsets[r];
 
-          const boxMetrics = this.resolveCellBoxMetrics(cell, spanWidth);
+          const boxMetrics = this.resolveCellBoxMetrics(cell, spanWidth, cb.height);
           const availableContentHeight =
             spanHeight - boxMetrics.borderTop - boxMetrics.borderBottom - boxMetrics.paddingTop - boxMetrics.paddingBottom;
           const alignOffsetY = this.computeVerticalAlignOffset(
@@ -369,16 +370,16 @@ export class TableLayoutStrategy implements LayoutStrategy {
     }
 
     let resolvedContentHeight = rowOffsets[numRows];
-    const verticalExtras = verticalNonContent(node, cb.width);
+    const verticalExtras = verticalNonContent(node, cb.height, cb.width);
     if (node.style.height !== "auto" && node.style.height !== undefined) {
       resolvedContentHeight = adjustForBoxSizing(
-        resolveLength(node.style.height, cb.height, { auto: "zero" }),
+        resolveLength(node.style.height, cb.height, { auto: "zero", ...containerRefs }),
         node.style.boxSizing,
         verticalExtras,
       );
     }
     node.box.contentHeight = Math.max(0, resolvedContentHeight);
-    node.box.borderBoxWidth = node.box.contentWidth + horizontalNonContent(node, cb.width);
+    node.box.borderBoxWidth = node.box.contentWidth + horizontalNonContent(node, cb.width, cb.height);
     node.box.borderBoxHeight = node.box.contentHeight + verticalExtras;
     node.box.scrollWidth = node.box.contentWidth;
     node.box.scrollHeight = node.box.contentHeight;
@@ -564,6 +565,7 @@ export class TableLayoutStrategy implements LayoutStrategy {
   private resolveCellBoxMetrics(
     cell: LayoutNode,
     referenceWidth: number,
+    referenceHeight: number = referenceWidth,
   ): {
     borderLeft: number;
     borderRight: number;
@@ -574,16 +576,18 @@ export class TableLayoutStrategy implements LayoutStrategy {
     paddingTop: number;
     paddingBottom: number;
   } {
-    const resolve = (value: LengthLike | undefined) => resolveLength(value, referenceWidth, { auto: "zero" });
+    const containerRefs = { containerWidth: referenceWidth, containerHeight: referenceHeight };
+    const resolveHorizontal = (value: LengthLike | undefined) => resolveLength(value, referenceWidth, { auto: "zero", ...containerRefs });
+    const resolveVertical = (value: LengthLike | undefined) => resolveLength(value, referenceHeight, { auto: "zero", ...containerRefs });
     return {
-      borderLeft: resolve(cell.style.borderLeft),
-      borderRight: resolve(cell.style.borderRight),
-      borderTop: resolve(cell.style.borderTop),
-      borderBottom: resolve(cell.style.borderBottom),
-      paddingLeft: resolve(cell.style.paddingLeft),
-      paddingRight: resolve(cell.style.paddingRight),
-      paddingTop: resolve(cell.style.paddingTop),
-      paddingBottom: resolve(cell.style.paddingBottom),
+      borderLeft: resolveHorizontal(cell.style.borderLeft),
+      borderRight: resolveHorizontal(cell.style.borderRight),
+      borderTop: resolveVertical(cell.style.borderTop),
+      borderBottom: resolveVertical(cell.style.borderBottom),
+      paddingLeft: resolveHorizontal(cell.style.paddingLeft),
+      paddingRight: resolveHorizontal(cell.style.paddingRight),
+      paddingTop: resolveVertical(cell.style.paddingTop),
+      paddingBottom: resolveVertical(cell.style.paddingBottom),
     };
   }
 

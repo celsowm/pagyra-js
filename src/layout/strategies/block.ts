@@ -41,9 +41,10 @@ export class BlockLayoutStrategy implements LayoutStrategy {
     const layoutDebug = createLayoutDebug(context);
     const contentMeasurer = new ContentMeasurer(layoutDebug);
     const cb = containingBlock(node, context.env.viewport);
+    const containerRefs = { containerWidth: cb.width, containerHeight: cb.height };
     node.establishesBFC = establishesBFC(node);
 
-    let contentWidth = resolveWidthBlock(node, cb.width);
+    let contentWidth = resolveWidthBlock(node, cb.width, cb.height);
     const debugTag = node.tagName ?? "(anonymous)";
     if (node.style.display === Display.InlineBlock) {
       layoutDebug(
@@ -53,25 +54,25 @@ export class BlockLayoutStrategy implements LayoutStrategy {
     const availableWidth = contentWidth;
     node.box.contentWidth = contentWidth;
 
-    const horizontalExtras = horizontalNonContent(node, contentWidth);
-    const horizontalMarginSize = horizontalMargin(node, contentWidth);
+    const horizontalExtras = horizontalNonContent(node, contentWidth, cb.height);
+    const horizontalMarginSize = horizontalMargin(node, contentWidth, cb.height);
     node.box.borderBoxWidth = contentWidth + horizontalExtras;
     node.box.marginBoxWidth = node.box.borderBoxWidth + horizontalMarginSize;
 
-    const paddingLeft = resolveLength(node.style.paddingLeft, contentWidth, { auto: "zero" });
-    const borderLeft = resolveLength(node.style.borderLeft, contentWidth, { auto: "zero" });
-    const paddingTop = resolveLength(node.style.paddingTop, contentWidth, { auto: "zero" });
-    const borderTop = resolveLength(node.style.borderTop, contentWidth, { auto: "zero" });
+    const paddingLeft = resolveLength(node.style.paddingLeft, contentWidth, { auto: "zero", ...containerRefs });
+    const borderLeft = resolveLength(node.style.borderLeft, contentWidth, { auto: "zero", ...containerRefs });
+    const paddingTop = resolveLength(node.style.paddingTop, contentWidth, { auto: "zero", ...containerRefs });
+    const borderTop = resolveLength(node.style.borderTop, contentWidth, { auto: "zero", ...containerRefs });
 
     const contentX = node.box.x + borderLeft + paddingLeft;
-    const collapseTopWithChildren = canCollapseMarginStart(node, contentWidth);
-    const collapseBottomWithChildren = canCollapseMarginEnd(node, contentWidth);
+    const collapseTopWithChildren = canCollapseMarginStart(node, contentWidth, cb.height);
+    const collapseBottomWithChildren = canCollapseMarginEnd(node, contentWidth, cb.height);
     const firstCollapsibleChild = collapseTopWithChildren ? findFirstMarginCollapsibleChild(node) : undefined;
     const lastCollapsibleChild = collapseBottomWithChildren ? findLastMarginCollapsibleChild(node) : undefined;
     const topCollapseAmount =
-      collapseTopWithChildren && firstCollapsibleChild ? effectiveMarginTop(firstCollapsibleChild, contentWidth) : 0;
+      collapseTopWithChildren && firstCollapsibleChild ? effectiveMarginTop(firstCollapsibleChild, contentWidth, cb.height) : 0;
     const bottomCollapseAmount =
-      collapseBottomWithChildren && lastCollapsibleChild ? effectiveMarginBottom(lastCollapsibleChild, contentWidth) : 0;
+      collapseBottomWithChildren && lastCollapsibleChild ? effectiveMarginBottom(lastCollapsibleChild, contentWidth, cb.height) : 0;
 
     let cursorY = node.box.y + paddingTop + borderTop;
     let previousBottomMargin = 0;
@@ -92,6 +93,7 @@ export class BlockLayoutStrategy implements LayoutStrategy {
           context,
           contentX,
           contentWidth,
+          contentHeight: cb.height,
           startY: cursorY,
         });
         previousBottomMargin = 0;
@@ -129,10 +131,10 @@ export class BlockLayoutStrategy implements LayoutStrategy {
         continue;
       }
 
-      const childMarginTopRaw = resolveLength(child.style.marginTop, contentWidth, { auto: "zero" });
-      const childMarginBottomRaw = resolveLength(child.style.marginBottom, contentWidth, { auto: "zero" });
-      const collapsedMarginTop = effectiveMarginTop(child, contentWidth);
-      const collapsedMarginBottom = effectiveMarginBottom(child, contentWidth);
+      const childMarginTopRaw = resolveLength(child.style.marginTop, contentWidth, { auto: "zero", ...containerRefs });
+      const childMarginBottomRaw = resolveLength(child.style.marginBottom, contentWidth, { auto: "zero", ...containerRefs });
+      const collapsedMarginTop = effectiveMarginTop(child, contentWidth, cb.height);
+      const collapsedMarginBottom = effectiveMarginBottom(child, contentWidth, cb.height);
 
       let gap = collapsedGapBetween(previousBottomMargin, collapsedMarginTop, node.establishesBFC);
       if (collapseTopWithChildren && child === firstCollapsibleChild) {
@@ -149,6 +151,7 @@ export class BlockLayoutStrategy implements LayoutStrategy {
         child.box.borderBoxWidth,
         child.style.marginLeft,
         child.style.marginRight,
+        cb.height,
       );
       child.box.usedMarginLeft = usedMarginLeft;
       child.box.usedMarginRight = usedMarginRight;
@@ -179,17 +182,17 @@ export class BlockLayoutStrategy implements LayoutStrategy {
       cursorY += previousBottomMargin;
     }
 
-    const measurement = contentMeasurer.measureInFlowWidth(node, contentWidth, contentX);
+    const measurement = contentMeasurer.measureInFlowWidth(node, contentWidth, contentX, cb.height);
     if (Number.isFinite(measurement.width)) {
       const intrinsicWidth = Math.max(0, measurement.width);
       node.box.scrollWidth = Math.max(node.box.scrollWidth, intrinsicWidth);
 
       if (node.style.display === Display.InlineBlock && node.style.width === "auto") {
         const minWidth =
-          node.style.minWidth !== undefined ? resolveLength(node.style.minWidth, cb.width, { auto: "zero" }) : undefined;
+          node.style.minWidth !== undefined ? resolveLength(node.style.minWidth, cb.width, { auto: "zero", ...containerRefs }) : undefined;
         const maxWidth =
           node.style.maxWidth !== undefined
-            ? resolveLength(node.style.maxWidth, cb.width, { auto: "reference" })
+            ? resolveLength(node.style.maxWidth, cb.width, { auto: "reference", ...containerRefs })
             : undefined;
 
         let targetContentWidth = intrinsicWidth;
@@ -231,19 +234,19 @@ export class BlockLayoutStrategy implements LayoutStrategy {
     const effectiveCursor = Math.max(cursorY, floatBottom);
     node.box.contentHeight = Math.max(0, effectiveCursor - (node.box.y + borderTop) - paddingTop);
     if (node.style.height !== "auto") {
-      const vertExtras = verticalNonContent(node, contentWidth);
+      const vertExtras = verticalNonContent(node, cb.height, cb.width);
       node.box.contentHeight = adjustForBoxSizing(
-        resolveLength(node.style.height, cb.height, { auto: "zero" }),
+        resolveLength(node.style.height, cb.height, { auto: "zero", ...containerRefs }),
         node.style.boxSizing,
         vertExtras,
       );
     }
-    const verticalExtras = verticalNonContent(node, contentWidth);
+    const verticalExtras = verticalNonContent(node, cb.height, cb.width);
     node.box.borderBoxHeight = node.box.contentHeight + verticalExtras;
     node.box.marginBoxHeight =
       node.box.borderBoxHeight +
-      resolveLength(node.style.marginTop, contentWidth, { auto: "zero" }) +
-      resolveLength(node.style.marginBottom, contentWidth, { auto: "zero" });
+      resolveLength(node.style.marginTop, cb.height, { auto: "zero", ...containerRefs }) +
+      resolveLength(node.style.marginBottom, cb.height, { auto: "zero", ...containerRefs });
 
     finalizeOverflow(node);
   }

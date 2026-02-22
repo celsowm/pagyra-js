@@ -11,6 +11,10 @@ import {
   parseAlignSelf,
   parseFlexDirection,
   parseFlexWrap,
+  parseFlexGrow,
+  parseFlexShrink,
+  parseFlexBasis,
+  parseFlex,
 } from "./display-flex-parser.js";
 
 // Color
@@ -183,6 +187,10 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("align-self", parseAlignSelf);
   registerPropertyParser("flex-direction", parseFlexDirection);
   registerPropertyParser("flex-wrap", parseFlexWrap);
+  registerPropertyParser("flex-grow", parseFlexGrow);
+  registerPropertyParser("flex-shrink", parseFlexShrink);
+  registerPropertyParser("flex-basis", parseFlexBasis);
+  registerPropertyParser("flex", parseFlex);
 
   // Color
   registerPropertyParser("color", parseColor);

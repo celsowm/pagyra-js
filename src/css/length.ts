@@ -17,9 +17,23 @@ export interface RelativeLength {
   readonly value: number;
 }
 
+export interface CalcLength {
+  readonly kind: "calc";
+  readonly px: number;
+  readonly percent: number;
+  readonly em?: number;
+  readonly rem?: number;
+  readonly cqw?: number;
+  readonly cqh?: number;
+  readonly cqi?: number;
+  readonly cqb?: number;
+  readonly cqmin?: number;
+  readonly cqmax?: number;
+}
+
 export type CSSLength = AbsoluteLength | AutoLength;
 
-export type LengthLike = CSSLength | number | "auto";
+export type LengthLike = CSSLength | CalcLength | number | "auto";
 export type LengthInput = LengthLike | RelativeLength;
 export type NumericLength = number | RelativeLength;
 
@@ -42,6 +56,13 @@ export function isRelativeLength(value: unknown): value is RelativeLength {
     return false;
   }
   return (value as RelativeLength).kind === "relative";
+}
+
+export function isCalcLength(value: unknown): value is CalcLength {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  return (value as CalcLength).kind === "calc";
 }
 
 export function resolveRelativeLength(value: RelativeLength, fontSize: number, rootFontSize: number): number {
@@ -73,6 +94,21 @@ export function resolveLengthInput(
   if (isRelativeLength(value)) {
     return resolveRelativeLength(value, fontSize, rootFontSize);
   }
+  if (isCalcLength(value)) {
+    return {
+      kind: "calc",
+      px: value.px + (value.em ?? 0) * fontSize + (value.rem ?? 0) * rootFontSize,
+      percent: value.percent,
+      em: 0,
+      rem: 0,
+      cqw: value.cqw ?? 0,
+      cqh: value.cqh ?? 0,
+      cqi: value.cqi ?? 0,
+      cqb: value.cqb ?? 0,
+      cqmin: value.cqmin ?? 0,
+      cqmax: value.cqmax ?? 0,
+    };
+  }
   return value;
 }
 
@@ -86,7 +122,7 @@ export function isAutoLength(value: LengthLike): value is AutoLength | "auto" {
   return value.kind === "auto";
 }
 
-export function normalizeLength(value: LengthLike): CSSLength {
+export function normalizeLength(value: LengthLike): CSSLength | CalcLength {
   if (typeof value === "number") {
     return px(value);
   }
@@ -98,6 +134,8 @@ export function normalizeLength(value: LengthLike): CSSLength {
 
 export interface ResolveLengthOptions {
   auto?: "reference" | "zero" | number;
+  containerWidth?: number;
+  containerHeight?: number;
 }
 
 export function resolveLength(
@@ -106,6 +144,8 @@ export function resolveLength(
   options: ResolveLengthOptions = { auto: "reference" },
 ): number {
   const autoBehavior = options.auto ?? "reference";
+  const containerWidth = options.containerWidth ?? reference;
+  const containerHeight = options.containerHeight ?? reference;
   if (value === undefined) {
     return 0;
   }
@@ -117,6 +157,22 @@ export function resolveLength(
   }
   if (value.kind === "auto") {
     return resolveAuto(autoBehavior, reference);
+  }
+  if (value.kind === "calc") {
+    const inlineSize = containerWidth;
+    const blockSize = containerHeight;
+    const minSize = Math.min(inlineSize, blockSize);
+    const maxSize = Math.max(inlineSize, blockSize);
+    return (
+      value.px +
+      value.percent * reference +
+      (value.cqw ?? 0) * inlineSize +
+      (value.cqi ?? 0) * inlineSize +
+      (value.cqh ?? 0) * blockSize +
+      (value.cqb ?? 0) * blockSize +
+      (value.cqmin ?? 0) * minSize +
+      (value.cqmax ?? 0) * maxSize
+    );
   }
   if (value.unit === "percent") {
     return value.value * reference;

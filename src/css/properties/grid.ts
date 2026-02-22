@@ -17,12 +17,19 @@ export interface FlexTrackSize {
 }
 
 export interface AutoTrackSize {
-    kind: "auto";
-    min?: number;
-    max?: number;
+  kind: "auto";
+  min?: number;
+  max?: number;
 }
 
-export type TrackSize = FixedTrackSize | FlexTrackSize | AutoTrackSize;
+export interface ClampTrackSize {
+  kind: "clamp";
+  min: number;
+  preferred: number;
+  max: number;
+}
+
+export type TrackSize = FixedTrackSize | FlexTrackSize | AutoTrackSize | ClampTrackSize;
 
 export interface RepeatTrackDefinition {
     kind: "repeat";
@@ -52,12 +59,19 @@ export interface FlexTrackSizeInput {
 }
 
 export interface AutoTrackSizeInput {
-    kind: "auto";
-    min?: NumericLength;
-    max?: NumericLength;
+  kind: "auto";
+  min?: NumericLength;
+  max?: NumericLength;
 }
 
-export type TrackSizeInput = FixedTrackSizeInput | FlexTrackSizeInput | AutoTrackSizeInput;
+export interface ClampTrackSizeInput {
+  kind: "clamp";
+  min: NumericLength;
+  preferred: NumericLength;
+  max: NumericLength;
+}
+
+export type TrackSizeInput = FixedTrackSizeInput | FlexTrackSizeInput | AutoTrackSizeInput | ClampTrackSizeInput;
 
 export interface RepeatTrackDefinitionInput {
     kind: "repeat";

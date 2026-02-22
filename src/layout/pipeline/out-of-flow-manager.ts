@@ -35,12 +35,13 @@ export class DefaultOutOfFlowManager implements OutOfFlowManager {
     const cb = containingBlock(node, env.viewport);
     const widthRef = cb.width;
     const heightRef = cb.height;
+    const containerRefs = { containerWidth: widthRef, containerHeight: heightRef };
 
     const resolveInset = (value: typeof node.style.left, reference: number): number | undefined => {
       if (value === undefined || isAutoLength(value)) {
         return undefined;
       }
-      return resolveLength(value, reference, { auto: "zero" });
+      return resolveLength(value, reference, { auto: "zero", ...containerRefs });
     };
 
     const left = resolveInset(node.style.left, widthRef);

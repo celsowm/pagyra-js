@@ -10,6 +10,7 @@ interface FloatPlacementOptions {
   context: LayoutContext;
   contentX: number;
   contentWidth: number;
+  contentHeight?: number;
   startY: number;
 }
 
@@ -27,23 +28,25 @@ export function clearForBlock(node: LayoutNode, floatContext: FloatContext, yCur
 
 export function placeFloat(options: FloatPlacementOptions): number {
   const { node, floatContext, context, contentX, contentWidth } = options;
+  const contentHeight = options.contentHeight ?? contentWidth;
+  const containerRefs = { containerWidth: contentWidth, containerHeight: contentHeight };
 
   context.layoutChild(node);
 
-  const marginLeft = resolveLength(node.style.marginLeft, contentWidth, { auto: "zero" });
-  const marginRight = resolveLength(node.style.marginRight, contentWidth, { auto: "zero" });
-  const marginTop = resolveLength(node.style.marginTop, contentWidth, { auto: "zero" });
-  const marginBottom = resolveLength(node.style.marginBottom, contentWidth, { auto: "zero" });
+  const marginLeft = resolveLength(node.style.marginLeft, contentWidth, { auto: "zero", ...containerRefs });
+  const marginRight = resolveLength(node.style.marginRight, contentWidth, { auto: "zero", ...containerRefs });
+  const marginTop = resolveLength(node.style.marginTop, contentHeight, { auto: "zero", ...containerRefs });
+  const marginBottom = resolveLength(node.style.marginBottom, contentHeight, { auto: "zero", ...containerRefs });
 
-  const borderLeft = resolveLength(node.style.borderLeft, contentWidth, { auto: "zero" });
-  const borderRight = resolveLength(node.style.borderRight, contentWidth, { auto: "zero" });
-  const borderTop = resolveLength(node.style.borderTop, contentWidth, { auto: "zero" });
-  const borderBottom = resolveLength(node.style.borderBottom, contentWidth, { auto: "zero" });
+  const borderLeft = resolveLength(node.style.borderLeft, contentWidth, { auto: "zero", ...containerRefs });
+  const borderRight = resolveLength(node.style.borderRight, contentWidth, { auto: "zero", ...containerRefs });
+  const borderTop = resolveLength(node.style.borderTop, contentHeight, { auto: "zero", ...containerRefs });
+  const borderBottom = resolveLength(node.style.borderBottom, contentHeight, { auto: "zero", ...containerRefs });
 
-  const paddingLeft = resolveLength(node.style.paddingLeft, contentWidth, { auto: "zero" });
-  const paddingRight = resolveLength(node.style.paddingRight, contentWidth, { auto: "zero" });
-  const paddingTop = resolveLength(node.style.paddingTop, contentWidth, { auto: "zero" });
-  const paddingBottom = resolveLength(node.style.paddingBottom, contentWidth, { auto: "zero" });
+  const paddingLeft = resolveLength(node.style.paddingLeft, contentWidth, { auto: "zero", ...containerRefs });
+  const paddingRight = resolveLength(node.style.paddingRight, contentWidth, { auto: "zero", ...containerRefs });
+  const paddingTop = resolveLength(node.style.paddingTop, contentHeight, { auto: "zero", ...containerRefs });
+  const paddingBottom = resolveLength(node.style.paddingBottom, contentHeight, { auto: "zero", ...containerRefs });
 
   const borderBoxWidth = node.box.contentWidth + paddingLeft + paddingRight + borderLeft + borderRight;
   const borderBoxHeight = node.box.contentHeight + paddingTop + paddingBottom + borderTop + borderBottom;

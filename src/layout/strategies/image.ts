@@ -33,21 +33,34 @@ export class ImageStrategy {
    * Sets up image sizing based on CSS properties
    */
   private static setupImageSizing(node: LayoutNode, _imageInfo: ImageInfo): void {
+    const intrinsicContainerRefs = {
+      containerWidth: node.intrinsicInlineSize ?? 0,
+      containerHeight: node.intrinsicBlockSize ?? 0,
+    };
     // If width is explicitly set, calculate proportional height
     if (node.style.width !== undefined && typeof node.style.width === 'number' && node.style.width > 0) {
-      const specifiedWidth = resolveLength(node.style.width, node.intrinsicInlineSize!, { auto: "zero" });
+      const specifiedWidth = resolveLength(node.style.width, node.intrinsicInlineSize!, {
+        auto: "zero",
+        ...intrinsicContainerRefs,
+      });
       const scale = specifiedWidth / node.intrinsicInlineSize!;
       node.intrinsicBlockSize = Math.round(node.intrinsicBlockSize! * scale);
     }
     // If height is explicitly set, calculate proportional width
     else if (node.style.height !== undefined && typeof node.style.height === 'number' && node.style.height > 0) {
-      const specifiedHeight = resolveLength(node.style.height, node.intrinsicBlockSize!, { auto: "zero" });
+      const specifiedHeight = resolveLength(node.style.height, node.intrinsicBlockSize!, {
+        auto: "zero",
+        ...intrinsicContainerRefs,
+      });
       const scale = specifiedHeight / node.intrinsicBlockSize!;
       node.intrinsicInlineSize = Math.round(node.intrinsicInlineSize! * scale);
     }
     // Handle max-width constraints
     else if (node.style.maxWidth !== undefined && typeof node.style.maxWidth === 'number') {
-      const maxWidth = resolveLength(node.style.maxWidth, node.intrinsicInlineSize!, { auto: "zero" });
+      const maxWidth = resolveLength(node.style.maxWidth, node.intrinsicInlineSize!, {
+        auto: "zero",
+        ...intrinsicContainerRefs,
+      });
       if (maxWidth < node.intrinsicInlineSize!) {
         const scale = maxWidth / node.intrinsicInlineSize!;
         node.intrinsicInlineSize = maxWidth;
@@ -144,8 +157,20 @@ export function calculateImagePosition(
 
     case 'fill':
       // Use the specified dimensions if available
-      width = node.style.width ? resolveLength(node.style.width, containerWidth, { auto: "zero" }) : containerWidth;
-      height = node.style.height ? resolveLength(node.style.height, containerHeight, { auto: "zero" }) : containerHeight;
+      width = node.style.width
+        ? resolveLength(node.style.width, containerWidth, {
+            auto: "zero",
+            containerWidth,
+            containerHeight,
+          })
+        : containerWidth;
+      height = node.style.height
+        ? resolveLength(node.style.height, containerHeight, {
+            auto: "zero",
+            containerWidth,
+            containerHeight,
+          })
+        : containerHeight;
       break;
 
     case 'none':
@@ -188,31 +213,32 @@ export class ImageLayoutStrategy implements LayoutStrategy {
     const cb = containingBlock(node, context.env.viewport);
     const widthRef = Math.max(cb.width, 0);
     const heightRef = Math.max(cb.height, 0);
+    const containerRefs = { containerWidth: widthRef, containerHeight: heightRef };
 
     const intrinsicWidth = Math.max(0, node.intrinsicInlineSize ?? 0);
     const intrinsicHeight = Math.max(0, node.intrinsicBlockSize ?? 0);
     const hasIntrinsic = intrinsicWidth > 0 && intrinsicHeight > 0;
 
-    const paddingLeft = resolveLength(node.style.paddingLeft, widthRef, { auto: "zero" });
-    const paddingRight = resolveLength(node.style.paddingRight, widthRef, { auto: "zero" });
-    const paddingTop = resolveLength(node.style.paddingTop, heightRef, { auto: "zero" });
-    const paddingBottom = resolveLength(node.style.paddingBottom, heightRef, { auto: "zero" });
+    const paddingLeft = resolveLength(node.style.paddingLeft, widthRef, { auto: "zero", ...containerRefs });
+    const paddingRight = resolveLength(node.style.paddingRight, widthRef, { auto: "zero", ...containerRefs });
+    const paddingTop = resolveLength(node.style.paddingTop, heightRef, { auto: "zero", ...containerRefs });
+    const paddingBottom = resolveLength(node.style.paddingBottom, heightRef, { auto: "zero", ...containerRefs });
 
-    const borderLeft = resolveLength(node.style.borderLeft, widthRef, { auto: "zero" });
-    const borderRight = resolveLength(node.style.borderRight, widthRef, { auto: "zero" });
-    const borderTop = resolveLength(node.style.borderTop, heightRef, { auto: "zero" });
-    const borderBottom = resolveLength(node.style.borderBottom, heightRef, { auto: "zero" });
+    const borderLeft = resolveLength(node.style.borderLeft, widthRef, { auto: "zero", ...containerRefs });
+    const borderRight = resolveLength(node.style.borderRight, widthRef, { auto: "zero", ...containerRefs });
+    const borderTop = resolveLength(node.style.borderTop, heightRef, { auto: "zero", ...containerRefs });
+    const borderBottom = resolveLength(node.style.borderBottom, heightRef, { auto: "zero", ...containerRefs });
 
-    const marginLeft = resolveLength(node.style.marginLeft, widthRef, { auto: "zero" });
-    const marginRight = resolveLength(node.style.marginRight, widthRef, { auto: "zero" });
-    const marginTop = resolveLength(node.style.marginTop, heightRef, { auto: "zero" });
-    const marginBottom = resolveLength(node.style.marginBottom, heightRef, { auto: "zero" });
+    const marginLeft = resolveLength(node.style.marginLeft, widthRef, { auto: "zero", ...containerRefs });
+    const marginRight = resolveLength(node.style.marginRight, widthRef, { auto: "zero", ...containerRefs });
+    const marginTop = resolveLength(node.style.marginTop, heightRef, { auto: "zero", ...containerRefs });
+    const marginBottom = resolveLength(node.style.marginBottom, heightRef, { auto: "zero", ...containerRefs });
 
     const horizontalExtras = paddingLeft + paddingRight + borderLeft + borderRight;
     const verticalExtras = paddingTop + paddingBottom + borderTop + borderBottom;
     const availableContentWidth = Math.max(
       0,
-      widthRef - horizontalNonContent(node, widthRef) - horizontalMargin(node, widthRef),
+      widthRef - horizontalNonContent(node, widthRef, heightRef) - horizontalMargin(node, widthRef, heightRef),
     );
 
     const hasExplicitWidth = node.style.width !== "auto" && node.style.width !== undefined;
@@ -222,14 +248,14 @@ export class ImageLayoutStrategy implements LayoutStrategy {
     let contentHeight = hasIntrinsic ? intrinsicHeight : 0;
 
     if (hasExplicitWidth) {
-      const resolved = resolveLength(node.style.width, widthRef, { auto: "reference" });
+      const resolved = resolveLength(node.style.width, widthRef, { auto: "reference", ...containerRefs });
       if (Number.isFinite(resolved) && resolved > 0) {
         contentWidth = adjustForBoxSizing(resolved, node.style.boxSizing, horizontalExtras);
       }
     }
 
     if (hasExplicitHeight) {
-      const resolved = resolveLength(node.style.height, heightRef, { auto: "reference" });
+      const resolved = resolveLength(node.style.height, heightRef, { auto: "reference", ...containerRefs });
       if (Number.isFinite(resolved) && resolved > 0) {
         contentHeight = adjustForBoxSizing(resolved, node.style.boxSizing, verticalExtras);
       }
@@ -263,7 +289,7 @@ export class ImageLayoutStrategy implements LayoutStrategy {
     const lockAspectToHeight = hasIntrinsic && !hasExplicitWidth;
 
     if (node.style.maxWidth !== undefined && !isAutoLength(node.style.maxWidth)) {
-      const maxWidth = adjustForBoxSizing(resolveLength(node.style.maxWidth, widthRef, { auto: "reference" }), node.style.boxSizing, horizontalExtras);
+      const maxWidth = adjustForBoxSizing(resolveLength(node.style.maxWidth, widthRef, { auto: "reference", ...containerRefs }), node.style.boxSizing, horizontalExtras);
       if (Number.isFinite(maxWidth) && maxWidth > 0 && contentWidth > maxWidth) {
         if (lockAspectToWidth && contentWidth > 0) {
           const scale = maxWidth / contentWidth;
@@ -274,7 +300,7 @@ export class ImageLayoutStrategy implements LayoutStrategy {
     }
 
     if (node.style.minWidth !== undefined && !isAutoLength(node.style.minWidth)) {
-      const minWidth = adjustForBoxSizing(resolveLength(node.style.minWidth, widthRef, { auto: "zero" }), node.style.boxSizing, horizontalExtras);
+      const minWidth = adjustForBoxSizing(resolveLength(node.style.minWidth, widthRef, { auto: "zero", ...containerRefs }), node.style.boxSizing, horizontalExtras);
       if (Number.isFinite(minWidth) && minWidth > 0 && contentWidth < minWidth) {
         if (lockAspectToWidth && contentWidth > 0) {
           const scale = minWidth / contentWidth;
@@ -286,7 +312,7 @@ export class ImageLayoutStrategy implements LayoutStrategy {
 
     if (node.style.maxHeight !== undefined && !isAutoLength(node.style.maxHeight)) {
       const maxHeight = adjustForBoxSizing(
-        resolveLength(node.style.maxHeight, heightRef, { auto: "reference" }),
+        resolveLength(node.style.maxHeight, heightRef, { auto: "reference", ...containerRefs }),
         node.style.boxSizing,
         verticalExtras,
       );
@@ -301,7 +327,7 @@ export class ImageLayoutStrategy implements LayoutStrategy {
 
     if (node.style.minHeight !== undefined && !isAutoLength(node.style.minHeight)) {
       const minHeight = adjustForBoxSizing(
-        resolveLength(node.style.minHeight, heightRef, { auto: "zero" }),
+        resolveLength(node.style.minHeight, heightRef, { auto: "zero", ...containerRefs }),
         node.style.boxSizing,
         verticalExtras,
       );

@@ -1,34 +1,10 @@
 import { Position } from "../enums.js";
-import { percent } from "../length.js";
 import type { LengthInput } from "../length.js";
 import type { StyleAccumulator } from "../style.js";
-import { parseLength } from "./length-parser.js";
-
-const PERCENT_LENGTH_REGEX = /^(-?\d+(?:\.\d+)?)%$/;
+import { parseLengthOrAuto } from "./length-parser.js";
 
 function parseLengthLike(value: string): LengthInput | undefined {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return undefined;
-  }
-  if (trimmed.toLowerCase() === "auto") {
-    return "auto";
-  }
-
-  const parsed = parseLength(trimmed);
-  if (parsed !== undefined) {
-    return parsed;
-  }
-
-  const percentMatch = PERCENT_LENGTH_REGEX.exec(trimmed);
-  if (percentMatch) {
-    const numeric = Number.parseFloat(percentMatch[1]);
-    if (!Number.isNaN(numeric)) {
-      return percent(numeric / 100);
-    }
-  }
-
-  return undefined;
+  return parseLengthOrAuto(value);
 }
 
 export function parsePosition(value: string, target: StyleAccumulator): void {

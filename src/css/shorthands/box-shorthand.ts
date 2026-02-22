@@ -2,9 +2,9 @@
 
 import { parseLengthOrAuto } from "../parsers/length-parser.js";
 import { splitCssList } from "../utils.js";
-import type { RelativeLength } from "../length.js";
+import type { LengthInput } from "../length.js";
 
-type BoxLength = number | RelativeLength | "auto" | undefined;
+type BoxLength = LengthInput | undefined;
 
 export function applyBoxShorthand<T extends BoxLength = BoxLength>(
   value: string,
