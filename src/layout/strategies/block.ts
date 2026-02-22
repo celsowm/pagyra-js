@@ -171,6 +171,14 @@ export class BlockLayoutStrategy implements LayoutStrategy {
       }
     }
 
+    // When the parent cannot collapse its bottom margin with children
+    // (e.g. it has border-bottom or padding-bottom), the last child's
+    // bottom margin is contained inside the parent and must be included
+    // in the content height.
+    if (!collapseBottomWithChildren && previousBottomMargin !== 0) {
+      cursorY += previousBottomMargin;
+    }
+
     const measurement = contentMeasurer.measureInFlowWidth(node, contentWidth, contentX);
     if (Number.isFinite(measurement.width)) {
       const intrinsicWidth = Math.max(0, measurement.width);
