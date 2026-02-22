@@ -1,6 +1,6 @@
-import { Display } from "../../css/enums.js";
+import { AlignItems, BoxSizing, Display } from "../../css/enums.js";
 import type { TrackDefinition, TrackSize } from "../../css/style.js";
-import { resolveLength } from "../../css/length.js";
+import { isAutoLength, resolveLength } from "../../css/length.js";
 import type { LayoutContext, LayoutStrategy } from "../pipeline/strategy.js";
 import {
   adjustForBoxSizing,
@@ -12,6 +12,17 @@ import {
 } from "../utils/node-math.js";
 import type { LayoutNode } from "../../dom/node.js";
 import { calculateTrackOffsets, calculateTotalGap } from "../utils/gap-calculator.js";
+
+interface GridRowItem {
+  child: LayoutNode;
+  columnWidth: number;
+  columnX: number;
+}
+
+interface GridRow {
+  items: GridRowItem[];
+  height: number;
+}
 
 type RepeatTrack = Extract<TrackDefinition, { kind: "repeat" }>;
 type AutoRepeatTrack = Extract<TrackDefinition, { kind: "repeat-auto" }>;
@@ -202,11 +213,11 @@ export class GridLayoutStrategy implements LayoutStrategy {
 
     const columnOffsets = calculateTrackOffsets(columnWidths, columnGap);
 
-    let contentHeight = 0;
+    const rows: GridRow[] = [];
     let currentRowTop = contentOriginY;
     let currentRowHeight = 0;
     let columnIndex = 0;
-    let rowCount = 0;
+    let currentRowItems: GridRowItem[] = [];
 
     for (const child of node.children) {
       if (child.style.display === Display.None) {
@@ -228,22 +239,28 @@ export class GridLayoutStrategy implements LayoutStrategy {
       child.box.y = currentRowTop;
 
       currentRowHeight = Math.max(currentRowHeight, child.box.borderBoxHeight);
+      currentRowItems.push({
+        child,
+        columnWidth,
+        columnX,
+      });
 
       columnIndex += 1;
       if (columnIndex >= columnWidths.length) {
-        rowCount += 1;
-        contentHeight += currentRowHeight;
+        rows.push({ items: currentRowItems, height: currentRowHeight });
         currentRowTop += currentRowHeight + rowGap;
         currentRowHeight = 0;
         columnIndex = 0;
+        currentRowItems = [];
       }
     }
 
-    if (columnIndex !== 0) {
-      rowCount += 1;
-      contentHeight += currentRowHeight;
+    if (currentRowItems.length > 0) {
+      rows.push({ items: currentRowItems, height: currentRowHeight });
     }
 
+    const rowCount = rows.length;
+    const contentHeight = rows.reduce((sum, row) => sum + row.height, 0);
     const totalRowGap = calculateTotalGap(rowGap, rowCount);
     const verticalExtras = verticalNonContent(node, cb.height, cb.width);
     let resolvedContentHeight = Math.max(0, contentHeight + totalRowGap);
@@ -261,6 +278,72 @@ export class GridLayoutStrategy implements LayoutStrategy {
       resolveLength(node.style.marginTop, cb.height, { auto: "zero", ...containerRefs }) +
       resolveLength(node.style.marginBottom, cb.height, { auto: "zero", ...containerRefs });
 
+    const stretchedRowHeights = resolveGridAlignContentRows(
+      rows,
+      rowGap,
+      node.box.contentHeight,
+      node.style.alignContent,
+    );
+    const containerAlignItems = node.style.alignItems ?? AlignItems.Stretch;
+
+    let finalRowTop = contentOriginY;
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+      const row = rows[rowIndex];
+      const rowHeight = stretchedRowHeights[rowIndex] ?? row.height;
+
+      for (const rowItem of row.items) {
+        const child = rowItem.child;
+        const finalX = rowItem.columnX;
+        const finalY = finalRowTop;
+
+        const prePlaceDx = finalX - child.box.x;
+        const prePlaceDy = finalY - child.box.y;
+        child.box.x = finalX;
+        child.box.y = finalY;
+        offsetLayoutSubtree(child, prePlaceDx, prePlaceDy);
+
+        const alignSelf = resolveGridItemAlignment(child, containerAlignItems);
+        const autoHeight = child.style.height === undefined || child.style.height === "auto" || isAutoLength(child.style.height);
+        if (alignSelf === AlignItems.Stretch && autoHeight) {
+          const childContainerRefs = { containerWidth: rowItem.columnWidth, containerHeight: rowHeight };
+          const marginTop = resolveLength(child.style.marginTop, rowHeight, { auto: "zero", ...childContainerRefs });
+          const marginBottom = resolveLength(child.style.marginBottom, rowHeight, { auto: "zero", ...childContainerRefs });
+          const targetBorderBoxHeight = Math.max(0, rowHeight - marginTop - marginBottom);
+          const childVerticalExtras = verticalNonContent(child, rowHeight, rowItem.columnWidth);
+          const stretchedSpecifiedHeight = child.style.boxSizing === BoxSizing.BorderBox
+            ? targetBorderBoxHeight
+            : Math.max(0, targetBorderBoxHeight - childVerticalExtras);
+
+          const currentBorderHeight = child.box.borderBoxHeight;
+          if (Math.abs(currentBorderHeight - targetBorderBoxHeight) > 0.01) {
+            const originalHeight = child.style.height;
+            const originalContentWidth = node.box.contentWidth;
+            try {
+              child.style.height = stretchedSpecifiedHeight;
+              child.box.x = finalX;
+              child.box.y = finalY;
+              node.box.contentWidth = rowItem.columnWidth;
+              context.layoutChild(child);
+            } finally {
+              node.box.contentWidth = originalContentWidth;
+              child.style.height = originalHeight;
+            }
+
+            const relayoutDx = finalX - child.box.x;
+            const relayoutDy = finalY - child.box.y;
+            child.box.x = finalX;
+            child.box.y = finalY;
+            offsetLayoutSubtree(child, relayoutDx, relayoutDy);
+          }
+        }
+      }
+
+      finalRowTop += rowHeight;
+      if (rowIndex < rows.length - 1) {
+        finalRowTop += rowGap;
+      }
+    }
+
     node.box.scrollWidth = Math.max(node.box.contentWidth, totalColumnWidth);
     node.box.scrollHeight = node.box.contentHeight;
 
@@ -270,4 +353,53 @@ export class GridLayoutStrategy implements LayoutStrategy {
       node.box.marginBoxWidth = node.box.borderBoxWidth + horizontalMargin(node, node.box.contentWidth, cb.height);
     }
   }
+}
+
+function offsetLayoutSubtree(node: LayoutNode, deltaX: number, deltaY: number): void {
+  if (deltaX === 0 && deltaY === 0) {
+    return;
+  }
+  node.walk((desc) => {
+    if (desc !== node) {
+      desc.box.x += deltaX;
+      desc.box.y += deltaY;
+    }
+    desc.box.baseline += deltaY;
+
+    if (desc.inlineRuns && desc.inlineRuns.length > 0) {
+      for (const run of desc.inlineRuns) {
+        run.startX += deltaX;
+        run.baseline += deltaY;
+      }
+    }
+  });
+}
+
+function resolveGridItemAlignment(child: LayoutNode, containerAlign: AlignItems): AlignItems {
+  const alignSelf = child.style.alignSelf;
+  if (alignSelf && alignSelf !== "auto") {
+    return alignSelf;
+  }
+  return containerAlign;
+}
+
+function resolveGridAlignContentRows(
+  rows: GridRow[],
+  rowGap: number,
+  containerContentHeight: number,
+  alignContent: string,
+): number[] {
+  const rowHeights = rows.map((row) => row.height);
+  if (alignContent !== "stretch") {
+    return rowHeights;
+  }
+  const naturalHeight = rowHeights.reduce((sum, height) => sum + height, 0) + calculateTotalGap(rowGap, rowHeights.length);
+  const freeSpace = Math.max(0, containerContentHeight - naturalHeight);
+  if (freeSpace > 0 && rowHeights.length > 0) {
+    const extraPerRow = freeSpace / rowHeights.length;
+    for (let i = 0; i < rowHeights.length; i++) {
+      rowHeights[i] += extraPerRow;
+    }
+  }
+  return rowHeights;
 }
