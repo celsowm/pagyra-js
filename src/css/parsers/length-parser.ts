@@ -83,6 +83,23 @@ export function parseLengthOrPercent(value: string): number | RelativeLength | R
   return percent(numeric / 100);
 }
 
+/**
+ * Extract the three arguments from a CSS clamp() function.
+ * Returns [min, preferred, max] strings or undefined if not a clamp value.
+ */
+export function parseClampArgs(value: string): [string, string, string] | undefined {
+  const trimmed = value.trim();
+  if (!trimmed.toLowerCase().startsWith("clamp(") || !trimmed.endsWith(")")) {
+    return undefined;
+  }
+  const inner = trimmed.slice(6, -1);
+  const parts = inner.split(",");
+  if (parts.length !== 3) {
+    return undefined;
+  }
+  return [parts[0].trim(), parts[1].trim(), parts[2].trim()];
+}
+
 export function parseLengthOrAuto(value: string): number | RelativeLength | "auto" | undefined {
   if (!value) {
     return undefined;

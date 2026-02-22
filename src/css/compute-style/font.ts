@@ -1,5 +1,5 @@
 import { createNormalLineHeight, lineHeightEquals, type LineHeightValue } from "../line-height.js";
-import { resolveNumberLike, type NumericLength } from "../length.js";
+import { resolveNumberLike, isClampNumericLength, resolveClampNumericLength, type NumericLength } from "../length.js";
 import type { StyleAccumulator } from "../style.js";
 import type { InheritedStyleProperties } from "../style-inheritance.js";
 import type { StyleDefaults } from "../ua-defaults/types.js";
@@ -51,7 +51,12 @@ export function computeFontContext(
 
   let computedFontSize = inherited.fontSize;
   if (styleInit.fontSize !== undefined) {
-    const resolvedFontSize = resolveNumberLike(styleInit.fontSize, inherited.fontSize, rootFontReference);
+    let resolvedFontSize: number | undefined;
+    if (isClampNumericLength(styleInit.fontSize)) {
+      resolvedFontSize = resolveClampNumericLength(styleInit.fontSize, inherited.fontSize, rootFontReference);
+    } else {
+      resolvedFontSize = resolveNumberLike(styleInit.fontSize, inherited.fontSize, rootFontReference);
+    }
     if (resolvedFontSize !== undefined) {
       computedFontSize = resolvedFontSize;
     }

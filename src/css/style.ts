@@ -14,7 +14,7 @@ import {
   WhiteSpace,
   WritingMode,
 } from "./enums.js";
-import type { LengthInput, LengthLike, RelativeLength, NumericLength } from "./length.js";
+import type { LengthInput, LengthLike, RelativeLength, NumericLength, ClampNumericLength } from "./length.js";
 import { BrowserDefaults } from "./browser-defaults.js";
 import type { BackgroundLayer } from "./background-types.js";
 import {
@@ -128,7 +128,7 @@ export interface StyleAccumulator {
   height?: LengthInput;
   minHeight?: LengthInput;
   maxHeight?: LengthInput;
-  fontSize?: number | RelativeLength;
+  fontSize?: number | RelativeLength | ClampNumericLength;
   lineHeight?: LineHeightInput;
   fontFamily?: string;
   fontStyle?: string;

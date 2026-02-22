@@ -124,6 +124,29 @@ export function resolveLength(
   return value.value;
 }
 
+export interface ClampNumericLength {
+  readonly kind: "clamp";
+  readonly min: number | RelativeLength;
+  readonly preferred: number | RelativeLength;
+  readonly max: number | RelativeLength;
+}
+
+export function isClampNumericLength(value: unknown): value is ClampNumericLength {
+  return value !== null && typeof value === "object" && (value as ClampNumericLength).kind === "clamp";
+}
+
+export function resolveClampNumericLength(
+  value: ClampNumericLength,
+  fontSize: number,
+  rootFontSize: number,
+): number | undefined {
+  const min = resolveNumberLike(value.min, fontSize, rootFontSize);
+  const preferred = resolveNumberLike(value.preferred, fontSize, rootFontSize);
+  const max = resolveNumberLike(value.max, fontSize, rootFontSize);
+  if (min === undefined || preferred === undefined || max === undefined) return undefined;
+  return Math.min(Math.max(preferred, min), max);
+}
+
 export function clampMinMax(value: number, minValue: number | undefined, maxValue: number | undefined): number {
   const upper = maxValue ?? Number.POSITIVE_INFINITY;
   const lower = minValue ?? Number.NEGATIVE_INFINITY;

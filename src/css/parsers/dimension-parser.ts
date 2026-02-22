@@ -1,6 +1,6 @@
-import { parseLength, parseNumeric } from "./length-parser.js";
+import { parseLength, parseNumeric, parseClampArgs } from "./length-parser.js";
 import { percent } from "../length.js";
-import type { LengthLike, RelativeLength } from "../length.js";
+import type { LengthLike, RelativeLength, ClampNumericLength } from "../length.js";
 import type { StyleAccumulator } from "../style.js";
 import type { LineHeightInput } from "../line-height.js";
 
@@ -25,6 +25,16 @@ function parseLengthOrPercent(value: string): LengthOrRelative | undefined {
 }
 
 export function parseWidth(value: string, target: StyleAccumulator): void {
+  const clampArgs = parseClampArgs(value);
+  if (clampArgs) {
+    const min = parseLengthOrPercent(clampArgs[0]);
+    const preferred = parseLengthOrPercent(clampArgs[1]);
+    const max = parseLengthOrPercent(clampArgs[2]);
+    if (preferred !== undefined) target.width = preferred;
+    if (min !== undefined) target.minWidth ??= min;
+    if (max !== undefined) target.maxWidth ??= max;
+    return;
+  }
   const parsed = parseLengthOrPercent(value);
   if (parsed !== undefined) {
     target.width = parsed;
@@ -46,6 +56,16 @@ export function parseMaxWidth(value: string, target: StyleAccumulator): void {
 }
 
 export function parseHeight(value: string, target: StyleAccumulator): void {
+  const clampArgs = parseClampArgs(value);
+  if (clampArgs) {
+    const min = parseLengthOrPercent(clampArgs[0]);
+    const preferred = parseLengthOrPercent(clampArgs[1]);
+    const max = parseLengthOrPercent(clampArgs[2]);
+    if (preferred !== undefined) target.height = preferred;
+    if (min !== undefined) target.minHeight ??= min;
+    if (max !== undefined) target.maxHeight ??= max;
+    return;
+  }
   const parsed = parseLengthOrPercent(value);
   if (parsed !== undefined) {
     target.height = parsed;
@@ -67,6 +87,16 @@ export function parseMaxHeight(value: string, target: StyleAccumulator): void {
 }
 
 export function parseFontSize(value: string, target: StyleAccumulator): void {
+  const clampArgs = parseClampArgs(value);
+  if (clampArgs) {
+    const min = parseLength(clampArgs[0]) ?? parseNumeric(clampArgs[0]);
+    const preferred = parseLength(clampArgs[1]) ?? parseNumeric(clampArgs[1]);
+    const max = parseLength(clampArgs[2]) ?? parseNumeric(clampArgs[2]);
+    if (min !== undefined && preferred !== undefined && max !== undefined) {
+      target.fontSize = { kind: "clamp" as const, min, preferred, max };
+    }
+    return;
+  }
   target.fontSize = parseNumeric(value) ?? target.fontSize;
 }
 
