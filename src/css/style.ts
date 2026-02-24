@@ -169,6 +169,7 @@ export interface StyleAccumulator {
   autoFlow?: GridAutoFlow;
   rowGap?: NumericLength | ClampNumericLength;
   columnGap?: NumericLength | ClampNumericLength;
+  gridColumnSpan?: number;
   zIndex?: number | "auto";
   top?: LengthInput;
   right?: LengthInput;
@@ -286,6 +287,7 @@ export class ComputedStyle implements StyleProperties {
   autoFlow: GridAutoFlow;
   rowGap: number;
   columnGap: number;
+  gridColumnSpan: number;
   tableLayout: TableLayoutMode;
   borderModel: BorderModel;
   breakBefore: string;
@@ -392,6 +394,7 @@ export class ComputedStyle implements StyleProperties {
     this.autoFlow = data.autoFlow;
     this.rowGap = data.rowGap;
     this.columnGap = data.columnGap;
+    this.gridColumnSpan = data.gridColumnSpan;
     this.tableLayout = data.tableLayout;
     this.borderModel = data.borderModel;
     this.breakBefore = data.breakBefore;

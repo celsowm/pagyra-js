@@ -15,7 +15,7 @@ export function parseColor(value: string | undefined): RGBA | undefined {
     return undefined;
   }
 
-  const hexMatch = normalized.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  const hexMatch = normalized.match(/^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i);
   if (hexMatch) {
     const digits = hexMatch[1];
     if (digits.length === 3) {
@@ -24,10 +24,25 @@ export function parseColor(value: string | undefined): RGBA | undefined {
       const b = parseHex(digits[2] + digits[2]);
       return { r, g, b, a: 1 };
     }
+    if (digits.length === 4) {
+      const r = parseHex(digits[0] + digits[0]);
+      const g = parseHex(digits[1] + digits[1]);
+      const b = parseHex(digits[2] + digits[2]);
+      const a = parseHex(digits[3] + digits[3]) / 255;
+      return { r, g, b, a };
+    }
+    if (digits.length === 6) {
+      const r = parseHex(digits.slice(0, 2));
+      const g = parseHex(digits.slice(2, 4));
+      const b = parseHex(digits.slice(4, 6));
+      return { r, g, b, a: 1 };
+    }
+    // 8 digits
     const r = parseHex(digits.slice(0, 2));
     const g = parseHex(digits.slice(2, 4));
     const b = parseHex(digits.slice(4, 6));
-    return { r, g, b, a: 1 };
+    const a = parseHex(digits.slice(6, 8)) / 255;
+    return { r, g, b, a };
   }
   const rgbMatch = normalized.match(/^rgba?\((.+)\)$/);
   if (rgbMatch) {

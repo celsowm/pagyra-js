@@ -59,6 +59,24 @@ export function parseRowGap(value: string, target: StyleAccumulator): void {
   }
 }
 
+export function parseGridColumn(value: string, target: StyleAccumulator): void {
+  const trimmed = value.trim().toLowerCase();
+  // Handle "span N" pattern
+  const spanMatch = trimmed.match(/^span\s+(\d+)$/);
+  if (spanMatch) {
+    const span = Number.parseInt(spanMatch[1], 10);
+    if (Number.isFinite(span) && span > 0) {
+      target.gridColumnSpan = span;
+      return;
+    }
+  }
+  // Handle plain integer (line number, treat as span 1)
+  const num = Number.parseInt(trimmed, 10);
+  if (Number.isFinite(num) && num > 0) {
+    target.gridColumnSpan = 1;
+  }
+}
+
 export function parseColumnGap(value: string, target: StyleAccumulator): void {
   const parsed = parseLength(value);
   if (parsed !== undefined) {

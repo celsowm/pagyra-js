@@ -154,6 +154,7 @@ import {
   parseGridTemplateColumns,
   parseGridTemplateRows,
   parseGridAutoFlow,
+  parseGridColumn,
   parseGap,
   parseRowGap,
   parseColumnGap,
@@ -319,6 +320,7 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("grid-template-columns", parseGridTemplateColumns);
   registerPropertyParser("grid-template-rows", parseGridTemplateRows);
   registerPropertyParser("grid-auto-flow", parseGridAutoFlow);
+  registerPropertyParser("grid-column", parseGridColumn);
   registerPropertyParser("gap", parseGap);
   registerPropertyParser("row-gap", parseRowGap);
   registerPropertyParser("column-gap", parseColumnGap);

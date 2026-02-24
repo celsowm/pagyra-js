@@ -327,7 +327,7 @@ function isColorValue(value: string): boolean {
   if (lowerValue === "transparent") {
     return true;
   }
-  if (lowerValue.startsWith("#") && (lowerValue.length === 4 || lowerValue.length === 7)) {
+  if (lowerValue.startsWith("#") && (lowerValue.length === 4 || lowerValue.length === 5 || lowerValue.length === 7 || lowerValue.length === 9)) {
     return true;
   }
   if (lowerValue.startsWith("rgb(") || lowerValue.startsWith("rgba(")) {

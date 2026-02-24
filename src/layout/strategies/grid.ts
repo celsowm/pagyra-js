@@ -224,7 +224,29 @@ export class GridLayoutStrategy implements LayoutStrategy {
         continue;
       }
 
-      const columnWidth = columnWidths[columnIndex] ?? columnWidths[columnWidths.length - 1] ?? baseContentWidth;
+      const span = Math.min(child.style.gridColumnSpan ?? 1, columnWidths.length);
+
+      // Wrap to next row if the span doesn't fit
+      if (columnIndex + span > columnWidths.length) {
+        if (currentRowItems.length > 0) {
+          rows.push({ items: currentRowItems, height: currentRowHeight });
+          currentRowTop += currentRowHeight + rowGap;
+          currentRowHeight = 0;
+          currentRowItems = [];
+        }
+        columnIndex = 0;
+      }
+
+      // Calculate the total width of spanned columns
+      let columnWidth = 0;
+      for (let s = 0; s < span; s++) {
+        columnWidth += columnWidths[columnIndex + s] ?? 0;
+      }
+      // Add gap between spanned columns
+      if (span > 1) {
+        columnWidth += columnGap * (span - 1);
+      }
+
       const columnX = contentOriginX + (columnOffsets[columnIndex] ?? 0);
 
       child.box.x = columnX;
@@ -245,7 +267,7 @@ export class GridLayoutStrategy implements LayoutStrategy {
         columnX,
       });
 
-      columnIndex += 1;
+      columnIndex += span;
       if (columnIndex >= columnWidths.length) {
         rows.push({ items: currentRowItems, height: currentRowHeight });
         currentRowTop += currentRowHeight + rowGap;

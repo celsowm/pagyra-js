@@ -202,6 +202,9 @@ export function applyStyleInitOverrides(
   if (styleInit.columnGap !== undefined) {
     assignGapLength(styleInit.columnGap, (v) => (styleOptions.columnGap = v));
   }
+  if (styleInit.gridColumnSpan !== undefined) {
+    styleOptions.gridColumnSpan = styleInit.gridColumnSpan;
+  }
   if (styleInit.justifyContent !== undefined) styleOptions.justifyContent = styleInit.justifyContent;
   if (styleInit.alignItems !== undefined) styleOptions.alignItems = styleInit.alignItems;
   if (styleInit.alignContent !== undefined) styleOptions.alignContent = styleInit.alignContent;

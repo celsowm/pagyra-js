@@ -104,5 +104,8 @@ export interface GridProperties extends GapProperties {
     /** Auto-placement flow direction */
     autoFlow: GridAutoFlow;
 
+    /** Number of columns a grid item spans */
+    gridColumnSpan: number;
+
     // rowGap and columnGap are inherited from GapProperties
 }

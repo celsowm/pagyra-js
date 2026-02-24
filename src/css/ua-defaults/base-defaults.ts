@@ -250,6 +250,7 @@ export function createBaseDefaultsObject(): StyleDefaults {
     trackListColumns: [],
     trackListRows: [],
     autoFlow: "row",
+    gridColumnSpan: 1,
     rowGap: 0,
     columnGap: 0,
 
