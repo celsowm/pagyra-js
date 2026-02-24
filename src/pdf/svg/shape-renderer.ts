@@ -340,11 +340,25 @@ function svgLinearNodeToLinearGradient(node: SvgLinearGradientNode, context?: Sv
 
   // Default: objectBoundingBox coordinates (ratio 0..1)
   const units = node.gradientUnits === "userSpaceOnUse" ? "userSpace" : "ratio";
+  const rawTransform = (node.attributes && (node.attributes["gradientTransform"] ?? node.attributes["gradienttransform"])) as string | undefined;
+  const transform = rawTransform ? parseTransform(rawTransform) || undefined : undefined;
 
   // If userSpaceOnUse, map points to page pixels using the SVG render context
   if (units === "userSpace" && context) {
-    const p1 = mapSvgPoint(x1, y1, context);
-    const p2 = mapSvgPoint(x2, y2, context);
+    let ux1 = x1;
+    let uy1 = y1;
+    let ux2 = x2;
+    let uy2 = y2;
+    if (transform) {
+      const tp1 = applyMatrixToPoint(transform, ux1, uy1);
+      const tp2 = applyMatrixToPoint(transform, ux2, uy2);
+      ux1 = tp1.x;
+      uy1 = tp1.y;
+      ux2 = tp2.x;
+      uy2 = tp2.y;
+    }
+    const p1 = mapSvgPoint(ux1, uy1, context);
+    const p2 = mapSvgPoint(ux2, uy2, context);
     if (p1 && p2) {
       // coords in absolute page pixels; gradient-service will convert to rectangle-local points
       return { type: "linear", direction: "to right", stops, coords: { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, units: "userSpace" } };
@@ -356,13 +370,9 @@ function svgLinearNodeToLinearGradient(node: SvgLinearGradientNode, context?: Sv
   // Apply gradientTransform if present — treat it as operating in gradient coordinate space
   let rp1 = { x: x1, y: y1 };
   let rp2 = { x: x2, y: y2 };
-  const rawTransform = (node.attributes && (node.attributes["gradientTransform"] ?? node.attributes["gradienttransform"])) as string | undefined;
-  if (rawTransform) {
-    const t = parseTransform(rawTransform) || undefined;
-    if (t) {
-      rp1 = applyMatrixToPoint(t, rp1.x, rp1.y);
-      rp2 = applyMatrixToPoint(t, rp2.x, rp2.y);
-    }
+  if (transform) {
+    rp1 = applyMatrixToPoint(transform, rp1.x, rp1.y);
+    rp2 = applyMatrixToPoint(transform, rp2.x, rp2.y);
   }
 
   // compute direction angle from ratio coords (useful when no explicit coords provided)
@@ -383,13 +393,34 @@ function svgRadialNodeToRadialGradient(node: SvgRadialGradientNode, context?: Sv
   const stops = (node.stops ?? []).map((s) => ({ color: s.color, position: s.offset }));
 
   const units = node.gradientUnits === "userSpaceOnUse" ? "userSpace" : "ratio";
+  const rawTransform = (node.attributes && (node.attributes["gradientTransform"] ?? node.attributes["gradienttransform"])) as string | undefined;
+  const transform = rawTransform ? parseTransform(rawTransform) || undefined : undefined;
 
   if (units === "userSpace" && context) {
-    const center = mapSvgPoint(cx, cy, context);
-    const focal = fx !== undefined && fy !== undefined ? mapSvgPoint(fx, fy, context) : undefined;
+    let ucx = cx;
+    let ucy = cy;
+    let ufx = fx;
+    let ufy = fy;
+    let edgeX = cx + r;
+    let edgeY = cy;
+    if (transform) {
+      const tc = applyMatrixToPoint(transform, ucx, ucy);
+      ucx = tc.x;
+      ucy = tc.y;
+      const te = applyMatrixToPoint(transform, edgeX, edgeY);
+      edgeX = te.x;
+      edgeY = te.y;
+      if (ufx !== undefined && ufy !== undefined) {
+        const tf = applyMatrixToPoint(transform, ufx, ufy);
+        ufx = tf.x;
+        ufy = tf.y;
+      }
+    }
+    const center = mapSvgPoint(ucx, ucy, context);
+    const focal = ufx !== undefined && ufy !== undefined ? mapSvgPoint(ufx, ufy, context) : undefined;
     const radiusPt = (() => {
       // map a point at cx + r, cy to user space and compute distance
-      const edge = mapSvgPoint(cx + r, cy, context);
+      const edge = mapSvgPoint(edgeX, edgeY, context);
       if (center && edge) {
         const dx = edge.x - center.x;
         const dy = edge.y - center.y;
@@ -432,14 +463,10 @@ function svgRadialNodeToRadialGradient(node: SvgRadialGradientNode, context?: Sv
     radRatio.fy = fy;
   }
 
-  const rawTransform = (node.attributes && (node.attributes["gradientTransform"] ?? node.attributes["gradienttransform"])) as string | undefined;
-  if (rawTransform) {
-    const t = parseTransform(rawTransform) || undefined;
-    if (t) {
-      // Preserve the parsed transform matrix on the RadialGradient for use by the
-      // gradient service when building the PDF shading dictionary.
-      radRatio.transform = { a: t.a, b: t.b, c: t.c, d: t.d, e: t.e, f: t.f };
-    }
+  if (transform) {
+    // Preserve the parsed transform matrix on the RadialGradient for use by the
+    // gradient service when building the PDF shading dictionary.
+    radRatio.transform = { a: transform.a, b: transform.b, c: transform.c, d: transform.d, e: transform.e, f: transform.f };
   }
 
   return radRatio;
