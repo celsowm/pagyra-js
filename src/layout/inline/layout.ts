@@ -15,6 +15,7 @@ import {
 import { getAlignmentStrategy } from "./text-alignment.js";
 import { BoundingBoxCalculator } from "./bounding-box-calculator.js";
 import { RunPlacer } from "./run-placer.js";
+import { calculateBaseline } from "./font-baseline-calculator.js";
 import { createLayoutDebug } from "../debug.js";
 import { containingBlock } from "../utils/node-math.js";
 
@@ -55,6 +56,14 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
             Math.max(availableWidth, 0)
         );
 
+        // Compute a shared baseline from the container's font (CSS "strut")
+        const strutFontSize = container.style.fontSize ?? 16;
+        const strutFontFamily = container.style.fontFamily ?? "sans-serif";
+        const strutFontWeight = container.style.fontWeight ?? 400;
+        const strutFontStyle = container.style.fontStyle ?? "normal";
+        const strutMetrics = context.env.fontEmbedder?.getMetrics(strutFontFamily, strutFontWeight, strutFontStyle);
+        const lineBaseline = calculateBaseline(lineTop, strutFontSize, lineHeight, strutMetrics);
+
         runPlacer.placeRunsForLine(parts, {
             lineTop,
             lineHeight,
@@ -65,6 +74,7 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
             isLastLine,
             contentX,
             inlineOffsetStart: inlineOffset.start,
+            lineBaseline,
         });
     };
 

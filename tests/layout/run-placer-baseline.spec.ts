@@ -3,9 +3,10 @@ import { LayoutNode } from "../../src/dom/node.js";
 import { ComputedStyle } from "../../src/css/style.js";
 import type { LayoutItem } from "../../src/layout/inline/types.js";
 import type { FontEmbedder } from "../../src/pdf/font/embedder.js";
+import { calculateBaseline } from "../../src/layout/inline/font-baseline-calculator.js";
 
 describe("RunPlacer", () => {
-    it("uses font metrics for baseline calculation when FontEmbedder is provided", () => {
+    it("uses the shared lineBaseline from LineContext for all runs", () => {
         const mockFontEmbedder = {
             getMetrics: vi.fn().mockReturnValue({
                 metrics: {
@@ -35,6 +36,11 @@ describe("RunPlacer", () => {
             text: "Test",
         };
 
+        // Pre-compute the line baseline (as layout.ts would)
+        const lineBaseline = calculateBaseline(100, 20, 20, {
+            metrics: { unitsPerEm: 1000, ascender: 800, descender: -200 }
+        } as never);
+
         const lineContext = {
             lineTop: 100,
             lineHeight: 20,
@@ -45,25 +51,20 @@ describe("RunPlacer", () => {
             isLastLine: false,
             contentX: 0,
             inlineOffsetStart: 0,
+            lineBaseline,
         };
 
         placer.placeRunsForLine([{ item, offset: 0 }], lineContext);
-
-        expect(mockFontEmbedder.getMetrics).toHaveBeenCalledWith("TestFont", 400, "normal");
 
         const runs = placer.getNodeRuns().get(node);
         expect(runs).toBeDefined();
         expect(runs!.length).toBe(1);
 
-        // Baseline calculation:
-        // ascent = (800 / 1000) * 20 = 16
-        // leading = 20 - 20 = 0
-        // halfLeading = 0
-        // baseline = 100 + 0 + 16 = 116
+        // Baseline should match the shared lineBaseline = 100 + 0 + 16 = 116
         expect(runs![0].baseline).toBe(116);
     });
 
-    it("uses default heuristic when FontEmbedder is not provided", () => {
+    it("uses shared lineBaseline even without FontEmbedder", () => {
         const placer = new RunPlacer(null);
 
         const style = new ComputedStyle({
@@ -82,6 +83,9 @@ describe("RunPlacer", () => {
             text: "Test",
         };
 
+        // Pre-compute the line baseline using default heuristic (no font metrics)
+        const lineBaseline = calculateBaseline(100, 20, 20, null);
+
         const lineContext = {
             lineTop: 100,
             lineHeight: 20,
@@ -92,6 +96,7 @@ describe("RunPlacer", () => {
             isLastLine: false,
             contentX: 0,
             inlineOffsetStart: 0,
+            lineBaseline,
         };
 
         placer.placeRunsForLine([{ item, offset: 0 }], lineContext);
@@ -99,9 +104,7 @@ describe("RunPlacer", () => {
         const runs = placer.getNodeRuns().get(node);
         expect(runs).toBeDefined();
 
-        // Default heuristic:
-        // ascent = 20 * 0.75 = 15
-        // baseline = 100 + 15 = 115
+        // Default heuristic baseline = 100 + 0 + (20*0.75) = 115
         expect(runs![0].baseline).toBe(115);
     });
 });

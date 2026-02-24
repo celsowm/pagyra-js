@@ -42,44 +42,36 @@ export function normalizeBorderRadius(input: Radius, width: number, height: numb
   const safeWidth = Math.max(width, 0);
   const safeHeight = Math.max(height, 0);
 
-  if (safeWidth <= 0) {
-    result.topLeft.x = 0;
-    result.topRight.x = 0;
-    result.bottomRight.x = 0;
-    result.bottomLeft.x = 0;
-  } else {
-    const topSum = result.topLeft.x + result.topRight.x;
-    if (topSum > safeWidth && topSum > 0) {
-      const scale = safeWidth / topSum;
-      result.topLeft.x *= scale;
-      result.topRight.x *= scale;
-    }
-    const bottomSum = result.bottomLeft.x + result.bottomRight.x;
-    if (bottomSum > safeWidth && bottomSum > 0) {
-      const scale = safeWidth / bottomSum;
-      result.bottomLeft.x *= scale;
-      result.bottomRight.x *= scale;
-    }
+  if (safeWidth <= 0 || safeHeight <= 0) {
+    return {
+      topLeft: { x: 0, y: 0 },
+      topRight: { x: 0, y: 0 },
+      bottomRight: { x: 0, y: 0 },
+      bottomLeft: { x: 0, y: 0 },
+    };
   }
 
-  if (safeHeight <= 0) {
-    result.topLeft.y = 0;
-    result.topRight.y = 0;
-    result.bottomRight.y = 0;
-    result.bottomLeft.y = 0;
-  } else {
-    const leftSum = result.topLeft.y + result.bottomLeft.y;
-    if (leftSum > safeHeight && leftSum > 0) {
-      const scale = safeHeight / leftSum;
-      result.topLeft.y *= scale;
-      result.bottomLeft.y *= scale;
-    }
-    const rightSum = result.topRight.y + result.bottomRight.y;
-    if (rightSum > safeHeight && rightSum > 0) {
-      const scale = safeHeight / rightSum;
-      result.topRight.y *= scale;
-      result.bottomRight.y *= scale;
-    }
+  // CSS Backgrounds § 5.5: compute a single scale factor f = min(Li/Si)
+  // across all four sides, then multiply ALL radii by f if f < 1.
+  let f = 1;
+  const topSumX = result.topLeft.x + result.topRight.x;
+  if (topSumX > 0) f = Math.min(f, safeWidth / topSumX);
+  const bottomSumX = result.bottomLeft.x + result.bottomRight.x;
+  if (bottomSumX > 0) f = Math.min(f, safeWidth / bottomSumX);
+  const leftSumY = result.topLeft.y + result.bottomLeft.y;
+  if (leftSumY > 0) f = Math.min(f, safeHeight / leftSumY);
+  const rightSumY = result.topRight.y + result.bottomRight.y;
+  if (rightSumY > 0) f = Math.min(f, safeHeight / rightSumY);
+
+  if (f < 1) {
+    result.topLeft.x *= f;
+    result.topLeft.y *= f;
+    result.topRight.x *= f;
+    result.topRight.y *= f;
+    result.bottomRight.x *= f;
+    result.bottomRight.y *= f;
+    result.bottomLeft.x *= f;
+    result.bottomLeft.y *= f;
   }
 
   return result;

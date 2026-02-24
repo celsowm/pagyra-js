@@ -225,8 +225,6 @@ class ElementSpecificDefaultsImpl {
     },
     code: {
       display: Display.Inline,
-      fontSize: 14,
-      lineHeight: createNormalLineHeight(),
       fontFamily: "Monaco, 'Courier New', monospace",
       color: TypographyDefaults.getColor(),
     },

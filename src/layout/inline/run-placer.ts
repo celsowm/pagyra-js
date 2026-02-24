@@ -2,7 +2,6 @@ import { LayoutNode, type InlineRun } from "../../dom/node.js";
 import type { LayoutItem } from "./types.js";
 import { isBoxItem } from "./types.js";
 import { placeInlineItem } from "./layout.js";
-import { calculateBaseline } from "./font-baseline-calculator.js";
 import type { FontEmbedder } from "../../pdf/font/embedder.js";
 
 /**
@@ -18,6 +17,7 @@ export interface LineContext {
     isLastLine: boolean;
     contentX: number;
     inlineOffsetStart: number;
+    lineBaseline: number;
 }
 
 /**
@@ -70,17 +70,8 @@ export class RunPlacer {
                 continue;
             }
 
-            // Calculate baseline based on the item's fontSize and lineHeight
-            const fontSize = part.item.style?.fontSize ?? 16;
-            const itemLineHeight = part.item.lineHeight ?? lineHeight;
-
-            // Use calculateBaseline with font metrics when available
-            const fontFamily = part.item.style?.fontFamily ?? "sans-serif";
-            const fontWeight = part.item.style?.fontWeight ?? 400;
-            const fontStyle = part.item.style?.fontStyle ?? "normal";
-
-            const fontMetrics = this.fontEmbedder?.getMetrics(fontFamily, fontWeight, fontStyle);
-            const lineBaseline = calculateBaseline(lineTop, fontSize, itemLineHeight, fontMetrics);
+            // Use the shared line baseline computed from the container's strut
+            const lineBaseline = lineContext.lineBaseline;
 
             const startX = lineStartX + part.offset;
             const run: InlineRun = {
