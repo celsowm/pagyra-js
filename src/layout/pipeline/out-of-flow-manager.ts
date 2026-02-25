@@ -68,7 +68,33 @@ export class DefaultOutOfFlowManager implements OutOfFlowManager {
       y = cb.y + cb.height - measuredHeight - bottom;
     }
 
+    const deltaX = x - node.box.x;
+    const deltaY = y - node.box.y;
     node.box.x = x;
     node.box.y = y;
+
+    // Offset all descendants so their coordinates stay consistent
+    // with the repositioned parent (children were laid out relative
+    // to the old position).
+    if (deltaX !== 0 || deltaY !== 0) {
+      offsetDescendants(node, deltaX, deltaY);
+    }
   }
+}
+
+function offsetDescendants(node: LayoutNode, deltaX: number, deltaY: number): void {
+  node.walk((desc) => {
+    if (desc !== node) {
+      desc.box.x += deltaX;
+      desc.box.y += deltaY;
+    }
+    desc.box.baseline += deltaY;
+
+    if (desc.inlineRuns && desc.inlineRuns.length > 0) {
+      for (const run of desc.inlineRuns) {
+        run.startX += deltaX;
+        run.baseline += deltaY;
+      }
+    }
+  });
 }

@@ -138,10 +138,21 @@ export class PagePainter {
 
   async drawText(text: string, xPx: number, yPx: number, options: TextPaintOptions = { fontSizePt: 10 }): Promise<void> {
     await this.textRenderer.drawText(text, xPx, yPx, options);
+    const cmds = this.textRenderer.flushCommands();
+    if (cmds.length > 0) {
+      this.shapeRenderer.pushRawCommands(cmds);
+    }
   }
 
   async drawTextRun(run: Run): Promise<void> {
     await this.textRenderer.drawTextRun(run);
+    // Immediately move text commands into the shape stream so that
+    // text and background operations are interleaved in paint order,
+    // preserving correct z-index stacking.
+    const cmds = this.textRenderer.flushCommands();
+    if (cmds.length > 0) {
+      this.shapeRenderer.pushRawCommands(cmds);
+    }
   }
 
   fillRoundedRect(rect: Rect, radii: Radius, paint: RGBA | LinearGradient | RadialGradient | string): void {

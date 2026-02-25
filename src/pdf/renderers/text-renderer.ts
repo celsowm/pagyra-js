@@ -276,6 +276,15 @@ export class TextRenderer {
     ];
   }
 
+  /**
+   * Drain (return and clear) all buffered commands so they can be pushed
+   * into the unified shape command stream, preserving paint order.
+   */
+  flushCommands(): string[] {
+    const cmds = this.commands.splice(0, this.commands.length);
+    return cmds;
+  }
+
   getResult(): TextRendererResult {
     return {
       commands: [...this.commands],
