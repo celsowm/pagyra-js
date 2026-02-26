@@ -499,7 +499,7 @@ export class ShapeRenderer {
       const scaleY = this.coordinateTransformer.convertPxToPt(1);
       const translateX = this.coordinateTransformer.convertPxToPt(relX);
       const translateY = this.coordinateTransformer.convertPxToPt(-relY); // Negative because PDF y-axis is flipped
-      return `${formatNumber(scaleX)} 0 0 ${formatNumber(scaleY)} ${formatNumber(translateX)} ${formatNumber(translateY)} cm`;
+      return `${formatNumber(scaleX)} 0 0 ${formatNumber(-scaleY)} ${formatNumber(translateX)} ${formatNumber(translateY)} cm`;
     }
 
     // Normal absolute positioning

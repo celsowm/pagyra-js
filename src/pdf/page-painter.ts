@@ -243,10 +243,12 @@ export class PagePainter {
 
   beginTransformScope(transform: TextMatrix, rect: Rect): void {
     this.transformScopeManager.beginTransformScope(transform, rect);
+    this.textRenderer.setTransformContext(rect);
   }
 
   endTransformScope(): void {
     this.transformScopeManager.endTransformScope();
+    this.textRenderer.clearTransformContext();
   }
 
   result(): PainterResult {

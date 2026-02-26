@@ -39,6 +39,7 @@ export class TextRenderer {
   private readonly fontResolver: TextFontResolver;
   private readonly gradientService: GradientService;
   private readonly patterns = new Map<string, string>();
+  private transformContext: Rect | null = null;
 
   constructor(
     private readonly coordinateTransformer: CoordinateTransformer,
@@ -126,7 +127,7 @@ export class TextRenderer {
       glyphCount: glyphRun.glyphIds.length,
     });
 
-    const textMatrix = buildPdfTextMatrix(run, this.coordinateTransformer);
+    const textMatrix = buildPdfTextMatrix(run, this.coordinateTransformer, this.transformContext);
 
     log("paint", "debug", "drawing text run with glyphs", {
       text: run.text.slice(0, 32),
@@ -285,6 +286,14 @@ export class TextRenderer {
     return cmds;
   }
 
+  setTransformContext(rect: Rect): void {
+    this.transformContext = rect;
+  }
+
+  clearTransformContext(): void {
+    this.transformContext = null;
+  }
+
   getResult(): TextRendererResult {
     return {
       commands: [...this.commands],
@@ -295,7 +304,7 @@ export class TextRenderer {
   }
 }
 
-function buildPdfTextMatrix(run: Run, transformer: CoordinateTransformer): Matrix {
+function buildPdfTextMatrix(run: Run, transformer: CoordinateTransformer, transformContext: Rect | null = null): Matrix {
   const base = run.lineMatrix ?? { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
   if (!run.lineMatrix) {
     log("paint", "debug", "Run provided without lineMatrix, using identity fallback", {
@@ -303,6 +312,27 @@ function buildPdfTextMatrix(run: Run, transformer: CoordinateTransformer): Matri
       fontFamily: run.fontFamily,
     });
   }
+
+  if (transformContext) {
+    const relMatrix = {
+      a: base.a,
+      b: base.b,
+      c: base.c,
+      d: base.d,
+      e: base.e - transformContext.x,
+      f: base.f - transformContext.y,
+    };
+    const pdfPx = svgMatrixToPdf(relMatrix) ?? { a: 1, b: 0, c: 0, d: 1, e: relMatrix.e, f: relMatrix.f };
+    return {
+      a: pdfPx.a,
+      b: pdfPx.b,
+      c: pdfPx.c,
+      d: pdfPx.d,
+      e: transformer.convertPxToPt(pdfPx.e),
+      f: transformer.convertPxToPt(pdfPx.f),
+    };
+  }
+
   const offsetPx = transformer.pageOffsetPx;
 
   // Normalize to page origin (top-left), removing any page offset.

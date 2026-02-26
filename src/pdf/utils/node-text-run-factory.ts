@@ -45,7 +45,7 @@ export function buildNodeTextRuns(context: NodeTextRunContext): Run[] {
   }
 
   if (transform && textRuns.length > 0) {
-    applyTransformToTextRuns(textRuns, transform, borderBox);
+    // applyTransformToTextRuns(textRuns, transform, borderBox);
   }
 
   return textRuns;

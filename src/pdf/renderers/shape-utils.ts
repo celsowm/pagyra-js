@@ -159,7 +159,7 @@ export function transformForRect(rect: Rect, coordinateTransformer: CoordinateTr
     const scaleY = coordinateTransformer.convertPxToPt(1);
     const translateX = coordinateTransformer.convertPxToPt(relX);
     const translateY = coordinateTransformer.convertPxToPt(-relY); // Negative because PDF y-axis is flipped
-    return `${formatNumber(scaleX)} 0 0 ${formatNumber(scaleY)} ${formatNumber(translateX)} ${formatNumber(translateY)} cm`;
+    return `${formatNumber(scaleX)} 0 0 ${formatNumber(-scaleY)} ${formatNumber(translateX)} ${formatNumber(translateY)} cm`;
   }
 
   // Normal absolute positioning
