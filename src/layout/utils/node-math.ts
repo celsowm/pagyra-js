@@ -280,3 +280,21 @@ export function resolveBlockAutoMargins(
 
   return { marginLeft: usedMarginLeft, marginRight: usedMarginRight };
 }
+
+export function applyMinHeight(
+  contentHeight: number,
+  node: LayoutNode,
+  heightRef: number,
+  verticalExtras: number,
+  containerRefs: { containerWidth: number; containerHeight: number },
+): number {
+  if (node.style.minHeight === undefined || isAutoLength(node.style.minHeight)) {
+    return contentHeight;
+  }
+  const minH = adjustForBoxSizing(
+    resolveLength(node.style.minHeight, heightRef, { auto: "zero", ...containerRefs }),
+    node.style.boxSizing,
+    verticalExtras,
+  );
+  return Number.isFinite(minH) ? Math.max(contentHeight, minH) : contentHeight;
+}

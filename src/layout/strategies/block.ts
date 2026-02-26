@@ -3,6 +3,7 @@ import { Display, FloatMode } from "../../css/enums.js";
 import type { LayoutContext, LayoutStrategy } from "../pipeline/strategy.js";
 import {
   adjustForBoxSizing,
+  applyMinHeight,
   containingBlock,
   establishesBFC,
   horizontalNonContent,
@@ -242,6 +243,7 @@ export class BlockLayoutStrategy implements LayoutStrategy {
       );
     }
     const verticalExtras = verticalNonContent(node, cb.height, cb.width);
+    node.box.contentHeight = applyMinHeight(node.box.contentHeight, node, cb.height, verticalExtras, containerRefs);
     node.box.borderBoxHeight = node.box.contentHeight + verticalExtras;
     node.box.marginBoxHeight =
       node.box.borderBoxHeight +

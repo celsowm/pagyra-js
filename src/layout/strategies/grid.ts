@@ -4,6 +4,7 @@ import { isAutoLength, resolveLength } from "../../css/length.js";
 import type { LayoutContext, LayoutStrategy } from "../pipeline/strategy.js";
 import {
   adjustForBoxSizing,
+  applyMinHeight,
   containingBlock,
   horizontalMargin,
   horizontalNonContent,
@@ -293,6 +294,7 @@ export class GridLayoutStrategy implements LayoutStrategy {
         verticalExtras,
       );
     }
+    resolvedContentHeight = applyMinHeight(resolvedContentHeight, node, cb.height, verticalExtras, containerRefs);
     node.box.contentHeight = Math.max(0, resolvedContentHeight);
     node.box.borderBoxHeight = node.box.contentHeight + verticalExtras;
     node.box.marginBoxHeight =
