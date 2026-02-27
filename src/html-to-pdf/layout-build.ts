@@ -11,11 +11,13 @@ import type { SvgElement } from "../types/core.js";
 import type { UnitParsers } from "../units/units.js";
 import type { Environment } from "../environment/environment.js";
 import { selectContentRoot, shouldSkipContentNode } from "./html-parser.js";
+import type { InterBlockWhitespaceMode, PagedBodyMarginMode } from "./types.js";
 
 interface BuildRootLayoutContextOptions {
   document: Document;
   cssRules: CssRuleEntry[];
   units: UnitParsers;
+  pagedBodyMargin?: PagedBodyMarginMode;
 }
 
 export function buildRootLayoutContext(options: BuildRootLayoutContextOptions) {
@@ -36,6 +38,12 @@ export function buildRootLayoutContext(options: BuildRootLayoutContextOptions) {
   if (isInlineDisplay(rootStyle.display)) {
     rootStyle.display = Display.Block;
   }
+  if (options.pagedBodyMargin === "zero" && processChildrenOf?.tagName?.toLowerCase() === "body") {
+    rootStyle.marginTop = 0;
+    rootStyle.marginRight = 0;
+    rootStyle.marginBottom = 0;
+    rootStyle.marginLeft = 0;
+  }
 
   const rootLayout = new LayoutNode(rootStyle, [], { tagName: processChildrenOf?.tagName?.toLowerCase() });
   return { processChildrenOf, rootStyle, rootLayout, rootFontSize };
@@ -47,6 +55,7 @@ interface CreateDomConversionContextOptions {
   units: UnitParsers;
   rootFontSize: number;
   environment: Environment;
+  interBlockWhitespace?: InterBlockWhitespaceMode;
 }
 
 export function createDomConversionContext(options: CreateDomConversionContextOptions): ConversionContext {
@@ -58,6 +67,7 @@ export function createDomConversionContext(options: CreateDomConversionContextOp
     units: options.units,
     rootFontSize: options.rootFontSize,
     environment: options.environment,
+    interBlockWhitespace: options.interBlockWhitespace ?? "collapse",
     counterContext,
     rootCounterScopeId,
   };

@@ -11,6 +11,7 @@ import type { UnitParsers } from "../units/units.js";
 import { log } from "../logging/debug.js";
 import { decodeBase64ToUint8Array } from "../utils/base64.js";
 import type { CounterContext } from "../layout/counter.js";
+import type { InterBlockWhitespaceMode } from "../html-to-pdf/types.js";
 
 // The ConversionContext should be defined where it's used
 export interface ConversionContext {
@@ -19,6 +20,7 @@ export interface ConversionContext {
   units: UnitParsers;
   rootFontSize: number;
   environment?: import("../environment/environment.js").Environment;
+  interBlockWhitespace?: InterBlockWhitespaceMode;
   counterContext?: CounterContext;
   rootCounterScopeId?: string | null;
 }

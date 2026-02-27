@@ -9,6 +9,7 @@ import {
   resolvePageMarginsPx,
   sanitizeDimension,
   maxContentDimension,
+  type PageMarginsPx,
 } from "../units/page-utils.js";
 import { NodeEnvironment } from "../environment/node-environment.js";
 import { appendFontFacesFromCssRules, ensureFontFaceDataLoaded } from "./fonts.js";
@@ -22,7 +23,7 @@ import { finalizeRenderTreePositioning, initializeFontEmbedder } from "./render-
 export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<PreparedRender> {
   const pageWidth = sanitizeDimension(options.pageWidth, DEFAULT_PAGE_WIDTH_PX);
   const pageHeight = sanitizeDimension(options.pageHeight, DEFAULT_PAGE_HEIGHT_PX);
-  const marginsPx = resolvePageMarginsPx(pageWidth, pageHeight);
+  const marginsPx = mergePageMargins(resolvePageMarginsPx(pageWidth, pageHeight), options.margins, pageWidth, pageHeight);
   const maxContentWidth = maxContentDimension(pageWidth, marginsPx.left + marginsPx.right);
   const maxContentHeight = maxContentDimension(pageHeight, marginsPx.top + marginsPx.bottom);
   const viewportWidth = Math.min(sanitizeDimension(options.viewportWidth, maxContentWidth), maxContentWidth);
@@ -31,7 +32,17 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { html, css, pageWidth: _, pageHeight: __, margins: ___, ...restOptions } = options;
   const { html: htmlInput, css: cssInput = "" } = { html, css: css, ...restOptions };
-  const { debug = false, debugLevel, debugCats, headerFooter, resourceBaseDir, assetRootDir, environment: envOverride } = options;
+  const {
+    debug = false,
+    debugLevel,
+    debugCats,
+    headerFooter,
+    resourceBaseDir,
+    assetRootDir,
+    environment: envOverride,
+    pagedBodyMargin = "auto",
+    interBlockWhitespace = "collapse",
+  } = options;
   const normalizedHtml = normalizeHtmlInput(htmlInput);
 
   setViewportSize(viewportWidth, viewportHeight);
@@ -67,6 +78,7 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
     document,
     cssRules,
     units,
+    pagedBodyMargin,
   });
 
   const conversionContext = createDomConversionContext({
@@ -75,6 +87,7 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
     units,
     rootFontSize,
     environment,
+    interBlockWhitespace,
   });
 
   await appendConvertedChildren({
@@ -112,4 +125,36 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
 
   const pageSize = { widthPt: pxToPt(pageWidth), heightPt: pxToPt(pageHeight) };
   return { layoutRoot: rootLayout, renderTree, pageSize, margins: marginsPx };
+}
+
+function mergePageMargins(
+  defaults: PageMarginsPx,
+  provided: Partial<PageMarginsPx> | undefined,
+  pageWidth: number,
+  pageHeight: number,
+): PageMarginsPx {
+  const margins: PageMarginsPx = { ...defaults };
+  if (provided) {
+    for (const side of ["top", "right", "bottom", "left"] as const) {
+      const value = provided[side];
+      if (Number.isFinite(value)) {
+        margins[side] = Math.max(Number(value), 0);
+      }
+    }
+  }
+
+  const horizontalSum = margins.left + margins.right;
+  const verticalSum = margins.top + margins.bottom;
+  if (horizontalSum > pageWidth) {
+    const scale = pageWidth / (horizontalSum || 1);
+    margins.left *= scale;
+    margins.right *= scale;
+  }
+  if (verticalSum > pageHeight) {
+    const scale = pageHeight / (verticalSum || 1);
+    margins.top *= scale;
+    margins.bottom *= scale;
+  }
+
+  return margins;
 }

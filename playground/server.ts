@@ -26,6 +26,7 @@ interface RenderRequestBody {
   footerMaxHeightPx?: number;
   debugLevel?: LogLevel;
   debugCats?: string[];
+  pagedBodyMargin?: "auto" | "zero";
 }
 
 const __filename = fileURLToPath(import.meta.url);
@@ -87,6 +88,7 @@ app.post("/render", async (req: express.Request, res: express.Response) => {
     const allowedLevels: LogLevel[] = ["trace", "debug", "info", "warn", "error"];
     let debugLevel: LogLevel = levelCandidate && allowedLevels.includes(levelCandidate) ? levelCandidate : "info";
     const debugCats = Array.isArray(body.debugCats) ? body.debugCats.map(String).filter(Boolean) : undefined;
+    const pagedBodyMargin = body.pagedBodyMargin === "zero" ? "zero" : "auto";
 
     const headerFooter: Partial<HeaderFooterHTML> = {};
     if (headerHtml) {
@@ -114,6 +116,7 @@ app.post("/render", async (req: express.Request, res: express.Response) => {
       margins: marginsPx,
       debugLevel,
       debugCats: debugCats?.length ? debugCats : undefined,
+      pagedBodyMargin,
       resourceBaseDir,
       assetRootDir: PUBLIC_DIR,
       headerFooter: Object.keys(headerFooter).length > 0 ? headerFooter : undefined,

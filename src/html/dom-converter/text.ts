@@ -2,6 +2,18 @@ import { LayoutNode } from "../../dom/node.js";
 import { ComputedStyle } from "../../css/style.js";
 import { cloneLineHeight } from "../../css/line-height.js";
 import { Display, WhiteSpace } from "../../css/enums.js";
+import type { InterBlockWhitespaceMode } from "../../html-to-pdf/types.js";
+
+const BLOCK_TAGS = new Set([
+  "address", "article", "aside", "blockquote", "canvas", "dd", "div", "dl", "dt",
+  "fieldset", "figcaption", "figure", "footer", "form", "h1", "h2", "h3", "h4",
+  "h5", "h6", "header", "hr", "li", "main", "nav", "noscript", "ol", "p", "pre",
+  "section", "table", "tbody", "thead", "tfoot", "tr", "td", "th", "ul", "video",
+]);
+
+interface TextConversionOptions {
+  interBlockWhitespace?: InterBlockWhitespaceMode;
+}
 
 function findMeaningfulSibling(start: Node | null, direction: "previous" | "next"): Node | null {
   let current = start;
@@ -23,14 +35,6 @@ function findMeaningfulSibling(start: Node | null, direction: "previous" | "next
     current = getNext(current);
   }
   return null;
-}
-
-function hasMeaningfulPreviousSibling(node: Node): boolean {
-  return findMeaningfulSibling(node.previousSibling, "previous") !== null;
-}
-
-function hasMeaningfulNextSibling(node: Node): boolean {
-  return findMeaningfulSibling(node.nextSibling, "next") !== null;
 }
 
 function isInlineDisplay(display: Display): boolean {
@@ -108,19 +112,36 @@ export function createGeneratedTextNode(text: string, parentStyle: ComputedStyle
   return createInlineTextLayoutNode(text, parentStyle, true, true);
 }
 
-export function convertTextDomNode(node: Node, parentStyle: ComputedStyle): LayoutNode | null {
+export function convertTextDomNode(
+  node: Node,
+  parentStyle: ComputedStyle,
+  options: TextConversionOptions = {},
+): LayoutNode | null {
   const raw = node.textContent ?? "";
   const collapsed = raw.replace(/\s+/g, " ").normalize("NFC");
   const trimmed = collapsed.trim();
 
-  const hasPrev = hasMeaningfulPreviousSibling(node);
-  const hasNext = hasMeaningfulNextSibling(node);
+  const prev = findMeaningfulSibling(node.previousSibling, "previous");
+  const next = findMeaningfulSibling(node.nextSibling, "next");
+  const hasPrev = prev !== null;
+  const hasNext = next !== null;
+  const interBlockWhitespace = options.interBlockWhitespace ?? "collapse";
+
+  const preserveLeadingCandidate = collapsed.startsWith(" ") && hasPrev;
+  const preserveTrailingCandidate = collapsed.endsWith(" ") && hasNext;
+  const preserveLeading =
+    preserveLeadingCandidate && shouldKeepBoundarySpace(prev, interBlockWhitespace, parentStyle);
+  const preserveTrailing =
+    preserveTrailingCandidate && shouldKeepBoundarySpace(next, interBlockWhitespace, parentStyle);
 
   if (trimmed.length === 0) {
     if (isGridOrFlexContainer(parentStyle.display)) {
       return null;
     }
-    const keepSpace = hasPrev && hasNext;
+    const keepSpace =
+      hasPrev &&
+      hasNext &&
+      (interBlockWhitespace === "preserve" || shouldKeepInterSiblingWhitespace(prev, next, parentStyle));
     if (!keepSpace) {
       return null;
     }
@@ -128,8 +149,6 @@ export function convertTextDomNode(node: Node, parentStyle: ComputedStyle): Layo
   }
 
   let text = trimmed;
-  const preserveLeading = collapsed.startsWith(" ") && hasPrev;
-  const preserveTrailing = collapsed.endsWith(" ") && hasNext;
 
   if (preserveLeading) {
     text = " " + text;
@@ -139,6 +158,45 @@ export function convertTextDomNode(node: Node, parentStyle: ComputedStyle): Layo
   }
 
   return createInlineTextLayoutNode(text, parentStyle, preserveLeading, preserveTrailing);
+}
+
+function shouldKeepBoundarySpace(
+  sibling: Node | null,
+  mode: InterBlockWhitespaceMode,
+  parentStyle: ComputedStyle,
+): boolean {
+  if (mode === "preserve") {
+    return true;
+  }
+  if (isInlineDisplay(parentStyle.display)) {
+    return true;
+  }
+  return isInlineLikeNode(sibling);
+}
+
+function shouldKeepInterSiblingWhitespace(
+  prev: Node | null,
+  next: Node | null,
+  parentStyle: ComputedStyle,
+): boolean {
+  if (isInlineDisplay(parentStyle.display)) {
+    return true;
+  }
+  return isInlineLikeNode(prev) && isInlineLikeNode(next);
+}
+
+function isInlineLikeNode(node: Node | null): boolean {
+  if (!node) {
+    return false;
+  }
+  if (node.nodeType === node.TEXT_NODE) {
+    return true;
+  }
+  if (node.nodeType !== node.ELEMENT_NODE) {
+    return false;
+  }
+  const tagName = (node as Element).tagName.toLowerCase();
+  return !BLOCK_TAGS.has(tagName);
 }
 
 export function flushBufferedText(

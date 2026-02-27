@@ -9,7 +9,7 @@ import { hydrateBackgroundImages } from "./background-images.js";
 import { isIgnoredElementTag, tryHandleSpecialElement } from "./handlers/index.js";
 import { parseSpan } from "./helpers.js";
 import { registerCounterScopeForNode, synthesizePseudoElement } from "./pseudo-elements.js";
-import { convertTextDomNode, flushBufferedText } from "./text.js";
+import { convertTextDomNode } from "./text.js";
 
 export async function convertDomNode(
   node: Node,
@@ -22,7 +22,9 @@ export async function convertDomNode(
   log("dom-converter", "debug", `convertDomNode - entering function for node type: ${node.nodeType}, tagName: ${extendedNode.tagName || "text node"}`);
 
   if (node.nodeType === node.TEXT_NODE) {
-    const textNode = convertTextDomNode(node, parentStyle);
+    const textNode = convertTextDomNode(node, parentStyle, {
+      interBlockWhitespace: context.interBlockWhitespace ?? "collapse",
+    });
     if (!textNode) {
       return null;
     }
@@ -73,26 +75,17 @@ export async function convertDomNode(
     layoutChildren.push(beforePseudo);
   }
 
-  let textBuf = "";
   const childNodes = element.childNodes;
   if (!childNodes) {
     return new LayoutNode(ownStyle, [], { tagName });
   }
 
   for (const child of Array.from(childNodes) as Node[]) {
-    if (child.nodeType === child.TEXT_NODE) {
-      textBuf += child.textContent ?? "";
-      continue;
-    }
-
-    textBuf = flushBufferedText(layoutChildren, textBuf, ownStyle);
-
     const sub = await convertDomNode(child, cssRules, ownStyle, context, currentScopeId);
     if (sub) {
       layoutChildren.push(sub);
     }
   }
-  textBuf = flushBufferedText(layoutChildren, textBuf, ownStyle);
 
   const afterPseudo = await synthesizePseudoElement(
     element,

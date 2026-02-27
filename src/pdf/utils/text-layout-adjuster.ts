@@ -6,14 +6,6 @@ import type { RenderBox, Run } from "../types.js";
  * For each RenderBox with textAlign: "justify":
  *   - collect ALL runs from that box and its descendants
  *   - group runs by lineIndex
-import type { RenderBox, Run } from "../types.js";
-
-/**
- * Global pass to fix justified layout in the render tree.
- *
- * For each RenderBox with textAlign: "justify":
- *   - collect ALL runs from that box and its descendants
- *   - group runs by lineIndex
  *   - sort each group by lineMatrix.e (X)
  *   -for each non-final line:
  *       * shift later runs by the cumulative expansion
@@ -86,6 +78,18 @@ function adjustLinePositions(runs: Run[]): void {
     ) {
         firstContentIndex++;
     }
+    const hasLeadingWhitespace = firstContentIndex > 0;
+
+    if (firstContentIndex >= runs.length) {
+        const anchorX = runs[0].lineMatrix?.e ?? 0;
+        for (const run of runs) {
+            if (run.lineMatrix) {
+                run.lineMatrix.e = anchorX;
+            }
+            run.advanceWidth = 0;
+        }
+        return;
+    }
 
     // Calculate width to redistribute from leading spaces
     let widthLost = 0;
@@ -102,7 +106,7 @@ function adjustLinePositions(runs: Run[]): void {
     const isLastLine = runs[0].isLastLine ?? false;
 
     // Redistribute width if not last line and we have spaces to distribute to
-    if (!isLastLine && widthLost > 0 && remainingSpaces > 0) {
+    if (hasLeadingWhitespace && !isLastLine && widthLost > 0 && remainingSpaces > 0) {
         const adjustment = widthLost / remainingSpaces;
         for (let i = firstContentIndex; i < runs.length; i++) {
             const run = runs[i];

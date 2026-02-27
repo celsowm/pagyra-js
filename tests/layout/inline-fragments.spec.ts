@@ -23,6 +23,32 @@ describe("inline fragment layout", () => {
         }
     });
 
+    it("does not emit leading or trailing whitespace-only runs in justified paragraph lines", async () => {
+        const html = `
+      <p style="text-align: justify; width: 220px;">
+        This short sample demonstrates how justified paragraphs spread the remaining space
+        across each line and keeps line edges aligned.
+      </p>
+    `;
+        const renderTree = await renderTreeForHtml(html, "", { pagedBodyMargin: "zero" });
+        const runs = collectRuns(renderTree.root).filter((r) => typeof r.lineIndex === "number");
+
+        const byLine = new Map<number, typeof runs>();
+        for (const run of runs) {
+            const idx = run.lineIndex as number;
+            const lineRuns = byLine.get(idx) ?? [];
+            lineRuns.push(run);
+            byLine.set(idx, lineRuns);
+        }
+
+        const lineIndexes = [...byLine.keys()].sort((a, b) => a - b);
+        const firstLineRuns = [...(byLine.get(lineIndexes[0]) ?? [])].sort((a, b) => (a.lineMatrix?.e ?? 0) - (b.lineMatrix?.e ?? 0));
+        const lastLineRuns = [...(byLine.get(lineIndexes[lineIndexes.length - 1]) ?? [])].sort((a, b) => (a.lineMatrix?.e ?? 0) - (b.lineMatrix?.e ?? 0));
+
+        expect(firstLineRuns[0].text.trim().length).toBeGreaterThan(0);
+        expect(lastLineRuns[lastLineRuns.length - 1].text.trim().length).toBeGreaterThan(0);
+    });
+
     it("inherits font size and baseline for strong/em/a from parent text", async () => {
         const html = '<p style="font-size: 20px; line-height: 1.5;">base <strong>forte</strong> <em>italico</em> <a href="https://pagyra.dev">link</a></p>';
         const renderTree = await renderTreeForHtml(html);

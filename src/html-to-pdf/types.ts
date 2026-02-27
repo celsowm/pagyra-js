@@ -6,6 +6,9 @@ import type { PageMarginsPx } from "../units/page-utils.js";
 import type { HeaderFooterHTML } from "../pdf/types.js";
 import type { Environment } from "../environment/environment.js";
 
+export type PagedBodyMarginMode = "auto" | "zero";
+export type InterBlockWhitespaceMode = "collapse" | "preserve";
+
 export interface RenderHtmlOptions {
   html: string;
   css?: string;
@@ -21,6 +24,8 @@ export interface RenderHtmlOptions {
   resourceBaseDir?: string;
   assetRootDir?: string;
   headerFooter?: Partial<HeaderFooterHTML>;
+  pagedBodyMargin?: PagedBodyMarginMode;
+  interBlockWhitespace?: InterBlockWhitespaceMode;
   /** Environment abstraction (Node/browser). Defaults to Node implementation. */
   environment?: Environment;
 }

@@ -57,6 +57,7 @@ const DEFAULT_PAGE_MARGINS_PX = {
 const DEFAULT_PAGE_WIDTH_PX = PAGE_DIMENSIONS.widthPx;
 const DEFAULT_PAGE_HEIGHT_PX = PAGE_DIMENSIONS.heightPx;
 const DEFAULT_HEADER_FOOTER_MAX_HEIGHT_PX = 64;
+const PAGED_BODY_MARGIN_MODE = "zero";
 const PLAYGROUND_MODE = (window.__PLAYGROUND_MODE ?? "node").toLowerCase();
 const IS_BROWSER_MODE = PLAYGROUND_MODE === "browser";
 
@@ -466,6 +467,7 @@ async function renderPdf() {
     documentPath,
     debugLevel: debug.level,
     debugCats: debug.cats.length > 0 ? debug.cats : undefined,
+    pagedBodyMargin: PAGED_BODY_MARGIN_MODE,
   };
   const { resourceBaseDir, assetRootDir } = computeBrowserResourceBase(documentPath);
   const browserOptions = {
@@ -478,6 +480,7 @@ async function renderPdf() {
     margins,
     debugLevel: debug.level,
     debugCats: debug.cats.length > 0 ? debug.cats : undefined,
+    pagedBodyMargin: PAGED_BODY_MARGIN_MODE,
     resourceBaseDir,
     assetRootDir,
     ...(headerFooter ? { headerFooter } : {}),
@@ -672,13 +675,37 @@ function switchPreviewTab(tabName) {
   });
 }
 
+function extractPreviewDocumentParts(rawHtml) {
+  const hasFullDocument = /<\s*html[\s>]/i.test(rawHtml);
+  if (!hasFullDocument) {
+    return { bodyHtml: rawHtml, styleTags: "", linkTags: "" };
+  }
+
+  try {
+    const parser = new DOMParser();
+    const parsed = parser.parseFromString(rawHtml, "text/html");
+    const bodyHtml = parsed.body?.innerHTML ?? rawHtml;
+    const styleTags = parsed.head
+      ? Array.from(parsed.head.querySelectorAll("style")).map((node) => node.outerHTML).join("\n")
+      : "";
+    const linkTags = parsed.head
+      ? Array.from(parsed.head.querySelectorAll("link[rel=\"stylesheet\"]")).map((node) => node.outerHTML).join("\n")
+      : "";
+    return { bodyHtml, styleTags, linkTags };
+  } catch (error) {
+    console.warn("[playground] failed to parse HTML preview document:", error);
+    return { bodyHtml: rawHtml, styleTags: "", linkTags: "" };
+  }
+}
+
 function updateHtmlPreview() {
   if (!DOM.htmlViewer) {
     return;
   }
 
-  const html = getHtmlValue();
+  const rawHtml = getHtmlValue();
   const css = getCssValue();
+  const { bodyHtml, styleTags, linkTags } = extractPreviewDocumentParts(rawHtml);
   const viewport = getViewportDimensions();
   const page = computePageSize(viewport);
   const marginTop = PAGE_MARGINS.top.toFixed(2);
@@ -687,7 +714,7 @@ function updateHtmlPreview() {
   const marginLeft = PAGE_MARGINS.left.toFixed(2);
 
   // Create a complete HTML document with the user's input
-  // Match Pagyra UA defaults: Times New Roman 16px, line-height 1.2, no body margin
+  // Match Pagyra paged mode: body margin forced to 0, content rendered inside a fixed-size page.
   const fullHtml = `
     <!DOCTYPE html>
     <html>
@@ -701,12 +728,17 @@ function updateHtmlPreview() {
           }
           html {
             margin: 0;
-            padding: 32px 0;
-            background: #e2e8f0;
             min-height: 100%;
           }
           body {
-            margin: 0 auto;
+            margin: 0 !important;
+            padding: 32px 0;
+            background: #e2e8f0;
+            min-height: 100%;
+            display: flex;
+            justify-content: center;
+          }
+          .preview-page {
             width: ${page.width.toFixed(2)}px;
             min-height: ${page.height.toFixed(2)}px;
             padding: ${marginTop}px ${marginRight}px ${marginBottom}px ${marginLeft}px;
@@ -718,12 +750,15 @@ function updateHtmlPreview() {
             line-height: 1.2;
             color: #000;
           }
-          /* User styles */
-          ${css}
         </style>
+        ${css ? `<style>${css}</style>` : ""}
+        ${styleTags}
+        ${linkTags}
       </head>
       <body>
-        ${html}
+        <div class="preview-page">
+          ${bodyHtml}
+        </div>
       </body>
     </html>
   `;
