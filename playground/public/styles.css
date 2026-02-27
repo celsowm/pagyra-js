@@ -362,12 +362,8 @@ textarea:focus {
   height: 100%;
   border: none;
   border-radius: 0.5rem;
-  background: #fff;
+  background: #e2e8f0;
   box-shadow: 0 10px 40px rgba(15, 23, 42, 0.3);
-}
-
-#html-viewer {
-  background: #fff;
 }
 
 @media (max-width: 960px) {

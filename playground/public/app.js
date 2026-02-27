@@ -687,6 +687,7 @@ function updateHtmlPreview() {
   const marginLeft = PAGE_MARGINS.left.toFixed(2);
 
   // Create a complete HTML document with the user's input
+  // Match Pagyra UA defaults: Times New Roman 16px, line-height 1.2, no body margin
   const fullHtml = `
     <!DOCTYPE html>
     <html>
@@ -711,6 +712,11 @@ function updateHtmlPreview() {
             padding: ${marginTop}px ${marginRight}px ${marginBottom}px ${marginLeft}px;
             background: #fff;
             box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+            /* Pagyra UA defaults */
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 16px;
+            line-height: 1.2;
+            color: #000;
           }
           /* User styles */
           ${css}
