@@ -131,6 +131,7 @@ import {
   parseLetterSpacing,
 } from "./text-parser-extended.js";
 import { parseOverflowWrap, parseWordWrap } from "./overflow-wrap-parser.js";
+import { parseWordBreak } from "./word-break-parser.js";
 import { parseTextShadow } from "./text-shadow-parser.js";
 import { parseListStyleType } from "./list-style-parser.js";
 import { parseContent } from "./content-parser.js";
@@ -290,6 +291,7 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("float", parseFloat);
   registerPropertyParser("overflow-wrap", parseOverflowWrap);
   registerPropertyParser("word-wrap", parseWordWrap);
+  registerPropertyParser("word-break", parseWordBreak);
   registerPropertyParser("text-shadow", parseTextShadow);
   registerPropertyParser("list-style-type", parseListStyleType);
   registerPropertyParser("content", parseContent);

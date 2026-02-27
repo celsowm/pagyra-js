@@ -157,7 +157,8 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
             // Text items
             if (workingItem.kind === "word" && workingItem.width > remaining) {
                 const mode = workingItem.style?.overflowWrap ?? "normal";
-                if (mode !== "normal" && remaining > 0) {
+                const wb = workingItem.style?.wordBreak ?? "normal";
+                if ((mode !== "normal" || wb === "break-all" || wb === "break-word") && remaining > 0) {
                     const [head, tail] = splitWordItemToken(workingItem, remaining);
                     if (head) {
                         lineParts.push({ item: head, offset: cursorX });

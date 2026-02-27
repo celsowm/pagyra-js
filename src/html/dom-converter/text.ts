@@ -75,6 +75,7 @@ export function createInlineTextStyle(parentStyle: ComputedStyle): ComputedStyle
     letterSpacing: parentStyle.letterSpacing,
     wordSpacing: parentStyle.wordSpacing,
     overflowWrap: parentStyle.overflowWrap,
+    wordBreak: parentStyle.wordBreak,
     whiteSpace: parentStyle.whiteSpace,
     textDecorationLine: parentStyle.textDecorationLine,
     textDecorationColor: parentStyle.textDecorationColor,

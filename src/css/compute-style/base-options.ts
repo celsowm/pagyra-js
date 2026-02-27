@@ -27,6 +27,7 @@ export function createBaseStyleOptions(
     fontStyle: fontContext.elementDefinesFontStyle ? mergedDefaults.fontStyle : inherited.fontStyle,
     fontWeight: fontContext.elementDefinesFontWeight ? mergedDefaults.fontWeight : normalizeFontWeight(inherited.fontWeight),
     overflowWrap: inherited.overflowWrap,
+    wordBreak: inherited.wordBreak,
     textIndent: inherited.textIndent ?? mergedDefaults.textIndent ?? 0,
     textTransform: inherited.textTransform ?? "none",
     letterSpacing: inherited.letterSpacing ?? mergedDefaults.letterSpacing,

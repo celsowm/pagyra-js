@@ -106,6 +106,7 @@ export function applyStyleInitOverrides(
   if (styleInit.fontVariant !== undefined) styleOptions.fontVariant = styleInit.fontVariant;
   if (styleInit.fontWeight !== undefined) styleOptions.fontWeight = normalizeFontWeight(styleInit.fontWeight);
   if (styleInit.overflowWrap !== undefined) styleOptions.overflowWrap = styleInit.overflowWrap;
+  if (styleInit.wordBreak !== undefined) styleOptions.wordBreak = styleInit.wordBreak;
   if (styleInit.content !== undefined) styleOptions.content = styleInit.content;
   if (styleInit.counterReset !== undefined) styleOptions.counterReset = [...styleInit.counterReset];
   if (styleInit.counterIncrement !== undefined) styleOptions.counterIncrement = [...styleInit.counterIncrement];

@@ -140,6 +140,10 @@ export class TextLayoutDefaults {
     return "normal";
   }
 
+  static getWordBreak(): "normal" | "break-all" | "keep-all" | "break-word" {
+    return "normal";
+  }
+
   static getTextWrap(): TextWrap {
     return TextWrap.Wrap;
   }
@@ -228,6 +232,7 @@ export function createBaseDefaultsObject(): StyleDefaults {
     // Text layout
     whiteSpace: TextLayoutDefaults.getWhiteSpace(),
     overflowWrap: TextLayoutDefaults.getOverflowWrap(),
+    wordBreak: TextLayoutDefaults.getWordBreak(),
     textWrap: TextLayoutDefaults.getTextWrap(),
     writingMode: TextLayoutDefaults.getWritingMode(),
     textAlign: TextLayoutDefaults.getTextAlign(),

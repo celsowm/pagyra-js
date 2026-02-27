@@ -4,6 +4,7 @@ import type { ContentValue } from "../parsers/content-parser.js";
 
 export type TextTransform = "none" | "uppercase" | "lowercase" | "capitalize";
 export type OverflowWrap = "normal" | "break-word" | "anywhere";
+export type WordBreak = "normal" | "break-all" | "keep-all" | "break-word";
 
 /**
  * font-variant-numeric values as defined in CSS Fonts Level 3
@@ -121,6 +122,9 @@ export interface TypographyProperties {
 
     /** Overflow wrap behavior */
     overflowWrap: OverflowWrap;
+
+    /** Word break behavior */
+    wordBreak: WordBreak;
 
     /** Writing mode (horizontal-tb, vertical-rl, etc.) */
     writingMode: WritingMode;

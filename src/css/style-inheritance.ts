@@ -1,6 +1,6 @@
 import type { ComputedStyle } from "./style.js";
 import type { LineHeightValue } from "./line-height.js";
-import type { OverflowWrap, TextTransform } from "./properties/typography.js";
+import type { OverflowWrap, WordBreak, TextTransform } from "./properties/typography.js";
 import { cloneLineHeight } from "./line-height.js";
 import type { LengthLike } from "./length.js";
 import type { StyleDefaults } from "./ua-defaults/types.js";
@@ -21,6 +21,7 @@ export interface InheritedStyleProperties {
     textDecorationColor?: string;
     textDecorationStyle?: string;
     overflowWrap?: OverflowWrap;
+    wordBreak?: WordBreak;
     textIndent: LengthLike;
     textTransform: TextTransform;
     listStyleType: string;
@@ -51,6 +52,7 @@ export class StyleInheritanceResolver {
             textDecorationColor: parentStyle.textDecorationColor ?? mergedDefaults.textDecorationColor,
             textDecorationStyle: parentStyle.textDecorationStyle ?? mergedDefaults.textDecorationStyle,
             overflowWrap: parentStyle.overflowWrap ?? mergedDefaults.overflowWrap,
+            wordBreak: parentStyle.wordBreak ?? mergedDefaults.wordBreak,
             textIndent: parentStyle.textIndent ?? mergedDefaults.textIndent ?? 0,
             textTransform: parentStyle.textTransform ?? mergedDefaults.textTransform ?? "none",
             listStyleType: parentStyle.listStyleType ?? mergedDefaults.listStyleType ?? "disc",

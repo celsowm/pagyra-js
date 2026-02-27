@@ -27,7 +27,7 @@ import { CustomPropertiesMap } from "./custom-properties.js";
 
 // Import domain interfaces
 import type { LayoutProperties } from "./properties/layout.js";
-import type { TypographyProperties, TextTransform, OverflowWrap, FontVariantNumeric } from "./properties/typography.js";
+import type { TypographyProperties, TextTransform, OverflowWrap, WordBreak, FontVariantNumeric } from "./properties/typography.js";
 import type { BoxModelProperties } from "./properties/box-model.js";
 import type { FlexboxProperties, FlexDirection, AlignSelfValue } from "./properties/flexbox.js";
 import type {
@@ -65,7 +65,7 @@ import type { CounterIncrement, CounterReset } from "../layout/counter.js";
 // Re-export types for convenience
 export type { NumericLength } from "./length.js";
 export type { LineHeightInput, LineHeightValue } from "./line-height.js";
-export type { TextTransform, OverflowWrap, FontVariantNumeric };
+export type { TextTransform, OverflowWrap, WordBreak, FontVariantNumeric };
 export type { FlexDirection, AlignSelfValue };
 export type { GridAutoFlow };
 export type {
@@ -164,6 +164,7 @@ export interface StyleAccumulator {
   flexShrink?: number;
   flexBasis?: LengthInput;
   overflowWrap?: OverflowWrap;
+  wordBreak?: WordBreak;
   trackListColumns?: TrackDefinitionInput[];
   trackListRows?: TrackDefinitionInput[];
   autoFlow?: GridAutoFlow;
@@ -213,6 +214,7 @@ export class ComputedStyle implements StyleProperties {
   whiteSpace: WhiteSpace;
   textWrap: TextWrap;
   overflowWrap: OverflowWrap;
+  wordBreak: WordBreak;
   writingMode: WritingMode;
   boxSizing: BoxSizing;
   width: LengthLike;
@@ -318,6 +320,7 @@ export class ComputedStyle implements StyleProperties {
     this.overflowY = data.overflowY;
     this.whiteSpace = data.whiteSpace;
     this.overflowWrap = data.overflowWrap;
+    this.wordBreak = data.wordBreak;
     this.textWrap = data.textWrap;
     this.writingMode = data.writingMode;
     this.boxSizing = data.boxSizing;
