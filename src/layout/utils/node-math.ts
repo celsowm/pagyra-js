@@ -207,26 +207,26 @@ export function resolveWidthBlock(
     containingBlockWidth - hNonContent - marginLeft - marginRight,
   );
   const width =
-    style.width === "auto"
+    style.width === undefined || isAutoLength(style.width)
       ? available
       : adjustForBoxSizing(
-          resolveLength(style.width, containingBlockWidth, { auto: "reference", ...containerRefs }),
-          style.boxSizing,
-          hNonContent,
-        );
-  const minWidth = style.minWidth
-    ? adjustForBoxSizing(
-        resolveLength(style.minWidth, containingBlockWidth, { auto: "zero", ...containerRefs }),
+        resolveLength(style.width, containingBlockWidth, { auto: "reference", ...containerRefs }),
         style.boxSizing,
         hNonContent,
-      )
+      );
+  const minWidth = style.minWidth
+    ? adjustForBoxSizing(
+      resolveLength(style.minWidth, containingBlockWidth, { auto: "zero", ...containerRefs }),
+      style.boxSizing,
+      hNonContent,
+    )
     : Number.NEGATIVE_INFINITY;
   const maxWidth = style.maxWidth
     ? adjustForBoxSizing(
-        resolveLength(style.maxWidth, containingBlockWidth, { auto: "reference", ...containerRefs }),
-        style.boxSizing,
-        hNonContent,
-      )
+      resolveLength(style.maxWidth, containingBlockWidth, { auto: "reference", ...containerRefs }),
+      style.boxSizing,
+      hNonContent,
+    )
     : Number.POSITIVE_INFINITY;
   return clampMinMax(width, minWidth, maxWidth);
 }

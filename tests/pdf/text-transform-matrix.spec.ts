@@ -5,13 +5,15 @@ const TAN_20 = Math.tan((20 * Math.PI) / 180);
 describe("PDF text transforms", () => {
   it("applies skewX to text runs (keeps linear components in CSS space)", async () => {
     const html = `<span style="display:inline-block; font-size:20px; transform: skewX(20deg);">Skewed</span>`;
-    const runs = await renderRuns(html);
-    const skewRun = runs.find((r) => r.text.includes("Skewed"));
-    expect(skewRun).toBeDefined();
-    // lineMatrix remains in CSS coordinates; skewX should set c to tan(20deg)
-    expect(Math.abs((skewRun!.lineMatrix?.c ?? 0) - TAN_20)).toBeLessThan(1e-3);
-    expect(skewRun!.lineMatrix?.a ?? 1).toBeCloseTo(1);
-    expect(skewRun!.lineMatrix?.d ?? 1).toBeCloseTo(1);
+    const tree = await renderTreeForHtml(html);
+    const boxes = collectBoxes(tree.root);
+    const skewedBox = boxes.find((b) => b.transform !== undefined && b.textRuns.some(r => r.text.includes("Skewed")));
+    expect(skewedBox).toBeDefined();
+
+    // transform matrix in CSS coordinates from the style; skewX should set c to tan(20deg)
+    expect(Math.abs((skewedBox!.transform?.c ?? 0) - TAN_20)).toBeLessThan(1e-3);
+    expect(skewedBox!.transform?.a ?? 1).toBeCloseTo(1);
+    expect(skewedBox!.transform?.d ?? 1).toBeCloseTo(1);
   });
 
   it("keeps text baseline inside table cell", async () => {

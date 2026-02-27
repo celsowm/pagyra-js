@@ -1,7 +1,7 @@
 import { LayoutNode } from "../../dom/node.js";
 import { AlignItems, Display, JustifyContent } from "../../css/enums.js";
 import type { LayoutContext, LayoutStrategy } from "../pipeline/strategy.js";
-import { adjustForBoxSizing, containingBlock, resolveBoxMetrics } from "../utils/node-math.js";
+import { adjustForBoxSizing, containingBlock, resolveBoxMetrics, resolveWidthBlock } from "../utils/node-math.js";
 import { resolveLength, isAutoLength } from "../../css/length.js";
 import type { LengthLike } from "../../css/length.js";
 import type { FlexDirection, AlignSelfValue } from "../../css/style.js";
@@ -288,11 +288,13 @@ export class FlexLayoutStrategy implements LayoutStrategy {
     const gapCalculator = new GapCalculator({ rowGap, columnGap });
     const mainAxisGap = gapCalculator.getMainAxisGap(isRow);
 
+    const defaultContentWidth = resolveWidthBlock(node, cb.width, cb.height);
+
     if (isRow) {
-      node.box.contentWidth = resolveInitialDimension(specifiedMain, cbMain);
+      node.box.contentWidth = resolveInitialDimension(specifiedMain, defaultContentWidth);
       node.box.contentHeight = resolveInitialDimension(specifiedCross, cbCross);
     } else {
-      node.box.contentWidth = resolveInitialDimension(specifiedCross, cbCross);
+      node.box.contentWidth = resolveInitialDimension(specifiedCross, defaultContentWidth);
       node.box.contentHeight = resolveInitialDimension(specifiedMain, cbMain);
     }
 
@@ -471,7 +473,7 @@ export class FlexLayoutStrategy implements LayoutStrategy {
     if (specifiedMain !== undefined) {
       containerMainSize = specifiedMain;
     } else if (isRow) {
-      const reference = Number.isFinite(cbMain) && cbMain > 0 ? cbMain : totalMainWithGaps;
+      const reference = Number.isFinite(defaultContentWidth) && defaultContentWidth > 0 ? defaultContentWidth : totalMainWithGaps;
       containerMainSize = wrapEnabled ? reference : Math.max(reference, totalMainWithGaps);
     } else {
       // For column flex containers with auto height, use content-based sizing.
@@ -501,7 +503,7 @@ export class FlexLayoutStrategy implements LayoutStrategy {
       const measuredCross = wrapEnabled ? wrappedCrossContribution : maxCrossContribution;
       containerCrossSize = Math.max(specifiedCross, measuredCross);
     } else if (!isRow) {
-      const referenceCross = Number.isFinite(cbCross) && cbCross > 0 ? cbCross : maxCrossContribution;
+      const referenceCross = Number.isFinite(defaultContentWidth) && defaultContentWidth > 0 ? defaultContentWidth : maxCrossContribution;
       containerCrossSize = Math.max(referenceCross, maxCrossContribution);
     } else {
       containerCrossSize = wrapEnabled ? wrappedCrossContribution : maxCrossContribution;

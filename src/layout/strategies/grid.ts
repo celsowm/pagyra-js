@@ -250,16 +250,10 @@ export class GridLayoutStrategy implements LayoutStrategy {
 
       const columnX = contentOriginX + (columnOffsets[columnIndex] ?? 0);
 
-      child.box.x = columnX;
-      child.box.y = currentRowTop;
-
       const originalContentWidth = node.box.contentWidth;
       node.box.contentWidth = columnWidth;
       context.layoutChild(child);
       node.box.contentWidth = originalContentWidth;
-
-      child.box.x = columnX;
-      child.box.y = currentRowTop;
 
       currentRowHeight = Math.max(currentRowHeight, child.box.borderBoxHeight);
       currentRowItems.push({
