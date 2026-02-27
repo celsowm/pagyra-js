@@ -56,6 +56,7 @@ import type {
   BoxShadowInput,
   TextShadow,
   TextShadowInput,
+  FilterFunction,
 } from "./properties/visual.js";
 import type { MiscProperties } from "./properties/misc.js";
 import type { ClipPath } from "./clip-path-types.js";
@@ -177,6 +178,12 @@ export interface StyleAccumulator {
   bottom?: LengthInput;
   left?: LengthInput;
   opacity?: number;
+
+  /** Parsed filter functions (pre-resolution — blur pode ter RelativeLength) */
+  filter?: FilterFunction[];
+
+  /** Parsed backdrop-filter functions */
+  backdropFilter?: FilterFunction[];
 }
 
 /**
@@ -298,6 +305,8 @@ export class ComputedStyle implements StyleProperties {
   widows: number;
   orphans: number;
   opacity: number;
+  filter?: FilterFunction[];
+  backdropFilter?: FilterFunction[];
   customProperties: CustomPropertiesMap;
 
   constructor(init?: Partial<StyleProperties>) {
@@ -414,6 +423,8 @@ export class ComputedStyle implements StyleProperties {
     this.textDecorationColor = init?.textDecorationColor ?? defaultStyle.textDecorationColor;
     this.textDecorationStyle = init?.textDecorationStyle ?? defaultStyle.textDecorationStyle;
     this.opacity = data.opacity;
+    this.filter = data.filter ? [...data.filter] : undefined;
+    this.backdropFilter = data.backdropFilter ? [...data.backdropFilter] : undefined;
     this.customProperties = init?.customProperties ?? new CustomPropertiesMap();
   }
 

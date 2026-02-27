@@ -389,6 +389,12 @@ export class FlexLayoutStrategy implements LayoutStrategy {
               child.box.marginBoxWidth = child.box.borderBoxWidth + marginLeft + marginRight;
               child.box.scrollWidth = Math.max(child.box.scrollWidth, child.box.contentWidth);
               mainSize = child.box.borderBoxWidth;
+
+              // Re-layout with corrected width so inline text positions are correct
+              const prevW = node.box.contentWidth;
+              node.box.contentWidth = child.box.borderBoxWidth + marginLeft + marginRight;
+              context.layoutChild(child);
+              node.box.contentWidth = prevW;
             }
           }
         }

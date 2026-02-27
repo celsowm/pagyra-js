@@ -182,7 +182,9 @@ function convertNode(
 
   const zIndex = typeof node.style.zIndex === "number" ? node.style.zIndex : 0;
   const establishesStackingContext =
-    typeof node.style.zIndex === "number" && node.style.position !== Position.Static;
+    typeof node.style.zIndex === "number" && node.style.position !== Position.Static ||
+    (node.style.filter !== undefined && node.style.filter.length > 0) ||
+    (node.style.backdropFilter !== undefined && node.style.backdropFilter.length > 0);
 
   const borderStyle: BorderStyles = {
     top: normalizeBorderStyle(node.style.borderStyleTop),
@@ -253,6 +255,8 @@ function convertNode(
       customData,
     textAlign,
     transform,
+    filter: node.style.filter ? [...node.style.filter] : undefined,
+    backdropFilter: node.style.backdropFilter ? [...node.style.backdropFilter] : undefined,
   };
 }
 

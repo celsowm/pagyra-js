@@ -5,6 +5,7 @@ import type {
   DecorationCommand,
   Link,
 } from "./types.js";
+import type { PaintInstruction } from "./stacking/types.js";
 import { resolvePaintOrder } from "./stacking/resolve-paint-order.js";
 
 export interface PaginationOptions {
@@ -19,7 +20,9 @@ export function paginateTree(root: RenderBox, options: PaginationOptions): Layou
   const positionedAll = collectPositionedLayers(root);
   const linksAll = collectLinks(root);
 
-  const documentHeight = resolveDocumentHeight(paintOrderAll);
+  const documentHeight = resolveDocumentHeight(
+    paintOrderAll.filter((i): i is PaintInstruction & { type: 'box' } => i.type === 'box').map((i) => i.box),
+  );
   const totalPages = Math.max(1, Math.ceil(documentHeight / pageHeight));
 
   const pages: LayoutPageTree[] = [];
@@ -28,7 +31,9 @@ export function paginateTree(root: RenderBox, options: PaginationOptions): Layou
     const pageTop = index * pageHeight;
     const pageBottom = pageTop + pageHeight;
 
-    const paintOrder = paintOrderAll.filter((box) => intersectsVerticalSlice(box, pageTop, pageBottom));
+    const paintOrder = paintOrderAll.filter((item) =>
+      item.type !== 'box' || intersectsVerticalSlice(item.box, pageTop, pageBottom),
+    );
     const flowContentOrder = flowOrderAll.filter((box) => intersectsVerticalSlice(box, pageTop, pageBottom));
     const positionedLayersSortedByZ = filterPositionedLayers(positionedAll, pageTop, pageBottom);
     const links = filterLinks(linksAll, pageTop, pageBottom, pageTop);

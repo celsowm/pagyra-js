@@ -8,19 +8,41 @@ import { computeBackgroundTileRects, rectEquals } from "../utils/background-tile
 import { computeBorderSideStrokes } from "../utils/border-dashes.js";
 import type { PathCommand } from "../renderers/shape-renderer.js";
 import { defaultFormRendererFactory } from "../renderers/form/factory.js";
+import {
+  extractDropShadowLayers,
+  warnUnsupportedFilters,
+} from "../utils/filter-utils.js";
 
 export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Promise<void> {
   log("paint", "debug", `paintBoxAtomic: ${box.tagName} id:${box.id} opacity:${box.opacity}`, { id: box.id, opacity: box.opacity });
 
   const hasTransform = box.transform && (box.transform.b !== 0 || box.transform.c !== 0);
-  const hasOpacity = box.opacity < 1;
+
+  // Filter opacity and stacking context opacity are handled at the scope level
+  // in the paint instruction loop. Only apply per-box opacity for boxes
+  // that don't establish stacking contexts.
+  const effectiveOpacity = box.establishesStackingContext ? 1 : box.opacity;
+  const hasOpacity = effectiveOpacity < 1;
 
   if (hasTransform) {
     painter.beginTransformScope(box.transform!, box.borderBox);
   }
 
   if (hasOpacity) {
-    painter.beginOpacityScope(box.opacity);
+    painter.beginOpacityScope(effectiveOpacity);
+  }
+
+  // ★ Warnings para filtros não renderizáveis
+  warnUnsupportedFilters(box.filter, "filter", box.id);
+  warnUnsupportedFilters(box.backdropFilter, "backdrop-filter", box.id);
+
+  // ★ drop-shadow do filter (pintado como outer shadow antes dos box-shadows)
+  if (box.filter) {
+    const fallbackColor = box.color ?? { r: 0, g: 0, b: 0, a: 1 };
+    const dropShadows = extractDropShadowLayers(box.filter, fallbackColor);
+    if (dropShadows.length > 0) {
+      paintDropShadows(painter, box, dropShadows);
+    }
   }
 
   paintBoxShadows(painter, [box], false);
@@ -50,7 +72,7 @@ export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Prom
   }
 
   if (hasOpacity) {
-    painter.endOpacityScope(box.opacity);
+    painter.endOpacityScope(effectiveOpacity);
   }
 
   if (hasTransform) {
@@ -242,4 +264,14 @@ function buildClipPathCommands(clipPath: RenderBox["clipPath"]): PathCommand[] |
   }
   commands.push({ type: "closePath" });
   return commands;
+}
+
+function paintDropShadows(painter: PagePainter, box: RenderBox, shadows: import("../types.js").ShadowLayer[]): void {
+  // Usa o borderBox como base da sombra (aproximação para drop-shadow)
+  const virtualBox: Partial<RenderBox> = {
+    borderBox: box.borderBox,
+    borderRadius: box.borderRadius,
+    boxShadows: shadows,
+  };
+  paintBoxShadows(painter, [virtualBox as RenderBox], false);
 }

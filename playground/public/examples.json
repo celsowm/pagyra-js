@@ -263,5 +263,15 @@
     "id": "responsive-clamp-grid",
     "label": "Responsive Grid com clamp() (pt-BR)",
     "htmlUrl": "examples/responsive-clamp-grid.html"
+  },
+  {
+    "id": "filter-effects",
+    "label": "🎨 CSS Filter Effects (Complete Demo)",
+    "htmlUrl": "examples/filter-effects.html"
+  },
+  {
+    "id": "filter-mvp",
+    "label": "✅ Filter PDF Support (MVP Demo)",
+    "htmlUrl": "examples/filter-mvp.html"
   }
 ]

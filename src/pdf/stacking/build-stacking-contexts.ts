@@ -11,8 +11,7 @@ export function getStackingFlags(box: RenderBox): StackingFlags {
   const hasNumericZ = typeof raw === "number" && Number.isFinite(raw);
   const zIndex: number | "auto" = hasNumericZ ? (raw as number) : "auto";
 
-  // For now, we only treat positioned+numeric z-index as establishing context.
-  const establishesContext = isPositioned && hasNumericZ;
+  const establishesContext = box.establishesStackingContext || (isPositioned && hasNumericZ);
 
   return { isPositioned, zIndex, establishesContext };
 }

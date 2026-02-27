@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CSS Filter Effects Demo</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 40px;
+      min-height: 100vh;
+    }
+
+    h1 {
+      text-align: center;
+      color: white;
+      margin-bottom: 40px;
+      font-size: 2.5rem;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .demo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 30px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .demo-card {
+      background: white;
+      border-radius: 15px;
+      padding: 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    .demo-card h2 {
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+      color: #333;
+      border-bottom: 3px solid #667eea;
+      padding-bottom: 10px;
+    }
+
+    .demo-card p {
+      color: #666;
+      margin-bottom: 15px;
+      line-height: 1.6;
+    }
+
+    /* Demo 1: Opacity Filter */
+    .opacity-demo {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      padding: 40px;
+      border-radius: 10px;
+      color: white;
+      font-weight: bold;
+    }
+
+    .opacity-25 {
+      filter: opacity(0.25);
+    }
+
+    .opacity-50 {
+      filter: opacity(0.5);
+    }
+
+    .opacity-75 {
+      filter: opacity(0.75);
+    }
+
+    /* Demo 2: Drop Shadow */
+    .dropshadow-demo {
+      background: #fff;
+      padding: 30px;
+      border-radius: 10px;
+      display: inline-block;
+      margin: 20px 0;
+    }
+
+    .shadow-small {
+      filter: drop-shadow(2px 2px 3px rgba(0,0,0,0.3));
+    }
+
+    .shadow-medium {
+      filter: drop-shadow(5px 5px 10px rgba(0,0,0,0.4));
+    }
+
+    .shadow-large {
+      filter: drop-shadow(10px 10px 20px rgba(0,0,0,0.5));
+    }
+
+    .shadow-colored {
+      filter: drop-shadow(5px 5px 10px rgba(102, 126, 234, 0.6));
+    }
+
+    /* Demo 3: Multiple Filters */
+    .multiple-demo {
+      background: linear-gradient(45deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3);
+      padding: 40px;
+      border-radius: 10px;
+      color: white;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .filter-combo-1 {
+      filter: blur(1px) brightness(1.2);
+    }
+
+    .filter-combo-2 {
+      filter: grayscale(0.5) contrast(1.3);
+    }
+
+    .filter-combo-3 {
+      filter: sepia(0.6) saturate(1.5);
+    }
+
+    /* Demo 4: Hue Rotate */
+    .hue-demo {
+      width: 100px;
+      height: 100px;
+      background: red;
+      border-radius: 10px;
+      margin: 10px;
+      display: inline-block;
+    }
+
+    .hue-90 {
+      filter: hue-rotate(90deg);
+    }
+
+    .hue-180 {
+      filter: hue-rotate(180deg);
+    }
+
+    .hue-270 {
+      filter: hue-rotate(270deg);
+    }
+
+    /* Demo 5: Combined with regular opacity */
+    .combined-demo {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      padding: 40px;
+      border-radius: 10px;
+      color: white;
+      font-weight: bold;
+    }
+
+    .combined-opacity {
+      opacity: 0.8;
+      filter: opacity(0.5);
+    }
+
+    /* Demo 6: Backdrop Filter (will be parsed but ignored in PDF with warning) */
+    .backdrop-section {
+      position: relative;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23667eea' width='100' height='100'/%3E%3Ccircle cx='50' cy='50' r='30' fill='%23764ba2'/%3E%3C/svg%3E");
+      padding: 40px;
+      border-radius: 10px;
+      margin-top: 20px;
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.3);
+      backdrop-filter: blur(10px) brightness(1.1);
+      -webkit-backdrop-filter: blur(10px) brightness(1.1);
+      padding: 30px;
+      border-radius: 15px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white;
+      font-weight: bold;
+    }
+
+    /* Code display */
+    code {
+      background: #f4f4f4;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+      color: #e83e8c;
+    }
+
+    .note {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 15px;
+      margin-top: 20px;
+      border-radius: 5px;
+    }
+
+    .note strong {
+      color: #856404;
+    }
+
+    .note p {
+      color: #856404;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎨 CSS Filter Effects</h1>
+
+  <div class="demo-grid">
+    <!-- Demo 1: Opacity -->
+    <div class="demo-card">
+      <h2>1. Opacity Filter</h2>
+      <p>Using <code>filter: opacity()</code> - supported in PDF!</p>
+      
+      <div class="opacity-demo">
+        <div style="margin-bottom: 10px;">Original (100%)</div>
+        <div class="opacity-75" style="margin-bottom: 10px;">opacity(0.75) - 75%</div>
+        <div class="opacity-50" style="margin-bottom: 10px;">opacity(0.5) - 50%</div>
+        <div class="opacity-25">opacity(0.25) - 25%</div>
+      </div>
+    </div>
+
+    <!-- Demo 2: Drop Shadow -->
+    <div class="demo-card">
+      <h2>2. Drop Shadow</h2>
+      <p>Using <code>filter: drop-shadow()</code> - supported in PDF!</p>
+      
+      <div class="dropshadow-demo shadow-small">
+        Small Shadow<br>
+        <code>drop-shadow(2px 2px 3px)</code>
+      </div>
+      
+      <div class="dropshadow-demo shadow-medium">
+        Medium Shadow<br>
+        <code>drop-shadow(5px 5px 10px)</code>
+      </div>
+      
+      <div class="dropshadow-demo shadow-large">
+        Large Shadow<br>
+        <code>drop-shadow(10px 10px 20px)</code>
+      </div>
+      
+      <div class="dropshadow-demo shadow-colored">
+        Colored Shadow<br>
+        <code>drop-shadow(5px 5px 10px rgba(102, 126, 234, 0.6))</code>
+      </div>
+    </div>
+
+    <!-- Demo 3: Multiple Filters -->
+    <div class="demo-card">
+      <h2>3. Multiple Filters</h2>
+      <p>Combining multiple filters (parsed but not rendered in PDF)</p>
+      
+      <div class="multiple-demo filter-combo-1" style="margin-bottom: 15px;">
+        blur(1px) + brightness(1.2)
+      </div>
+      
+      <div class="multiple-demo filter-combo-2" style="margin-bottom: 15px;">
+        grayscale(0.5) + contrast(1.3)
+      </div>
+      
+      <div class="multiple-demo filter-combo-3">
+        sepia(0.6) + saturate(1.5)
+      </div>
+    </div>
+
+    <!-- Demo 4: Hue Rotate -->
+    <div class="demo-card">
+      <h2>4. Hue Rotate</h2>
+      <p>Rotating colors with <code>hue-rotate()</code></p>
+      
+      <div style="text-align: center;">
+        <div class="hue-demo">Original<br>(red)</div>
+        <div class="hue-demo hue-90">90°<br>(green)</div>
+        <div class="hue-demo hue-180">180°<br>(cyan)</div>
+        <div class="hue-demo hue-270">270°<br>(purple)</div>
+      </div>
+      
+      <p style="margin-top: 15px; font-size: 0.9em;">
+        Also supports: <code>rad</code>, <code>grad</code>, <code>turn</code>
+      </p>
+    </div>
+
+    <!-- Demo 5: Combined Opacity -->
+    <div class="demo-card">
+      <h2>5. Combined Opacity</h2>
+      <p>Element opacity × filter opacity are multiplied!</p>
+      
+      <div class="combined-demo">
+        <div style="margin-bottom: 15px;">
+          <strong>Original</strong><br>
+          opacity: 1.0
+        </div>
+        
+        <div class="combined-opacity">
+          <strong>Combined</strong><br>
+          opacity: 0.8 × filter: opacity(0.5)<br>
+          = 0.4 (40% visible)
+        </div>
+      </div>
+    </div>
+
+    <!-- Demo 6: Backdrop Filter -->
+    <div class="demo-card">
+      <h2>6. Backdrop Filter</h2>
+      <p>Glassmorphism effect (parsed but ignored in PDF)</p>
+      
+      <div class="backdrop-section">
+        <div class="glass-card">
+          <h3 style="margin-bottom: 10px;">🪟 Glass Effect</h3>
+          <p>backdrop-filter: blur(10px) brightness(1.1)</p>
+          <p style="font-size: 0.85em; margin-top: 10px; opacity: 0.8;">
+            Note: This creates a frosted glass effect by blurring what's behind the element.
+          </p>
+        </div>
+      </div>
+
+      <div class="note">
+        <strong>⚠️ PDF Limitation:</strong>
+        <p>
+          <code>backdrop-filter</code> and filters like <code>blur()</code>, 
+          <code>grayscale()</code>, <code>brightness()</code> are parsed but 
+          not rendered in PDF (requires rasterization). Warnings will appear in logs.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width: 1400px; margin: 40px auto; background: white; padding: 30px; border-radius: 15px;">
+    <h2 style="color: #333; margin-bottom: 20px;">📋 Filter Support Matrix</h2>
+    
+    <table style="width: 100%; border-collapse: collapse;">
+      <thead>
+        <tr style="background: #667eea; color: white;">
+          <th style="padding: 12px; text-align: left;">Filter Function</th>
+          <th style="padding: 12px;">CSS Parsing</th>
+          <th style="padding: 12px;">PDF Rendering</th>
+          <th style="padding: 12px;">Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 12px;"><code>opacity()</code></td>
+          <td style="padding: 12px; text-align: center;">✅</td>
+          <td style="padding: 12px; text-align: center;">✅</td>
+          <td style="padding: 12px;">Composes with element opacity</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 12px;"><code>drop-shadow()</code></td>
+          <td style="padding: 12px; text-align: center;">✅</td>
+          <td style="padding: 12px; text-align: center;">✅</td>
+          <td style="padding: 12px;">Rendered as box-shadow approximation</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 12px;"><code>blur()</code></td>
+          <td style="padding: 12px; text-align: center;">✅</td>
+          <td style="padding: 12px; text-align: center;">⚠️</td>
+          <td style="padding: 12px;">Parsed but ignored (requires raster)</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 12px;"><code>brightness()</code></td>
+          <td style="padding: 12px; text-align: center;">✅</td>
+          <td style="padding: 12px; text-align: center;">⚠️</td>
+          <td style="padding: 12px;">Parsed but ignored</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 12px;"><code>contrast()</code></td>
+          <td style="padding: 12px; text-align: center;">✅</td>
+          <td style="padding: 12px; text-align: center;">⚠️</td>
+          <td style="padding: 12px;">Parsed but ignored</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 12px;"><code>grayscale()</code></td>
+          <td style="padding: 12px; text-align: center;">✅</td>
+          <td style="padding: 12px; text-align: center;">⚠️</td>
+          <td style="padding: 12px;">Parsed but ignored</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 12px;"><code>hue-rotate()</code></td>
+          <td style="padding: 12px; text-align: center;">✅</td>
+          <td style="padding: 12px; text-align: center;">⚠️</td>
+          <td style="padding: 12px;">Parsed but ignored</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #eee;">
+          <td style="padding: 12px;"><code>backdrop-filter</code></td>
+          <td style="padding: 12px; text-align: center;">✅</td>
+          <td style="padding: 12px; text-align: center;">⚠️</td>
+          <td style="padding: 12px;">All functions parsed, none rendered</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

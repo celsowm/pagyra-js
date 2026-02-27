@@ -14,6 +14,7 @@ import {
   type NumericLength,
 } from "../length.js";
 import type { StyleDefaults } from "../ua-defaults/types.js";
+import type { FilterFunction } from "../properties/visual.js";
 
 function assignMarginWithFallback(
   styleValue: LengthInput | undefined,
@@ -228,5 +229,33 @@ export function applyStyleInitOverrides(
   }
   if (styleInit.opacity !== undefined) {
     styleOptions.opacity = styleInit.opacity;
+  }
+  if (styleInit.filter !== undefined) {
+    // Resolver unidades relativas em blur() e drop-shadow()
+    styleOptions.filter = styleInit.filter.map((fn) => resolveFilterUnits(fn, unitResolver));
+  }
+  if (styleInit.backdropFilter !== undefined) {
+    styleOptions.backdropFilter = styleInit.backdropFilter.map((fn) => resolveFilterUnits(fn, unitResolver));
+  }
+}
+
+function resolveFilterUnits(fn: FilterFunction, unitResolver: CssUnitResolver): FilterFunction {
+  switch (fn.kind) {
+    case "blur":
+      return {
+        kind: "blur",
+        value: typeof fn.value === "number" ? fn.value : unitResolver.resolveShadowLength(fn.value),
+      };
+    case "drop-shadow":
+      return {
+        kind: "drop-shadow",
+        offsetX: unitResolver.resolveShadowLength(fn.offsetX),
+        offsetY: unitResolver.resolveShadowLength(fn.offsetY),
+        blurRadius: unitResolver.resolveShadowLength(fn.blurRadius, true),
+        color: fn.color,
+      };
+    default:
+      // Funções numéricas e hue-rotate não têm unidades relativas
+      return fn;
   }
 }

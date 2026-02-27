@@ -38,3 +38,13 @@ export interface StackingFlags {
 export interface PaintStep {
   box: RenderBox;
 }
+
+/**
+ * A paint instruction in the resolved paint order.
+ * - `box`: paint a single RenderBox atomically.
+ * - `beginOpacity` / `endOpacity`: wrap a stacking context group in an opacity scope.
+ */
+export type PaintInstruction =
+  | { type: 'box'; box: RenderBox }
+  | { type: 'beginOpacity'; opacity: number }
+  | { type: 'endOpacity' };

@@ -88,9 +88,15 @@ export async function paintLayoutPage({
     );
   }
 
-  // Paint each box as an atomic unit in the resolved paint order.
-  for (const box of pageTree.paintOrder) {
-    await paintBoxAtomic(painter, box);
+  // Paint each instruction in the resolved paint order.
+  for (const instruction of pageTree.paintOrder) {
+    if (instruction.type === 'beginOpacity') {
+      painter.beginOpacityScope(instruction.opacity);
+    } else if (instruction.type === 'endOpacity') {
+      painter.endOpacityScope(0);
+    } else {
+      await paintBoxAtomic(painter, instruction.box);
+    }
   }
 
   if (headerFooterLayout.layerMode === LayerMode.Over) {

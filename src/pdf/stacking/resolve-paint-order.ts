@@ -1,26 +1,39 @@
 import type { RenderBox } from "../types.js";
 import { buildStackingContexts, getStackingFlags } from "./build-stacking-contexts.js";
-import type { PaintStep, StackingContextId, StackingContextNode } from "./types.js";
+import type { PaintInstruction, StackingContextId, StackingContextNode } from "./types.js";
 
 /**
  * Resolve a global paint order from the RenderBox tree using stacking contexts.
  *
- * Scope (step 1):
- * - Support numeric z-index on positioned elements (absolute/fixed/etc.) vs auto.
- * - Respect DOM order for ties.
- * - Treat each box as an atomic paint unit (background+border+content together).
- * - Keep API simple: return ordered RenderBox list.
+ * Returns an ordered list of PaintInstructions that includes opacity scope
+ * markers (beginOpacity/endOpacity) around stacking contexts whose root box
+ * has effective opacity < 1 (from CSS opacity or filter: opacity()).
  */
-export function resolvePaintOrder(root: RenderBox): RenderBox[] {
+export function resolvePaintOrder(root: RenderBox): PaintInstruction[] {
   const { rootContextId, contexts } = buildStackingContexts(root);
-  const steps: PaintStep[] = [];
+  const steps: PaintInstruction[] = [];
 
   resolveContextPaintOrder(rootContextId, contexts, steps);
-  return steps.map((s) => s.box);
+  return steps;
 }
 
 /**
- * Compute paint order within a stacking context and append PaintSteps.
+ * Compute effective opacity for a box, combining CSS opacity and filter opacity().
+ */
+function computeEffectiveOpacity(box: RenderBox): number {
+  let opacity = box.opacity;
+  if (box.filter) {
+    for (const fn of box.filter) {
+      if (fn.kind === 'opacity') {
+        opacity *= fn.value;
+      }
+    }
+  }
+  return Math.max(0, Math.min(1, opacity));
+}
+
+/**
+ * Compute paint order within a stacking context and append PaintInstructions.
  *
  * Simplified rules (sufficient for our current constraints):
  * For a given context:
@@ -35,7 +48,7 @@ export function resolvePaintOrder(root: RenderBox): RenderBox[] {
 function resolveContextPaintOrder(
   contextId: StackingContextId,
   contexts: Map<StackingContextId, StackingContextNode>,
-  out: PaintStep[],
+  out: PaintInstruction[],
 ): void {
   const context = contexts.get(contextId);
   if (!context) return;
@@ -43,7 +56,7 @@ function resolveContextPaintOrder(
   const rootBox = context.box;
 
   // 1. Paint the context root box as an atomic unit.
-  out.push({ box: rootBox });
+  out.push({ type: 'box', box: rootBox });
 
   // Collect direct descendants belonging to this context (non-root boxes).
   const descendants: RenderBox[] = [];
@@ -100,18 +113,26 @@ function resolveContextPaintOrder(
 /**
  * Append either a nested stacking context or a regular box.
  * Nested contexts are treated as atomic units: we delegate to resolveContextPaintOrder.
+ * When a nested context root has effective opacity < 1, wrap with begin/endOpacity markers.
  */
 function appendBoxOrContext(
   box: RenderBox,
   parentContextId: StackingContextId,
   contexts: Map<StackingContextId, StackingContextNode>,
-  out: PaintStep[],
+  out: PaintInstruction[],
 ): void {
   const nested = findContextByBox(box, parentContextId, contexts);
   if (nested) {
+    const effectiveOpacity = computeEffectiveOpacity(nested.box);
+    if (effectiveOpacity < 1) {
+      out.push({ type: 'beginOpacity', opacity: effectiveOpacity });
+    }
     resolveContextPaintOrder(nested.id, contexts, out);
+    if (effectiveOpacity < 1) {
+      out.push({ type: 'endOpacity' });
+    }
   } else {
-    out.push({ box });
+    out.push({ type: 'box', box });
   }
 }
 

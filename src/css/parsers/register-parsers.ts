@@ -164,6 +164,9 @@ import {
 // Opacity
 import { parseOpacity } from "./opacity-parser.js";
 
+// Filter
+import { parseFilter, parseBackdropFilter } from "./filter-parser.js";
+
 // Flag to ensure parsers are registered only once
 let parsersRegistered = false;
 
@@ -329,4 +332,9 @@ export function registerAllPropertyParsers(): void {
 
   // Opacity
   registerPropertyParser("opacity", parseOpacity);
+
+  // Filter
+  registerPropertyParser("filter", parseFilter);
+  registerPropertyParser("backdrop-filter", parseBackdropFilter);
+  registerPropertyParser("-webkit-backdrop-filter", parseBackdropFilter); // vendor prefix comum
 }

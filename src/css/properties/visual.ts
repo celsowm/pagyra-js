@@ -37,6 +37,49 @@ export interface TextShadowInput {
     color?: string;
 }
 
+// ── Filter function types ──────────────────────────────────────────
+
+/** Funções de filtro com argumento numérico (number ou percentage → number) */
+export interface NumericFilterFunction {
+    kind: "brightness" | "contrast" | "grayscale" | "sepia" | "saturate" | "invert" | "opacity";
+    /** Valor normalizado: percentage já convertido para number (50% → 0.5) */
+    value: number;
+}
+
+/** blur() usa <length>, não número puro */
+export interface BlurFilterFunction {
+    kind: "blur";
+    /** Raio em px (já resolvido de em/rem via NumericLength) */
+    value: NumericLength;
+}
+
+/** hue-rotate() usa <angle> */
+export interface HueRotateFilterFunction {
+    kind: "hue-rotate";
+    /** Ângulo normalizado em graus */
+    valueDeg: number;
+}
+
+/**
+ * drop-shadow() — subconjunto de box-shadow:
+ * NÃO suporta `inset` nem `spread-radius`.
+ * Reutiliza NumericLength para offset/blur para resolução posterior em overrides.ts.
+ */
+export interface DropShadowFilterFunction {
+    kind: "drop-shadow";
+    offsetX: NumericLength;
+    offsetY: NumericLength;
+    blurRadius: NumericLength;
+    color?: string;
+}
+
+/** União de todas as funções de filtro suportadas */
+export type FilterFunction =
+    | NumericFilterFunction
+    | BlurFilterFunction
+    | HueRotateFilterFunction
+    | DropShadowFilterFunction;
+
 /**
  * Visual effects and rendering CSS properties.
  * Handles backgrounds, shadows, opacity, transforms, and overflow.
@@ -65,4 +108,10 @@ export interface VisualProperties {
 
     /** Clipping path applied to the element */
     clipPath?: ClipPath;
+
+    /** CSS filter — lista ordenada de funções (aplicadas da esquerda para direita) */
+    filter?: FilterFunction[];
+
+    /** CSS backdrop-filter — mesma estrutura, render diferente */
+    backdropFilter?: FilterFunction[];
 }

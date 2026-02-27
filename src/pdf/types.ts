@@ -1,5 +1,7 @@
 import type { BackgroundRepeat, Gradient } from "../css/background-types.js";
 import type { GlyphRun } from "../layout/text-run.js";
+import type { FilterFunction } from "../css/properties/visual.js";
+import type { PaintInstruction } from "./stacking/types.js";
 
 export enum NodeKind {
   Container = "container",
@@ -232,7 +234,7 @@ export interface Positioning {
 }
 
 export interface LayoutPageTree {
-  paintOrder: RenderBox[];
+  paintOrder: PaintInstruction[];
   floatLayerOrder: RenderBox[];
   flowContentOrder: RenderBox[];
   positionedLayersSortedByZ: PositionedLayer[];
@@ -292,6 +294,12 @@ export interface RenderBox {
   borderStyle?: BorderStyles;
   color?: RGBA;
   transform?: TextMatrix;
+
+  /** Parsed CSS filter functions carried from ComputedStyle */
+  filter?: FilterFunction[];
+
+  /** Parsed CSS backdrop-filter functions carried from ComputedStyle */
+  backdropFilter?: FilterFunction[];
 
   /**
    * Normalized text alignment of this box (from CSS text-align).

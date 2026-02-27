@@ -272,5 +272,9 @@ export function createBaseDefaultsObject(): StyleDefaults {
 
     // Opacity
     opacity: 1,
+
+    // Filter (no filter applied by default)
+    filter: undefined,
+    backdropFilter: undefined,
   };
 }

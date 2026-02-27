@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Filter MVP - PDF Supported Features</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 40px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 40px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      padding: 40px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    section {
+      margin-bottom: 40px;
+      padding-bottom: 30px;
+      border-bottom: 2px solid #eee;
+    }
+
+    section:last-child {
+      border-bottom: none;
+    }
+
+    h2 {
+      color: #667eea;
+      margin-bottom: 20px;
+    }
+
+    .example-row {
+      display: flex;
+      align-items: center;
+      gap: 30px;
+      margin: 20px 0;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+
+    .label {
+      min-width: 150px;
+      font-weight: bold;
+      color: #555;
+    }
+
+    .box {
+      padding: 20px 40px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 8px;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    /* Opacity examples */
+    .opacity-25 { filter: opacity(0.25); }
+    .opacity-50 { filter: opacity(0.5); }
+    .opacity-75 { filter: opacity(0.75); }
+
+    /* Drop shadow examples */
+    .shadow-1 {
+      filter: drop-shadow(3px 3px 5px rgba(0,0,0,0.3));
+    }
+    
+    .shadow-2 {
+      filter: drop-shadow(6px 6px 10px rgba(0,0,0,0.4));
+    }
+    
+    .shadow-3 {
+      filter: drop-shadow(10px 10px 15px rgba(0,0,0,0.5));
+    }
+
+    .shadow-colored {
+      filter: drop-shadow(5px 5px 8px rgba(255, 100, 100, 0.6));
+    }
+
+    /* Combined opacity */
+    .combined {
+      opacity: 0.9;
+      filter: opacity(0.6);
+      -webkit-filter: opacity(0.6); /* Safari/older Chrome support */
+    }
+
+    code {
+      background: #e9ecef;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 0.9em;
+      color: #e83e8c;
+    }
+
+    .info {
+      background: #d1ecf1;
+      border-left: 4px solid #0c5460;
+      padding: 15px;
+      margin-top: 20px;
+      border-radius: 4px;
+    }
+
+    .info p {
+      margin: 0;
+      color: #0c5460;
+    }
+
+    .warning {
+      background: #fff3cd;
+      border-left: 4px solid #856404;
+      padding: 15px;
+      margin-top: 20px;
+      border-radius: 4px;
+    }
+
+    .warning p {
+      margin: 5px 0 0 0;
+      color: #856404;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+<script>
+  // Detect filter: opacity() support
+  function supportsFilterOpacity() {
+    const testEl = document.createElement('div');
+    testEl.style.filter = 'opacity(0.5)';
+    return testEl.style.filter === 'opacity(0.5)';
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    if (!supportsFilterOpacity()) {
+      const warning = document.createElement('div');
+      warning.className = 'warning';
+      warning.style.position = 'fixed';
+      warning.style.top = '10px';
+      warning.style.right = '10px';
+      warning.style.maxWidth = '400px';
+      warning.style.zIndex = '1000';
+      warning.innerHTML = '<p><strong>⚠️ Browser Limitation:</strong> Your browser does not support <code>filter: opacity()</code>. The "Combined Opacity" example will not show the expected effect. Please use Chrome 88+, Firefox 87+, Safari 16+, or Edge 88+.</p>';
+      document.body.appendChild(warning);
+    }
+  });
+</script>
+
+  <div class="container">
+    <h1>🎯 CSS Filter - PDF Supported Features</h1>
+
+    <section>
+      <h2>1. Opacity Filter</h2>
+      <p>The <code>opacity()</code> filter function is fully supported and composes with the element's <code>opacity</code> property.</p>
+      
+      <div class="example-row">
+        <div class="label">Original</div>
+        <div class="box">100%</div>
+      </div>
+      
+      <div class="example-row">
+        <div class="label"><code>opacity(0.75)</code></div>
+        <div class="box opacity-75">75%</div>
+      </div>
+      
+      <div class="example-row">
+        <div class="label"><code>opacity(0.5)</code></div>
+        <div class="box opacity-50">50%</div>
+      </div>
+      
+      <div class="example-row">
+        <div class="label"><code>opacity(0.25)</code></div>
+        <div class="box opacity-25">25%</div>
+      </div>
+
+      <div class="info">
+        <p>✅ <strong>PDF Support:</strong> Filter opacity is multiplied with element opacity. Example: <code>opacity: 0.8</code> + <code>filter: opacity(0.5)</code> = 40% final opacity.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>2. Drop Shadow Filter</h2>
+      <p>The <code>drop-shadow()</code> function creates shadows that follow the alpha contour of elements. In PDF, it's rendered as a box-shadow approximation.</p>
+      
+      <div class="example-row">
+        <div class="label"><code>drop-shadow(3px 3px 5px)</code></div>
+        <div class="box shadow-1">Small</div>
+      </div>
+      
+      <div class="example-row">
+        <div class="label"><code>drop-shadow(6px 6px 10px)</code></div>
+        <div class="box shadow-2">Medium</div>
+      </div>
+      
+      <div class="example-row">
+        <div class="label"><code>drop-shadow(10px 10px 15px)</code></div>
+        <div class="box shadow-3">Large</div>
+      </div>
+      
+      <div class="example-row">
+        <div class="label"><code>drop-shadow(..., red)</code></div>
+        <div class="box shadow-colored">Colored</div>
+      </div>
+
+      <div class="info">
+        <p>✅ <strong>PDF Support:</strong> Drop shadows are rendered using the existing box-shadow infrastructure. Supports offset-x, offset-y, blur-radius, and color.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>3. Combined Opacity</h2>
+      <p>Demonstrating how element opacity and filter opacity interact.</p>
+      
+      <div class="example-row">
+        <div class="label">
+          <code>opacity: 0.9</code><br>
+          <code>filter: opacity(0.6)</code>
+        </div>
+        <div class="box combined">
+          0.9 × 0.6 = 0.54<br>
+          (54% visible)
+        </div>
+      </div>
+
+      <div class="info">
+        <p>📐 <strong>Formula:</strong> Final opacity = element opacity × all filter opacity() values multiplied together.</p>
+      </div>
+
+      <div class="warning">
+        <p><strong>⚠️ Browser Compatibility:</strong> The CSS <code>filter: opacity()</code> function requires:</p>
+        <ul style="margin: 10px 0 0 20px; color: #856404; font-size: 0.9em;">
+          <li>Chrome 88+</li>
+          <li>Firefox 87+</li>
+          <li>Safari 16+</li>
+          <li>Edge 88+</li>
+        </ul>
+        <p style="margin-top: 10px;">If your browser doesn't support it, the box will appear at 90% opacity (from <code>opacity: 0.9</code> only) instead of 54%.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>⚠️ Filters Not Rendered in PDF</h2>
+      <p>The following filters are parsed correctly but not rendered in PDF (they require rasterization which is not yet implemented):</p>
+      
+      <ul style="margin: 20px 0; padding-left: 20px; color: #555;">
+        <li><code>blur()</code> - Gaussian blur effect</li>
+        <li><code>brightness()</code> - Brightness adjustment</li>
+        <li><code>contrast()</code> - Contrast adjustment</li>
+        <li><code>grayscale()</code> - Convert to grayscale</li>
+        <li><code>sepia()</code> - Sepia tone effect</li>
+        <li><code>saturate()</code> - Saturation adjustment</li>
+        <li><code>hue-rotate()</code> - Rotate hue values</li>
+        <li><code>invert()</code> - Invert colors</li>
+        <li><code>backdrop-filter</code> - All backdrop filter effects</li>
+      </ul>
+
+      <div class="warning">
+        <p>⚠️ <strong>Warning:</strong> Using these filters will emit warnings in the console/logs but will not break the PDF generation. The filters are stored in the render tree for future implementation.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>📝 Syntax Examples</h2>
+      
+      <div style="background: #f4f4f4; padding: 20px; border-radius: 5px; font-family: monospace; font-size: 0.9em;">
+        <p style="margin: 10px 0;"><strong>Single filter:</strong></p>
+        <code style="display: block; margin: 10px 0; padding: 10px; background: white;">.element { filter: opacity(0.5); }</code>
+        
+        <p style="margin: 10px 0;"><strong>Multiple filters:</strong></p>
+        <code style="display: block; margin: 10px 0; padding: 10px; background: white;">.element { filter: blur(2px) grayscale(0.5) brightness(1.2); }</code>
+        
+        <p style="margin: 10px 0;"><strong>Drop shadow:</strong></p>
+        <code style="display: block; margin: 10px 0; padding: 10px; background: white;">.element { filter: drop-shadow(5px 5px 10px rgba(0,0,0,0.5)); }</code>
+        
+        <p style="margin: 10px 0;"><strong>Backdrop filter:</strong></p>
+        <code style="display: block; margin: 10px 0; padding: 10px; background: white;">.element { backdrop-filter: blur(10px); }</code>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
