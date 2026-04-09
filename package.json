@@ -15,8 +15,13 @@
     },
     "./browser": {
       "types": "./dist/src/browser-entry.d.ts",
-      "import": "./dist/src/browser-entry.js",
+      "import": "./dist/browser/pagyra.min.js",
       "default": "./dist/browser/pagyra.min.js"
+    },
+    "./browser-entry": {
+      "types": "./dist/src/browser-entry.d.ts",
+      "import": "./dist/src/browser-entry.js",
+      "default": "./dist/src/browser-entry.js"
     },
     "./package.json": "./package.json"
   },

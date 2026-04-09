@@ -2,7 +2,7 @@
 
 A TypeScript-based HTML to PDF converter library with comprehensive CSS 3 support and advanced layout capabilities.
 
-> [▶ Open the published playground](https://celsowm.github.io/pagyra-js/)
+> [▶ Test here using our playground](https://celsowm.github.io/pagyra-js/)
 
 ## Features
 
@@ -351,15 +351,32 @@ npm run playground:browser
 Pagyra-js can run in browser environments with some configuration:
 
 ```typescript
-import { renderHtmlToPdfBrowser } from 'pagyra-js/browser-entry';
+import { renderHtmlToPdfBrowser } from 'pagyra-js/browser';
 
 // Use the browser-specific entry point
 const pdfBytes = await renderHtmlToPdfBrowser({
   html: '<p>Browser PDF generation</p>',
   css: 'body { font-family: Arial; }',
-  // ... other options
-  environment: new BrowserEnvironment() // Provide browser environment
+  // ... other options supported by the browser entrypoint
 });
+```
+
+### CDN
+
+The minified browser bundle is published at:
+
+```text
+https://cdn.jsdelivr.net/npm/pagyra-js@latest/dist/browser/pagyra.min.js
+```
+
+Use it from a module script:
+
+```html
+<script type="module">
+  import { renderHtmlToPdfBrowser } from "https://cdn.jsdelivr.net/npm/pagyra-js@latest/dist/browser/pagyra.min.js";
+
+  // ...
+</script>
 ```
 
 ## Examples
