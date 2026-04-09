@@ -2,6 +2,8 @@
 
 A TypeScript-based HTML to PDF converter library with comprehensive CSS 3 support and advanced layout capabilities.
 
+> [▶ Open the published playground](https://celsowm.github.io/pagyra-js/)
+
 ## Features
 
 ### Core Capabilities

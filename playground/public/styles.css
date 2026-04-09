@@ -62,6 +62,34 @@ body {
   margin-right: 8px;
 }
 
+.app-bar-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.02);
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.app-bar-link svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.app-bar-link:hover {
+  color: var(--text);
+  border-color: var(--border-focus);
+  background: rgba(255, 255, 255, 0.05);
+}
+
 .app-bar-controls {
   display: flex;
   align-items: center;
