@@ -41,7 +41,7 @@ export class RunPlacer {
             return;
         }
 
-        const { lineTop, lineHeight, lineStartX, lineIndex, availableWidth, offsetShift, isLastLine, contentX, inlineOffsetStart } = lineContext;
+        const { lineTop, lineStartX, lineIndex, availableWidth, offsetShift, isLastLine, contentX, inlineOffsetStart } = lineContext;
 
         const lineWidth = parts.reduce((max, part) => Math.max(max, part.offset + part.item.width), 0);
         const currentAvailableWidth = Math.max(availableWidth, 0);

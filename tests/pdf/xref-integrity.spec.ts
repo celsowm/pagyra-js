@@ -96,7 +96,7 @@ describe("xref table integrity", () => {
         const streamData = new Uint8Array([0x48, 0x65, 0x6c, 0x6c, 0x6f]);
         const streamRef = doc.registerStream(streamData);
         const patternRef = doc.registerPattern("P0", "<< /PatternType 2 /Shading null >>");
-        const customRef = doc.register({ Type: "/Custom", Value: 42 });
+        doc.register({ Type: "/Custom", Value: 42 });
 
         const fontRef = doc.registerStandardFont("Courier");
         const shadingRef = doc.registerShading("S0", "<< /ShadingType 2 /ColorSpace /DeviceRGB /Coords [0 0 1 1] /Function null >>");

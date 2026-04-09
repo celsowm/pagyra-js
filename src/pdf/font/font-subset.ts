@@ -59,8 +59,6 @@ export function createPdfFontSubset(options: PdfFontSubsetOptions): PdfFontSubse
 
     const unitsPerEm = fontMetrics.metrics.unitsPerEm;
     const widths: number[] = [];
-    const usedGidSet = new Set(glyphIds);
-
     let firstChar: number;
     let lastChar: number;
 
@@ -229,7 +227,6 @@ function subsetFont(fontProgram: FontProgram, glyphIds: number[], encoding: "ide
 
     const headView = new DataView(head.buffer, head.byteOffset, head.byteLength);
     const locaView = new DataView(loca.buffer, loca.byteOffset, loca.byteLength);
-    const glyfView = new DataView(glyf.buffer, glyf.byteOffset, glyf.byteLength);
     const hmtxView = new DataView(hmtx.buffer, hmtx.byteOffset, hmtx.byteLength);
     const hheaView = new DataView(hhea.buffer, hhea.byteOffset, hhea.byteLength);
 
@@ -406,7 +403,7 @@ function subsetFont(fontProgram: FontProgram, glyphIds: number[], encoding: "ide
         offset += paddedLength;
     }
 
-    for (const [_, data] of tables) {
+    for (const [, data] of tables) {
         fullTtf.writeBytes(data);
         const padding = (4 - (data.length % 4)) % 4;
         for (let k = 0; k < padding; k++) fullTtf.writeUint8(0);

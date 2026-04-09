@@ -1,5 +1,4 @@
 import { collectBoxes, renderTreeForHtml } from "../helpers/render-utils.js";
-import type { RenderBox } from "../../src/pdf/types.js";
 
 describe("flex wrap card layout", () => {
   it("wraps items to a new line when flex-basis exceeds available width", async () => {

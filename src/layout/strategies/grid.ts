@@ -215,7 +215,6 @@ export class GridLayoutStrategy implements LayoutStrategy {
     const columnOffsets = calculateTrackOffsets(columnWidths, columnGap);
 
     const rows: GridRow[] = [];
-    let currentRowTop = contentOriginY;
     let currentRowHeight = 0;
     let columnIndex = 0;
     let currentRowItems: GridRowItem[] = [];
@@ -228,13 +227,12 @@ export class GridLayoutStrategy implements LayoutStrategy {
       const span = Math.min(child.style.gridColumnSpan ?? 1, columnWidths.length);
 
       // Wrap to next row if the span doesn't fit
-      if (columnIndex + span > columnWidths.length) {
-        if (currentRowItems.length > 0) {
-          rows.push({ items: currentRowItems, height: currentRowHeight });
-          currentRowTop += currentRowHeight + rowGap;
-          currentRowHeight = 0;
-          currentRowItems = [];
-        }
+        if (columnIndex + span > columnWidths.length) {
+          if (currentRowItems.length > 0) {
+            rows.push({ items: currentRowItems, height: currentRowHeight });
+            currentRowHeight = 0;
+            currentRowItems = [];
+          }
         columnIndex = 0;
       }
 
@@ -265,7 +263,6 @@ export class GridLayoutStrategy implements LayoutStrategy {
       columnIndex += span;
       if (columnIndex >= columnWidths.length) {
         rows.push({ items: currentRowItems, height: currentRowHeight });
-        currentRowTop += currentRowHeight + rowGap;
         currentRowHeight = 0;
         columnIndex = 0;
         currentRowItems = [];

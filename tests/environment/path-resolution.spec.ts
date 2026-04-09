@@ -1,10 +1,11 @@
 import { NodeEnvironment } from '../../src/environment/node-environment.js';
 import { BrowserEnvironment } from '../../src/environment/browser-environment.js';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 describe('Path Resolution', () => {
     describe('NodeEnvironment', () => {
-        const toPath = (p: string) => p.startsWith('file:') ? require('node:url').fileURLToPath(p) : p;
+        const toPath = (p: string) => p.startsWith('file:') ? fileURLToPath(p) : p;
 
         it('resolves leading-slash paths relative to base', () => {
             const env = new NodeEnvironment();

@@ -21,7 +21,7 @@ A TypeScript-based HTML to PDF converter library with comprehensive CSS 3 suppor
 - **CSS Variables**: Custom properties with inheritance and `var()` function resolution
 - **Justified Text**: Consistent justified spacing across all inline fragments
 
-## Installation
+## 📦 Installation
 
 ```bash
 npm install pagyra-js
@@ -346,7 +346,7 @@ npm run playground:browser
 - `npm run playground:browser`: Browser-based playground
 - `npm run build:browser`: Build browser bundle
 
-## Browser Support
+## 🌐 Browser Support
 
 Pagyra-js can run in browser environments with some configuration:
 
@@ -379,7 +379,7 @@ Use it from a module script:
 </script>
 ```
 
-## Examples
+## 🧪 Examples
 
 Check the `playground/public/examples/` directory for various usage examples:
 - Basic HTML to PDF conversion

@@ -1,13 +1,4 @@
 import { collectBoxes, renderTreeForHtml } from "../helpers/render-utils.js";
-import type { RenderBox } from "../../src/pdf/types.js";
-
-function findByTag(boxes: RenderBox[], tagName: string): RenderBox {
-  const found = boxes.find((b) => b.tagName === tagName);
-  if (!found) {
-    throw new Error(`Expected to find <${tagName}> in render tree`);
-  }
-  return found;
-}
 
 describe("container query unit layout", () => {
   it("resolves cqw/cqh/cqmin/cqmax against containing block dimensions", async () => {

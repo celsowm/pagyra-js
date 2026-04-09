@@ -148,7 +148,7 @@ export class FontEmbedder {
     const resourceName = `F${this.embeddedFonts.size + 1}`;
     let realizedRef: PdfObjectRef | undefined;
 
-    const self = this;
+    const realizeFont = this.realizeFont.bind(this);
     const embedded: EmbeddedFont = {
       resourceName,
       baseFont: face.name,
@@ -156,7 +156,7 @@ export class FontEmbedder {
       subset: fullFontData,
       get ref() {
         if (!realizedRef) {
-          realizedRef = self.realizeFont(face, metrics, resourceName);
+          realizedRef = realizeFont(face, metrics);
         }
         return realizedRef;
       }
@@ -165,7 +165,7 @@ export class FontEmbedder {
     return embedded;
   }
 
-  private realizeFont(face: FontFaceDef, metrics: TtfFontMetrics, resourceName: string): PdfObjectRef {
+  private realizeFont(face: FontFaceDef, metrics: TtfFontMetrics): PdfObjectRef {
     const unitsPerEm = metrics.metrics.unitsPerEm;
     const scaleTo1000 = (v: number) => Math.round((v / unitsPerEm) * 1000);
 

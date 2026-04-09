@@ -282,7 +282,31 @@ A PR **must** add/adjust tests that reproduce any bug or validate a new feature 
 
 ## 17) Document Maintenance
 
-- Version: `1.1.0`
-- Last updated: 2025-11-26
+- Version: `1.2.0`
+- Last updated: 2026-04-08
 - Editors: maintainers of this repo. Update alongside code changes that alter behavior.
 - Keep synchronized with `package.json` scripts and actual repository structure.
+
+## 18) Release & Publish
+
+Use this workflow for npm releases. Do not require `npm login` for every publish.
+
+### One-time npm setup
+
+1. Open the package settings in npm.
+2. Add GitHub Actions as a trusted publisher for `celsowm/pagyra-js`.
+3. Select the `npm-publish.yml` workflow.
+
+### Release flow
+
+1. Bump the package version with `npm version patch`, `minor`, or `major`.
+2. Commit the version bump and push the tag to GitHub.
+3. The `Publish npm package` workflow publishes the package with provenance.
+
+### Manual publish
+
+If a manual publish is required from a trusted environment, use:
+
+```bash
+npm run publish:npm
+```

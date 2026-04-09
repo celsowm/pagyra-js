@@ -1,9 +1,6 @@
 import { parseLength, parseLengthOrPercent, parseNumeric, parseClampArgs } from "./length-parser.js";
-import type { LengthLike, RelativeLength, ClampNumericLength } from "../length.js";
 import type { StyleAccumulator } from "../style.js";
 import type { LineHeightInput } from "../line-height.js";
-
-type LengthOrRelative = LengthLike | RelativeLength;
 
 export function parseWidth(value: string, target: StyleAccumulator): void {
   const clampArgs = parseClampArgs(value);
