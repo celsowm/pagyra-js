@@ -24,7 +24,6 @@ jobs:
         with:
           node-version: "22.14.0"
           cache: "npm"
-          registry-url: "https://registry.npmjs.org"
 
       - run: npm install -g npm@11
       - run: npm --version
