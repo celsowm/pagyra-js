@@ -18,255 +18,126 @@
 </head>
 
 <body>
-  <div class="shell-bg shell-bg-left"></div>
-  <div class="shell-bg shell-bg-right"></div>
-
   <div class="app-shell">
-    <header class="hero">
-      <div class="hero-copy">
-        <p class="eyebrow">Pagyra Lab</p>
-        <h1>HTML to PDF Playground</h1>
-        <p class="hero-summary">
-          Build paged HTML, tune layout, and inspect the final A4 output without leaving the workspace.
-        </p>
-      </div>
-      <div class="hero-meta">
-        <div class="hero-stat">
-          <span class="hero-stat-label">Canvas</span>
-          <strong>A4 paged preview</strong>
+    <header class="app-bar">
+      <strong class="app-bar-title">Pagyra Playground</strong>
+      <div class="app-bar-controls">
+        <label class="control-group">
+          <span>Template</span>
+          <select id="example-select"></select>
+        </label>
+        <label class="control-group">
+          <span>W</span>
+          <input id="viewport-width" type="number" min="200" value="800" />
+        </label>
+        <label class="control-group">
+          <span>H</span>
+          <input id="viewport-height" type="number" min="200" value="1120" />
+        </label>
+        <label class="control-group control-toggle">
+          <input type="checkbox" id="ckeditor-toggle" />
+          <span>Rich text</span>
+        </label>
+        <div id="status-shell" class="status-chip" data-tone="neutral">
+          <span class="status-dot" aria-hidden="true"></span>
+          <p id="status" role="status">Ready to render.</p>
         </div>
-        <div class="hero-stat">
-          <span class="hero-stat-label">Workflow</span>
-          <strong>Edit, render, compare</strong>
-        </div>
+        <button id="render-btn" type="button">
+          <span class="button-label">Convert to PDF</span>
+          <span class="button-subtle">Generate a fresh document</span>
+        </button>
       </div>
     </header>
 
     <main class="workspace">
       <section class="editor-panel panel">
-        <div class="panel-header editor-topbar">
-          <div>
-            <p class="panel-kicker">Authoring</p>
-            <h2>Editor Workspace</h2>
+        <div class="tab-container">
+          <div class="tab-buttons" role="tablist" aria-label="Editor tabs">
+            <button class="tab-button active" data-tab="html" role="tab" aria-selected="true">HTML</button>
+            <button class="tab-button" data-tab="css" role="tab" aria-selected="false">CSS</button>
+            <button class="tab-button" data-tab="header" role="tab" aria-selected="false">Header</button>
+            <button class="tab-button" data-tab="footer" role="tab" aria-selected="false">Footer</button>
           </div>
-          <div class="editor-meta">
-            <span class="active-template-label">Template</span>
-            <strong id="active-template-name">Loading…</strong>
-          </div>
-        </div>
-
-        <div class="utility-bar">
-          <section class="utility-card template-card">
-            <div class="utility-card-header">
-              <div>
-                <span class="utility-label">Starter Template</span>
-                <h3>Jump into a working scenario</h3>
-              </div>
-              <span class="utility-pill">Searchable</span>
-            </div>
-            <div class="template-picker" id="template-picker">
-              <select id="example-select" class="sr-only" aria-hidden="true" tabindex="-1"></select>
-              <button id="template-trigger" class="template-trigger" type="button" aria-expanded="false"
-                aria-controls="template-popover">
-                <span class="template-trigger-copy">
-                  <span class="template-trigger-label">Choose a template</span>
-                  <strong id="template-trigger-value">Loading templates…</strong>
-                </span>
-                <span class="template-trigger-icon" aria-hidden="true">⌄</span>
-              </button>
-              <div id="template-popover" class="template-popover" hidden>
-                <label class="template-search">
-                  <span class="sr-only">Search templates</span>
-                  <input id="template-search" type="search" placeholder="Search template names…" autocomplete="off" />
-                </label>
-                <div id="template-list" class="template-list" role="listbox" aria-label="Starter templates"></div>
+          <div class="tab-content">
+            <div class="tab-pane active" id="editor-html-tab" aria-hidden="false">
+              <div class="editor-section">
+                <textarea id="html-input" spellcheck="false"></textarea>
               </div>
             </div>
-          </section>
-
-          <section class="utility-card setup-card">
-            <div class="utility-card-header">
-              <div>
-                <span class="utility-label">Page Setup</span>
-                <h3>Viewport and editing mode</h3>
-              </div>
-              <span class="utility-pill">A4 aware</span>
-            </div>
-            <div class="setup-grid">
-              <label class="field">
-                <span>Viewport Width (px)</span>
-                <input id="viewport-width" type="number" min="200" value="800" />
-              </label>
-              <label class="field">
-                <span>Viewport Height (px)</span>
-                <input id="viewport-height" type="number" min="200" value="1120" />
-              </label>
-              <label class="mode-toggle" for="ckeditor-toggle">
-                <input type="checkbox" id="ckeditor-toggle" />
-                <span class="mode-toggle-copy">
-                  <strong>Rich text mode</strong>
-                  <span>Use CKEditor 5 for the HTML tab</span>
-                </span>
-              </label>
-            </div>
-          </section>
-
-          <section class="utility-card action-card">
-            <div class="utility-card-header">
-              <div>
-                <span class="utility-label">Output</span>
-                <h3>Render and track current state</h3>
+            <div class="tab-pane" id="editor-css-tab" aria-hidden="true">
+              <div class="editor-section">
+                <textarea id="css-input" spellcheck="false"></textarea>
               </div>
             </div>
-            <div class="action-stack">
-              <div id="status-shell" class="status-shell" data-tone="neutral">
-                <span class="status-dot" aria-hidden="true"></span>
-                <p id="status" role="status">Ready to render.</p>
+            <div class="tab-pane" id="editor-header-tab" aria-hidden="true">
+              <div class="editor-section">
+                <textarea id="header-input" spellcheck="false" placeholder="Header HTML (optional)"></textarea>
               </div>
-              <button id="render-btn" type="button">
-                <span class="button-label">Convert to PDF</span>
-                <span class="button-subtle">Generate a fresh document</span>
-              </button>
             </div>
-          </section>
-        </div>
-
-        <div class="editor-workbench">
-          <div class="tab-container">
-            <div class="tab-buttons" role="tablist" aria-label="Editor tabs">
-              <button class="tab-button active" data-tab="html" role="tab" aria-selected="true">HTML</button>
-              <button class="tab-button" data-tab="css" role="tab" aria-selected="false">CSS</button>
-              <button class="tab-button" data-tab="header" role="tab" aria-selected="false">Header</button>
-              <button class="tab-button" data-tab="footer" role="tab" aria-selected="false">Footer</button>
-            </div>
-            <div class="tab-content">
-              <div class="tab-pane active" id="editor-html-tab" aria-hidden="false">
-                <div class="editor-section">
-                  <div class="editor-section-header">
-                    <label for="html-input">HTML</label>
-                    <span class="editor-hint">Main document content</span>
-                  </div>
-                  <textarea id="html-input" spellcheck="false"></textarea>
-                </div>
-              </div>
-              <div class="tab-pane" id="editor-css-tab" aria-hidden="true">
-                <div class="editor-section">
-                  <div class="editor-section-header">
-                    <label for="css-input">CSS</label>
-                    <span class="editor-hint">Page styling and layout rules</span>
-                  </div>
-                  <textarea id="css-input" spellcheck="false"></textarea>
-                </div>
-              </div>
-              <div class="tab-pane" id="editor-header-tab" aria-hidden="true">
-                <div class="editor-section">
-                  <div class="editor-section-header">
-                    <label for="header-input">Header HTML</label>
-                    <span class="editor-hint">Optional repeated page header</span>
-                  </div>
-                  <textarea id="header-input" spellcheck="false" placeholder="Enter header HTML (optional)"></textarea>
-                </div>
-              </div>
-              <div class="tab-pane" id="editor-footer-tab" aria-hidden="true">
-                <div class="editor-section">
-                  <div class="editor-section-header">
-                    <label for="footer-input">Footer HTML</label>
-                    <span class="editor-hint">Optional repeated page footer</span>
-                  </div>
-                  <textarea id="footer-input" spellcheck="false" placeholder="Enter footer HTML (optional)"></textarea>
-                </div>
+            <div class="tab-pane" id="editor-footer-tab" aria-hidden="true">
+              <div class="editor-section">
+                <textarea id="footer-input" spellcheck="false" placeholder="Footer HTML (optional)"></textarea>
               </div>
             </div>
           </div>
         </div>
-
-        <details class="debug-panel">
-          <summary>
-            <span class="summary-copy">
-              <span class="summary-kicker">Diagnostics</span>
-              <span class="summary-title">Debug Logging</span>
-            </span>
-            <span class="summary-meta">Optional</span>
-          </summary>
-          <div class="debug-controls">
-            <div class="debug-grid">
-              <div class="debug-card">
-                <label class="field">
-                  <span>Log Level</span>
-                  <select id="log-level">
-                    <option value="trace">Trace</option>
-                    <option value="debug">Debug</option>
-                    <option value="info" selected>Info</option>
-                    <option value="warn">Warning</option>
-                    <option value="error">Error</option>
-                  </select>
-                </label>
-              </div>
-              <div class="debug-card debug-card-wide">
-                <div class="debug-card-header">
-                  <span>Categories</span>
-                  <div class="debug-button-group">
-                    <button id="log-select-all" type="button">All</button>
-                    <button id="log-select-none" type="button">None</button>
-                  </div>
-                </div>
-                <div class="checkbox-grid" id="debug-categories-container">
-                </div>
-              </div>
-            </div>
-          </div>
-        </details>
       </section>
 
       <section class="preview-panel panel">
-        <div class="panel-header preview-topbar">
-          <div>
-            <p class="panel-kicker">Inspection</p>
-            <h2>Output Preview</h2>
+        <div class="tab-container">
+          <div class="tab-buttons" role="tablist" aria-label="Preview tabs">
+            <button class="tab-button active" data-tab="pdf" role="tab" aria-selected="true">PDF</button>
+            <button class="tab-button" data-tab="html" role="tab" aria-selected="false">HTML</button>
           </div>
-          <div class="preview-badge">
-            <span class="preview-badge-label">Paper</span>
-            <strong>A4 portrait</strong>
-          </div>
-        </div>
-
-        <div class="preview-shell">
-          <div class="tab-container">
-            <div class="tab-buttons" role="tablist" aria-label="Preview tabs">
-              <button class="tab-button active" data-tab="pdf" role="tab" aria-selected="true">PDF Preview</button>
-              <button class="tab-button" data-tab="html" role="tab" aria-selected="false">HTML Preview</button>
-            </div>
-            <div class="preview-headline">
-              <div>
-                <span class="utility-label">Live comparison</span>
-                <p>Compare the rendered PDF against the browser layout.</p>
-              </div>
-            </div>
-            <div class="tab-content">
-              <div class="tab-pane active" id="preview-pdf-tab" aria-hidden="false">
-                <div class="preview-stage">
-                  <div class="preview-frame preview-frame-pdf">
-                    <object id="pdf-viewer" data="" type="application/pdf" aria-label="PDF preview"></object>
-                    <div class="preview-empty" id="pdf-empty-state">
-                      <strong>No PDF yet</strong>
-                      <span>Render the current document to inspect the final paged output.</span>
-                    </div>
-                  </div>
+          <div class="tab-content">
+            <div class="tab-pane active" id="preview-pdf-tab" aria-hidden="false">
+              <div class="preview-frame preview-frame-pdf">
+                <object id="pdf-viewer" data="" type="application/pdf" aria-label="PDF preview"></object>
+                <div class="preview-empty" id="pdf-empty-state">
+                  <strong>No PDF yet</strong>
+                  <span>Click "Convert to PDF" to render.</span>
                 </div>
               </div>
-              <div class="tab-pane" id="preview-html-tab" aria-hidden="true">
-                <div class="preview-stage">
-                  <div class="preview-frame preview-frame-html">
-                    <iframe id="html-viewer" sandbox="allow-same-origin allow-scripts"
-                      aria-label="HTML preview"></iframe>
-                  </div>
-                </div>
+            </div>
+            <div class="tab-pane" id="preview-html-tab" aria-hidden="true">
+              <div class="preview-frame preview-frame-html">
+                <iframe id="html-viewer" sandbox="allow-same-origin allow-scripts" aria-label="HTML preview"></iframe>
               </div>
             </div>
           </div>
         </div>
       </section>
     </main>
+
+    <details class="debug-panel">
+      <summary>Diagnostics</summary>
+      <div class="debug-controls">
+        <div class="debug-grid">
+          <div class="debug-card">
+            <label class="field">
+              <span>Log Level</span>
+              <select id="log-level">
+                <option value="trace">Trace</option>
+                <option value="debug">Debug</option>
+                <option value="info" selected>Info</option>
+                <option value="warn">Warning</option>
+                <option value="error">Error</option>
+              </select>
+            </label>
+          </div>
+          <div class="debug-card debug-card-wide">
+            <div class="debug-card-header">
+              <span>Categories</span>
+              <div class="debug-button-group">
+                <button id="log-select-all" type="button">All</button>
+                <button id="log-select-none" type="button">None</button>
+              </div>
+            </div>
+            <div class="checkbox-grid" id="debug-categories-container"></div>
+          </div>
+        </div>
+      </div>
+    </details>
   </div>
 
   <script src="vendor/codemirror/codemirror.min.js"></script>

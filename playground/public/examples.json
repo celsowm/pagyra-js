@@ -2,276 +2,330 @@
   {
     "id": "starter-report",
     "label": "Starter Report (EN)",
+    "group": "Documents",
     "htmlUrl": "examples/starter-report.html",
     "cssUrl": "examples/starter-report.css"
   },
   {
-    "id": "form-showcase",
-    "label": "Form Elements Showcase",
-    "htmlUrl": "examples/form-showcase.html"
-  },
-  {
     "id": "monthly-summary",
     "label": "Relatório Básico (pt-BR)",
+    "group": "Documents",
     "htmlUrl": "examples/monthly-summary.html"
   },
   {
-    "id": "accents-test",
-    "label": "Accents Test (pt-BR)",
-    "htmlUrl": "examples/accents-test.html"
+    "id": "multi-page-lorem",
+    "label": "Multi-Page Lorem Ipsum Document",
+    "group": "Documents",
+    "htmlUrl": "examples/multi-page-lorem.html"
   },
   {
-    "id": "lorem-span",
-    "label": "Span Lorem Ipsum Test",
-    "htmlUrl": "examples/lorem-span.html"
+    "id": "very-complex-css",
+    "label": "Very Complex CSS Example (pt-BR)",
+    "group": "Documents",
+    "htmlUrl": "examples/very-complex-css.html"
   },
   {
-    "id": "simple-table",
-    "label": "Simple Table Test",
-    "htmlUrl": "examples/simple-table.html"
+    "id": "responsive-clamp-grid",
+    "label": "Responsive Grid com clamp() (pt-BR)",
+    "group": "Documents",
+    "htmlUrl": "examples/responsive-clamp-grid.html"
   },
   {
     "id": "bold-showcase",
     "label": "Bold Typography Showcase",
+    "group": "Typography",
     "htmlUrl": "examples/bold-showcase.html"
   },
   {
     "id": "justify-text",
     "label": "Justified Text Showcase",
+    "group": "Typography",
     "htmlUrl": "examples/justify-text.html"
   },
   {
     "id": "text-indent-showcase",
     "label": "Text Indent Showcase",
+    "group": "Typography",
     "htmlUrl": "examples/text-indent-showcase.html"
   },
   {
-    "id": "multi-page-lorem",
-    "label": "Multi-Page Lorem Ipsum Document",
-    "htmlUrl": "examples/multi-page-lorem.html"
+    "id": "bold-strike-example",
+    "label": "Bold and Strike Typography Example",
+    "group": "Typography",
+    "htmlUrl": "examples/bold-strike-example.html"
+  },
+  {
+    "id": "text-decoration-showcase",
+    "label": "Text Decoration Showcase",
+    "group": "Typography",
+    "htmlUrl": "examples/text-decoration-showcase.html"
+  },
+  {
+    "id": "text-shadow-example",
+    "label": "Text Shadow Example",
+    "group": "Typography",
+    "htmlUrl": "examples/text-shadow-example.html"
+  },
+  {
+    "id": "accents-test",
+    "label": "Accents Test (pt-BR)",
+    "group": "Typography",
+    "htmlUrl": "examples/accents-test.html"
+  },
+  {
+    "id": "lorem-span",
+    "label": "Span Lorem Ipsum Test",
+    "group": "Typography",
+    "htmlUrl": "examples/lorem-span.html"
+  },
+  {
+    "id": "fonts-demo",
+    "label": "LoadedFont @font-face Demo",
+    "group": "Typography",
+    "htmlUrl": "examples/fonts-demo.html"
+  },
+  {
+    "id": "form-showcase",
+    "label": "Form Elements Showcase",
+    "group": "Layout & Elements",
+    "htmlUrl": "examples/form-showcase.html"
+  },
+  {
+    "id": "simple-table",
+    "label": "Simple Table Test",
+    "group": "Layout & Elements",
+    "htmlUrl": "examples/simple-table.html"
+  },
+  {
+    "id": "simple-list",
+    "label": "List Style Type Showcase",
+    "group": "Layout & Elements",
+    "htmlUrl": "examples/simple-list.html"
+  },
+  {
+    "id": "centered-shadow-div",
+    "label": "Centered Shadow Div Example",
+    "group": "Layout & Elements",
+    "htmlUrl": "examples/centered-shadow-div.html"
+  },
+  {
+    "id": "rounded-borders-test",
+    "label": "Rounded Borders Test",
+    "group": "Layout & Elements",
+    "htmlUrl": "examples/rounded-borders-test.html"
+  },
+  {
+    "id": "z-index-demo",
+    "label": "Z-Index Stacking Demo",
+    "group": "Layout & Elements",
+    "htmlUrl": "examples/z-index-demo.html"
+  },
+  {
+    "id": "margin-block-showcase",
+    "label": "Margin Block Showcase",
+    "group": "Layout & Elements",
+    "htmlUrl": "examples/margin-block-showcase.html"
+  },
+  {
+    "id": "margin-inline-showcase",
+    "label": "Margin Inline Showcase",
+    "group": "Layout & Elements",
+    "htmlUrl": "examples/margin-inline-showcase.html"
+  },
+  {
+    "id": "advanced-selectors-demo",
+    "label": "Advanced CSS Selectors Demo",
+    "group": "CSS Features",
+    "htmlUrl": "examples/advanced-selectors-demo.html"
+  },
+  {
+    "id": "linear-gradient-example",
+    "label": "Linear Gradient Example",
+    "group": "CSS Features",
+    "htmlUrl": "examples/linear-gradient-example.html"
+  },
+  {
+    "id": "red-rectangle",
+    "label": "Red Rectangle Example",
+    "group": "CSS Features",
+    "htmlUrl": "examples/red-rectangle.html"
+  },
+  {
+    "id": "opacity-example",
+    "label": "Opacity Example",
+    "group": "CSS Features",
+    "htmlUrl": "examples/opacity-example.html"
+  },
+  {
+    "id": "skew-text",
+    "label": "Skew Text Example",
+    "group": "CSS Features",
+    "htmlUrl": "examples/skew-text.html"
+  },
+  {
+    "id": "skew-div",
+    "label": "Skew DIV with Background & Border",
+    "group": "CSS Features",
+    "htmlUrl": "examples/skew-div.html"
+  },
+  {
+    "id": "filter-effects",
+    "label": "CSS Filter Effects (Complete Demo)",
+    "group": "CSS Features",
+    "htmlUrl": "examples/filter-effects.html"
+  },
+  {
+    "id": "filter-mvp",
+    "label": "Filter PDF Support (MVP Demo)",
+    "group": "CSS Features",
+    "htmlUrl": "examples/filter-mvp.html"
+  },
+  {
+    "id": "background-size-showcase",
+    "label": "Background Size Examples",
+    "group": "Backgrounds",
+    "htmlUrl": "examples/background-size-showcase.html"
+  },
+  {
+    "id": "background-position-showcase",
+    "label": "Background Position Examples",
+    "group": "Backgrounds",
+    "htmlUrl": "examples/background-position-showcase.html"
+  },
+  {
+    "id": "background-repeat-showcase",
+    "label": "Background Repeat Examples",
+    "group": "Backgrounds",
+    "htmlUrl": "examples/background-repeat-showcase.html"
+  },
+  {
+    "id": "background-repeat-space-round",
+    "label": "Background Repeat: Space & Round",
+    "group": "Backgrounds",
+    "htmlUrl": "examples/background-repeat-space-round.html"
+  },
+  {
+    "id": "background-advanced-showcase",
+    "label": "Advanced Background Techniques",
+    "group": "Backgrounds",
+    "htmlUrl": "examples/background-advanced-showcase.html"
+  },
+  {
+    "id": "background-origin-showcase",
+    "label": "Background Origin Examples",
+    "group": "Backgrounds",
+    "htmlUrl": "examples/background-origin-showcase.html"
+  },
+  {
+    "id": "background-clip-text",
+    "label": "Background Clip Text Gradient",
+    "group": "Backgrounds",
+    "htmlUrl": "examples/background-clip-text.html"
+  },
+  {
+    "id": "image-showcase",
+    "label": "Image Showcase with Duck.jpg",
+    "group": "Images & Media",
+    "htmlUrl": "examples/image-showcase.html"
+  },
+  {
+    "id": "absolute-asset-paths",
+    "label": "Absolute Asset Paths (root only)",
+    "group": "Images & Media",
+    "htmlUrl": "examples/absolute-asset-paths.html"
+  },
+  {
+    "id": "png-image-example",
+    "label": "PNG Image Example",
+    "group": "Images & Media",
+    "htmlUrl": "examples/png-image-example.html"
+  },
+  {
+    "id": "webp-example",
+    "label": "WebP Image Example",
+    "group": "Images & Media",
+    "htmlUrl": "examples/webp-example.html"
+  },
+  {
+    "id": "simple-svg",
+    "label": "Simple SVG Example",
+    "group": "SVG",
+    "htmlUrl": "examples/simple-svg.html"
+  },
+  {
+    "id": "svg-path-gallery",
+    "label": "SVG Path Gallery",
+    "group": "SVG",
+    "htmlUrl": "examples/svg-path-gallery.html"
+  },
+  {
+    "id": "svg-transform-stack",
+    "label": "SVG Transform Stack",
+    "group": "SVG",
+    "htmlUrl": "examples/svg-transform-stack.html"
+  },
+  {
+    "id": "svg-aspect-ratio-showcase",
+    "label": "SVG Aspect Ratio Showcase",
+    "group": "SVG",
+    "htmlUrl": "examples/svg-aspect-ratio-showcase.html"
+  },
+  {
+    "id": "svg-gradients-showcase",
+    "label": "SVG Gradients Showcase",
+    "group": "SVG",
+    "htmlUrl": "examples/svg-gradients-showcase.html"
+  },
+  {
+    "id": "svg-gradients-linear",
+    "label": "SVG Linear Gradients",
+    "group": "SVG",
+    "htmlUrl": "examples/svg-gradients-linear.html"
+  },
+  {
+    "id": "svg-gradients-radial",
+    "label": "SVG Radial Gradients",
+    "group": "SVG",
+    "htmlUrl": "examples/svg-gradients-radial.html"
+  },
+  {
+    "id": "svg-transforms-demo",
+    "label": "SVG Transforms Demo",
+    "group": "SVG",
+    "htmlUrl": "examples/svg-transforms-demo.html"
+  },
+  {
+    "id": "svg-images-clipping",
+    "label": "SVG Images and Clipping",
+    "group": "SVG",
+    "htmlUrl": "examples/svg-images-clipping.html"
+  },
+  {
+    "id": "svg-radial-transform-demo",
+    "label": "SVG Radial Gradient Transform Demo",
+    "group": "SVG",
+    "htmlUrl": "examples/svg-radial-transform-demo.html"
   },
   {
     "id": "lorem-dice-header",
     "label": "Lorem Ipsum + Dice Header",
+    "group": "Headers & Footers",
     "htmlUrl": "examples/lorem-dice-header.html",
     "headerUrl": "examples/lorem-dice-header-header.html"
   },
   {
     "id": "base64-header-simple-paragraph",
     "label": "Base64 Header + Simple Paragraph",
+    "group": "Headers & Footers",
     "htmlUrl": "examples/base64-header-simple-paragraph.html",
     "headerUrl": "examples/base64-header-simple-paragraph-header.html"
   },
   {
-    "id": "image-showcase",
-    "label": "Image Showcase with Duck.jpg",
-    "htmlUrl": "examples/image-showcase.html"
-  },
-  {
-    "id": "absolute-asset-paths",
-    "label": "Absolute Asset Paths (root only)",
-    "htmlUrl": "examples/absolute-asset-paths.html"
-  },
-  {
-    "id": "bold-strike-example",
-    "label": "Bold and Strike Typography Example",
-    "htmlUrl": "examples/bold-strike-example.html"
-  },
-  {
-    "id": "rounded-borders-test",
-    "label": "Rounded Borders Test",
-    "htmlUrl": "examples/rounded-borders-test.html"
-  },
-  {
-    "id": "simple-list",
-    "label": "List Style Type Showcase",
-    "htmlUrl": "examples/simple-list.html"
-  },
-  {
-    "id": "centered-shadow-div",
-    "label": "Centered Shadow Div Example",
-    "htmlUrl": "examples/centered-shadow-div.html"
-  },
-  {
-    "id": "png-image-example",
-    "label": "PNG Image Example",
-    "htmlUrl": "examples/png-image-example.html"
-  },
-  {
-    "id": "linear-gradient-example",
-    "label": "Linear Gradient Example",
-    "htmlUrl": "examples/linear-gradient-example.html"
-  },
-  {
-    "id": "red-rectangle",
-    "label": "Red Rectangle Example",
-    "htmlUrl": "examples/red-rectangle.html"
-  },
-  {
-    "id": "simple-svg",
-    "label": "Simple SVG Example",
-    "htmlUrl": "examples/simple-svg.html"
-  },
-  {
-    "id": "svg-path-gallery",
-    "label": "SVG Path Gallery",
-    "htmlUrl": "examples/svg-path-gallery.html"
-  },
-  {
-    "id": "svg-transform-stack",
-    "label": "SVG Transform Stack",
-    "htmlUrl": "examples/svg-transform-stack.html"
-  },
-  {
-    "id": "svg-aspect-ratio-showcase",
-    "label": "SVG Aspect Ratio Showcase",
-    "htmlUrl": "examples/svg-aspect-ratio-showcase.html"
-  },
-  {
-    "id": "very-complex-css",
-    "label": "Very Complex CSS Example (pt-BR)",
-    "htmlUrl": "examples/very-complex-css.html"
-  },
-  {
-    "id": "svg-gradients-showcase",
-    "label": "SVG Gradients Showcase",
-    "htmlUrl": "examples/svg-gradients-showcase.html"
-  },
-  {
-    "id": "svg-gradients-linear",
-    "label": "SVG Linear Gradients",
-    "htmlUrl": "examples/svg-gradients-linear.html"
-  },
-  {
-    "id": "svg-gradients-radial",
-    "label": "SVG Radial Gradients",
-    "htmlUrl": "examples/svg-gradients-radial.html"
-  },
-  {
-    "id": "svg-transforms-demo",
-    "label": "SVG Transforms Demo",
-    "htmlUrl": "examples/svg-transforms-demo.html"
-  },
-  {
-    "id": "svg-images-clipping",
-    "label": "SVG Images and Clipping",
-    "htmlUrl": "examples/svg-images-clipping.html"
-  },
-  {
-    "id": "svg-radial-transform-demo",
-    "label": "SVG Radial Gradient Transform Demo",
-    "htmlUrl": "examples/svg-radial-transform-demo.html"
-  },
-  {
     "id": "header-footer-example",
     "label": "Header and Footer Example (pt-BR)",
+    "group": "Headers & Footers",
     "htmlUrl": "examples/header-footer-example.html",
     "headerUrl": "examples/header-example.html",
     "footerUrl": "examples/footer-example.html"
-  },
-  {
-    "id": "advanced-selectors-demo",
-    "label": "Advanced CSS Selectors Demo",
-    "htmlUrl": "examples/advanced-selectors-demo.html"
-  },
-  {
-    "id": "background-size-showcase",
-    "label": "Background Size Examples",
-    "htmlUrl": "examples/background-size-showcase.html"
-  },
-  {
-    "id": "background-position-showcase",
-    "label": "Background Position Examples",
-    "htmlUrl": "examples/background-position-showcase.html"
-  },
-  {
-    "id": "background-repeat-showcase",
-    "label": "Background Repeat Examples",
-    "htmlUrl": "examples/background-repeat-showcase.html"
-  },
-  {
-    "id": "background-repeat-space-round",
-    "label": "Background Repeat: Space & Round",
-    "htmlUrl": "examples/background-repeat-space-round.html"
-  },
-  {
-    "id": "background-advanced-showcase",
-    "label": "Advanced Background Techniques",
-    "htmlUrl": "examples/background-advanced-showcase.html"
-  },
-  {
-    "id": "background-origin-showcase",
-    "label": "Background Origin Examples",
-    "htmlUrl": "examples/background-origin-showcase.html"
-  },
-  {
-    "id": "background-clip-text",
-    "label": "Background Clip Text Gradient",
-    "htmlUrl": "examples/background-clip-text.html"
-  },
-  {
-    "id": "webp-example",
-    "label": "WebP Image Example",
-    "htmlUrl": "examples/webp-example.html"
-  },
-  {
-    "id": "z-index-demo",
-    "label": "Z-Index Stacking Demo",
-    "htmlUrl": "examples/z-index-demo.html"
-  },
-  {
-    "id": "margin-block-showcase",
-    "label": "Margin Block Showcase",
-    "htmlUrl": "examples/margin-block-showcase.html"
-  },
-  {
-    "id": "margin-inline-showcase",
-    "label": "Margin Inline Showcase",
-    "htmlUrl": "examples/margin-inline-showcase.html"
-  },
-  {
-    "id": "text-decoration-showcase",
-    "label": "Text Decoration Showcase",
-    "htmlUrl": "examples/text-decoration-showcase.html"
-  },
-  {
-    "id": "text-shadow-example",
-    "label": "Text Shadow Example",
-    "htmlUrl": "examples/text-shadow-example.html"
-  },
-  {
-    "id": "opacity-example",
-    "label": "Opacity Example",
-    "htmlUrl": "examples/opacity-example.html"
-  },
-  {
-    "id": "skew-text",
-    "label": "Skew Text Example",
-    "htmlUrl": "examples/skew-text.html"
-  },
-  {
-    "id": "skew-div",
-    "label": "Skew DIV with Background & Border",
-    "htmlUrl": "examples/skew-div.html"
-  },
-  {
-    "id": "fonts-demo",
-    "label": "LoadedFont @font-face Demo",
-    "htmlUrl": "examples/fonts-demo.html"
-  },
-  {
-    "id": "responsive-clamp-grid",
-    "label": "Responsive Grid com clamp() (pt-BR)",
-    "htmlUrl": "examples/responsive-clamp-grid.html"
-  },
-  {
-    "id": "filter-effects",
-    "label": "🎨 CSS Filter Effects (Complete Demo)",
-    "htmlUrl": "examples/filter-effects.html"
-  },
-  {
-    "id": "filter-mvp",
-    "label": "✅ Filter PDF Support (MVP Demo)",
-    "htmlUrl": "examples/filter-mvp.html"
   }
 ]

@@ -1,4 +1,4 @@
-import { setTemplatePopover, renderTemplateList, syncTemplateLabels } from "./templates.js";
+import { syncTemplateLabels } from "./templates.js";
 
 export async function loadExample(dom, state, editors, previewApi, renderPdf, example) {
   if (!example) {
@@ -32,8 +32,6 @@ export async function loadExample(dom, state, editors, previewApi, renderPdf, ex
     dom.exampleSelect.value = example.id;
     state.activeExampleId = example.id;
     syncTemplateLabels(dom, example);
-    renderTemplateList(dom, state);
-    setTemplatePopover(dom, state, false);
 
     void renderPdf();
     previewApi.updateHtmlPreview();

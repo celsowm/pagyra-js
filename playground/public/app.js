@@ -14,9 +14,7 @@ import {
 } from "./app/status.js";
 import { createTabClickHandler } from "./app/tabs.js";
 import {
-  bindTemplatePicker,
   populateExampleSelect,
-  renderTemplateList,
   syncTemplateLabels,
 } from "./app/templates.js";
 
@@ -84,7 +82,6 @@ function init() {
 
   bindCKEditorToggle(dom, state, editors, previewApi.setStatus, handleInputChange);
   bindDebugSelection(dom);
-  bindTemplatePicker(dom, state, handleExampleChange);
 
   void bootstrapExamples(renderPdf, editors, previewApi);
 
@@ -105,7 +102,6 @@ function init() {
         populateExampleSelect(dom, state.examples);
         const initialExample = state.examples[0];
         syncTemplateLabels(dom, initialExample);
-        renderTemplateList(dom, state);
         await loadExample(dom, state, editorBindings, previewBindings, renderPdfFn, initialExample);
       }
     } catch (error) {

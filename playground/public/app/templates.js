@@ -1,10 +1,23 @@
 export function populateExampleSelect(dom, examples) {
   dom.exampleSelect.innerHTML = "";
+  const groups = new Map();
   for (const example of examples) {
-    const option = document.createElement("option");
-    option.value = example.id;
-    option.textContent = example.label;
-    dom.exampleSelect.append(option);
+    const groupName = example.group || "Other";
+    if (!groups.has(groupName)) {
+      groups.set(groupName, []);
+    }
+    groups.get(groupName).push(example);
+  }
+  for (const [groupName, items] of groups) {
+    const optgroup = document.createElement("optgroup");
+    optgroup.label = groupName;
+    for (const example of items) {
+      const option = document.createElement("option");
+      option.value = example.id;
+      option.textContent = example.label;
+      optgroup.append(option);
+    }
+    dom.exampleSelect.append(optgroup);
   }
 }
 
