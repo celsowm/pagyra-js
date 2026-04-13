@@ -49,7 +49,12 @@ export function offsetRenderTree(root: RenderBox, dx: number, dy: number, _debug
     if (box.markerRect) {
       offsetRect(box.markerRect, dx, dy);
     }
-    if (box.maskGradient) {
+    if (box.maskLayers && box.maskLayers.length > 0) {
+      for (const layer of box.maskLayers) {
+        offsetRect(layer.rect, dx, dy);
+        offsetRect(layer.originRect, dx, dy);
+      }
+    } else if (box.maskGradient) {
       offsetRect(box.maskGradient.rect, dx, dy);
       offsetRect(box.maskGradient.originRect, dx, dy);
     }
@@ -233,7 +238,12 @@ export function applyPageVerticalMarginsWithHf(
     if (box.markerRect) {
       adjustRect(box.markerRect);
     }
-    if (box.maskGradient) {
+    if (box.maskLayers && box.maskLayers.length > 0) {
+      for (const layer of box.maskLayers) {
+        adjustRect(layer.rect);
+        adjustRect(layer.originRect);
+      }
+    } else if (box.maskGradient) {
       adjustRect(box.maskGradient.rect);
       adjustRect(box.maskGradient.originRect);
     }

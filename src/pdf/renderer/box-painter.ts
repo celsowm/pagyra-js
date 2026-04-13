@@ -59,12 +59,17 @@ export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Prom
   }
 
   let clipCommands = buildClipPathCommands(box.clipPath);
-  if (!clipCommands && box.maskGradient && box.maskGradient.gradient.type === "radial") {
-    // MVP: Aproximação de máscara radial usando clipping path circular
-    clipCommands = buildCircularClipPath(box.maskGradient.rect);
+  if (!clipCommands && box.maskLayers && box.maskLayers.length > 0) {
+    const masks = box.maskLayers.filter(l => l.gradient.type === "radial");
+    if (masks.length > 0) {
+      clipCommands = [];
+      for (const m of masks) {
+        clipCommands.push(...buildCircularClipPath(m.rect));
+      }
+    }
   }
 
-  const hasClip = !!clipCommands;
+  const hasClip = !!clipCommands && clipCommands.length > 0;
   if (hasClip && clipCommands) {
     painter.beginClipPath(clipCommands);
   }
@@ -320,7 +325,57 @@ function buildClipPathCommands(clipPath: RenderBox["clipPath"]): PathCommand[] |
 }
 
 function paintDropShadows(painter: PagePainter, box: RenderBox, shadows: import("../types.js").ShadowLayer[]): void {
-  // Usa o borderBox como base da sombra (aproximação para drop-shadow)
+  // Para drop-shadow em caminhos complexos (clip-path), precisamos de uma abordagem baseada em path
+  const clipCommands = buildClipPathCommands(box.clipPath);
+
+  if (clipCommands && clipCommands.length > 0) {
+    for (const shadow of shadows) {
+      if (shadow.color.a <= 0) continue;
+
+      const blur = Math.max(0, shadow.blur);
+      const steps = blur > 0 ? Math.max(3, Math.ceil(blur / 1.5)) : 1;
+      const baseAlpha = shadow.color.a;
+
+      // Pintamos várias vezes com offsets variados para simular blur (distribuição radial)
+      for (let i = 0; i < steps; i++) {
+        const fraction = steps > 1 ? i / (steps - 1) : 0;
+        const angle = (i / steps) * Math.PI * 2;
+        const blurRadius = (blur * 0.5) * fraction;
+        const dx = shadow.offsetX + Math.cos(angle) * blurRadius;
+        const dy = shadow.offsetY + Math.sin(angle) * blurRadius;
+
+        // Distribuição de opacidade: dividimos a opacidade total pelos steps
+        // mas damos um pouco mais de peso para as camadas internas.
+        const weight = (steps - i) / ((steps * (steps + 1)) / 2);
+        const opacity = baseAlpha * weight * (steps / 1.5);
+
+        const offsetCommands = clipCommands.map(cmd => {
+          if (cmd.type === "moveTo" || cmd.type === "lineTo") {
+            return { ...cmd, x: cmd.x + dx, y: cmd.y + dy };
+          }
+          if (cmd.type === "curveTo") {
+            return {
+              ...cmd,
+              x1: cmd.x1 + dx,
+              y1: cmd.y1 + dy,
+              x2: cmd.x2 + dx,
+              y2: cmd.y2 + dy,
+              x: cmd.x + dx,
+              y: cmd.y + dy
+            };
+          }
+          return cmd;
+        });
+
+        painter.beginOpacityScope(Math.min(1, opacity));
+        painter.fillPath(offsetCommands, shadow.color);
+        painter.endOpacityScope(Math.min(1, opacity));
+      }
+    }
+    return;
+  }
+
+  // Usa o borderBox como base da sombra (aproximação para drop-shadow retangular)
   const virtualBox: Partial<RenderBox> = {
     borderBox: box.borderBox,
     borderRadius: box.borderRadius,

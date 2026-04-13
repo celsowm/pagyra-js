@@ -28,7 +28,7 @@ import {
   resolveTextGradientLayer,
 } from "./utils/background-layer-resolver.js";
 import { resolveClipPath } from "./utils/clip-path-resolver.js";
-import { resolveMaskGradient } from "./utils/mask-resolver.js";
+import { resolveMaskGradients } from "./utils/mask-resolver.js";
 import { parseTransform } from "../transform/css-parser.js";
 import { buildNodeTextRuns } from "./utils/node-text-run-factory.js";
 import type { FontResolver } from "../fonts/types.js";
@@ -148,7 +148,7 @@ function convertNode(
 
   const background = resolveBackgroundLayers(node, { borderBox, paddingBox, contentBox });
   const backgroundClip = node.style.backgroundLayers?.some(l => l.clip === "text") ? "text" : undefined;
-  const maskGradient = resolveMaskGradient(node, { borderBox, paddingBox, contentBox });
+  const maskLayers = resolveMaskGradients(node, { borderBox, paddingBox, contentBox });
 
   const ownTextGradient = resolveTextGradientLayer(node, { borderBox, paddingBox, contentBox });
   const textGradient = ownTextGradient ?? inheritedTextGradient;
@@ -256,7 +256,8 @@ function convertNode(
     breakInside: node.style.breakInside,
     color: textColor,
     mask: node.style.mask,
-    maskGradient,
+    maskGradient: maskLayers.length > 0 ? maskLayers[0] : undefined,
+    maskLayers,
     background,
     backgroundClip,
     clipPath,

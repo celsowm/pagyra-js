@@ -179,11 +179,16 @@ export class TableLayoutStrategy implements LayoutStrategy {
           const upperBottom = numericBorder(upper.style.borderBottom);
           const lowerTop = numericBorder(lower.style.borderTop);
           const shared = Math.max(upperBottom, lowerTop);
+
+          if (shared > 0) {
+            // "Winner" takes the color. If widths are equal, prefer the upper one (top-down bias)
+            if (upperBottom >= lowerTop && upper.style.borderColor) {
+              lower.style.borderColor = upper.style.borderColor;
+            }
+          }
+
           lower.style.borderTop = shared;
           upper.style.borderBottom = 0;
-          if (lower.style.borderColor === undefined && upper.style.borderColor !== undefined) {
-            lower.style.borderColor = upper.style.borderColor;
-          }
         }
       }
       // Resolve horizontal shared borders between adjacent columns
@@ -197,11 +202,16 @@ export class TableLayoutStrategy implements LayoutStrategy {
           const leftRight = numericBorder(left.style.borderRight);
           const rightLeft = numericBorder(right.style.borderLeft);
           const shared = Math.max(leftRight, rightLeft);
+
+          if (shared > 0) {
+            // "Winner" takes the color. If widths are equal, prefer the left one (left-to-right bias)
+            if (leftRight >= rightLeft && left.style.borderColor) {
+              right.style.borderColor = left.style.borderColor;
+            }
+          }
+
           right.style.borderLeft = shared;
           left.style.borderRight = 0;
-          if (right.style.borderColor === undefined && left.style.borderColor !== undefined) {
-            right.style.borderColor = left.style.borderColor;
-          }
         }
       }
     }
@@ -228,7 +238,7 @@ export class TableLayoutStrategy implements LayoutStrategy {
       }
     }
 
-    const colWidths = this.calculateColumnWidths(grid, node.box.contentWidth, node.style.borderModel === BorderModel.Collapse);
+    const colWidths = this.calculateColumnWidths(grid, node.box.contentWidth);
     const tableContentWidth = colWidths.reduce((sum, width) => sum + width, 0);
     node.box.contentWidth = tableContentWidth;
     log("layout", "debug", "Table column widths calculated", { colWidths });
@@ -473,16 +483,20 @@ export class TableLayoutStrategy implements LayoutStrategy {
     return { grid, rowNodes };
   }
 
-  private calculateColumnWidths(grid: (LayoutNode | null)[][], tableWidth: number, collapsed: boolean): number[] {
+  private calculateColumnWidths(grid: (LayoutNode | null)[][], tableWidth: number): number[] {
     const numCols = grid[0]?.length || 0;
     if (numCols === 0) return [];
 
     const minContentWidths = new Array(numCols).fill(0);
 
+    // First pass: resolve widths for cells with colspan = 1
     for (let r = 0; r < grid.length; r++) {
       for (let c = 0; c < numCols; c++) {
         const cell = grid[r][c];
         if (!cell || !this.isOriginCell(cell, r, c)) continue;
+
+        const colSpan = Math.min(this.cellColSpan(cell), numCols - c);
+        if (colSpan !== 1) continue;
 
         let maxIntrinsicWidth = 0;
         if (cell.intrinsicInlineSize) {
@@ -496,14 +510,43 @@ export class TableLayoutStrategy implements LayoutStrategy {
 
         const horizontalExtras = horizontalNonContent(cell, tableWidth);
         const cellMinWidth = maxIntrinsicWidth + horizontalExtras;
-        const colSpan = Math.min(this.cellColSpan(cell), numCols - c);
+        minContentWidths[c] = Math.max(minContentWidths[c], cellMinWidth);
+      }
+    }
 
-        if (colSpan === 1) {
-          minContentWidths[c] = Math.max(minContentWidths[c], cellMinWidth);
-        } else {
-          const share = cellMinWidth / colSpan;
-          for (let offset = 0; offset < colSpan; offset++) {
-            minContentWidths[c + offset] = Math.max(minContentWidths[c + offset], share);
+    // Second pass: resolve widths for cells with colspan > 1
+    for (let r = 0; r < grid.length; r++) {
+      for (let c = 0; c < numCols; c++) {
+        const cell = grid[r][c];
+        if (!cell || !this.isOriginCell(cell, r, c)) continue;
+
+        const colSpan = Math.min(this.cellColSpan(cell), numCols - c);
+        if (colSpan <= 1) continue;
+
+        let maxIntrinsicWidth = 0;
+        if (cell.intrinsicInlineSize) {
+          maxIntrinsicWidth = cell.intrinsicInlineSize;
+        }
+        cell.walk((node) => {
+          if (node.intrinsicInlineSize !== undefined) {
+            maxIntrinsicWidth = Math.max(maxIntrinsicWidth, node.intrinsicInlineSize);
+          }
+        });
+
+        const horizontalExtras = horizontalNonContent(cell, tableWidth);
+        const cellMinWidth = maxIntrinsicWidth + horizontalExtras;
+
+        // Check if current spanned columns already satisfy the min width
+        let currentSpanWidth = 0;
+        for (let i = 0; i < colSpan; i++) {
+          currentSpanWidth += minContentWidths[c + i];
+        }
+
+        if (cellMinWidth > currentSpanWidth) {
+          const extra = cellMinWidth - currentSpanWidth;
+          const share = extra / colSpan;
+          for (let i = 0; i < colSpan; i++) {
+            minContentWidths[c + i] += share;
           }
         }
       }

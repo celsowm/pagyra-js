@@ -299,6 +299,7 @@ export interface RenderBox {
   color?: RGBA;
   mask?: string;
   maskGradient?: GradientBackground;
+  maskLayers?: GradientBackground[];
   backgroundClip?: "border-box" | "padding-box" | "content-box" | "text";
   transform?: TextMatrix;
 
