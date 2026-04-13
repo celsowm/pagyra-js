@@ -10,4 +10,10 @@ export interface ClipPathPolygon {
   referenceBox?: ClipPathReferenceBox;
 }
 
-export type ClipPath = ClipPathPolygon;
+export interface ClipPathPath {
+  type: "path";
+  commands: string;
+  referenceBox?: ClipPathReferenceBox;
+}
+
+export type ClipPath = ClipPathPolygon | ClipPathPath;

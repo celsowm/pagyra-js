@@ -120,36 +120,41 @@ export class TableLayoutStrategy implements LayoutStrategy {
       const tableBorderLeft = numericBorder(node.style.borderLeft);
 
       // Collapse table border with outer cells
+      const processedTop = new Set<LayoutNode>();
+      const processedBottom = new Set<LayoutNode>();
+      const processedLeft = new Set<LayoutNode>();
+      const processedRight = new Set<LayoutNode>();
+
       for (let c = 0; c < numCols; c++) {
         // Top edge cells collapse with table top border
         const topCell = grid[0][c];
-        if (topCell && this.isOriginCell(topCell, 0, c)) {
+        if (topCell && !processedTop.has(topCell)) {
           const cellTop = numericBorder(topCell.style.borderTop);
-          const shared = Math.max(cellTop, tableBorderTop);
-          topCell.style.borderTop = shared;
+          topCell.style.borderTop = Math.max(cellTop, tableBorderTop);
+          processedTop.add(topCell);
         }
         // Bottom edge cells collapse with table bottom border
         const bottomCell = grid[numRows - 1][c];
-        if (bottomCell && this.isOriginCell(bottomCell, numRows - 1, c)) {
+        if (bottomCell && !processedBottom.has(bottomCell) && this.isRowBoundary(bottomCell, numRows - 1)) {
           const cellBottom = numericBorder(bottomCell.style.borderBottom);
-          const shared = Math.max(cellBottom, tableBorderBottom);
-          bottomCell.style.borderBottom = shared;
+          bottomCell.style.borderBottom = Math.max(cellBottom, tableBorderBottom);
+          processedBottom.add(bottomCell);
         }
       }
       for (let r = 0; r < numRows; r++) {
         // Left edge cells collapse with table left border
         const leftCell = grid[r][0];
-        if (leftCell && this.isOriginCell(leftCell, r, 0)) {
+        if (leftCell && !processedLeft.has(leftCell)) {
           const cellLeft = numericBorder(leftCell.style.borderLeft);
-          const shared = Math.max(cellLeft, tableBorderLeft);
-          leftCell.style.borderLeft = shared;
+          leftCell.style.borderLeft = Math.max(cellLeft, tableBorderLeft);
+          processedLeft.add(leftCell);
         }
         // Right edge cells collapse with table right border
         const rightCell = grid[r][numCols - 1];
-        if (rightCell && this.isOriginCell(rightCell, r, numCols - 1)) {
+        if (rightCell && !processedRight.has(rightCell) && this.isColumnBoundary(rightCell, numCols - 1)) {
           const cellRight = numericBorder(rightCell.style.borderRight);
-          const shared = Math.max(cellRight, tableBorderRight);
-          rightCell.style.borderRight = shared;
+          rightCell.style.borderRight = Math.max(cellRight, tableBorderRight);
+          processedRight.add(rightCell);
         }
       }
       
@@ -165,7 +170,11 @@ export class TableLayoutStrategy implements LayoutStrategy {
           const upper = grid[r][c];
           const lower = grid[r + 1][c];
           if (!upper || !lower) continue;
-          if (upper === lower) continue;
+          if (upper === lower) {
+            // Se as células são as mesmas (rowspan), não há borda compartilhada para processar AQUI
+            // mas precisamos garantir que a próxima linha saiba que esta célula continua.
+            continue;
+          }
           if (!this.isRowBoundary(upper, r)) continue;
           const upperBottom = numericBorder(upper.style.borderBottom);
           const lowerTop = numericBorder(lower.style.borderTop);
@@ -219,7 +228,7 @@ export class TableLayoutStrategy implements LayoutStrategy {
       }
     }
 
-    const colWidths = this.calculateColumnWidths(grid, node.box.contentWidth);
+    const colWidths = this.calculateColumnWidths(grid, node.box.contentWidth, node.style.borderModel === BorderModel.Collapse);
     const tableContentWidth = colWidths.reduce((sum, width) => sum + width, 0);
     node.box.contentWidth = tableContentWidth;
     log("layout", "debug", "Table column widths calculated", { colWidths });
@@ -464,7 +473,7 @@ export class TableLayoutStrategy implements LayoutStrategy {
     return { grid, rowNodes };
   }
 
-  private calculateColumnWidths(grid: (LayoutNode | null)[][], tableWidth: number): number[] {
+  private calculateColumnWidths(grid: (LayoutNode | null)[][], tableWidth: number, collapsed: boolean): number[] {
     const numCols = grid[0]?.length || 0;
     if (numCols === 0) return [];
 
