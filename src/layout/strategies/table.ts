@@ -120,36 +120,41 @@ export class TableLayoutStrategy implements LayoutStrategy {
       const tableBorderLeft = numericBorder(node.style.borderLeft);
 
       // Collapse table border with outer cells
+      const processedTop = new Set<LayoutNode>();
+      const processedBottom = new Set<LayoutNode>();
+      const processedLeft = new Set<LayoutNode>();
+      const processedRight = new Set<LayoutNode>();
+
       for (let c = 0; c < numCols; c++) {
         // Top edge cells collapse with table top border
         const topCell = grid[0][c];
-        if (topCell && this.isOriginCell(topCell, 0, c)) {
+        if (topCell && !processedTop.has(topCell)) {
           const cellTop = numericBorder(topCell.style.borderTop);
-          const shared = Math.max(cellTop, tableBorderTop);
-          topCell.style.borderTop = shared;
+          topCell.style.borderTop = Math.max(cellTop, tableBorderTop);
+          processedTop.add(topCell);
         }
         // Bottom edge cells collapse with table bottom border
         const bottomCell = grid[numRows - 1][c];
-        if (bottomCell && this.isOriginCell(bottomCell, numRows - 1, c)) {
+        if (bottomCell && !processedBottom.has(bottomCell) && this.isRowBoundary(bottomCell, numRows - 1)) {
           const cellBottom = numericBorder(bottomCell.style.borderBottom);
-          const shared = Math.max(cellBottom, tableBorderBottom);
-          bottomCell.style.borderBottom = shared;
+          bottomCell.style.borderBottom = Math.max(cellBottom, tableBorderBottom);
+          processedBottom.add(bottomCell);
         }
       }
       for (let r = 0; r < numRows; r++) {
         // Left edge cells collapse with table left border
         const leftCell = grid[r][0];
-        if (leftCell && this.isOriginCell(leftCell, r, 0)) {
+        if (leftCell && !processedLeft.has(leftCell)) {
           const cellLeft = numericBorder(leftCell.style.borderLeft);
-          const shared = Math.max(cellLeft, tableBorderLeft);
-          leftCell.style.borderLeft = shared;
+          leftCell.style.borderLeft = Math.max(cellLeft, tableBorderLeft);
+          processedLeft.add(leftCell);
         }
         // Right edge cells collapse with table right border
         const rightCell = grid[r][numCols - 1];
-        if (rightCell && this.isOriginCell(rightCell, r, numCols - 1)) {
+        if (rightCell && !processedRight.has(rightCell) && this.isColumnBoundary(rightCell, numCols - 1)) {
           const cellRight = numericBorder(rightCell.style.borderRight);
-          const shared = Math.max(cellRight, tableBorderRight);
-          rightCell.style.borderRight = shared;
+          rightCell.style.borderRight = Math.max(cellRight, tableBorderRight);
+          processedRight.add(rightCell);
         }
       }
       
@@ -165,16 +170,25 @@ export class TableLayoutStrategy implements LayoutStrategy {
           const upper = grid[r][c];
           const lower = grid[r + 1][c];
           if (!upper || !lower) continue;
-          if (upper === lower) continue;
+          if (upper === lower) {
+            // Se as células são as mesmas (rowspan), não há borda compartilhada para processar AQUI
+            // mas precisamos garantir que a próxima linha saiba que esta célula continua.
+            continue;
+          }
           if (!this.isRowBoundary(upper, r)) continue;
           const upperBottom = numericBorder(upper.style.borderBottom);
           const lowerTop = numericBorder(lower.style.borderTop);
           const shared = Math.max(upperBottom, lowerTop);
+
+          if (shared > 0) {
+            // "Winner" takes the color. If widths are equal, prefer the upper one (top-down bias)
+            if (upperBottom >= lowerTop && upper.style.borderColor) {
+              lower.style.borderColor = upper.style.borderColor;
+            }
+          }
+
           lower.style.borderTop = shared;
           upper.style.borderBottom = 0;
-          if (lower.style.borderColor === undefined && upper.style.borderColor !== undefined) {
-            lower.style.borderColor = upper.style.borderColor;
-          }
         }
       }
       // Resolve horizontal shared borders between adjacent columns
@@ -188,11 +202,16 @@ export class TableLayoutStrategy implements LayoutStrategy {
           const leftRight = numericBorder(left.style.borderRight);
           const rightLeft = numericBorder(right.style.borderLeft);
           const shared = Math.max(leftRight, rightLeft);
+
+          if (shared > 0) {
+            // "Winner" takes the color. If widths are equal, prefer the left one (left-to-right bias)
+            if (leftRight >= rightLeft && left.style.borderColor) {
+              right.style.borderColor = left.style.borderColor;
+            }
+          }
+
           right.style.borderLeft = shared;
           left.style.borderRight = 0;
-          if (right.style.borderColor === undefined && left.style.borderColor !== undefined) {
-            right.style.borderColor = left.style.borderColor;
-          }
         }
       }
     }
@@ -470,10 +489,14 @@ export class TableLayoutStrategy implements LayoutStrategy {
 
     const minContentWidths = new Array(numCols).fill(0);
 
+    // First pass: resolve widths for cells with colspan = 1
     for (let r = 0; r < grid.length; r++) {
       for (let c = 0; c < numCols; c++) {
         const cell = grid[r][c];
         if (!cell || !this.isOriginCell(cell, r, c)) continue;
+
+        const colSpan = Math.min(this.cellColSpan(cell), numCols - c);
+        if (colSpan !== 1) continue;
 
         let maxIntrinsicWidth = 0;
         if (cell.intrinsicInlineSize) {
@@ -487,14 +510,43 @@ export class TableLayoutStrategy implements LayoutStrategy {
 
         const horizontalExtras = horizontalNonContent(cell, tableWidth);
         const cellMinWidth = maxIntrinsicWidth + horizontalExtras;
-        const colSpan = Math.min(this.cellColSpan(cell), numCols - c);
+        minContentWidths[c] = Math.max(minContentWidths[c], cellMinWidth);
+      }
+    }
 
-        if (colSpan === 1) {
-          minContentWidths[c] = Math.max(minContentWidths[c], cellMinWidth);
-        } else {
-          const share = cellMinWidth / colSpan;
-          for (let offset = 0; offset < colSpan; offset++) {
-            minContentWidths[c + offset] = Math.max(minContentWidths[c + offset], share);
+    // Second pass: resolve widths for cells with colspan > 1
+    for (let r = 0; r < grid.length; r++) {
+      for (let c = 0; c < numCols; c++) {
+        const cell = grid[r][c];
+        if (!cell || !this.isOriginCell(cell, r, c)) continue;
+
+        const colSpan = Math.min(this.cellColSpan(cell), numCols - c);
+        if (colSpan <= 1) continue;
+
+        let maxIntrinsicWidth = 0;
+        if (cell.intrinsicInlineSize) {
+          maxIntrinsicWidth = cell.intrinsicInlineSize;
+        }
+        cell.walk((node) => {
+          if (node.intrinsicInlineSize !== undefined) {
+            maxIntrinsicWidth = Math.max(maxIntrinsicWidth, node.intrinsicInlineSize);
+          }
+        });
+
+        const horizontalExtras = horizontalNonContent(cell, tableWidth);
+        const cellMinWidth = maxIntrinsicWidth + horizontalExtras;
+
+        // Check if current spanned columns already satisfy the min width
+        let currentSpanWidth = 0;
+        for (let i = 0; i < colSpan; i++) {
+          currentSpanWidth += minContentWidths[c + i];
+        }
+
+        if (cellMinWidth > currentSpanWidth) {
+          const extra = cellMinWidth - currentSpanWidth;
+          const share = extra / colSpan;
+          for (let i = 0; i < colSpan; i++) {
+            minContentWidths[c + i] += share;
           }
         }
       }

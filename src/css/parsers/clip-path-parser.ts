@@ -22,7 +22,29 @@ function parseClipPathValue(value: string): ClipPath | undefined {
   if (polygon) {
     return polygon;
   }
+
+  const path = parsePath(normalized);
+  if (path) {
+    return path;
+  }
+
   return undefined;
+}
+
+function parsePath(input: string): ClipPath | undefined {
+  const match = /^path\s*\(\s*['"]?([^'"]+)['"]?\s*\)$/i.exec(input);
+  if (!match) {
+    return undefined;
+  }
+  const commands = match[1].trim();
+  if (!commands) {
+    return undefined;
+  }
+  return {
+    type: "path",
+    commands,
+    referenceBox: "border-box",
+  };
 }
 
 function parsePolygon(input: string): ClipPathPolygon | undefined {
