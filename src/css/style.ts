@@ -297,8 +297,6 @@ export class ComputedStyle implements StyleProperties {
   flexWrap: boolean;
   trackListColumns: TrackDefinition[];
   trackListRows: TrackDefinition[];
-  overflowX: OverflowMode;
-  overflowY: OverflowMode;
   autoFlow: GridAutoFlow;
   rowGap: number;
   columnGap: number;

@@ -1,4 +1,4 @@
-import { BoxSizing } from "../enums.js";
+import { BoxSizing, OverflowMode } from "../enums.js";
 import type { StyleAccumulator, StyleProperties } from "../style.js";
 import { normalizeFontWeight } from "../font-weight.js";
 import { CssUnitResolver } from "../css-unit-resolver.js";
@@ -222,7 +222,6 @@ export function applyStyleInitOverrides(
   if (styleInit.alignSelf !== undefined) styleOptions.alignSelf = styleInit.alignSelf;
   if (styleInit.flexDirection !== undefined) styleOptions.flexDirection = styleInit.flexDirection;
   if (styleInit.flexWrap !== undefined) styleOptions.flexWrap = styleInit.flexWrap;
-  if (styleInit.mask !== undefined) styleOptions.mask = styleInit.mask;
   if (styleInit.flexGrow !== undefined) styleOptions.flexGrow = styleInit.flexGrow;
   if (styleInit.flexShrink !== undefined) styleOptions.flexShrink = styleInit.flexShrink;
   if (styleInit.flexBasis !== undefined) assignLength(styleInit.flexBasis, (v) => (styleOptions.flexBasis = v));

@@ -5,7 +5,7 @@ import { log } from "../../logging/debug.js";
 import { CoordinateTransformer } from "../utils/coordinate-transformer.js";
 import type { ImageRenderer } from "./image-renderer.js";
 import type { GraphicsStateManager } from "./graphics-state-manager.js";
-import { formatNumber } from "./text-renderer-utils.js";
+import { formatNumber, fillColorCommand } from "./text-renderer-utils.js";
 import { TextShadowRenderer } from "./text-shadow-renderer.js";
 import { TextDecorationRenderer } from "./text-decoration-renderer.js";
 import { TextFontResolver } from "./text-font-resolver.js";
@@ -19,6 +19,7 @@ import type { UnifiedFont } from "../../fonts/types.js";
 import type { Matrix } from "../../geometry/matrix.js";
 import { svgMatrixToPdf } from "../transform-adapter.js";
 import { applyWordSpacingToGlyphRun, computeGlyphRun } from "../utils/node-text-run-factory.js";
+import type { Background, Rect as RenderRect, Radius } from "../types.js";
 
 const PINK = "\x1b[38;5;205m";
 const RESET_COLOR = "\x1b[0m";
@@ -35,7 +36,6 @@ export class TextRenderer {
   private readonly fonts = new Map<string, PdfObjectRef>();
   private readonly decorationRenderer: TextDecorationRenderer;
   private readonly shadowRenderer: TextShadowRenderer;
-  private readonly graphicsStateManager?: GraphicsStateManager;
   private readonly fontResolver: TextFontResolver;
   private readonly gradientService: GradientService;
   private readonly patterns = new Map<string, string>();
@@ -44,10 +44,9 @@ export class TextRenderer {
   constructor(
     private readonly coordinateTransformer: CoordinateTransformer,
     private readonly fontRegistry: FontRegistry,
-    imageRenderer?: ImageRenderer,
-    graphicsStateManager?: GraphicsStateManager,
+    private readonly imageRenderer?: ImageRenderer,
+    private readonly graphicsStateManager?: GraphicsStateManager,
   ) {
-    this.graphicsStateManager = graphicsStateManager;
     this.fontResolver = new TextFontResolver(fontRegistry);
     this.shadowRenderer = new TextShadowRenderer(coordinateTransformer, fontRegistry, imageRenderer, graphicsStateManager);
     this.decorationRenderer = new TextDecorationRenderer(coordinateTransformer, graphicsStateManager);
@@ -149,6 +148,41 @@ export class TextRenderer {
 
     const subsetResource = this.fontRegistry.ensureSubsetForGlyphRun(glyphRun, font);
     this.registerSubsetFont(subsetResource.alias, subsetResource.ref);
+
+    const textBackground = run.textBackground;
+    if (textBackground) {
+        log("paint", "debug", "text run has background clip: text", {
+            text: run.text.slice(0, 32),
+        });
+
+        const afterTextCommands: string[] = [];
+        this.generateBackgroundCommands(textBackground, afterTextCommands);
+
+        if (afterTextCommands.length > 0) {
+            const glyphCommands = drawGlyphRun(
+                glyphRun,
+                subsetResource.subset,
+                0,
+                0,
+                fontSizePt,
+                color,
+                this.graphicsStateManager,
+                wordSpacingPt,
+                {
+                    textRenderingMode: 7, // Clip to text
+                    afterTextCommands,
+                    tm: textMatrix,
+                    skipColor: true,
+                }
+            );
+            this.commands.push("q", ...glyphCommands, "Q");
+
+            if (run.decorations) {
+                this.commands.push(...this.decorationRenderer.render(run, color));
+            }
+            return;
+        }
+    }
 
     const gradientBackground = run.textGradient;
     if (gradientBackground && gradientBackground.rect && gradientBackground.rect.width > 0 && gradientBackground.rect.height > 0) {
@@ -292,6 +326,51 @@ export class TextRenderer {
 
   clearTransformContext(): void {
     this.transformContext = null;
+  }
+
+  private generateBackgroundCommands(background: Background, commands: string[]): void {
+    if (background.color) {
+        const color = background.color;
+        const rect = background.gradient?.originRect ?? background.image?.originRect ?? { x: -10000, y: -10000, width: 20000, height: 20000 };
+        const pdfRect = transformForRect(rect, this.coordinateTransformer, this.transformContext);
+        const colorCmd = fillColorCommand(color, this.graphicsStateManager);
+        commands.push("q", colorCmd, pdfRect, `0 0 ${formatNumber(this.coordinateTransformer.convertPxToPt(rect.width))} ${formatNumber(this.coordinateTransformer.convertPxToPt(rect.height))} re`, "f", "Q");
+    }
+
+    if (background.gradient) {
+        const g = background.gradient;
+        const shading = g.gradient.type === "radial"
+            ? this.gradientService.createRadialGradient(g.gradient as RadialGradient, g.rect)
+            : this.gradientService.createLinearGradient(g.gradient as LinearGradient, g.rect);
+
+        const pdfTransform = transformForRect(g.rect, this.coordinateTransformer, this.transformContext);
+        commands.push(
+            "q",
+            pdfTransform,
+            `0 0 ${formatNumber(this.coordinateTransformer.convertPxToPt(g.rect.width))} ${formatNumber(this.coordinateTransformer.convertPxToPt(g.rect.height))} re`,
+            "W n",
+            `/${shading.shadingName} sh`,
+            "Q"
+        );
+    }
+
+    if (background.image && this.imageRenderer) {
+        const img = background.image;
+        const resource = this.imageRenderer.registerResource(img.image);
+        // Simplificação: desenha a imagem uma vez. Idealmente deveria suportar tiling (repeat).
+        const widthPt = this.coordinateTransformer.convertPxToPt(img.rect.width);
+        const heightPt = this.coordinateTransformer.convertPxToPt(img.rect.height);
+        const xPt = this.coordinateTransformer.convertPxToPt(img.rect.x);
+        const localY = img.rect.y - this.coordinateTransformer.pageOffsetPx;
+        const yPt = this.coordinateTransformer.pageHeightPt - this.coordinateTransformer.convertPxToPt(localY + img.rect.height);
+
+        commands.push(
+            "q",
+            `${formatNumber(widthPt)} 0 0 ${formatNumber(heightPt)} ${formatNumber(xPt)} ${formatNumber(yPt)} cm`,
+            `/${resource.alias} Do`,
+            "Q"
+        );
+    }
   }
 
   getResult(): TextRendererResult {

@@ -165,6 +165,7 @@ export interface Run {
   decorations?: Decorations;
   advanceWidth?: number;
   textGradient?: GradientBackground;
+  textBackground?: Background;
   textShadows?: TextShadowLayer[];
 
   // --- Justification metadata (inlineRuns path only) ---
@@ -297,6 +298,8 @@ export interface RenderBox {
   breakInside?: string;
   color?: RGBA;
   mask?: string;
+  maskGradient?: GradientBackground;
+  backgroundClip?: "border-box" | "padding-box" | "content-box" | "text";
   transform?: TextMatrix;
 
   /** Parsed CSS filter functions carried from ComputedStyle */

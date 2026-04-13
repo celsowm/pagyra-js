@@ -28,6 +28,7 @@ import {
   resolveTextGradientLayer,
 } from "./utils/background-layer-resolver.js";
 import { resolveClipPath } from "./utils/clip-path-resolver.js";
+import { resolveMaskGradient } from "./utils/mask-resolver.js";
 import { parseTransform } from "../transform/css-parser.js";
 import { buildNodeTextRuns } from "./utils/node-text-run-factory.js";
 import type { FontResolver } from "../fonts/types.js";
@@ -130,6 +131,7 @@ function convertNode(
   node: LayoutNode,
   state: { counter: number; fontResolver?: FontResolver },
   inheritedTextGradient?: Background["gradient"],
+  inheritedTextBackground?: Background,
 ): RenderBox {
   // Use the original HTML ID if available, otherwise generate a new one
   const originalId = node.customData?.id as string | undefined;
@@ -144,17 +146,17 @@ function convertNode(
   const transformString = node.style.transform;
   const transform = transformString ? parseTransform(transformString) ?? undefined : undefined;
 
+  const background = resolveBackgroundLayers(node, { borderBox, paddingBox, contentBox });
+  const backgroundClip = node.style.backgroundLayers?.some(l => l.clip === "text") ? "text" : undefined;
+  const maskGradient = resolveMaskGradient(node, { borderBox, paddingBox, contentBox });
+
   const ownTextGradient = resolveTextGradientLayer(node, { borderBox, paddingBox, contentBox });
-  if (ownTextGradient) {
-    log("layout", "debug", "node has background-clip:text gradient", {
-      tagName: node.tagName,
-      textContent: node.textContent?.slice(0, 40),
-      rect: ownTextGradient.rect,
-    });
-  }
   const textGradient = ownTextGradient ?? inheritedTextGradient;
 
-  const children = node.children.map((child) => convertNode(child, state, textGradient));
+  const ownTextBackground = backgroundClip === "text" ? background : undefined;
+  const textBackground = ownTextBackground ?? inheritedTextBackground;
+
+  const children = node.children.map((child) => convertNode(child, state, textGradient, textBackground));
   const imageRef = extractImageRef(node);
   const decorations = resolveDecorations(node.style);
   const textRuns = buildNodeTextRuns({
@@ -179,7 +181,6 @@ function convertNode(
     contentBox,
   });
 
-  const background = resolveBackgroundLayers(node, { borderBox, paddingBox, contentBox });
   const clipPath = resolveClipPath(node, { borderBox, paddingBox, contentBox });
 
   const zIndex = typeof node.style.zIndex === "number" ? node.style.zIndex : 0;
@@ -255,7 +256,9 @@ function convertNode(
     breakInside: node.style.breakInside,
     color: textColor,
     mask: node.style.mask,
+    maskGradient,
     background,
+    backgroundClip,
     clipPath,
     image: imageRef,
       customData,

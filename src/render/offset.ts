@@ -49,6 +49,10 @@ export function offsetRenderTree(root: RenderBox, dx: number, dy: number, _debug
     if (box.markerRect) {
       offsetRect(box.markerRect, dx, dy);
     }
+    if (box.maskGradient) {
+      offsetRect(box.maskGradient.rect, dx, dy);
+      offsetRect(box.maskGradient.originRect, dx, dy);
+    }
     offsetBackground(box.background, dx, dy);
     for (const link of box.links) {
       offsetRect(link.rect, dx, dy);
@@ -131,6 +135,10 @@ export function applyBreakInsideAvoid(root: RenderBox, usablePageHeight: number)
     }
     if (box.markerRect) {
       offsetRect(box.markerRect, dx, dy);
+    }
+    if (box.maskGradient) {
+      offsetRect(box.maskGradient.rect, dx, dy);
+      offsetRect(box.maskGradient.originRect, dx, dy);
     }
     offsetBackground(box.background, dx, dy);
     for (const link of box.links) {
@@ -224,6 +232,10 @@ export function applyPageVerticalMarginsWithHf(
     }
     if (box.markerRect) {
       adjustRect(box.markerRect);
+    }
+    if (box.maskGradient) {
+      adjustRect(box.maskGradient.rect);
+      adjustRect(box.maskGradient.originRect);
     }
     adjustBackground(box.background);
     for (const link of box.links) {

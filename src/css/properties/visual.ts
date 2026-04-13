@@ -109,6 +109,9 @@ export interface VisualProperties {
     /** Clipping path applied to the element */
     clipPath?: ClipPath;
 
+    /** CSS masking */
+    mask?: string;
+
     /** CSS filter — lista ordenada de funções (aplicadas da esquerda para direita) */
     filter?: FilterFunction[];
 
