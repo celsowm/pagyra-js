@@ -23,7 +23,8 @@ const SHORTHAND_PROPERTIES = new Set([
   "font",
   "text-decoration",
   "flex",
-  "gap"
+  "gap",
+  "grid-column"
 ]);
 
 // Cache for frequently used parsers to reduce Map lookups
