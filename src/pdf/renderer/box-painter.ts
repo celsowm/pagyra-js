@@ -47,6 +47,22 @@ export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Prom
 
   paintBoxShadows(painter, [box], false);
 
+  // Overflow clipping
+  const hasOverflowClip = box.overflow === "hidden" || box.overflow === "clip";
+  if (hasOverflowClip) {
+    const clipRect = box.paddingBox ?? box.contentBox;
+    if (clipRect) {
+      const clipCommands: PathCommand[] = [
+        { type: "moveTo", x: clipRect.x, y: clipRect.y },
+        { type: "lineTo", x: clipRect.x + clipRect.width, y: clipRect.y },
+        { type: "lineTo", x: clipRect.x + clipRect.width, y: clipRect.y + clipRect.height },
+        { type: "lineTo", x: clipRect.x, y: clipRect.y + clipRect.height },
+        { type: "closePath" },
+      ];
+      painter.beginClipPath(clipCommands);
+    }
+  }
+
   const clipCommands = buildClipPathCommands(box.clipPath);
   const hasClip = !!clipCommands;
   if (hasClip && clipCommands) {
@@ -68,6 +84,10 @@ export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Prom
   await paintText(painter, box);
 
   if (hasClip) {
+    painter.endClipPath();
+  }
+
+  if (hasOverflowClip) {
     painter.endClipPath();
   }
 

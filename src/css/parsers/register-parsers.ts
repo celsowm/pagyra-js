@@ -294,6 +294,17 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("float", parseFloat);
   registerPropertyParser("overflow-wrap", parseOverflowWrap);
   registerPropertyParser("word-wrap", parseWordWrap);
+  registerPropertyParser("overflow", (value, target) => {
+    const val = value.trim().toLowerCase();
+    target.overflowX = val;
+    target.overflowY = val;
+  });
+  registerPropertyParser("overflow-x", (value, target) => {
+    target.overflowX = value.trim().toLowerCase();
+  });
+  registerPropertyParser("overflow-y", (value, target) => {
+    target.overflowY = value.trim().toLowerCase();
+  });
   registerPropertyParser("word-break", parseWordBreak);
   registerPropertyParser("text-shadow", parseTextShadow);
   registerPropertyParser("list-style-type", parseListStyleType);
@@ -303,6 +314,9 @@ export function registerAllPropertyParsers(): void {
   });
   registerPropertyParser("counter-increment", (value, target) => {
     target.counterIncrement = parseCounterIncrement(value);
+  });
+  registerPropertyParser("break-inside", (value, target) => {
+    target.breakInside = value.trim().toLowerCase();
   });
   // Transform (store as raw string for limited later use)
   registerPropertyParser("transform", (value, target) => {
@@ -316,7 +330,14 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("background-origin", applyBackgroundOriginDecl);
   registerPropertyParser("background-repeat", applyBackgroundRepeatDecl);
   registerPropertyParser("background-clip", applyBackgroundClipDecl);
+  registerPropertyParser("-webkit-background-clip", applyBackgroundClipDecl);
   registerPropertyParser("background-image", parseBackgroundImage);
+  registerPropertyParser("mask", (value, target) => {
+    target.mask = value;
+  });
+  registerPropertyParser("-webkit-mask", (value, target) => {
+    target.mask = value;
+  });
   registerPropertyParser("background", parseBackground);
   registerPropertyParser("object-fit", parseObjectFit);
   registerPropertyParser("clip-path", parseClipPath);

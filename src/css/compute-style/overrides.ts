@@ -207,12 +207,22 @@ export function applyStyleInitOverrides(
   if (styleInit.gridColumnSpan !== undefined) {
     styleOptions.gridColumnSpan = styleInit.gridColumnSpan;
   }
+  if (styleInit.breakInside !== undefined) {
+    styleOptions.breakInside = styleInit.breakInside;
+  }
+  if (styleInit.overflowX !== undefined) {
+    styleOptions.overflowX = styleInit.overflowX as OverflowMode;
+  }
+  if (styleInit.overflowY !== undefined) {
+    styleOptions.overflowY = styleInit.overflowY as OverflowMode;
+  }
   if (styleInit.justifyContent !== undefined) styleOptions.justifyContent = styleInit.justifyContent;
   if (styleInit.alignItems !== undefined) styleOptions.alignItems = styleInit.alignItems;
   if (styleInit.alignContent !== undefined) styleOptions.alignContent = styleInit.alignContent;
   if (styleInit.alignSelf !== undefined) styleOptions.alignSelf = styleInit.alignSelf;
   if (styleInit.flexDirection !== undefined) styleOptions.flexDirection = styleInit.flexDirection;
   if (styleInit.flexWrap !== undefined) styleOptions.flexWrap = styleInit.flexWrap;
+  if (styleInit.mask !== undefined) styleOptions.mask = styleInit.mask;
   if (styleInit.flexGrow !== undefined) styleOptions.flexGrow = styleInit.flexGrow;
   if (styleInit.flexShrink !== undefined) styleOptions.flexShrink = styleInit.flexShrink;
   if (styleInit.flexBasis !== undefined) assignLength(styleInit.flexBasis, (v) => (styleOptions.flexBasis = v));

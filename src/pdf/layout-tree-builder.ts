@@ -148,6 +148,7 @@ function convertNode(
   if (ownTextGradient) {
     log("layout", "debug", "node has background-clip:text gradient", {
       tagName: node.tagName,
+      textContent: node.textContent?.slice(0, 40),
       rect: ownTextGradient.rect,
     });
   }
@@ -174,6 +175,7 @@ function convertNode(
     textContent: node.textContent?.slice(0, 40),
     fontFamily: node.style.fontFamily,
     fontSize: node.style.fontSize,
+    breakInside: node.style.breakInside,
     contentBox,
   });
 
@@ -237,6 +239,8 @@ function convertNode(
     borderRadius,
     opacity: node.style.opacity ?? 1,
     overflow: mapOverflow(node.style.overflowX ?? OverflowMode.Visible),
+    overflowX: mapOverflow(node.style.overflowX ?? OverflowMode.Visible),
+    overflowY: mapOverflow(node.style.overflowY ?? OverflowMode.Visible),
     textRuns,
     decorations: decorations ?? {},
     textShadows: resolveTextShadows(node, fallbackShadowColor),
@@ -248,7 +252,9 @@ function convertNode(
     links: [],
     borderColor: parseColor(node.style.borderColor),
     borderStyle,
+    breakInside: node.style.breakInside,
     color: textColor,
+    mask: node.style.mask,
     background,
     clipPath,
     image: imageRef,

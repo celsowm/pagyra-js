@@ -270,6 +270,8 @@ export interface RenderBox {
   background: Background;
   opacity: number;
   overflow: Overflow;
+  overflowX: Overflow;
+  overflowY: Overflow;
   textRuns: Run[];
   decorations: Decorations;
   textShadows: TextShadowLayer[];
@@ -292,7 +294,9 @@ export interface RenderBox {
   customData?: Record<string, unknown>;
   borderColor?: RGBA;
   borderStyle?: BorderStyles;
+  breakInside?: string;
   color?: RGBA;
+  mask?: string;
   transform?: TextMatrix;
 
   /** Parsed CSS filter functions carried from ComputedStyle */

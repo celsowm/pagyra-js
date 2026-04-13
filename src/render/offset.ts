@@ -76,6 +76,77 @@ export interface PageVerticalMarginsOptions {
   footerHeightPx?: number;
 }
 
+/**
+ * Handles 'break-inside: avoid' by pushing content to the next page
+ * when a box would otherwise cross a page boundary.
+ */
+export function applyBreakInsideAvoid(root: RenderBox, usablePageHeight: number): void {
+  let globalOffset = 0;
+
+  function traverse(box: RenderBox) {
+    // Apply cumulative offset from previous breaks
+    if (globalOffset > 0) {
+      offsetBox(box, 0, globalOffset);
+    }
+
+    const rect = box.borderBox ?? box.contentBox;
+    const top = rect.y;
+    const bottom = rect.y + rect.height;
+
+    const startPage = Math.floor(top / usablePageHeight);
+    const endPage = Math.floor((bottom - 0.001) / usablePageHeight);
+
+    if (box.breakInside === "avoid" && startPage !== endPage) {
+      const nextPageTop = (startPage + 1) * usablePageHeight;
+      const pushDown = nextPageTop - top;
+      if (pushDown > 0) {
+        log("layout", "debug", `break-inside: avoid triggered for ${box.tagName} id:${box.id}. Pushing down by ${pushDown}px`, {
+          tagName: box.tagName,
+          id: box.id,
+          top,
+          bottom,
+          nextPageTop,
+        });
+        offsetBox(box, 0, pushDown);
+        globalOffset += pushDown;
+      }
+    }
+
+    // Recurse into children. They will be shifted by current globalOffset.
+    for (const child of box.children) {
+      traverse(child);
+    }
+  }
+
+  function offsetBox(box: RenderBox, dx: number, dy: number) {
+    offsetRect(box.contentBox, dx, dy);
+    offsetRect(box.paddingBox, dx, dy);
+    offsetRect(box.borderBox, dx, dy);
+    offsetRect(box.visualOverflow, dx, dy);
+    if (box.clipPath && box.clipPath.points) {
+      for (const point of box.clipPath.points) {
+        point.x += dx;
+        point.y += dy;
+      }
+    }
+    if (box.markerRect) {
+      offsetRect(box.markerRect, dx, dy);
+    }
+    offsetBackground(box.background, dx, dy);
+    for (const link of box.links) {
+      offsetRect(link.rect, dx, dy);
+    }
+    for (const run of box.textRuns) {
+      if (run.lineMatrix) {
+        run.lineMatrix.e += dx;
+        run.lineMatrix.f += dy;
+      }
+    }
+  }
+
+  traverse(root);
+}
+
 export function applyPageVerticalMargins(root: RenderBox, pageHeight: number, margins: PageMarginsPx): void {
   applyPageVerticalMarginsWithHf(root, { pageHeight, margins });
 }
