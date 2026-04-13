@@ -55,7 +55,7 @@ describe("form text encoding", () => {
         },
         background: {},
         opacity: 1,
-        overflow: Overflow.Visible,
+        overflow: Overflow.Visible, overflowX: Overflow.Visible, overflowY: Overflow.Visible,
         textRuns: [],
         decorations: {},
         textShadows: [],

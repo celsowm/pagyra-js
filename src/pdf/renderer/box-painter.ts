@@ -6,6 +6,7 @@ import { NodeKind, type RenderBox, type RGBA, type Rect, type Radius, type Borde
 import type { PagePainter } from "../page-painter.js";
 import { computeBackgroundTileRects, rectEquals } from "../utils/background-tiles.js";
 import { computeBorderSideStrokes } from "../utils/border-dashes.js";
+import { roundedRectToPath } from "../utils/rounded-rect-to-path.js";
 import type { PathCommand } from "../renderers/shape-renderer.js";
 import { defaultFormRendererFactory } from "../renderers/form/factory.js";
 import {
@@ -47,13 +48,30 @@ export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Prom
 
   paintBoxShadows(painter, [box], false);
 
-  const clipCommands = buildClipPathCommands(box.clipPath);
+  // Overflow clipping
+  const hasOverflowClip = box.overflow === "hidden" || box.overflow === "clip";
+  if (hasOverflowClip) {
+    const clipArea = determineOverflowClipArea(box);
+    if (clipArea) {
+      const clipCommands = roundedRectToPath(clipArea.rect, clipArea.radius);
+      painter.beginClipPath(clipCommands);
+    }
+  }
+
+  let clipCommands = buildClipPathCommands(box.clipPath);
+  if (!clipCommands && box.maskGradient && box.maskGradient.gradient.type === "radial") {
+    // MVP: Aproximação de máscara radial usando clipping path circular
+    clipCommands = buildCircularClipPath(box.maskGradient.rect);
+  }
+
   const hasClip = !!clipCommands;
   if (hasClip && clipCommands) {
     painter.beginClipPath(clipCommands);
   }
 
-  paintBackground(painter, box);
+  if (box.backgroundClip !== "text") {
+    paintBackground(painter, box);
+  }
   paintBorder(painter, box);
   paintBoxShadows(painter, [box], true);
 
@@ -68,6 +86,10 @@ export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Prom
   await paintText(painter, box);
 
   if (hasClip) {
+    painter.endClipPath();
+  }
+
+  if (hasOverflowClip) {
     painter.endClipPath();
   }
 
@@ -242,6 +264,37 @@ function determineBackgroundPaintArea(box: RenderBox): { rect: Rect; radius: Rad
 
 function hasVisibleBorder(border: RenderBox["border"]): boolean {
   return border.top > 0 || border.right > 0 || border.bottom > 0 || border.left > 0;
+}
+
+function determineOverflowClipArea(box: RenderBox): { rect: Rect; radius: Radius } | null {
+  const rect = box.paddingBox ?? box.contentBox;
+  if (!rect) {
+    return null;
+  }
+
+  let radius = shrinkRadius(box.borderRadius, box.border.top, box.border.right, box.border.bottom, box.border.left);
+  if (rect === box.contentBox) {
+    radius = shrinkRadius(radius, box.padding.top, box.padding.right, box.padding.bottom, box.padding.left);
+  }
+
+  return { rect, radius };
+}
+
+function buildCircularClipPath(rect: Rect): PathCommand[] {
+  const cx = rect.x + rect.width / 2;
+  const cy = rect.y + rect.height / 2;
+  const rx = rect.width / 2;
+  const ry = rect.height / 2;
+  const k = 0.5522847498307936;
+
+  return [
+    { type: "moveTo", x: cx + rx, y: cy },
+    { type: "curveTo", x1: cx + rx, y1: cy + ry * k, x2: cx + rx * k, y2: cy + ry, x: cx, y: cy + ry },
+    { type: "curveTo", x1: cx - rx * k, y1: cy + ry, x2: cx - rx, y2: cy + ry * k, x: cx - rx, y: cy },
+    { type: "curveTo", x1: cx - rx, y1: cy - ry * k, x2: cx - rx * k, y2: cy - ry, x: cx, y: cy - ry },
+    { type: "curveTo", x1: cx + rx * k, y1: cy - ry, x2: cx + rx, y2: cy - ry * k, x: cx + rx, y: cy },
+    { type: "closePath" }
+  ];
 }
 
 function zeroRadius(): Radius {

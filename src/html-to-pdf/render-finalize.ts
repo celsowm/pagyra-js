@@ -2,7 +2,7 @@ import { FontEmbedder } from "../pdf/font/embedder.js";
 import { PdfDocument } from "../pdf/primitives/pdf-document.js";
 import type { FontConfig } from "../types/fonts.js";
 import type { HeaderFooterHTML } from "../pdf/types.js";
-import { applyPageVerticalMarginsWithHf, offsetRenderTree } from "../render/offset.js";
+import { applyBreakInsideAvoid, applyPageVerticalMarginsWithHf, offsetRenderTree } from "../render/offset.js";
 import { applyTextLayoutAdjustments } from "../pdf/utils/text-layout-adjuster.js";
 import { buildRenderTree } from "../pdf/layout-tree-builder.js";
 import type { PageMarginsPx } from "../units/page-utils.js";
@@ -32,6 +32,12 @@ export function finalizeRenderTreePositioning(options: FinalizeRenderTreePositio
 
   const headerHeightPx = resolvedHeaderFooter?.maxHeaderHeightPx ?? 0;
   const footerHeightPx = resolvedHeaderFooter?.maxFooterHeightPx ?? 0;
+
+  const usablePageHeight = pageHeight - marginsPx.top - marginsPx.bottom - headerHeightPx - footerHeightPx;
+  if (usablePageHeight > 0) {
+    applyBreakInsideAvoid(renderTree.root, usablePageHeight);
+  }
+
   applyPageVerticalMarginsWithHf(renderTree.root, {
     pageHeight,
     margins: marginsPx,

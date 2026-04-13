@@ -104,6 +104,7 @@ export interface StyleAccumulator {
   textShadows?: TextShadowInput[];
   transform?: string;
   clipPath?: ClipPath;
+  mask?: string;
   borderTop?: LengthInput;
   borderRight?: LengthInput;
   borderBottom?: LengthInput;
@@ -168,10 +169,13 @@ export interface StyleAccumulator {
   wordBreak?: WordBreak;
   trackListColumns?: TrackDefinitionInput[];
   trackListRows?: TrackDefinitionInput[];
+  overflowX?: string;
+  overflowY?: string;
   autoFlow?: GridAutoFlow;
   rowGap?: NumericLength | ClampNumericLength;
   columnGap?: NumericLength | ClampNumericLength;
   gridColumnSpan?: number;
+  breakInside?: string;
   zIndex?: number | "auto";
   top?: LengthInput;
   right?: LengthInput;
@@ -302,6 +306,7 @@ export class ComputedStyle implements StyleProperties {
   breakBefore: string;
   breakAfter: string;
   breakInside: string;
+  mask?: string;
   widows: number;
   orphans: number;
   opacity: number;
@@ -403,6 +408,8 @@ export class ComputedStyle implements StyleProperties {
     this.flexWrap = data.flexWrap;
     this.trackListColumns = data.trackListColumns;
     this.trackListRows = data.trackListRows;
+    this.overflowX = data.overflowX;
+    this.overflowY = data.overflowY;
     this.autoFlow = data.autoFlow;
     this.rowGap = data.rowGap;
     this.columnGap = data.columnGap;
@@ -412,6 +419,7 @@ export class ComputedStyle implements StyleProperties {
     this.breakBefore = data.breakBefore;
     this.breakAfter = data.breakAfter;
     this.breakInside = data.breakInside;
+    this.mask = data.mask;
     this.widows = data.widows;
     this.orphans = data.orphans;
     this.textIndent = data.textIndent;

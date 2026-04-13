@@ -42,7 +42,7 @@ describe("clip-path rendering", () => {
       },
       background: { color: { r: 0.2, g: 0.6, b: 0.9, a: 1 } },
       opacity: 1,
-      overflow: Overflow.Visible,
+      overflow: Overflow.Visible, overflowX: Overflow.Visible, overflowY: Overflow.Visible,
       textRuns: [],
       decorations: {},
       textShadows: [],
