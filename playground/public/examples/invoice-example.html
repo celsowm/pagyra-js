@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: Helvetica, Arial, sans-serif; color: #374151; font-size: 13px; line-height: 1.5; padding: 40px; }
+
+      .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
+      .logo-area { display: flex; align-items: center; gap: 12px; }
+      .logo-icon { width: 48px; height: 48px; background: #1e3a8a; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+      .logo-icon svg { width: 28px; height: 28px; }
+      .company-name { font-size: 22px; font-weight: 700; color: #1e3a8a; }
+      .invoice-title { font-size: 36px; font-weight: 800; color: #1e3a8a; letter-spacing: 2px; text-align: right; }
+
+      .meta-row { display: flex; justify-content: space-between; margin-bottom: 32px; }
+      .meta-col { flex: 1; }
+      .meta-col.right { text-align: right; }
+      .meta-label { font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+      .meta-value { font-size: 13px; color: #1f2937; }
+
+      .section-title { font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+      .client-name { font-size: 15px; font-weight: 600; color: #1f2937; }
+      .client-address { color: #4b5563; }
+
+      .items-table { width: 100%; border-collapse: collapse; margin-top: 24px; margin-bottom: 24px; }
+      .items-table thead th { background: #1e3a8a; color: #ffffff; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 16px; text-align: left; }
+      .items-table thead th.num { text-align: right; }
+      .items-table tbody td { padding: 14px 16px; border-bottom: 1px solid #e5e7eb; font-size: 13px; }
+      .items-table tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+      .items-table tbody tr:last-child td { border-bottom: none; }
+
+      .totals-wrapper { display: flex; justify-content: flex-end; margin-bottom: 32px; }
+      .totals-table { width: 260px; }
+      .totals-table .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
+      .totals-table .row.grand { border-top: 2px solid #1e3a8a; margin-top: 6px; padding-top: 10px; font-size: 16px; font-weight: 700; color: #1e3a8a; }
+
+      .footer-section { margin-top: 24px; padding-top: 16px; border-top: 1px solid #e5e7eb; }
+      .notes-title { font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 4px; }
+      .notes-text { font-size: 12px; color: #6b7280; }
+    </style>
+  </head>
+  <body>
+    <!-- Header -->
+    <div class="header">
+      <div class="logo-area">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" fill="#ffffff"/>
+          </svg>
+        </div>
+        <div class="company-name">Pagyra JS</div>
+      </div>
+      <div class="invoice-title">INVOICE</div>
+    </div>
+
+    <!-- Meta row: Company info + Invoice details -->
+    <div class="meta-row">
+      <div class="meta-col">
+        <div class="meta-label">From</div>
+        <div class="meta-value" style="font-weight:600;">Pagyra JS Inc.</div>
+        <div class="meta-value">123 Dev Street, Suite 400</div>
+        <div class="meta-value">San Francisco, CA 94102</div>
+        <div class="meta-value" style="margin-top:6px;">hello@pagyra.dev</div>
+        <div class="meta-value">+1 (555) 123-4567</div>
+      </div>
+      <div class="meta-col right">
+        <div style="margin-bottom:8px;">
+          <div class="meta-label">Invoice Number</div>
+          <div class="meta-value" style="font-weight:600;">#INV-2026-001</div>
+        </div>
+        <div style="margin-bottom:8px;">
+          <div class="meta-label">Date</div>
+          <div class="meta-value">April 14, 2026</div>
+        </div>
+        <div>
+          <div class="meta-label">Due Date</div>
+          <div class="meta-value">May 14, 2026</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bill To -->
+    <div style="margin-bottom:24px;">
+      <div class="section-title">Bill To</div>
+      <div class="client-name">Acme Corporation</div>
+      <div class="client-address">456 Business Ave, Floor 12</div>
+      <div class="client-address">New York, NY 10001</div>
+    </div>
+
+    <!-- Items Table -->
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th style="width:50%;">Description</th>
+          <th class="num">Qty</th>
+          <th class="num">Unit Price</th>
+          <th class="num">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>PDF Template Design</td>
+          <td class="num">3</td>
+          <td class="num">$850.00</td>
+          <td class="num">$2,550.00</td>
+        </tr>
+        <tr>
+          <td>API Integration &amp; Development</td>
+          <td class="num">5</td>
+          <td class="num">$1,200.00</td>
+          <td class="num">$6,000.00</td>
+        </tr>
+        <tr>
+          <td>Quality Assurance &amp; Testing</td>
+          <td class="num">2</td>
+          <td class="num">$600.00</td>
+          <td class="num">$1,200.00</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Totals -->
+    <div class="totals-wrapper">
+      <div class="totals-table">
+        <div class="row">
+          <span>Subtotal</span>
+          <span>$9,750.00</span>
+        </div>
+        <div class="row">
+          <span>Tax (10%)</span>
+          <span>$975.00</span>
+        </div>
+        <div class="row grand">
+          <span>Grand Total</span>
+          <span>$10,725.00</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer / Notes -->
+    <div class="footer-section">
+      <div class="notes-title">Notes</div>
+      <div class="notes-text">Payment is due within 30 days. Please include the invoice number in your payment reference. Thank you for your business!</div>
+    </div>
+  </body>
+</html>

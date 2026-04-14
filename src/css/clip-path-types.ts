@@ -10,4 +10,13 @@ export interface ClipPathPolygon {
   referenceBox?: ClipPathReferenceBox;
 }
 
-export type ClipPath = ClipPathPolygon;
+export interface ClipPathEllipse {
+  type: "ellipse";
+  rx: ClipPathLength;
+  ry: ClipPathLength;
+  cx: ClipPathLength;
+  cy: ClipPathLength;
+  referenceBox?: ClipPathReferenceBox;
+}
+
+export type ClipPath = ClipPathPolygon | ClipPathEllipse;

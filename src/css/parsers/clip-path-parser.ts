@@ -1,5 +1,5 @@
 import type { StyleAccumulator } from "../style.js";
-import type { ClipPath, ClipPathLength, ClipPathPolygon, ClipPathReferenceBox } from "../clip-path-types.js";
+import type { ClipPath, ClipPathLength, ClipPathEllipse, ClipPathPolygon, ClipPathReferenceBox } from "../clip-path-types.js";
 import { parseLengthOrPercent } from "./length-parser.js";
 
 // Parses clip-path values. Currently supports polygon() with px or % coordinates.
@@ -21,6 +21,10 @@ function parseClipPathValue(value: string): ClipPath | undefined {
   const polygon = parsePolygon(normalized);
   if (polygon) {
     return polygon;
+  }
+  const ellipse = parseEllipse(normalized);
+  if (ellipse) {
+    return ellipse;
   }
   return undefined;
 }
@@ -75,6 +79,57 @@ function splitEvenTokens(tokens: string[]): string[] {
     result.push(`${a} ${b}`);
   }
   return result;
+}
+
+function parseEllipse(input: string): ClipPathEllipse | undefined {
+  const match = /^ellipse\s*\((.+)\)$/i.exec(input);
+  if (!match) {
+    return undefined;
+  }
+  const body = match[1].trim();
+
+  // ellipse(rx ry at cx cy)
+  const atMatch = /^(.+?)\s+at\s+(.+)$/i.exec(body);
+  let rxToken: string;
+  let ryToken: string;
+  let cxToken = "50%";
+  let cyToken = "50%";
+
+  if (atMatch) {
+    const radii = atMatch[1].trim().split(/\s+/).filter(Boolean);
+    const center = atMatch[2].trim().split(/\s+/).filter(Boolean);
+    if (radii.length < 2 || center.length < 2) {
+      return undefined;
+    }
+    rxToken = radii[0];
+    ryToken = radii[1];
+    cxToken = center[0];
+    cyToken = center[1];
+  } else {
+    const tokens = body.split(/\s+/).filter(Boolean);
+    if (tokens.length < 2) {
+      return undefined;
+    }
+    rxToken = tokens[0];
+    ryToken = tokens[1];
+  }
+
+  const rx = parseClipLength(rxToken);
+  const ry = parseClipLength(ryToken);
+  const cx = parseClipLength(cxToken);
+  const cy = parseClipLength(cyToken);
+  if (!rx || !ry || !cx || !cy) {
+    return undefined;
+  }
+
+  return {
+    type: "ellipse",
+    rx,
+    ry,
+    cx,
+    cy,
+    referenceBox: "border-box",
+  };
 }
 
 function parseClipLength(token: string): ClipPathLength | undefined {

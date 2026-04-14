@@ -76,6 +76,7 @@ describe("clip-path rendering", () => {
     const clipPath = div!.clipPath;
     expect(clipPath).toBeDefined();
     expect(clipPath?.type).toBe("polygon");
+    if (clipPath!.type !== "polygon") return;
     const points = clipPath!.points;
     expect(points).toHaveLength(3);
     const [a, b, c] = points;

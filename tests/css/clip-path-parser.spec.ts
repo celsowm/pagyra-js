@@ -17,11 +17,13 @@ describe("clip-path parser", () => {
 
     expect(target.clipPath).toBeDefined();
     expect(target.clipPath?.type).toBe("polygon");
-    const points = target.clipPath?.points;
-    expect(points).toBeDefined();
-    expect(points?.length).toBe(3);
-    expect(points?.[0].x.unit).toBe("percent");
-    expect(points?.[1].y.unit).toBe("percent");
+    const clip = target.clipPath!;
+    expect(clip.type).toBe("polygon");
+    if (clip.type !== "polygon") return;
+    expect(clip.points).toBeDefined();
+    expect(clip.points.length).toBe(3);
+    expect(clip.points[0].x.unit).toBe("percent");
+    expect(clip.points[1].y.unit).toBe("percent");
   });
 
   it("parses polygon clip-path with px units", () => {
@@ -29,8 +31,9 @@ describe("clip-path parser", () => {
     parseClipPath("polygon(0px 0px, 100px 0px, 0px 100px)", target);
 
     expect(target.clipPath).toBeDefined();
-    expect(target.clipPath?.points[2].y.unit).toBe("px");
-    expect(target.clipPath?.points[2].y.value).toBe(100);
+    if (target.clipPath?.type !== "polygon") return;
+    expect(target.clipPath.points[2].y.unit).toBe("px");
+    expect(target.clipPath.points[2].y.value).toBe(100);
   });
 
   it("ignores unsupported clip-path values", () => {
@@ -74,6 +77,7 @@ describe("clip-path parser", () => {
 
     expect(style.clipPath).toBeDefined();
     expect(style.clipPath?.type).toBe("polygon");
-    expect(style.clipPath?.points).toHaveLength(3);
+    if (style.clipPath?.type !== "polygon") return;
+    expect(style.clipPath.points).toHaveLength(3);
   });
 });

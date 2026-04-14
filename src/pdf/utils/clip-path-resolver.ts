@@ -5,7 +5,7 @@ import type { ClipPath as CssClipPath, ClipPathLength, ClipPathReferenceBox } fr
 
 export function resolveClipPath(node: LayoutNode, boxes: BackgroundBoxes): ClipPath | undefined {
   const clip = node.style.clipPath as CssClipPath | undefined;
-  if (!clip || clip.type !== "polygon" || !clip.points.length) {
+  if (!clip) {
     return undefined;
   }
 
@@ -14,20 +14,40 @@ export function resolveClipPath(node: LayoutNode, boxes: BackgroundBoxes): ClipP
     return undefined;
   }
 
-  const points = clip.points.map((point) => {
-    const x = resolveClipLength(point.x, referenceRect.width);
-    const y = resolveClipLength(point.y, referenceRect.height);
-    return {
-      x: referenceRect.x + x,
-      y: referenceRect.y + y,
-    };
-  });
+  if (clip.type === "polygon") {
+    if (!clip.points.length) {
+      return undefined;
+    }
+    const points = clip.points.map((point) => {
+      const x = resolveClipLength(point.x, referenceRect.width);
+      const y = resolveClipLength(point.y, referenceRect.height);
+      return {
+        x: referenceRect.x + x,
+        y: referenceRect.y + y,
+      };
+    });
 
-  if (points.some((p) => !Number.isFinite(p.x) || !Number.isFinite(p.y))) {
-    return undefined;
+    if (points.some((p) => !Number.isFinite(p.x) || !Number.isFinite(p.y))) {
+      return undefined;
+    }
+
+    return { type: "polygon", points };
   }
 
-  return { type: "polygon", points };
+  if (clip.type === "ellipse") {
+    const rx = resolveClipLength(clip.rx, referenceRect.width);
+    const ry = resolveClipLength(clip.ry, referenceRect.height);
+    const cx = referenceRect.x + resolveClipLength(clip.cx, referenceRect.width);
+    const cy = referenceRect.y + resolveClipLength(clip.cy, referenceRect.height);
+
+    if (!Number.isFinite(rx) || !Number.isFinite(ry) || !Number.isFinite(cx) || !Number.isFinite(cy)) {
+      return undefined;
+    }
+
+    return { type: "ellipse", cx, cy, rx, ry };
+  }
+
+  return undefined;
 }
 
 function selectReferenceRect(box: ClipPathReferenceBox | undefined, boxes: BackgroundBoxes): Rect {

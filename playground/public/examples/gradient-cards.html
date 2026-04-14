@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: Georgia, "Times New Roman", serif;
+        color: #000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 24px;
+        padding: 60px 40px;
+        background: #ffffff;
+      }
+
+      .card {
+        width: 240px;
+        min-height: 280px;
+        border-radius: 24px;
+        border: 1px solid #e0e0e0;
+        background: linear-gradient(to bottom, #f3f0ff, #ffffff);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        padding: 28px 24px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .card h2 {
+        font-size: 18px;
+        font-weight: 700;
+        text-align: center;
+        margin-bottom: 20px;
+        line-height: 1.3;
+      }
+
+      /* Card 1 – Glow & Clip */
+      .leaf-shape {
+        width: 120px;
+        height: 100px;
+        background: linear-gradient(to right, #00d2ff, #3a7bd5);
+        clip-path: ellipse(50% 40% at 50% 50%);
+        margin: auto 0;
+      }
+
+      /* Card 2 – Mask */
+      .mask-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin: auto 0;
+      }
+      .mask-pill {
+        width: 48px;
+        height: 100px;
+        border-radius: 24px;
+        background: linear-gradient(to bottom, #ffafbd, #a8d8ea);
+      }
+      .mask-text {
+        font-size: 14px;
+        line-height: 1.5;
+        flex: 1;
+      }
+
+      /* Card 3 – Gradient Text */
+      .gradient-text {
+        font-size: 32px;
+        font-weight: 700;
+        background: linear-gradient(to right, #2c3e50, #4ca1af);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        color: transparent;
+        margin: auto 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Card 1: Glow & Clip -->
+    <div class="card">
+      <h2>Glow &amp; Clip</h2>
+      <div class="leaf-shape"></div>
+    </div>
+
+    <!-- Card 2: Mask -->
+    <div class="card">
+      <h2>Mask</h2>
+      <div class="mask-row">
+        <div class="mask-pill"></div>
+        <div class="mask-text">Máscara via <em>radial-gradient</em>.</div>
+      </div>
+    </div>
+
+    <!-- Card 3: Texto com Gradiente -->
+    <div class="card">
+      <h2>Texto com<br>Gradiente</h2>
+      <div class="gradient-text">Gradient<br>Text</div>
+    </div>
+  </body>
+</html>

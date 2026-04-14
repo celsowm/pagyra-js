@@ -7,6 +7,12 @@
     "cssUrl": "examples/starter-report.css"
   },
   {
+    "id": "invoice-example",
+    "label": "Professional Invoice",
+    "group": "Documents",
+    "htmlUrl": "examples/invoice-example.html"
+  },
+  {
     "id": "monthly-summary",
     "label": "Relatório Básico (pt-BR)",
     "group": "Documents",
@@ -221,6 +227,12 @@
     "label": "Background Clip Text Gradient",
     "group": "Backgrounds",
     "htmlUrl": "examples/background-clip-text.html"
+  },
+  {
+    "id": "gradient-cards",
+    "label": "Gradient Cards (Clip, Mask, Text)",
+    "group": "CSS Features",
+    "htmlUrl": "examples/gradient-cards.html"
   },
   {
     "id": "image-showcase",

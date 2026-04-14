@@ -10,6 +10,19 @@ export function offsetRect(rect: Rect | null | undefined, dx: number, dy: number
   rect.y += dy;
 }
 
+function offsetClipPath(box: RenderBox, dx: number, dy: number): void {
+  if (!box.clipPath) return;
+  if (box.clipPath.type === "polygon") {
+    for (const point of box.clipPath.points) {
+      point.x += dx;
+      point.y += dy;
+    }
+  } else if (box.clipPath.type === "ellipse") {
+    box.clipPath.cx += dx;
+    box.clipPath.cy += dy;
+  }
+}
+
 function offsetBackground(background: Background | undefined, dx: number, dy: number): void {
   if (!background) {
     return;
@@ -40,12 +53,7 @@ export function offsetRenderTree(root: RenderBox, dx: number, dy: number, _debug
     offsetRect(box.paddingBox, dx, dy);
     offsetRect(box.borderBox, dx, dy);
     offsetRect(box.visualOverflow, dx, dy);
-    if (box.clipPath && box.clipPath.points) {
-      for (const point of box.clipPath.points) {
-        point.x += dx;
-        point.y += dy;
-      }
-    }
+    offsetClipPath(box, dx, dy);
     if (box.markerRect) {
       offsetRect(box.markerRect, dx, dy);
     }
@@ -127,12 +135,7 @@ export function applyBreakInsideAvoid(root: RenderBox, usablePageHeight: number)
     offsetRect(box.paddingBox, dx, dy);
     offsetRect(box.borderBox, dx, dy);
     offsetRect(box.visualOverflow, dx, dy);
-    if (box.clipPath && box.clipPath.points) {
-      for (const point of box.clipPath.points) {
-        point.x += dx;
-        point.y += dy;
-      }
-    }
+    offsetClipPath(box, dx, dy);
     if (box.markerRect) {
       offsetRect(box.markerRect, dx, dy);
     }
@@ -225,9 +228,13 @@ export function applyPageVerticalMarginsWithHf(
     adjustRect(box.paddingBox);
     adjustRect(box.borderBox);
     adjustRect(box.visualOverflow);
-    if (box.clipPath && box.clipPath.points) {
-      for (const point of box.clipPath.points) {
-        point.y = mapY(point.y);
+    if (box.clipPath) {
+      if (box.clipPath.type === "polygon") {
+        for (const point of box.clipPath.points) {
+          point.y = mapY(point.y);
+        }
+      } else if (box.clipPath.type === "ellipse") {
+        box.clipPath.cy = mapY(box.clipPath.cy);
       }
     }
     if (box.markerRect) {

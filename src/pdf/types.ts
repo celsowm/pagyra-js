@@ -58,10 +58,20 @@ export interface Radius {
   bottomLeft: CornerRadius;
 }
 
-export interface ClipPath {
+export interface ClipPathPolygon {
   type: "polygon";
   points: ShapePoint[];
 }
+
+export interface ClipPathEllipse {
+  type: "ellipse";
+  cx: number;
+  cy: number;
+  rx: number;
+  ry: number;
+}
+
+export type ClipPath = ClipPathPolygon | ClipPathEllipse;
 
 export interface BackgroundImage {
   image: ImageRef;

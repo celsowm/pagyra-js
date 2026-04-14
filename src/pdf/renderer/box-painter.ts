@@ -307,16 +307,40 @@ function zeroRadius(): Radius {
 }
 
 function buildClipPathCommands(clipPath: RenderBox["clipPath"]): PathCommand[] | null {
-  if (!clipPath || clipPath.type !== "polygon" || clipPath.points.length < 3) {
+  if (!clipPath) {
     return null;
   }
-  const [first, ...rest] = clipPath.points;
-  const commands: PathCommand[] = [{ type: "moveTo", x: first.x, y: first.y }];
-  for (const point of rest) {
-    commands.push({ type: "lineTo", x: point.x, y: point.y });
+
+  if (clipPath.type === "polygon") {
+    if (clipPath.points.length < 3) {
+      return null;
+    }
+    const [first, ...rest] = clipPath.points;
+    const commands: PathCommand[] = [{ type: "moveTo", x: first.x, y: first.y }];
+    for (const point of rest) {
+      commands.push({ type: "lineTo", x: point.x, y: point.y });
+    }
+    commands.push({ type: "closePath" });
+    return commands;
   }
-  commands.push({ type: "closePath" });
-  return commands;
+
+  if (clipPath.type === "ellipse") {
+    return buildEllipseClipPath(clipPath.cx, clipPath.cy, clipPath.rx, clipPath.ry);
+  }
+
+  return null;
+}
+
+function buildEllipseClipPath(cx: number, cy: number, rx: number, ry: number): PathCommand[] {
+  const k = 0.5522847498307936;
+  return [
+    { type: "moveTo", x: cx + rx, y: cy },
+    { type: "curveTo", x1: cx + rx, y1: cy + ry * k, x2: cx + rx * k, y2: cy + ry, x: cx, y: cy + ry },
+    { type: "curveTo", x1: cx - rx * k, y1: cy + ry, x2: cx - rx, y2: cy + ry * k, x: cx - rx, y: cy },
+    { type: "curveTo", x1: cx - rx, y1: cy - ry * k, x2: cx - rx * k, y2: cy - ry, x: cx, y: cy - ry },
+    { type: "curveTo", x1: cx + rx * k, y1: cy - ry, x2: cx + rx, y2: cy - ry * k, x: cx + rx, y: cy },
+    { type: "closePath" },
+  ];
 }
 
 function paintDropShadows(painter: PagePainter, box: RenderBox, shadows: import("../types.js").ShadowLayer[]): void {
