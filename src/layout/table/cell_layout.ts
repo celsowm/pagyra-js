@@ -6,6 +6,21 @@ export function layoutTableCell(td: LayoutNode): void {
   const availableWidth = Math.max(0, td.box.contentWidth);
 
   td.walk((node) => {
+    // Replaced elements (img, svg) have intrinsic dimensions set during DOM conversion.
+    // ImageLayoutStrategy.layout() is never called for table cell children, so we derive
+    // box dimensions directly from the intrinsic size, scaling down if wider than the cell.
+    if (node.intrinsicBlockSize !== undefined && node.intrinsicInlineSize !== undefined) {
+      const iw = node.intrinsicInlineSize;
+      const ih = node.intrinsicBlockSize;
+      const w = availableWidth > 0 && iw > availableWidth ? availableWidth : iw;
+      const scale = iw > 0 ? w / iw : 1;
+      node.box.contentWidth = w;
+      node.box.contentHeight = Math.max(1, Math.round(ih * scale));
+      node.box.borderBoxWidth = node.box.contentWidth;
+      node.box.borderBoxHeight = node.box.contentHeight;
+      return;
+    }
+
     if (!node.textContent) {
       return;
     }
