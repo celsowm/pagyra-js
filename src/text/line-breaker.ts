@@ -134,6 +134,38 @@ function enforceOverflowWrap(
   return adjusted.length ? adjusted : items;
 }
 
+// Splits any word wider than the available width, regardless of the overflow-wrap mode.
+// Unlike enforceOverflowWrap (which only acts for break-word/anywhere), this is a safety net to
+// keep an over-long, otherwise-unbreakable token (e.g. a long URL) from running off the page.
+function enforceEmergencyBreak(
+  items: TextItem[],
+  style: ComputedStyle,
+  availableWidth: number
+): TextItem[] {
+  if (!(availableWidth > 0)) {
+    return items;
+  }
+  let needsBreak = false;
+  for (const item of items) {
+    if (item.type === "word" && item.width > availableWidth) {
+      needsBreak = true;
+      break;
+    }
+  }
+  if (!needsBreak) {
+    return items;
+  }
+  const adjusted: TextItem[] = [];
+  for (const item of items) {
+    if (item.type === "word" && item.width > availableWidth) {
+      adjusted.push(...splitWordItem(item, style, availableWidth));
+    } else {
+      adjusted.push(item);
+    }
+  }
+  return adjusted.length ? adjusted : items;
+}
+
 function countJustifiableSpaces(items: TextItem[]): number {
   let count = 0;
   for (let index = 0; index < items.length; index++) {
@@ -214,6 +246,9 @@ export function breakTextIntoLines(
   const rawItems = segmentText(effectiveText);
   let items = measureItems(rawItems, style, fontEmbedder);
   items = enforceOverflowWrap(items, style, availableWidth, style.overflowWrap);
+  // Last-resort break: a single word wider than the whole line would otherwise overflow off the
+  // page (lost content in a fixed-size PDF). Break it to fit even when overflow-wrap is `normal`.
+  items = enforceEmergencyBreak(items, style, availableWidth);
   const n = items.length;
   if (n === 0) return [];
   const trimEdges = shouldTrimLineEdges(style);

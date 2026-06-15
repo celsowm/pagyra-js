@@ -20,6 +20,7 @@ export interface NodeVisitor {
 
 export interface LayoutNodeOptions {
   intrinsicInlineSize?: number;
+  minIntrinsicInlineSize?: number;
   intrinsicBlockSize?: number;
   textContent?: string;
   tagName?: string;
@@ -43,6 +44,7 @@ export class LayoutNode {
   establishesTFC = false;
 
   intrinsicInlineSize?: number;
+  minIntrinsicInlineSize?: number;
   intrinsicBlockSize?: number;
   textContent?: string;
   tagName?: string;
@@ -62,6 +64,7 @@ export class LayoutNode {
 
   constructor(public readonly style: ComputedStyle, children: Iterable<LayoutNode> = [], options?: LayoutNodeOptions) {
     this.intrinsicInlineSize = options?.intrinsicInlineSize;
+    this.minIntrinsicInlineSize = options?.minIntrinsicInlineSize;
     this.intrinsicBlockSize = options?.intrinsicBlockSize;
     this.textContent = options?.textContent;
     this.tagName = options?.tagName;

@@ -58,11 +58,13 @@ export function assignIntrinsicTextMetrics(root: LayoutNode, fontEmbedder: FontE
     const trimmed = node.textContent;
     if (trimmed.length === 0) {
       node.intrinsicInlineSize = 0;
+      node.minIntrinsicInlineSize = 0;
       node.intrinsicBlockSize = resolvedLineHeight(node.style);
       return;
     }
-    const { inlineSize, blockSize } = measureText(trimmed, node.style, fontEmbedder);
+    const { inlineSize, minInlineSize, blockSize } = measureText(trimmed, node.style, fontEmbedder);
     node.intrinsicInlineSize = inlineSize;
+    node.minIntrinsicInlineSize = minInlineSize;
     node.intrinsicBlockSize = blockSize;
   });
 }
@@ -71,26 +73,33 @@ function measureText(
   text: string,
   style: ComputedStyle,
   fontEmbedder: FontEmbedder | null
-): { inlineSize: number; blockSize: number } {
+): { inlineSize: number; minInlineSize: number; blockSize: number } {
   const effectiveText = applyTextTransform(text, style.textTransform);
   const lines = effectiveText.split(/\r?\n/);
   let maxLineWidth = 0;
+  // min-content width = widest unbreakable word (longest run with no whitespace).
+  // Columns may shrink down to this without forcing a single word to overflow.
+  let maxWordWidth = 0;
 
   const fontWeight = typeof style.fontWeight === "number" ? style.fontWeight : 400;
   const fontStyle = style.fontStyle ?? "normal";
   const fontMetrics = fontEmbedder?.getMetrics(style.fontFamily ?? "", fontWeight, fontStyle);
 
+  const measureSegment = (segment: string): number => {
+    const glyphWidth = measureTextWithGlyphs(segment, style, fontMetrics ?? null);
+    return glyphWidth !== null ? glyphWidth : estimateLineWidth(segment, style);
+  };
+
   for (const line of lines) {
-    const glyphWidth = measureTextWithGlyphs(line, style, fontMetrics ?? null);
-    if (glyphWidth !== null) {
-      maxLineWidth = Math.max(maxLineWidth, glyphWidth);
-    } else {
-      maxLineWidth = Math.max(maxLineWidth, estimateLineWidth(line, style));
+    maxLineWidth = Math.max(maxLineWidth, measureSegment(line));
+    for (const word of line.split(/\s+/)) {
+      if (word.length === 0) continue;
+      maxWordWidth = Math.max(maxWordWidth, measureSegment(word));
     }
   }
   const lineHeight = resolvedLineHeight(style);
   const blockSize = Math.max(lineHeight, lines.length * lineHeight);
-  return { inlineSize: maxLineWidth, blockSize };
+  return { inlineSize: maxLineWidth, minInlineSize: maxWordWidth, blockSize };
 }
 
 export function estimateLineWidth(line: string, style: ComputedStyle): number {

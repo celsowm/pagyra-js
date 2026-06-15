@@ -4,7 +4,6 @@ import { log } from "../../logging/debug.js";
 import { resolveLength } from "../../css/length.js";
 import { adjustForBoxSizing, containingBlock, horizontalNonContent, resolveWidthBlock, verticalNonContent } from "../utils/node-math.js";
 import type { LayoutContext, LayoutStrategy } from "../pipeline/strategy.js";
-import { layoutTableCell } from "../table/cell_layout.js";
 import { auditTableCell, debugTableCell } from "../table/diagnostics.js";
 import type { LengthLike } from "../../css/length.js";
 
@@ -235,7 +234,16 @@ export class TableLayoutStrategy implements LayoutStrategy {
         cell.box.contentWidth = cellAvailableWidth;
 
         debugTableCell(cell);
-        layoutTableCell(cell);
+        // Lay the cell out through the normal engine (BlockLayoutStrategy handles table-cell):
+        // this runs a real inline formatting context so mixed inline content (text + <b> + <a>)
+        // wraps and is positioned, and replaced content (<img>) gets sized by ImageLayoutStrategy.
+        // The cell resolves its content width from its containing block (the row), so temporarily
+        // set the row's content width to the cell's spanned column width while laying it out.
+        const row = cell.parent;
+        const savedRowWidth = row?.box.contentWidth;
+        if (row) row.box.contentWidth = spannedWidth;
+        context.layoutChild(cell);
+        if (row && savedRowWidth !== undefined) row.box.contentWidth = savedRowWidth;
         if (cell.textContent?.includes("Row 3, Cell 3")) auditTableCell(cell);
 
         if (cell.style.textAlign || cell.style.verticalAlign) {
@@ -302,25 +310,34 @@ export class TableLayoutStrategy implements LayoutStrategy {
           // The cell's border box starts at colOffsets[c], NOT at the content position
           const borderBoxX = node.box.x + colOffsets[c];
           const borderBoxY = node.box.y + rowOffsets[r];
-          
-          // Content position is inside border and padding
-          const contentX = borderBoxX + boxMetrics.borderLeft + boxMetrics.paddingLeft;
-          const contentY = borderBoxY + boxMetrics.borderTop + boxMetrics.paddingTop;
 
-          // Calculate the offset from the cell's position during layout (which was 0,0)
-          const deltaX = contentX - cell.box.x;
-          const deltaY = contentY - cell.box.y;
+          // The cell was laid out by BlockLayoutStrategy with its border-box origin at (0,0),
+          // which already offsets its content by the cell's own border + padding. So the shift
+          // applied to descendants is the border-box delta (NOT the content delta), otherwise
+          // the cell's padding/border would be counted twice.
+          const deltaX = borderBoxX - cell.box.x;
+          const deltaY = borderBoxY - cell.box.y;
 
           // Set cell position to border box position (not content position)
           cell.box.x = borderBoxX;
           cell.box.y = borderBoxY;
 
-          // Apply the content offset to all of the cell's descendants, plus any vertical-align offset
+          // Apply the border-box offset to all of the cell's descendants, plus any vertical-align
+          // offset. Inline runs produced by the inline formatter carry their own baked-in
+          // coordinates (startX/baseline), so they must be shifted too — otherwise wrapped cell
+          // text stays at its (0,0) layout origin while images (positioned via box) move correctly.
+          const shiftY = deltaY + alignOffsetY;
           cell.walk((descendant) => {
             descendant.box.x += deltaX;
-            descendant.box.y += deltaY + alignOffsetY;
+            descendant.box.y += shiftY;
             if (descendant.box.baseline !== undefined) {
-              descendant.box.baseline += deltaY + alignOffsetY;
+              descendant.box.baseline += shiftY;
+            }
+            if (descendant.inlineRuns) {
+              for (const run of descendant.inlineRuns) {
+                run.startX += deltaX;
+                run.baseline += shiftY;
+              }
             }
           }, false);
 
@@ -455,57 +472,86 @@ export class TableLayoutStrategy implements LayoutStrategy {
     const numCols = grid[0]?.length || 0;
     if (numCols === 0) return [];
 
-    const minContentWidths = new Array(numCols).fill(0);
+    // Per-column min-content (longest unbreakable word) and max-content (preferred,
+    // whole text on one line) widths, following the CSS auto table layout model.
+    const minWidths = new Array(numCols).fill(0);
+    const maxWidths = new Array(numCols).fill(0);
 
     for (let r = 0; r < grid.length; r++) {
       for (let c = 0; c < numCols; c++) {
         const cell = grid[r][c];
         if (!cell || !this.isOriginCell(cell, r, c)) continue;
 
-        let maxIntrinsicWidth = 0;
-        if (cell.intrinsicInlineSize) {
-          maxIntrinsicWidth = cell.intrinsicInlineSize;
-        }
+        let cellMinContent = cell.minIntrinsicInlineSize ?? cell.intrinsicInlineSize ?? 0;
+        let cellMaxContent = cell.intrinsicInlineSize ?? 0;
         cell.walk((node) => {
-          if (node.intrinsicInlineSize !== undefined) {
-            maxIntrinsicWidth = Math.max(maxIntrinsicWidth, node.intrinsicInlineSize);
+          const nodeMax = node.intrinsicInlineSize;
+          if (nodeMax !== undefined) {
+            cellMaxContent = Math.max(cellMaxContent, nodeMax);
+            // Images and other replaced content do not record a min-content width;
+            // they cannot wrap, so their max-content doubles as the min-content.
+            const nodeMin = node.minIntrinsicInlineSize ?? nodeMax;
+            cellMinContent = Math.max(cellMinContent, nodeMin);
           }
         });
 
         const horizontalExtras = horizontalNonContent(cell, tableWidth);
-        const cellMinWidth = maxIntrinsicWidth + horizontalExtras;
+        const cellMin = cellMinContent + horizontalExtras;
+        const cellMax = cellMaxContent + horizontalExtras;
         const colSpan = Math.min(this.cellColSpan(cell), numCols - c);
 
         if (colSpan === 1) {
-          minContentWidths[c] = Math.max(minContentWidths[c], cellMinWidth);
+          minWidths[c] = Math.max(minWidths[c], cellMin);
+          maxWidths[c] = Math.max(maxWidths[c], cellMax);
         } else {
-          const share = cellMinWidth / colSpan;
+          const minShare = cellMin / colSpan;
+          const maxShare = cellMax / colSpan;
           for (let offset = 0; offset < colSpan; offset++) {
-            minContentWidths[c + offset] = Math.max(minContentWidths[c + offset], share);
+            minWidths[c + offset] = Math.max(minWidths[c + offset], minShare);
+            maxWidths[c + offset] = Math.max(maxWidths[c + offset], maxShare);
           }
         }
       }
     }
 
-    const totalMinWidth = minContentWidths.reduce((a, b) => a + b, 0);
+    const totalMin = minWidths.reduce((a, b) => a + b, 0);
+    const totalMax = maxWidths.reduce((a, b) => a + b, 0);
 
-    if (totalMinWidth < tableWidth) {
-      const remainingWidth = tableWidth - totalMinWidth;
-      const weights = minContentWidths.map((w) => (w > 0 ? w : totalMinWidth > 0 ? 0 : 1));
-      const totalWeight = weights.reduce((a, b) => a + b, 0);
-
-      if (totalWeight > 0) {
-        return minContentWidths.map((minWidth, i) => {
-          return minWidth + remainingWidth * (weights[i] / totalWeight);
-        });
-      } else {
+    // Preferred widths fit: lay out at max-content and distribute any slack.
+    if (totalMax <= tableWidth) {
+      if (totalMax <= 0) {
         return new Array(numCols).fill(tableWidth / numCols);
       }
-    } else if (totalMinWidth > 0) {
-      return minContentWidths;
-    } else {
+      const remaining = tableWidth - totalMax;
+      const weights = maxWidths.map((w) => (w > 0 ? w : 0));
+      const totalWeight = weights.reduce((a, b) => a + b, 0);
+      if (totalWeight > 0) {
+        return maxWidths.map((w, i) => w + remaining * (weights[i] / totalWeight));
+      }
       return new Array(numCols).fill(tableWidth / numCols);
     }
+
+    // Preferred widths overflow but min-content fits: start at min-content and grow each
+    // column toward its preferred width by a shared fraction of the leftover space. This lets
+    // wide text columns shrink and wrap while fixed/replaced columns keep their natural width.
+    if (totalMin <= tableWidth) {
+      const growthRoom = totalMax - totalMin;
+      const available = tableWidth - totalMin;
+      if (growthRoom <= 0) {
+        return minWidths;
+      }
+      const fraction = available / growthRoom;
+      return minWidths.map((min, i) => min + (maxWidths[i] - min) * fraction);
+    }
+
+    // Even min-content overflows (e.g. an unbreakable URL wider than the page). Scale the columns
+    // down proportionally so the table still fits the page; the line-breaker's emergency break then
+    // wraps the over-long token inside its column instead of letting it run off the page.
+    if (totalMin > 0) {
+      const scale = tableWidth / totalMin;
+      return minWidths.map((w) => w * scale);
+    }
+    return new Array(numCols).fill(tableWidth / numCols);
   }
 
   private isOriginCell(cell: LayoutNode, row: number, col: number): boolean {
