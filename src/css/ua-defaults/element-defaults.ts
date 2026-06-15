@@ -117,6 +117,20 @@ class ElementSpecificDefaultsImpl {
       color: TypographyDefaults.getColor(),
     },
 
+    // Horizontal rule — UA default renders a thin line via its border. Without this,
+    // an <hr> with no explicit border (relying on browser defaults) is invisible.
+    hr: {
+      display: Display.Block,
+      marginTop: relativeLength("em", 0.5),
+      marginBottom: relativeLength("em", 0.5),
+      borderTop: 1,
+      borderColor: "#a0a0a0",
+      fontSize: relativeLength("em", 1),
+      lineHeight: createNormalLineHeight(),
+      fontFamily: TypographyDefaults.getFontFamily(),
+      color: TypographyDefaults.getColor(),
+    },
+
     // Lists
     ul: {
       display: Display.Block,
