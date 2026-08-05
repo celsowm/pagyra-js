@@ -9,25 +9,14 @@ export function needsUnicode(text: string): boolean {
   return false;
 }
 
-// Extend Intl type for Segmenter
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace Intl {
-    class Segmenter {
-      constructor(locales?: string | string[], options?: Record<string, unknown>);
-      segment(input: string): Iterable<{ segment: string }>;
-    }
-  }
-}
-
 export function normalizeAndSegment(text: string): string[] {
   const normalized = text.normalize("NFC");
-  // Fallback for environments without Intl.Segmenter
-  if (typeof Intl !== "undefined" && Intl.Segmenter) {
-    const seg = new Intl.Segmenter("pt", { granularity: "grapheme" });
-    return [...seg.segment(normalized)].map(s => s.segment);
-  } else {
-    // Simple grapheme splitting by character (not perfect but better than nothing)
-    return Array.from(normalized);
+
+  if (typeof Intl !== "undefined" && typeof Intl.Segmenter === "function") {
+    const segmenter = new Intl.Segmenter("pt", { granularity: "grapheme" });
+    return [...segmenter.segment(normalized)].map(({ segment }) => segment);
   }
+
+  // Simple grapheme splitting by character for runtimes without Intl.Segmenter.
+  return Array.from(normalized);
 }
