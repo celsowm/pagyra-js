@@ -1,13 +1,11 @@
-import type { ComputedStyle } from "./style.js";
+import type { ComputedStyle, Visibility } from "./style.js";
 import type { LineHeightValue } from "./line-height.js";
 import type { OverflowWrap, WordBreak, TextTransform } from "./properties/typography.js";
 import { cloneLineHeight } from "./line-height.js";
 import type { LengthLike } from "./length.js";
 import type { StyleDefaults } from "./ua-defaults/types.js";
 
-/**
- * Inherited CSS properties passed from parent to child
- */
+/** Inherited CSS properties passed from parent to child. */
 export interface InheritedStyleProperties {
     color?: string;
     fontSize: number;
@@ -25,18 +23,12 @@ export interface InheritedStyleProperties {
     textIndent: LengthLike;
     textTransform: TextTransform;
     listStyleType: string;
+    visibility: Visibility;
     widows: number;
     orphans: number;
 }
 
-/**
- * Style inheritance resolver
- * Responsibility: Determine which CSS properties inherit from parent
- */
 export class StyleInheritanceResolver {
-    /**
-     * Resolve inherited properties from parent style
-     */
     static resolveInheritedProperties(
         parentStyle: ComputedStyle,
         mergedDefaults: StyleDefaults
@@ -58,6 +50,7 @@ export class StyleInheritanceResolver {
             textIndent: parentStyle.textIndent ?? mergedDefaults.textIndent ?? 0,
             textTransform: parentStyle.textTransform ?? mergedDefaults.textTransform ?? "none",
             listStyleType: parentStyle.listStyleType ?? mergedDefaults.listStyleType ?? "disc",
+            visibility: parentStyle.visibility ?? mergedDefaults.visibility ?? "visible",
             widows: parentStyle.widows ?? mergedDefaults.widows ?? 2,
             orphans: parentStyle.orphans ?? mergedDefaults.orphans ?? 2,
         };
