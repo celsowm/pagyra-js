@@ -2,10 +2,6 @@ import type { Simple, AttrCond, Pseudo, Combinator } from "./types.js";
 import { parseSelector } from "./parser.js";
 import { simpleKey } from "./simple-key.js";
 
-/**
- * Minimal DOM-like interface for selector matching
- * Compatible with both native DOM Element and custom DomElement implementations
- */
 export interface DomLikeElement {
   readonly tagName: string;
   readonly id?: string;
@@ -22,219 +18,276 @@ export interface DomLikeElement {
   querySelectorAll?(selectors: string): DomLikeElement[] | NodeListOf<Element>;
 }
 
-/**
- * Cria um predicado (el)=>boolean que testa o seletor.
- * - Avaliação right-to-left
- * - Suporte a combinadores: ', '>', '+', '~'
- * - Suporte a tag/#id/.classe/[attr]/:first/last/nth-child/:not(simple)
- * - Memoização por nó para matches de "Simple"
- */
+/** Creates a right-to-left matcher for the supported CSS selector subset. */
 export function createSelectorMatcher(selector: string): ((el: DomLikeElement) => boolean) | null {
   const chain = parseSelector(selector);
-  if (!chain) return null;
-
-  // Cache: (el) -> (simpleKey -> boolean)
-  type MatchCache = WeakMap<DomLikeElement, Map<string, boolean>>;
-  const cache: MatchCache = new WeakMap();
-
-  function memo(el: DomLikeElement, s: Simple, raw: (e: DomLikeElement, s: Simple) => boolean): boolean {
-    let m = cache.get(el);
-    if (!m) { m = new Map(); cache.set(el, m); }
-    const k = simpleKey(s);
-    if (m.has(k)) return m.get(k)!;
-    const ok = raw(el, s);
-    m.set(k, ok);
-    return ok;
-  }
-
-  // Helpers DOM (assumem DOM-like API; adapte se teu DOM for custom)
-  function getAttr(el: DomLikeElement, name: string): string | null {
-    if (typeof el.getAttribute === "function") {
-      return el.getAttribute(name);
-    }
+  if (!chain) {
     return null;
   }
 
-  function matchAttr(el: DomLikeElement, cond: AttrCond): boolean {
-    const v = getAttr(el, cond.name);
-    if (cond.op === 'exists') {
-      const result = v !== null;
-      return result;
+  type MatchCache = WeakMap<DomLikeElement, Map<string, boolean>>;
+  const cache: MatchCache = new WeakMap();
+
+  function memo(
+    element: DomLikeElement,
+    simple: Simple,
+    rawMatcher: (candidate: DomLikeElement, selectorPart: Simple) => boolean,
+  ): boolean {
+    let elementCache = cache.get(element);
+    if (!elementCache) {
+      elementCache = new Map();
+      cache.set(element, elementCache);
     }
-    if (v === null) {
-      return false;
+    const key = simpleKey(simple);
+    const cached = elementCache.get(key);
+    if (cached !== undefined) {
+      return cached;
     }
-    let result: boolean;
-    switch (cond.op) {
-      case '=':   result = v === cond.value!; break;
-      case '~=':  result = v.split(/\s+/).includes(cond.value!); break;
-      case '|=': result = v === cond.value! || v.startsWith(cond.value! + '-'); break;
-      case '^=':  result = v.startsWith(cond.value!); break;
-      case '$=': result = v.endsWith(cond.value!); break;
-      case '*=':  result = v.includes(cond.value!); break;
-      default: result = false; break;
-    }
+    const result = rawMatcher(element, simple);
+    elementCache.set(key, result);
     return result;
   }
 
-  function indexInParent(el: DomLikeElement): number {
-    const p = el.parentElement;
-    if (!p) {
+  function matchAttribute(element: DomLikeElement, condition: AttrCond): boolean {
+    const value = element.getAttribute(condition.name);
+    if (condition.op === "exists") {
+      return value !== null;
+    }
+    if (value === null) {
+      return false;
+    }
+    switch (condition.op) {
+      case "=":
+        return value === condition.value;
+      case "~=":
+        return value.split(/\s+/).includes(condition.value!);
+      case "|=":
+        return value === condition.value || value.startsWith(`${condition.value}-`);
+      case "^=":
+        return value.startsWith(condition.value!);
+      case "$=":
+        return value.endsWith(condition.value!);
+      case "*=":
+        return value.includes(condition.value!);
+      default:
+        return false;
+    }
+  }
+
+  function indexInParent(element: DomLikeElement): number {
+    const parent = element.parentElement;
+    if (!parent) {
       return -1;
     }
-    let idx = 0;
-    for (let n = p.firstElementChild; n; n = n.nextElementSibling) {
-      idx++;
-      if (n === el) {
-        return idx;
+    let index = 0;
+    for (
+      let sibling = parent.firstElementChild as DomLikeElement | null;
+      sibling;
+      sibling = sibling.nextElementSibling as DomLikeElement | null
+    ) {
+      index++;
+      if (sibling === element) {
+        return index;
       }
     }
     return -1;
   }
 
-  function matchesPseudo(el: DomLikeElement, p: Pseudo): boolean {
-    if (p.kind === 'first-child') {
-      const result = indexInParent(el) === 1;
-      return result;
+  function indexOfType(element: DomLikeElement): number {
+    const parent = element.parentElement;
+    if (!parent) {
+      return -1;
     }
-    if (p.kind === 'last-child') {
-      const parent = el.parentElement;
-      if (!parent) {
-        return false;
+    const tagName = element.tagName.toLowerCase();
+    let index = 0;
+    for (
+      let sibling = parent.firstElementChild as DomLikeElement | null;
+      sibling;
+      sibling = sibling.nextElementSibling as DomLikeElement | null
+    ) {
+      if (sibling.tagName.toLowerCase() === tagName) {
+        index++;
+        if (sibling === element) {
+          return index;
+        }
       }
-      const result = parent.lastElementChild === el;
-      return result;
     }
-    if (p.kind === 'nth-child') {
-      const k = indexInParent(el);
-      if (k < 1) {
-        return false;
-      }
-      const { a, b } = p;
-      let result: boolean;
-      if (a === 0) {
-        result = k === b;
-      } else {
-        result = (k - b) % a === 0 && (k - b) / a >= 0;
-      }
-      return result;
-    }
-    if (p.kind === 'not') {
-      const result = !matchesSimple(el, p.inner);
-      return result;
-    }
-    if (p.kind === 'root') {
-      const doc = el.ownerDocument;
-      if (!doc || !doc.documentElement) {
-        return false;
-      }
-      return doc.documentElement === el;
-    }
-    return false;
+    return -1;
   }
 
-  function matchesSimple(el: DomLikeElement, s: Simple): boolean {
-    if (s.tag && el.tagName.toLowerCase() !== s.tag) {
+  function firstElementOfType(element: DomLikeElement): DomLikeElement | null {
+    const parent = element.parentElement;
+    if (!parent) {
+      return null;
+    }
+    const tagName = element.tagName.toLowerCase();
+    for (
+      let sibling = parent.firstElementChild as DomLikeElement | null;
+      sibling;
+      sibling = sibling.nextElementSibling as DomLikeElement | null
+    ) {
+      if (sibling.tagName.toLowerCase() === tagName) {
+        return sibling;
+      }
+    }
+    return null;
+  }
+
+  function lastElementOfType(element: DomLikeElement): DomLikeElement | null {
+    const parent = element.parentElement;
+    if (!parent) {
+      return null;
+    }
+    const tagName = element.tagName.toLowerCase();
+    for (
+      let sibling = parent.lastElementChild as DomLikeElement | null;
+      sibling;
+      sibling = sibling.previousElementSibling as DomLikeElement | null
+    ) {
+      if (sibling.tagName.toLowerCase() === tagName) {
+        return sibling;
+      }
+    }
+    return null;
+  }
+
+  function matchesNth(index: number, a: number, b: number): boolean {
+    if (index < 1) {
       return false;
     }
-    if (s.id && el.id !== s.id) {
+    if (a === 0) {
+      return index === b;
+    }
+    return (index - b) % a === 0 && (index - b) / a >= 0;
+  }
+
+  function matchesPseudo(element: DomLikeElement, pseudo: Pseudo): boolean {
+    switch (pseudo.kind) {
+      case "first-child":
+        return indexInParent(element) === 1;
+      case "last-child":
+        return element.parentElement?.lastElementChild === element;
+      case "only-child":
+        return element.parentElement?.firstElementChild === element
+          && element.parentElement?.lastElementChild === element;
+      case "nth-child":
+        return matchesNth(indexInParent(element), pseudo.a, pseudo.b);
+      case "first-of-type":
+        return firstElementOfType(element) === element;
+      case "last-of-type":
+        return lastElementOfType(element) === element;
+      case "only-of-type":
+        return firstElementOfType(element) === element && lastElementOfType(element) === element;
+      case "nth-of-type":
+        return matchesNth(indexOfType(element), pseudo.a, pseudo.b);
+      case "empty":
+        return element.firstElementChild === null && (element.textContent ?? "").length === 0;
+      case "not":
+        return !matchesSimple(element, pseudo.inner);
+      case "root":
+        return element.ownerDocument?.documentElement === element;
+      default:
+        return false;
+    }
+  }
+
+  function matchesSimple(element: DomLikeElement, simple: Simple): boolean {
+    if (simple.tag && element.tagName.toLowerCase() !== simple.tag) {
       return false;
     }
-    const cl = el.classList;
-    for (const cls of s.classes) {
-      if (!cl?.contains?.(cls)) {
+    if (simple.id && element.id !== simple.id) {
+      return false;
+    }
+    for (const className of simple.classes) {
+      if (!element.classList?.contains?.(className)) {
         return false;
       }
     }
-    for (const a of s.attrs) {
-      if (!matchAttr(el, a)) {
+    for (const attribute of simple.attrs) {
+      if (!matchAttribute(element, attribute)) {
         return false;
       }
     }
-    for (const z of s.pseudos) {
-      if (!matchesPseudo(el, z)) {
+    for (const pseudo of simple.pseudos) {
+      if (!matchesPseudo(element, pseudo)) {
         return false;
       }
     }
     return true;
   }
 
-  // Matcher right-to-left
-  return function match(el: DomLikeElement): boolean {
-    let current: DomLikeElement | null = el;
-    let i = chain.length - 1;
+  return function match(element: DomLikeElement): boolean {
+    let current: DomLikeElement | null = element;
+    let index = chain.length - 1;
 
-    if (!current) {
+    if (!memo(current, chain[index].simple, matchesSimple)) {
       return false;
     }
-    if (!memo(current, chain[i].simple, matchesSimple)) {
-      return false;
-    }
-    i--;
+    index--;
 
-    while (i >= 0) {
-      const needed = chain[i];
-      const comb = chain[i + 1].combinatorToLeft as Combinator | undefined;
+    while (index >= 0) {
+      const needed = chain[index];
+      const combinator = chain[index + 1].combinatorToLeft as Combinator | undefined;
 
-      if (comb === '>') {
-        current = current!.parentElement;
-        if (!current) {
+      if (combinator === ">") {
+        current = current.parentElement as DomLikeElement | null;
+        if (!current || !memo(current, needed.simple, matchesSimple)) {
           return false;
         }
-        if (!memo(current, needed.simple, matchesSimple)) {
-          return false;
-        }
-        i--; continue;
+        index--;
+        continue;
       }
 
-      if (comb === ' ') {
-        let anc: DomLikeElement | null = current!.parentElement, found = false;
-        while (anc) {
-          if (memo(anc, needed.simple, matchesSimple)) {
-            current = anc;
+      if (combinator === " ") {
+        let ancestor = current.parentElement as DomLikeElement | null;
+        let found = false;
+        while (ancestor) {
+          if (memo(ancestor, needed.simple, matchesSimple)) {
+            current = ancestor;
             found = true;
             break;
           }
-          anc = anc.parentElement;
+          ancestor = ancestor.parentElement as DomLikeElement | null;
         }
         if (!found) {
           return false;
         }
-        i--; continue;
+        index--;
+        continue;
       }
 
-      if (comb === '+') {
-        const sib = current!.previousElementSibling as DomLikeElement | null;
-        if (!sib) {
+      if (combinator === "+") {
+        const sibling = current.previousElementSibling as DomLikeElement | null;
+        if (!sibling || !memo(sibling, needed.simple, matchesSimple)) {
           return false;
         }
-        if (!memo(sib, needed.simple, matchesSimple)) {
-          return false;
-        }
-        current = sib; i--; continue;
+        current = sibling;
+        index--;
+        continue;
       }
 
-      if (comb === '~') {
-        let sib = current!.previousElementSibling as DomLikeElement | null, found = false;
-        while (sib) {
-          if (memo(sib, needed.simple, matchesSimple)) {
-            current = sib;
+      if (combinator === "~") {
+        let sibling = current.previousElementSibling as DomLikeElement | null;
+        let found = false;
+        while (sibling) {
+          if (memo(sibling, needed.simple, matchesSimple)) {
+            current = sibling;
             found = true;
             break;
           }
-          sib = sib.previousElementSibling as DomLikeElement | null;
+          sibling = sibling.previousElementSibling as DomLikeElement | null;
         }
         if (!found) {
           return false;
         }
-        i--; continue;
+        index--;
+        continue;
       }
 
-      // sem combinador à esquerda (primeiro item, raro cair aqui)
-      if (!memo(current!, needed.simple, matchesSimple)) {
+      if (!memo(current, needed.simple, matchesSimple)) {
         return false;
       }
-      i--;
+      index--;
     }
     return true;
   };
