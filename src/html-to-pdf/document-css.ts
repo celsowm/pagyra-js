@@ -28,17 +28,20 @@ export function parseInputDocument(htmlInput: string, normalizedHtml: string): D
   return document;
 }
 
-interface CollectCssArtifactsOptions {
+interface CollectCssTextOptions {
   document: Document;
   cssInput: string;
   resourceBaseDir: string;
   assetRootDir: string;
   environment: Environment;
+}
+
+interface CollectCssArtifactsOptions extends CollectCssTextOptions {
   viewportWidth: number;
   viewportHeight: number;
 }
 
-export async function collectCssArtifacts(options: CollectCssArtifactsOptions) {
+export async function collectCssText(options: CollectCssTextOptions): Promise<string> {
   let mergedCss = options.cssInput || "";
 
   const styleTags = Array.from(options.document.querySelectorAll("style"));
@@ -56,12 +59,29 @@ export async function collectCssArtifacts(options: CollectCssArtifactsOptions) {
     if (cssText) mergedCss += `\n${cssText}`;
   }
 
-  const { styleRules: cssRules, fontFaceRules } = parseCss(mergedCss, {
-    mediaType: "print",
-    viewportWidth: options.viewportWidth,
-    viewportHeight: options.viewportHeight,
-  });
-  log("parse", "debug", "CSS rules", { count: cssRules.length, fontFaces: fontFaceRules.length });
-  return { cssRules, fontFaceRules };
+  return mergedCss;
 }
 
+export function parseCssArtifacts(mergedCss: string, viewportWidth: number, viewportHeight: number) {
+  const parsed = parseCss(mergedCss, {
+    mediaType: "print",
+    viewportWidth,
+    viewportHeight,
+  });
+  log("parse", "debug", "CSS rules", {
+    count: parsed.styleRules.length,
+    fontFaces: parsed.fontFaceRules.length,
+    pageRules: parsed.pageRules.length,
+  });
+  return parsed;
+}
+
+export async function collectCssArtifacts(options: CollectCssArtifactsOptions) {
+  const mergedCss = await collectCssText(options);
+  const { styleRules: cssRules, fontFaceRules, pageRules } = parseCssArtifacts(
+    mergedCss,
+    options.viewportWidth,
+    options.viewportHeight,
+  );
+  return { cssRules, fontFaceRules, pageRules, mergedCss };
+}
