@@ -1,7 +1,7 @@
 ===== npm ci =====
 npm warn deprecated source-map-resolve@0.6.0: See https://github.com/lydell/source-map-resolve#deprecated
 
-added 296 packages, and audited 297 packages in 6s
+added 296 packages, and audited 297 packages in 5s
 
 88 packages are looking for funding
   run `npm fund` for details
@@ -24,28 +24,9 @@ EXIT_STATUS=0
 
 ===== TypeScript 7 =====
 
-> pagyra-js@0.0.35 check
+> pagyra-js@0.0.37 check
 > tsc --noEmit
 
-EXIT_STATUS=0
-
-===== TypeScript 6 compatibility =====
-
-> pagyra-js@0.0.35 check:ts6
-> tsc6 --noEmit
-
-EXIT_STATUS=0
-
-===== ESLint =====
-
-> pagyra-js@0.0.35 lint
-> eslint src tests --ext .ts,.js
-
-
-/home/runner/work/pagyra-js/pagyra-js/src/html-to-pdf/prepare-html-render.ts
-  28:8  error  'ResolvedPageStyleProfile' is defined but never used  @typescript-eslint/no-unused-vars
-
-✖ 1 problem (1 error, 0 warnings)
-
+src/html-to-pdf/render-html-to-pdf.ts(20,5): error TS2353: Object literal may only specify known properties, and 'pageMargins' does not exist in type 'RenderPdfOptions'.
 EXIT_STATUS=1
 
