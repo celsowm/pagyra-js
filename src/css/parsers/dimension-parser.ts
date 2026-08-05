@@ -109,6 +109,13 @@ export function parseFontSizeValue(value: string): FontSizeInput | undefined {
     return undefined;
   }
 
+  // CSS font-size requires a unit for non-zero lengths. Besides matching the
+  // specification, this prevents a shorthand weight such as 700 from being
+  // mistaken for a 700px font size.
+  if (/^[+-]?\d+(?:\.\d+)?$/.test(normalized) && Number.parseFloat(normalized) !== 0) {
+    return undefined;
+  }
+
   const parsed = parseNumeric(value);
   if (typeof parsed === "number") {
     return parsed >= 0 ? parsed : undefined;
