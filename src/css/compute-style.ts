@@ -10,6 +10,7 @@ import {
 } from "./style.js";
 import { ElementSpecificDefaults, BrowserDefaults } from "./browser-defaults.js";
 import { applyOrderedDeclarationsToStyle } from "./apply-declarations.js";
+import { specifiedWhiteSpace } from "./parsers/white-space-parser.js";
 import { log } from "../logging/debug.js";
 import { StyleInheritanceResolver } from "./style-inheritance.js";
 import { resolveDeclarationsForElement, resolveDeclarationsForPseudoElement } from "./compute-style/declarations.js";
@@ -96,6 +97,10 @@ export function computeStyleForElement(
     floatValue,
     customProperties,
   );
+  styleOptions.whiteSpace = specifiedWhiteSpace(styleInit)
+    ?? elementDefaults.whiteSpace
+    ?? parentStyle.whiteSpace
+    ?? mergedDefaults.whiteSpace;
 
   applyStyleInitOverrides(
     styleInit,
@@ -186,6 +191,9 @@ export function computeStyleForPseudoElement(
     floatValue,
     customProperties,
   );
+  styleOptions.whiteSpace = specifiedWhiteSpace(styleInit)
+    ?? parentStyle.whiteSpace
+    ?? pseudoMergedDefaults.whiteSpace;
 
   applyStyleInitOverrides(
     styleInit,
