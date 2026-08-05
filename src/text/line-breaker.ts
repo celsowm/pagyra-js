@@ -4,16 +4,14 @@ import { WhiteSpace } from "../css/enums.js";
 import { ComputedStyle } from "../css/style.js";
 import { estimateLineWidth, measureTextWithGlyphs } from "../layout/utils/text-metrics.js";
 import type { FontEmbedder } from "../pdf/font/embedder.js";
-import { applyTextTransform } from "./text-transform.js"; // Precisaremos exportar esta função
+import { applyTextTransform } from "./text-transform.js";
 
-// Representa uma unidade inquebrável (palavra) ou um espaço flexível (cola).
 export interface TextItem {
   type: 'word' | 'space';
   text: string;
   width: number;
 }
 
-// O resultado da quebra de linha para um nó de texto.
 export interface LineBox {
   text: string;
   width: number;
@@ -21,28 +19,20 @@ export interface LineBox {
   targetWidth: number;
 }
 
-/**
- * Segmenta uma string de texto em palavras e espaços.
- */
 function segmentText(text: string): { type: 'word' | 'space', text: string }[] {
-  // Uma segmentação simples baseada em espaços. Uma implementação mais robusta
-  // poderia usar Intl.Segmenter ou lidar com múltiplos tipos de espaços.
   const segments: { type: 'word' | 'space', text: string }[] = [];
   const regex = /(\s+)|([^\s]+)/g;
   let match;
   while ((match = regex.exec(text)) !== null) {
-    if (match[1]) { // É um espaço
+    if (match[1]) {
       segments.push({ type: 'space', text: match[1] });
-    } else if (match[2]) { // É uma palavra
+    } else if (match[2]) {
       segments.push({ type: 'word', text: match[2] });
     }
   }
   return segments;
 }
 
-/**
- * Mede a largura de cada palavra e espaço.
- */
 function measureItems(
   segments: { type: 'word' | 'space', text: string }[],
   style: ComputedStyle,
@@ -69,9 +59,11 @@ function splitWordItem(
   if (availableWidth <= 0) {
     return [item];
   }
+
   const pieces: TextItem[] = [];
   let buffer = "";
   let bufferWidth = 0;
+  const letterSpacing = style.letterSpacing ?? 0;
 
   const flush = () => {
     if (!buffer) {
@@ -83,24 +75,22 @@ function splitWordItem(
   };
 
   for (const char of Array.from(item.text)) {
-    const candidate = buffer + char;
-    const candidateWidth = estimateLineWidth(candidate, style);
+    const charWidth = estimateLineWidth(char, style);
+    const candidateWidth = bufferWidth + (buffer ? letterSpacing : 0) + charWidth;
 
     if (buffer && candidateWidth > availableWidth) {
       flush();
       buffer = char;
-      bufferWidth = estimateLineWidth(char, style);
+      bufferWidth = charWidth;
       continue;
     }
 
-    if (!buffer && candidateWidth > availableWidth) {
-      pieces.push({ type: "word", text: char, width: candidateWidth });
-      buffer = "";
-      bufferWidth = 0;
+    if (!buffer && charWidth > availableWidth) {
+      pieces.push({ type: "word", text: char, width: charWidth });
       continue;
     }
 
-    buffer = candidate;
+    buffer += char;
     bufferWidth = candidateWidth;
   }
 
@@ -120,11 +110,7 @@ function enforceOverflowWrap(
 
   const adjusted: TextItem[] = [];
   for (const item of items) {
-    if (item.type !== "word") {
-      adjusted.push(item);
-      continue;
-    }
-    if (item.width <= availableWidth) {
+    if (item.type !== "word" || item.width <= availableWidth) {
       adjusted.push(item);
       continue;
     }
@@ -134,9 +120,6 @@ function enforceOverflowWrap(
   return adjusted.length ? adjusted : items;
 }
 
-// Splits any word wider than the available width, regardless of the overflow-wrap mode.
-// Unlike enforceOverflowWrap (which only acts for break-word/anywhere), this is a safety net to
-// keep an over-long, otherwise-unbreakable token (e.g. a long URL) from running off the page.
 function enforceEmergencyBreak(
   items: TextItem[],
   style: ComputedStyle,
@@ -145,6 +128,7 @@ function enforceEmergencyBreak(
   if (!(availableWidth > 0)) {
     return items;
   }
+
   let needsBreak = false;
   for (const item of items) {
     if (item.type === "word" && item.width > availableWidth) {
@@ -155,6 +139,7 @@ function enforceEmergencyBreak(
   if (!needsBreak) {
     return items;
   }
+
   const adjusted: TextItem[] = [];
   for (const item of items) {
     if (item.type === "word" && item.width > availableWidth) {
@@ -167,18 +152,25 @@ function enforceEmergencyBreak(
 }
 
 function countJustifiableSpaces(items: TextItem[]): number {
-  let count = 0;
+  let firstWord = -1;
+  let lastWord = -1;
+
   for (let index = 0; index < items.length; index++) {
-    const item = items[index];
-    if (item.type !== "space") {
-      continue;
+    if (items[index].type === "word") {
+      if (firstWord < 0) {
+        firstWord = index;
+      }
+      lastWord = index;
     }
-    const hasWordBefore = items.slice(0, index).some((candidate) => candidate.type === "word");
-    if (!hasWordBefore) {
-      continue;
-    }
-    const hasWordAfter = items.slice(index + 1).some((candidate) => candidate.type === "word");
-    if (hasWordAfter) {
+  }
+
+  if (firstWord < 0 || firstWord === lastWord) {
+    return 0;
+  }
+
+  let count = 0;
+  for (let index = firstWord + 1; index < lastWord; index++) {
+    if (items[index].type === "space") {
       count += 1;
     }
   }
@@ -223,15 +215,6 @@ function buildLineBox(items: TextItem[], availableWidth: number, trimEdges: bool
   };
 }
 
-/**
- * Implementa um algoritmo de quebra de linha inspirado em Knuth-Plass
- * usando programação dinâmica para encontrar o layout ótimo.
- *
- * @param text O texto a ser quebrado.
- * @param style O estilo computado a ser usado para medição.
- * @param availableWidth A largura disponível para o texto.
- * @returns Um array de objetos LineBox representando as linhas ótimas.
- */
 export function breakTextIntoLines(
   text: string,
   style: ComputedStyle,
@@ -246,25 +229,19 @@ export function breakTextIntoLines(
   const rawItems = segmentText(effectiveText);
   let items = measureItems(rawItems, style, fontEmbedder);
   items = enforceOverflowWrap(items, style, availableWidth, style.overflowWrap);
-  // Last-resort break: a single word wider than the whole line would otherwise overflow off the
-  // page (lost content in a fixed-size PDF). Break it to fit even when overflow-wrap is `normal`.
   items = enforceEmergencyBreak(items, style, availableWidth);
   const n = items.length;
   if (n === 0) return [];
   const trimEdges = shouldTrimLineEdges(style);
 
-  // Check if entire text fits on one line - if so, keep a single trimmed line
   const totalWidth = items.reduce((sum, it) => sum + it.width, 0);
   if (totalWidth <= availableWidth) {
     const singleLine = buildLineBox(items, availableWidth, trimEdges);
     return singleLine ? [singleLine] : [];
   }
 
-  // memo[i] armazena o custo mínimo (feiura) para quebrar os primeiros `i` itens.
   const memo: number[] = new Array(n + 1).fill(Infinity);
-  // breaks[i] armazena o índice do início da última linha na quebra ótima para os primeiros `i` itens.
   const breaks: number[] = new Array(n + 1).fill(0);
-
   memo[0] = 0;
 
   for (let i = 1; i <= n; i++) {
@@ -296,7 +273,7 @@ export function breakTextIntoLines(
       hasWord = true;
 
       if (lineWidth > availableWidth) {
-        break; // Esta linha é longa demais, não há como continuar a partir deste `j`.
+        break;
       }
 
       const slack = availableWidth - lineWidth;
@@ -309,8 +286,6 @@ export function breakTextIntoLines(
     }
   }
 
-  // Se memo[n] é infinito, significa que uma única palavra é mais larga que
-  // a linha, então recorremos a uma quebra forçada.
   if (!isFinite(memo[n])) {
     const lines: LineBox[] = [];
     let currentWidth = 0;
@@ -321,25 +296,25 @@ export function breakTextIntoLines(
         lines.push(line);
       }
     };
-  for (const item of items) {
-    if (trimEdges && item.type === "space" && currentItems.length === 0) {
-      continue;
+
+    for (const item of items) {
+      if (trimEdges && item.type === "space" && currentItems.length === 0) {
+        continue;
+      }
+      if (item.type === 'word' && currentItems.length > 0 && currentWidth + item.width > availableWidth) {
+        pushCurrent();
+        currentWidth = 0;
+        currentItems = [];
+      }
+      currentItems.push(item);
+      currentWidth += item.width;
     }
-    if (item.type === 'word' && currentItems.length > 0 && currentWidth + item.width > availableWidth) {
-      pushCurrent();
-      currentWidth = 0;
-      currentItems = [];
-    }
-    currentItems.push(item);
-    currentWidth += item.width;
-  }
     if (currentItems.length > 0) {
       pushCurrent();
     }
     return lines;
   }
-  
-  // Reconstitui o caminho ótimo usando os backpointers em `breaks`.
+
   const lines: LineBox[] = [];
   let current = n;
   while (current > 0) {
@@ -347,10 +322,11 @@ export function breakTextIntoLines(
     const lineItems = items.slice(prev, current);
     const line = buildLineBox(lineItems, availableWidth, trimEdges);
     if (line) {
-      lines.unshift(line);
+      lines.push(line);
     }
     current = prev;
   }
 
+  lines.reverse();
   return lines;
 }
