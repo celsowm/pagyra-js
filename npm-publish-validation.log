@@ -1,7 +1,7 @@
 ===== npm ci =====
 npm warn deprecated source-map-resolve@0.6.0: See https://github.com/lydell/source-map-resolve#deprecated
 
-added 296 packages, and audited 297 packages in 6s
+added 296 packages, and audited 297 packages in 5s
 
 88 packages are looking for funding
   run `npm fund` for details
@@ -24,10 +24,10 @@ EXIT_STATUS=0
 
 ===== TypeScript 7 =====
 
-> pagyra-js@0.0.29 check
+> pagyra-js@0.0.35 check
 > tsc --noEmit
 
-src/html/css/page-style.ts(1,36): error TS2724: '"./parse-css.js"' has no exported member named 'CssPageRuleEntry'. Did you mean 'CssRuleEntry'?
-src/html/css/page-style.ts(93,82): error TS7006: Parameter 'selector' implicitly has an 'any' type.
+src/html-to-pdf/prepare-html-render.ts(167,39): error TS2345: Argument of type 'number' is not assignable to parameter of type 'PageFlowMetrics'.
+src/html-to-pdf/prepare-html-render.ts(174,5): error TS2353: Object literal may only specify known properties, and 'resolvedHeaderFooter' does not exist in type 'FinalizeRenderTreePositioningOptions'.
 EXIT_STATUS=1
 
