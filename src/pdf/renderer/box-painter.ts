@@ -15,13 +15,13 @@ import {
 } from "../utils/filter-utils.js";
 
 export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Promise<void> {
+  if (box.visibility !== "visible") {
+    return;
+  }
+
   log("paint", "debug", `paintBoxAtomic: ${box.tagName} id:${box.id} opacity:${box.opacity}`, { id: box.id, opacity: box.opacity });
 
   const hasTransform = box.transform && (box.transform.b !== 0 || box.transform.c !== 0);
-
-  // Filter opacity and stacking context opacity are handled at the scope level
-  // in the paint instruction loop. Only apply per-box opacity for boxes
-  // that don't establish stacking contexts.
   const effectiveOpacity = box.establishesStackingContext ? 1 : box.opacity;
   const hasOpacity = effectiveOpacity < 1;
 
@@ -33,11 +33,9 @@ export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Prom
     painter.beginOpacityScope(effectiveOpacity);
   }
 
-  // ★ Warnings para filtros não renderizáveis
   warnUnsupportedFilters(box.filter, "filter", box.id);
   warnUnsupportedFilters(box.backdropFilter, "backdrop-filter", box.id);
 
-  // ★ drop-shadow do filter (pintado como outer shadow antes dos box-shadows)
   if (box.filter) {
     const fallbackColor = box.color ?? { r: 0, g: 0, b: 0, a: 1 };
     const dropShadows = extractDropShadowLayers(box.filter, fallbackColor);
@@ -48,7 +46,6 @@ export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Prom
 
   paintBoxShadows(painter, [box], false);
 
-  // Overflow clipping
   const hasOverflowClip = box.overflow === "hidden" || box.overflow === "clip";
   if (hasOverflowClip) {
     const clipArea = determineOverflowClipArea(box);
@@ -60,7 +57,6 @@ export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Prom
 
   let clipCommands = buildClipPathCommands(box.clipPath);
   if (!clipCommands && box.maskGradient && box.maskGradient.gradient.type === "radial") {
-    // MVP: Aproximação de máscara radial usando clipping path circular
     clipCommands = buildCircularClipPath(box.maskGradient.rect);
   }
 
@@ -150,7 +146,6 @@ function paintBackground(painter: PagePainter, box: RenderBox): void {
   if (background.gradient) {
     const gradient = background.gradient;
     const clipRect = paintArea.rect;
-
     const gradientRect = gradient.rect ?? clipRect;
     const repeatMode = gradient.repeat ?? "no-repeat";
     const tiles = computeBackgroundTileRects(gradientRect, clipRect, repeatMode);
@@ -160,8 +155,6 @@ function paintBackground(painter: PagePainter, box: RenderBox): void {
         rectEquals(tile, clipRect) || rectEquals(tile, gradient.originRect)
           ? paintArea.radius
           : zeroRadius();
-
-      // Type guard to handle gradient type conversion
       const g = gradient.gradient;
       if (g.type === "radial") {
         painter.fillRoundedRect(tile, radius, g as import("../../css/parsers/gradient-parser.js").RadialGradient);
@@ -293,7 +286,7 @@ function buildCircularClipPath(rect: Rect): PathCommand[] {
     { type: "curveTo", x1: cx - rx * k, y1: cy + ry, x2: cx - rx, y2: cy + ry * k, x: cx - rx, y: cy },
     { type: "curveTo", x1: cx - rx, y1: cy - ry * k, x2: cx - rx * k, y2: cy - ry, x: cx, y: cy - ry },
     { type: "curveTo", x1: cx + rx * k, y1: cy - ry, x2: cx + rx, y2: cy - ry * k, x: cx + rx, y: cy },
-    { type: "closePath" }
+    { type: "closePath" },
   ];
 }
 
@@ -344,7 +337,6 @@ function buildEllipseClipPath(cx: number, cy: number, rx: number, ry: number): P
 }
 
 function paintDropShadows(painter: PagePainter, box: RenderBox, shadows: import("../types.js").ShadowLayer[]): void {
-  // Usa o borderBox como base da sombra (aproximação para drop-shadow)
   const virtualBox: Partial<RenderBox> = {
     borderBox: box.borderBox,
     borderRadius: box.borderRadius,
