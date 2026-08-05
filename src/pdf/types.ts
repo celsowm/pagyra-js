@@ -1,6 +1,7 @@
 import type { BackgroundRepeat, Gradient } from "../css/background-types.js";
-import type { GlyphRun } from "../layout/text-run.js";
+import type { ObjectPosition } from "../css/properties/misc.js";
 import type { FilterFunction, Visibility } from "../css/properties/visual.js";
+import type { GlyphRun } from "../layout/text-run.js";
 import type { PaintInstruction } from "./stacking/types.js";
 
 export enum NodeKind {
@@ -271,6 +272,7 @@ export interface RenderBox {
   textShadows: TextShadowLayer[];
   image?: ImageRef;
   objectFit?: ObjectFit;
+  objectPosition?: ObjectPosition;
   marker?: Marker;
   markerRect?: Rect;
   tableModel?: TableModel;
