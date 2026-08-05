@@ -21,7 +21,15 @@ export function collectFixedLayers(root: RenderBox): FixedLayerCollection {
 
   const boxes = new Set<RenderBox>();
   const layers = fixedRoots.map((fixedRoot) => {
-    const paintOrder = resolvePaintOrder(fixedRoot);
+    const resolvedPaintOrder = resolvePaintOrder(fixedRoot);
+    const opacity = computeEffectiveOpacity(fixedRoot);
+    const paintOrder: PaintInstruction[] = opacity < 1
+      ? [
+          { type: "beginOpacity", opacity },
+          ...resolvedPaintOrder,
+          { type: "endOpacity" },
+        ]
+      : resolvedPaintOrder;
     const layerBoxes = paintOrder
       .filter((instruction): instruction is PaintInstruction & { type: "box" } => instruction.type === "box")
       .map((instruction) => instruction.box);
@@ -85,6 +93,16 @@ export function translatePositionedLayer(
       .map((instruction) => instruction.box),
     paintOrder,
   };
+}
+
+function computeEffectiveOpacity(box: RenderBox): number {
+  let opacity = box.opacity;
+  for (const filter of box.filter ?? []) {
+    if (filter.kind === "opacity") {
+      opacity *= filter.value;
+    }
+  }
+  return Math.max(0, Math.min(1, opacity));
 }
 
 function collectFixedRoots(
