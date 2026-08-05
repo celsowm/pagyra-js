@@ -1,8 +1,8 @@
 ﻿// Tipos base para o sistema de seletores
 
-export type Combinator = ' ' | '>' | '+' | '~';
+export type Combinator = " " | ">" | "+" | "~";
 
-export type AttrOp = 'exists' | '=' | '~=' | '|=' | '^=' | '$=' | '*=';
+export type AttrOp = "exists" | "=" | "~=" | "|=" | "^=" | "$=" | "*=";
 
 export interface AttrCond {
   name: string;
@@ -11,14 +11,20 @@ export interface AttrCond {
 }
 
 export type Pseudo =
-  | { kind: 'first-child' }
-  | { kind: 'last-child' }
-  | { kind: 'nth-child'; a: number; b: number } // an+b (odd=2n+1, even=2n)
-  | { kind: 'not'; inner: Simple }              // apenas 1 nível simples
-  | { kind: 'root' };
+  | { kind: "first-child" }
+  | { kind: "last-child" }
+  | { kind: "only-child" }
+  | { kind: "nth-child"; a: number; b: number }
+  | { kind: "first-of-type" }
+  | { kind: "last-of-type" }
+  | { kind: "only-of-type" }
+  | { kind: "nth-of-type"; a: number; b: number }
+  | { kind: "empty" }
+  | { kind: "not"; inner: Simple }
+  | { kind: "root" };
 
 export interface Simple {
-  tag: string | null;      // null => universal '*'
+  tag: string | null;
   id: string | null;
   classes: string[];
   attrs: AttrCond[];
@@ -27,5 +33,5 @@ export interface Simple {
 
 export interface Part {
   simple: Simple;
-  combinatorToLeft?: Combinator; // combinador imediatamente à esquerda desse "simple"
+  combinatorToLeft?: Combinator;
 }
