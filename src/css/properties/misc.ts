@@ -2,50 +2,28 @@ import { FloatMode, ClearMode, TableLayoutMode, BorderModel } from "../enums.js"
 import { CustomPropertiesMap } from "../custom-properties.js";
 import type { CounterIncrement, CounterReset } from "../../layout/counter.js";
 
-/**
- * Miscellaneous CSS properties.
- * Handles specialized properties like float, list styling, table layout, and page breaks.
- */
+export interface ObjectPosition {
+    /** Horizontal alignment ratio: 0 = left, 0.5 = center, 1 = right. */
+    x: number;
+    /** Vertical alignment ratio: 0 = top, 0.5 = center, 1 = bottom. */
+    y: number;
+}
+
+/** Miscellaneous CSS properties. */
 export interface MiscProperties {
-    /** Float positioning */
     float: FloatMode;
-
-    /** Clear float behavior */
     clear: ClearMode;
-
-    /** List item marker type */
     listStyleType: string;
-
-    /** Image/video object-fit mode */
     objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down";
-
-    /** Table layout algorithm */
+    objectPosition?: ObjectPosition;
     tableLayout: TableLayoutMode;
-
-    /** Table border model (separate or collapse) */
     borderModel: BorderModel;
-
-    /** Page break before element */
     breakBefore: string;
-
-    /** Page break after element */
     breakAfter: string;
-
-    /** Page break inside element */
     breakInside: string;
-
-    /** Minimum lines at bottom of page/column */
     widows: number;
-
-    /** Minimum lines at top of page/column */
     orphans: number;
-
-    /** CSS Custom Properties (Variables) */
     customProperties?: CustomPropertiesMap;
-
-    /** CSS counters reset declarations */
     counterReset?: CounterReset[];
-
-    /** CSS counters increment declarations */
     counterIncrement?: CounterIncrement[];
 }
