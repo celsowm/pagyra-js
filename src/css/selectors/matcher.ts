@@ -183,11 +183,12 @@ export function createSelectorMatcher(selector: string): ((el: DomLikeElement) =
       case "empty":
         return element.firstElementChild === null && (element.textContent ?? "").length === 0;
       case "not":
-        return !matchesSimple(element, pseudo.inner);
+        return !pseudo.selectors.some((selectorOption) => matchesSimple(element, selectorOption));
+      case "is":
+      case "where":
+        return pseudo.selectors.some((selectorOption) => matchesSimple(element, selectorOption));
       case "root":
         return element.ownerDocument?.documentElement === element;
-      default:
-        return false;
     }
   }
 
