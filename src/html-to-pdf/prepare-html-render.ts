@@ -188,7 +188,13 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   });
 
   const pageSize = { widthPt: pxToPt(pageWidth), heightPt: pxToPt(pageHeight) };
-  return { layoutRoot: rootLayout, renderTree, pageSize, margins: marginsPx };
+  return {
+    layoutRoot: rootLayout,
+    renderTree,
+    pageSize,
+    margins: marginsPx,
+    pageMargins,
+  };
 }
 
 function resolvePageConfiguration(
