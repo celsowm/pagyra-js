@@ -100,6 +100,7 @@ export function shouldPreserveCollapsedWhitespace(children: LayoutNode[], style:
 export function createInlineTextStyle(parentStyle: ComputedStyle): ComputedStyle {
   return new ComputedStyle({
     display: Display.Inline,
+    visibility: parentStyle.visibility,
     color: parentStyle.color,
     fontSize: parentStyle.fontSize,
     lineHeight: cloneLineHeight(parentStyle.lineHeight),
