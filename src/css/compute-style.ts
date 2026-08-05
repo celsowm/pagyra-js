@@ -9,7 +9,7 @@ import {
   type StyleAccumulator,
 } from "./style.js";
 import { ElementSpecificDefaults, BrowserDefaults } from "./browser-defaults.js";
-import { applyDeclarationsToStyle } from "./apply-declarations.js";
+import { applyOrderedDeclarationsToStyle } from "./apply-declarations.js";
 import { log } from "../logging/debug.js";
 import { StyleInheritanceResolver } from "./style-inheritance.js";
 import { resolveDeclarationsForElement, resolveDeclarationsForPseudoElement } from "./compute-style/declarations.js";
@@ -44,14 +44,20 @@ export function computeStyleForElement(
   const inherited = StyleInheritanceResolver.resolveInheritedProperties(parentStyle, mergedDefaults);
 
   const styleInit: StyleAccumulator = {};
-  const { resolvedDeclarations, customProperties } = resolveDeclarationsForElement(
+  const { orderedDeclarations, customProperties } = resolveDeclarationsForElement(
     element,
     cssRules,
     parentStyle.customProperties,
   );
 
-  // Apply declarations to style accumulator
-  applyDeclarationsToStyle(resolvedDeclarations, styleInit, units, inherited.fontWeight ?? mergedDefaults.fontWeight);
+  // Apply declarations from the weakest to the strongest cascade priority.
+  // This preserves shorthand/longhand interactions and declaration source order.
+  applyOrderedDeclarationsToStyle(
+    orderedDeclarations,
+    styleInit,
+    units,
+    inherited.fontWeight ?? mergedDefaults.fontWeight,
+  );
 
   const display = resolveDisplayForElement(tagName, styleInit.display, mergedDefaults.display);
 
@@ -136,14 +142,19 @@ export function computeStyleForPseudoElement(
   const inherited = StyleInheritanceResolver.resolveInheritedProperties(parentStyle, pseudoMergedDefaults);
 
   const styleInit: StyleAccumulator = {};
-  const { resolvedDeclarations, customProperties } = resolveDeclarationsForPseudoElement(
+  const { orderedDeclarations, customProperties } = resolveDeclarationsForPseudoElement(
     element,
     cssRules,
     pseudoType,
     parentStyle.customProperties,
   );
 
-  applyDeclarationsToStyle(resolvedDeclarations, styleInit, units, inherited.fontWeight ?? pseudoMergedDefaults.fontWeight);
+  applyOrderedDeclarationsToStyle(
+    orderedDeclarations,
+    styleInit,
+    units,
+    inherited.fontWeight ?? pseudoMergedDefaults.fontWeight,
+  );
 
   const display = resolveDisplayForElement(tagName, styleInit.display, pseudoMergedDefaults.display);
   const floatValue = mapFloatToMode(styleInit.float);
