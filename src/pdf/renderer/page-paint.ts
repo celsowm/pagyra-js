@@ -123,7 +123,7 @@ async function paintInstructions(
       painter.beginOpacityScope(instruction.opacity);
     } else if (instruction.type === "endOpacity") {
       painter.endOpacityScope(0);
-    } else {
+    } else if (instruction.box.visibility === "visible") {
       await paintBoxAtomic(painter, instruction.box);
     }
   }
