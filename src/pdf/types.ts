@@ -177,25 +177,8 @@ export interface Run {
   textGradient?: GradientBackground;
   textBackground?: Background;
   textShadows?: TextShadowLayer[];
-
-  // --- Justification metadata (inlineRuns path only) ---
-
-  /**
-   * Line index in the block (0-based).
-   * Only set for runs coming from LayoutNode.inlineRuns.
-   */
   lineIndex?: number;
-
-  /**
-   * True if this run is on the last visual line of its block.
-   */
   isLastLine?: boolean;
-
-  /**
-   * Number of spaces *inside this run* that participate in justification.
-   * This is used to compute how much extra width this run contributes
-   * when wordSpacing is applied.
-   */
   spacesInRun?: number;
 }
 
@@ -212,8 +195,6 @@ export interface TextMatrix {
   e: number;
   f: number;
 }
-
-// GlyphRun is now imported from ../layout/text-run.js
 
 export interface TableModel {
   mode: "separate" | "collapse";
@@ -257,6 +238,8 @@ export interface LayoutPageTree {
 export interface PositionedLayer {
   z: number;
   boxes: RenderBox[];
+  /** Preserves stacking-context opacity scopes for replicated positioned content. */
+  paintOrder?: PaintInstruction[];
 }
 
 export interface DecorationCommand {
@@ -311,17 +294,8 @@ export interface RenderBox {
   maskGradient?: GradientBackground;
   backgroundClip?: "border-box" | "padding-box" | "content-box" | "text";
   transform?: TextMatrix;
-
-  /** Parsed CSS filter functions carried from ComputedStyle */
   filter?: FilterFunction[];
-
-  /** Parsed CSS backdrop-filter functions carried from ComputedStyle */
   backdropFilter?: FilterFunction[];
-
-  /**
-   * Normalized text alignment of this box (from CSS text-align).
-   * Only the visual modes are captured here.
-   */
   textAlign?: "left" | "center" | "right" | "justify";
 }
 
