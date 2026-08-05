@@ -1,5 +1,5 @@
 import { LayoutNode } from "../../dom/node.js";
-import { Display } from "../../css/enums.js";
+import { Display, WhiteSpace } from "../../css/enums.js";
 import { resolvedLineHeight } from "../../css/style.js";
 import { resolveLength } from "../../css/length.js";
 import type { InlineLayoutOptions, InlineLayoutResult, LayoutItem, InlineMetrics } from "./types.js";
@@ -19,7 +19,17 @@ import { calculateBaseline } from "./font-baseline-calculator.js";
 import { createLayoutDebug } from "../debug.js";
 import { containingBlock } from "../utils/node-math.js";
 
+function itemWhiteSpace(item: LayoutItem, container: LayoutNode): WhiteSpace {
+    if (item.kind === "box") {
+        return item.metrics.node.style.whiteSpace;
+    }
+    return item.style?.whiteSpace ?? container.style.whiteSpace;
+}
 
+function allowsAutomaticWrap(item: LayoutItem, container: LayoutNode): boolean {
+    const whiteSpace = itemWhiteSpace(item, container);
+    return whiteSpace !== WhiteSpace.NoWrap && whiteSpace !== WhiteSpace.Pre;
+}
 
 export function layoutInlineFormattingContext(options: InlineLayoutOptions): InlineLayoutResult {
     const { container, inlineNodes, context, floatContext, contentX, contentWidth } = options;
@@ -126,15 +136,16 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
             }
 
             const remaining = Math.max(availableWidth - cursorX, 0);
+            const canWrap = allowsAutomaticWrap(workingItem, container);
 
             if (workingItem.kind === "box") {
-                if (lineParts.length > 0 && cursorX + workingItem.width > availableWidth) {
+                if (canWrap && lineParts.length > 0 && cursorX + workingItem.width > availableWidth) {
                     commitLine(false);
                     continue;
                 }
                 if (lineParts.length === 0 && workingItem.width > availableWidth) {
                     const nextLineTop = floatContext.nextUnblockedY(lineTop, lineTop + lineHeight);
-                    if (nextLineTop === null) {
+                    if (nextLineTop === null || !canWrap) {
                         lineParts.push({ item: workingItem, offset: cursorX });
                         cursorX += workingItem.width;
                         lineHeight = Math.max(lineHeight, workingItem.lineHeight);
@@ -155,7 +166,7 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
             }
 
             // Text items
-            if (workingItem.kind === "word" && workingItem.width > remaining) {
+            if (canWrap && workingItem.kind === "word" && workingItem.width > remaining) {
                 const mode = workingItem.style?.overflowWrap ?? "normal";
                 const wb = workingItem.style?.wordBreak ?? "normal";
                 if ((mode !== "normal" || wb === "break-all" || wb === "break-word") && remaining > 0) {
@@ -173,14 +184,14 @@ export function layoutInlineFormattingContext(options: InlineLayoutOptions): Inl
                 }
             }
 
-            if (lineParts.length > 0 && cursorX + workingItem.width > availableWidth) {
+            if (canWrap && lineParts.length > 0 && cursorX + workingItem.width > availableWidth) {
                 commitLine(false);
                 continue;
             }
 
             if (lineParts.length === 0 && workingItem.width > availableWidth && workingItem.kind === "word") {
                 const nextLineTop = floatContext.nextUnblockedY(lineTop, lineTop + lineHeight);
-                if (nextLineTop === null) {
+                if (nextLineTop === null || !canWrap) {
                     lineParts.push({ item: workingItem, offset: cursorX });
                     cursorX += workingItem.width;
                     lineHeight = Math.max(lineHeight, workingItem.lineHeight);
