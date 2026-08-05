@@ -1,17 +1,14 @@
 import { Display, FloatMode, Position } from "../../css/enums.js";
 import { LayoutNode } from "../../dom/node.js";
+import type { PageFlowMetrics } from "./page-flow.js";
 
 const EPSILON = 0.01;
 
 /**
  * Applies CSS pagination constraints in continuous layout coordinates. The later
- * page-margin mapping turns each usable-height interval into a physical page.
+ * page-margin mapping turns each variable printable-height interval into a page.
  */
-export function applyForcedPageBreaks(root: LayoutNode, usablePageHeight: number): void {
-  if (!Number.isFinite(usablePageHeight) || usablePageHeight <= 0) {
-    return;
-  }
-
+export function applyForcedPageBreaks(root: LayoutNode, pageFlow: PageFlowMetrics): void {
   let accumulatedOffset = 0;
 
   const visit = (node: LayoutNode, isRoot: boolean): void => {
@@ -23,7 +20,7 @@ export function applyForcedPageBreaks(root: LayoutNode, usablePageHeight: number
       const beforeOffset = forcedBreakOffset(
         node.style.breakBefore,
         node.box.y,
-        usablePageHeight,
+        pageFlow,
       );
       if (beforeOffset > EPSILON) {
         shiftNodeGeometry(node, beforeOffset);
@@ -36,7 +33,7 @@ export function applyForcedPageBreaks(root: LayoutNode, usablePageHeight: number
     }
 
     if (!isRoot && participatesInPageFlow(node)) {
-      const lineConstraintOffset = widowOrphanOffset(node, usablePageHeight);
+      const lineConstraintOffset = widowOrphanOffset(node, pageFlow);
       if (lineConstraintOffset > EPSILON) {
         node.shift(0, lineConstraintOffset);
         accumulatedOffset += lineConstraintOffset;
@@ -46,7 +43,7 @@ export function applyForcedPageBreaks(root: LayoutNode, usablePageHeight: number
       const afterOffset = forcedBreakOffset(
         node.style.breakAfter,
         bottom,
-        usablePageHeight,
+        pageFlow,
       );
       if (afterOffset > EPSILON) {
         accumulatedOffset += afterOffset;
@@ -75,17 +72,21 @@ function isInlineDisplay(display: Display): boolean {
     || display === Display.InlineTable;
 }
 
-function forcedBreakOffset(value: string | undefined, coordinate: number, pageHeight: number): number {
+function forcedBreakOffset(
+  value: string | undefined,
+  coordinate: number,
+  pageFlow: PageFlowMetrics,
+): number {
   const normalized = value?.trim().toLowerCase();
   if (normalized !== "page" && normalized !== "left" && normalized !== "right") {
     return 0;
   }
 
-  const quotient = coordinate / pageHeight;
-  const rounded = Math.round(quotient);
-  let targetPageIndex = Math.abs(quotient - rounded) < EPSILON / pageHeight
-    ? rounded
-    : Math.floor(quotient) + 1;
+  const currentPageIndex = pageFlow.pageIndexAtContentY(coordinate);
+  const currentPageStart = pageFlow.contentStartForPage(currentPageIndex);
+  let targetPageIndex = Math.abs(coordinate - currentPageStart) <= EPSILON
+    ? currentPageIndex
+    : currentPageIndex + 1;
 
   if (normalized === "left") {
     if (targetPageIndex % 2 === 0) {
@@ -97,10 +98,10 @@ function forcedBreakOffset(value: string | undefined, coordinate: number, pageHe
     }
   }
 
-  return Math.max(0, targetPageIndex * pageHeight - coordinate);
+  return Math.max(0, pageFlow.contentStartForPage(targetPageIndex) - coordinate);
 }
 
-function widowOrphanOffset(node: LayoutNode, pageHeight: number): number {
+function widowOrphanOffset(node: LayoutNode, pageFlow: PageFlowMetrics): number {
   if (!node.establishesIFC) {
     return 0;
   }
@@ -110,7 +111,7 @@ function widowOrphanOffset(node: LayoutNode, pageHeight: number): number {
     return 0;
   }
 
-  const pageOf = (baseline: number): number => Math.floor((baseline - EPSILON) / pageHeight);
+  const pageOf = (baseline: number): number => pageFlow.pageIndexAtContentY(baseline - EPSILON);
   const firstPage = pageOf(baselines[0]);
   const lastPage = pageOf(baselines[baselines.length - 1]);
   if (firstPage === lastPage) {
@@ -127,11 +128,12 @@ function widowOrphanOffset(node: LayoutNode, pageHeight: number): number {
   }
 
   const height = subtreeBottom(node) - node.box.y;
-  if (height > pageHeight + EPSILON) {
+  if (height > pageFlow.maximumUsableHeight() + EPSILON) {
     return 0;
   }
 
-  const nextPageTop = (Math.floor(node.box.y / pageHeight) + 1) * pageHeight;
+  const currentPage = pageFlow.pageIndexAtContentY(node.box.y);
+  const nextPageTop = pageFlow.contentStartForPage(currentPage + 1);
   return Math.max(0, nextPageTop - node.box.y);
 }
 
