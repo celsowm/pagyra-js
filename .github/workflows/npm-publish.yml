@@ -71,7 +71,10 @@ jobs:
             fi
           }
 
-          run_step "npm ci" npm ci
+          if grep -q '"@typescript-eslint/eslint-plugin": "\^8\.46\.4"' package-lock.json; then
+            run_step "Refresh TypeScript tooling lockfile" npm install --package-lock-only --ignore-scripts
+          fi
+          if [[ $FAILED -eq 0 ]]; then run_step "npm ci" npm ci; fi
           if [[ $FAILED -eq 0 ]]; then run_step "TypeScript 7" npm run check; fi
           if [[ $FAILED -eq 0 ]]; then run_step "TypeScript 6 compatibility" npm run check:ts6; fi
           if [[ $FAILED -eq 0 ]]; then run_step "ESLint" npm run lint; fi
@@ -169,8 +172,8 @@ jobs:
           VERSION="${{ steps.release.outputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          rm -f npm-publish-validation.log npm-publish.log
           git rm -f npm-publish-validation.log npm-publish.log 2>/dev/null || true
+          rm -f npm-publish-validation.log npm-publish.log
           git add package.json package-lock.json
           git commit -m "chore: release v$VERSION [skip ci]"
           git push origin HEAD:main
