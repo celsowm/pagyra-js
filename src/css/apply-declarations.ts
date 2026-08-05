@@ -7,25 +7,13 @@ import { type UnitParsers } from "../units/units.js";
 
 export { setViewportSize } from "./viewport.js";
 
+export interface ApplicableDeclaration {
+  property: string;
+  value: string;
+}
+
 // Initialize the property parsers registry
 registerAllPropertyParsers();
-
-// Define shorthand properties that should be applied before longhands
-const SHORTHAND_PROPERTIES = new Set([
-  "border",
-  "border-color",
-  "border-style",
-  "border-width",
-  "border-radius",
-  "margin",
-  "padding",
-  "background",
-  "font",
-  "text-decoration",
-  "flex",
-  "gap",
-  "grid-column"
-]);
 
 // Cache for frequently used parsers to reduce Map lookups
 const parserCache = new Map<string, PropertyParser>();
@@ -41,47 +29,45 @@ function getCachedParser(property: string) {
   return parser;
 }
 
+function applyDeclarationToStyle(
+  declaration: ApplicableDeclaration,
+  target: StyleAccumulator,
+  units: UnitParsers,
+  inheritedFontWeight?: number,
+): void {
+  const property = declaration.property.startsWith("--")
+    ? declaration.property
+    : declaration.property.toLowerCase();
+  const value = declaration.value.trim();
+  const parser = getCachedParser(property);
+  if (parser) {
+    parser(value, target, units, inheritedFontWeight);
+  } else if (!property.startsWith("--")) {
+    console.warn(`Unsupported CSS property: ${property}`);
+  }
+}
+
+export function applyOrderedDeclarationsToStyle(
+  declarations: readonly ApplicableDeclaration[],
+  target: StyleAccumulator,
+  units: UnitParsers,
+  inheritedFontWeight?: number,
+): void {
+  for (const declaration of declarations) {
+    applyDeclarationToStyle(declaration, target, units, inheritedFontWeight);
+  }
+}
+
 export function applyDeclarationsToStyle(
   declarations: Record<string, string>,
   target: StyleAccumulator,
   units: UnitParsers,
-  inheritedFontWeight?: number
+  inheritedFontWeight?: number,
 ): void {
-  // Pre-normalize declarations (lowercase keys and trim values)
-  const normalizedDeclarations: Record<string, string> = {};
-  for (const [property, value] of Object.entries(declarations)) {
-    normalizedDeclarations[property.toLowerCase()] = value.trim();
-  }
-
-  // Separate shorthands and longhands
-  const shorthands: Array<[string, string]> = [];
-  const longhands: Array<[string, string]> = [];
-
-  for (const [property, value] of Object.entries(normalizedDeclarations)) {
-    if (SHORTHAND_PROPERTIES.has(property)) {
-      shorthands.push([property, value]);
-    } else {
-      longhands.push([property, value]);
-    }
-  }
-
-  // Pass 1: Apply shorthands first
-  for (const [property, value] of shorthands) {
-    const parser = getCachedParser(property);
-    if (parser) {
-      parser(value, target, units, inheritedFontWeight);
-    } else if (!property.startsWith('--')) {
-      console.warn(`Unsupported CSS property: ${property}`);
-    }
-  }
-
-  // Pass 2: Apply longhands (they can override shorthands)
-  for (const [property, value] of longhands) {
-    const parser = getCachedParser(property);
-    if (parser) {
-      parser(value, target, units, inheritedFontWeight);
-    } else if (!property.startsWith('--')) {
-      console.warn(`Unsupported CSS property: ${property}`);
-    }
-  }
+  applyOrderedDeclarationsToStyle(
+    Object.entries(declarations).map(([property, value]) => ({ property, value })),
+    target,
+    units,
+    inheritedFontWeight,
+  );
 }
