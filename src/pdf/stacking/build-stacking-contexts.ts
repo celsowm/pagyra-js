@@ -19,6 +19,7 @@ export function getStackingFlags(box: RenderBox): StackingFlags {
 interface BuildResult {
   rootContextId: StackingContextId;
   contexts: Map<StackingContextId, StackingContextNode>;
+  contextByBox: WeakMap<RenderBox, StackingContextNode>;
 }
 
 /**
@@ -31,6 +32,7 @@ interface BuildResult {
  */
 export function buildStackingContexts(root: RenderBox): BuildResult {
   const contexts = new Map<StackingContextId, StackingContextNode>();
+  const contextByBox = new WeakMap<RenderBox, StackingContextNode>();
 
   // Root context anchored at the root box.
   const rootContextId: StackingContextId = makeContextId(root, 0);
@@ -41,11 +43,12 @@ export function buildStackingContexts(root: RenderBox): BuildResult {
     childContextIds: [],
   };
   contexts.set(rootContextId, rootContext);
+  contextByBox.set(root, rootContext);
 
   // DFS to assign boxes to contexts / create new ones as needed.
-  traverse(root, rootContextId, 1, contexts);
+  traverse(root, rootContextId, 1, contexts, contextByBox);
 
-  return { rootContextId, contexts };
+  return { rootContextId, contexts, contextByBox };
 }
 
 function traverse(
@@ -53,6 +56,7 @@ function traverse(
   currentContextId: StackingContextId,
   counterStart: number,
   contexts: Map<StackingContextId, StackingContextNode>,
+  contextByBox: WeakMap<RenderBox, StackingContextNode>,
 ): number {
   let counter = counterStart;
 
@@ -69,6 +73,7 @@ function traverse(
         childContextIds: [],
       };
       contexts.set(ctxId, node);
+      contextByBox.set(child, node);
 
       const parent = contexts.get(currentContextId);
       if (parent) {
@@ -76,10 +81,10 @@ function traverse(
       }
 
       // Recurse with the new context as current.
-      counter = traverse(child, ctxId, counter, contexts);
+      counter = traverse(child, ctxId, counter, contexts, contextByBox);
     } else {
       // Child participates in the current context.
-      counter = traverse(child, currentContextId, counter, contexts);
+      counter = traverse(child, currentContextId, counter, contexts, contextByBox);
     }
   }
 
