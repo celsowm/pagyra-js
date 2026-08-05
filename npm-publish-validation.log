@@ -24,9 +24,28 @@ EXIT_STATUS=0
 
 ===== TypeScript 7 =====
 
-> pagyra-js@0.0.37 check
+> pagyra-js@0.0.38 check
 > tsc --noEmit
 
-src/html-to-pdf/render-html-to-pdf.ts(20,5): error TS2353: Object literal may only specify known properties, and 'pageMargins' does not exist in type 'RenderPdfOptions'.
+EXIT_STATUS=0
+
+===== TypeScript 6 compatibility =====
+
+> pagyra-js@0.0.38 check:ts6
+> tsc6 --noEmit
+
+EXIT_STATUS=0
+
+===== ESLint =====
+
+> pagyra-js@0.0.38 lint
+> eslint src tests --ext .ts,.js
+
+
+/home/runner/work/pagyra-js/pagyra-js/src/pdf/pagination.ts
+  4:3  error  'PositionedLayer' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 1 problem (1 error, 0 warnings)
+
 EXIT_STATUS=1
 
