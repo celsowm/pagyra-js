@@ -20,6 +20,10 @@ import { FontRegistryResolver } from "../fonts/font-registry-resolver.js";
 import { applyWordSpacingToGlyphRun, computeGlyphRun } from "./utils/node-text-run-factory.js";
 import { log } from "../logging/debug.js";
 import type { Environment } from "../environment/environment.js";
+import {
+  resolvePageMarginsForIndex,
+  type PageMarginProfile,
+} from "../layout/fragmentation/page-flow.js";
 
 const DEFAULT_PAGE_SIZE: PageSize = { widthPt: 595.28, heightPt: 841.89 };
 
@@ -35,6 +39,7 @@ export interface RenderPdfOptions {
   readonly metadata?: PdfMetadata;
   readonly fontConfig?: FontConfig;
   readonly margins?: PageMargins;
+  readonly pageMargins?: PageMarginProfile;
   readonly headerFooterCss?: string;
   readonly environment?: Environment;
   readonly resourceBaseDir?: string;
@@ -68,6 +73,7 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
     bottom: 0,
     left: 0,
   };
+  const pageMargins = options.pageMargins ?? { default: margins };
 
   const baseContentBox = computeBaseContentBox(layout.root, pageSize, pxToPt);
   const hfContext = initHeaderFooterContext(layout.hf, pageSize, baseContentBox);
@@ -88,6 +94,7 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
   for (let index = 0; index < pages.length; index++) {
     const pageTree = pages[index];
     const pageNumber = index + 1;
+    const marginsForPage = resolvePageMarginsForIndex(pageMargins, index);
 
     const painterResult = await paintLayoutPage({
       pageTree,
@@ -102,7 +109,7 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
       tokens,
       headerFooterTextOptions,
       pageBackground,
-      margins,
+      margins: marginsForPage,
       headerFooterCss: options.headerFooterCss,
       environment: options.environment,
       resourceBaseDir: options.resourceBaseDir,
