@@ -1,7 +1,7 @@
 ===== npm ci =====
 npm warn deprecated source-map-resolve@0.6.0: See https://github.com/lydell/source-map-resolve#deprecated
 
-added 296 packages, and audited 297 packages in 5s
+added 296 packages, and audited 297 packages in 6s
 
 88 packages are looking for funding
   run `npm fund` for details
@@ -27,6 +27,24 @@ EXIT_STATUS=0
 > pagyra-js@0.0.25 check
 > tsc --noEmit
 
-src/html-to-pdf/prepare-html-render.ts(70,65): error TS2739: Type '{ document: Document; cssInput: string; resourceBaseDir: string; assetRootDir: string; environment: Environment; }' is missing the following properties from type 'CollectCssArtifactsOptions': viewportWidth, viewportHeight
+src/pdf/header-footer-painter.ts(9,3): error TS2724: '"./header-footer-renderer.js"' has no exported member named 'paintRenderedHeaderFooter'. Did you mean 'RenderedHeaderFooter'?
+src/pdf/header-footer-renderer.ts(202,3): error TS2554: Expected 4 arguments, but got 3.
+src/pdf/header-footer-renderer.ts(240,38): error TS2554: Expected 2 arguments, but got 3.
+src/pdf/header-footer-renderer.ts(275,18): error TS2554: Expected 4 arguments, but got 3.
+src/pdf/header-footer-renderer.ts(277,5): error TS2322: Type 'void' is not assignable to type 'GlyphRun'.
+src/pdf/header-footer-renderer.ts(277,16): error TS2554: Expected 3 arguments, but got 2.
+src/pdf/header-footer-renderer.ts(281,5): error TS2353: Object literal may only specify known properties, and 'glyphRun' does not exist in type 'Run'.
+src/pdf/header-footer-renderer.ts(285,16): error TS2339: Property 'color' does not exist on type 'Run'.
+src/pdf/header-footer-renderer.ts(297,5): error TS2322: Type '{ x: number; y: number; width: number; height: number; } | undefined' is not assignable to type 'Rect'.
+  Type 'undefined' is not assignable to type 'Rect'.
+src/pdf/header-footer-renderer.ts(298,5): error TS2322: Type '{ x: number; y: number; width: number; height: number; } | undefined' is not assignable to type 'Rect'.
+  Type 'undefined' is not assignable to type 'Rect'.
+src/pdf/header-footer-renderer.ts(299,20): error TS2339: Property 'marginBox' does not exist on type 'RenderBox'.
+src/pdf/header-footer-renderer.ts(299,41): error TS2339: Property 'marginBox' does not exist on type 'RenderBox'.
+src/pdf/header-footer-renderer.ts(300,5): error TS2322: Type '{ x: number; y: number; width: number; height: number; } | undefined' is not assignable to type 'Rect'.
+  Type 'undefined' is not assignable to type 'Rect'.
+src/pdf/header-footer.ts(19,3): error TS2724: '"./header-footer-renderer.js"' has no exported member named 'paintRenderedHeaderFooter'. Did you mean 'RenderedHeaderFooter'?
+src/pdf/header-footer.ts(20,3): error TS2305: Module '"./header-footer-renderer.js"' has no exported member 'calculatePageContentArea'.
+src/pdf/header-footer.ts(23,8): error TS2305: Module '"./header-footer-renderer.js"' has no exported member 'PageContentAreaConfig'.
 EXIT_STATUS=1
 
