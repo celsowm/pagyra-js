@@ -1,6 +1,6 @@
 import type { BackgroundRepeat, Gradient } from "../css/background-types.js";
 import type { GlyphRun } from "../layout/text-run.js";
-import type { FilterFunction } from "../css/properties/visual.js";
+import type { FilterFunction, Visibility } from "../css/properties/visual.js";
 import type { PaintInstruction } from "./stacking/types.js";
 
 export enum NodeKind {
@@ -238,7 +238,6 @@ export interface LayoutPageTree {
 export interface PositionedLayer {
   z: number;
   boxes: RenderBox[];
-  /** Preserves stacking-context opacity scopes for replicated positioned content. */
   paintOrder?: PaintInstruction[];
 }
 
@@ -263,6 +262,7 @@ export interface RenderBox {
   clipPath?: ClipPath;
   background: Background;
   opacity: number;
+  visibility: Visibility;
   overflow: Overflow;
   overflowX: Overflow;
   overflowY: Overflow;
