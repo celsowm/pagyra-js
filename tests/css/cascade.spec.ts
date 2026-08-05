@@ -1,6 +1,12 @@
-import { resolveDeclarationsForElement } from "../../src/css/compute-style/declarations.js";
+import { applyOrderedDeclarationsToStyle } from "../../src/css/apply-declarations.js";
+import {
+  resolveDeclarationsForElement,
+  type ResolvedDeclarationsResult,
+} from "../../src/css/compute-style/declarations.js";
 import type { DomLikeElement } from "../../src/css/selectors/matcher.js";
+import type { StyleAccumulator } from "../../src/css/style.js";
 import { buildCssRules } from "../../src/html/css/parse-css.js";
+import { makeUnitParsers } from "../../src/units/units.js";
 
 type FakeElementOptions = {
   tagName?: string;
@@ -33,9 +39,24 @@ function createElement(options: FakeElementOptions = {}): DomLikeElement {
   };
 }
 
-function resolve(css: string, element: DomLikeElement): Record<string, string> {
+function resolveResult(css: string, element: DomLikeElement): ResolvedDeclarationsResult {
   const rules = buildCssRules(css).styleRules;
-  return resolveDeclarationsForElement(element, rules).resolvedDeclarations;
+  return resolveDeclarationsForElement(element, rules);
+}
+
+function resolve(css: string, element: DomLikeElement): Record<string, string> {
+  return resolveResult(css, element).resolvedDeclarations;
+}
+
+function apply(css: string, element: DomLikeElement): StyleAccumulator {
+  const result = resolveResult(css, element);
+  const target: StyleAccumulator = {};
+  applyOrderedDeclarationsToStyle(
+    result.orderedDeclarations,
+    target,
+    makeUnitParsers({ viewport: { width: 800, height: 600 } }),
+  );
+  return target;
 }
 
 describe("CSS cascade precedence", () => {
@@ -57,6 +78,21 @@ describe("CSS cascade precedence", () => {
     );
 
     expect(declarations.color).toBe("blue");
+  });
+
+  it("preserves duplicate declarations so the last valid value can win", () => {
+    const element = createElement({ classes: ["card"] });
+    const result = resolveResult(
+      ".card { color: red; color: blue; }",
+      element,
+    );
+
+    expect(
+      result.orderedDeclarations
+        .filter((declaration) => declaration.property === "color")
+        .map((declaration) => declaration.value),
+    ).toEqual(["red", "blue"]);
+    expect(result.resolvedDeclarations.color).toBe("blue");
   });
 
   it("lets an important author declaration beat a normal inline declaration", () => {
@@ -93,5 +129,35 @@ describe("CSS cascade precedence", () => {
     );
 
     expect(declarations.color).toBe("red");
+  });
+
+  it("preserves longhand then shorthand order inside one rule", () => {
+    const element = createElement({ classes: ["card"] });
+    const style = apply(
+      ".card { margin-left: 5px; margin: 20px; }",
+      element,
+    );
+
+    expect(style.marginLeft).toBe(20);
+  });
+
+  it("lets a more specific shorthand override a later less-specific longhand", () => {
+    const element = createElement({ id: "target" });
+    const style = apply(
+      "#target { margin: 20px; } div { margin-left: 5px; }",
+      element,
+    );
+
+    expect(style.marginLeft).toBe(20);
+  });
+
+  it("lets a more specific longhand override a later less-specific shorthand", () => {
+    const element = createElement({ id: "target" });
+    const style = apply(
+      "#target { margin-left: 5px; } div { margin: 20px; }",
+      element,
+    );
+
+    expect(style.marginLeft).toBe(5);
   });
 });
