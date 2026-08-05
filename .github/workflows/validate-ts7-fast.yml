@@ -1,0 +1,47 @@
+name: Focused TypeScript 7 validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/ts7-fast.trigger
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install and type-check
+        shell: bash
+        run: |
+          set +e
+          {
+            echo "===== npm ci ====="
+            npm ci
+            echo "NPM_CI_STATUS=$?"
+            echo
+            echo "===== tsc 7 ====="
+            npm run check
+            echo "TSC7_STATUS=$?"
+          } > ts7-fast.log 2>&1
+
+      - name: Commit result and remove one-shot files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/validate-ts7-fast.yml
+          git rm .github/ts7-fast.trigger
+          git add ts7-fast.log
+          git commit -m "test: record focused TypeScript 7 validation"
+          git push
