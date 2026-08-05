@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: npm-publish-main
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   publish:
@@ -25,40 +25,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "22.14.0"
-          registry-url: "https://registry.npmjs.org"
-          package-manager-cache: false
-
-      - name: Install an OIDC-capable npm CLI
-        run: npm install --global npm@11
-
-      - name: Verify publishing toolchain
-        shell: bash
-        run: |
-          node --version
-          NPM_VERSION="$(npm --version)"
-          echo "$NPM_VERSION"
-          node --input-type=commonjs - "$NPM_VERSION" <<'NODE'
-          const [major, minor, patch] = process.argv[2].split(".").map(Number);
-
-          if (
-            major < 11 ||
-            (major === 11 && minor < 5) ||
-            (major === 11 && minor === 5 && patch < 1)
-          ) {
-            throw new Error("Trusted publishing requires npm 11.5.1 or newer.");
-          }
-          NODE
-
-      - name: Install locked dependencies
-        run: npm ci
-
-      - name: Validate source
-        run: npm run validate
-
-      - name: Check whether this is still the latest main commit
+      - name: Ignore obsolete main commits
         id: current
         shell: bash
         run: |
@@ -70,8 +37,66 @@ jobs:
             echo "A newer main commit exists; its workflow will publish instead."
           fi
 
-      - name: Select and apply release version
+      - uses: actions/setup-node@v6
         if: steps.current.outputs.is_latest == 'true'
+        with:
+          node-version: "22.14.0"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+
+      - name: Install an OIDC-capable npm CLI
+        if: steps.current.outputs.is_latest == 'true'
+        run: npm install --global npm@11
+
+      - name: Validate, test and build
+        if: steps.current.outputs.is_latest == 'true'
+        id: validation
+        shell: bash
+        run: |
+          set +e
+          LOG_FILE="npm-publish-validation.log"
+          : > "$LOG_FILE"
+          FAILED=0
+
+          run_step() {
+            local name="$1"
+            shift
+            echo "===== $name =====" | tee -a "$LOG_FILE"
+            "$@" 2>&1 | tee -a "$LOG_FILE"
+            local status=${PIPESTATUS[0]}
+            echo "EXIT_STATUS=$status" | tee -a "$LOG_FILE"
+            echo | tee -a "$LOG_FILE"
+            if [[ $status -ne 0 ]]; then
+              FAILED=1
+            fi
+          }
+
+          run_step "npm ci" npm ci
+          if [[ $FAILED -eq 0 ]]; then run_step "TypeScript 7" npm run check; fi
+          if [[ $FAILED -eq 0 ]]; then run_step "TypeScript 6 compatibility" npm run check:ts6; fi
+          if [[ $FAILED -eq 0 ]]; then run_step "ESLint" npm run lint; fi
+          if [[ $FAILED -eq 0 ]]; then run_step "Vitest" npm test; fi
+          if [[ $FAILED -eq 0 ]]; then run_step "Build" npm run build; fi
+          if [[ $FAILED -eq 0 ]]; then run_step "Package inspection" npm pack --dry-run; fi
+
+          echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
+
+      - name: Record validation failure on main
+        if: steps.current.outputs.is_latest == 'true' && steps.validation.outputs.failed == '1'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f npm-publish-validation.log
+          git commit -m "ci: record npm publish validation failure [skip ci]"
+          git push origin HEAD:main
+
+      - name: Stop after validation failure
+        if: steps.current.outputs.is_latest == 'true' && steps.validation.outputs.failed == '1'
+        run: exit 1
+
+      - name: Select release version
+        if: steps.current.outputs.is_latest == 'true' && steps.validation.outputs.failed == '0'
         id: release
         shell: bash
         run: |
@@ -89,17 +114,13 @@ jobs:
 
           function compare(left, right) {
             for (let index = 0; index < 3; index++) {
-              if (left[index] !== right[index]) {
-                return left[index] - right[index];
-              }
+              if (left[index] !== right[index]) return left[index] - right[index];
             }
             return 0;
           }
 
           const currentParts = parse(current);
-          if (!currentParts) {
-            throw new Error(`Invalid package version: ${current}`);
-          }
+          if (!currentParts) throw new Error(`Invalid package version: ${current}`);
 
           const publishedParts = parse(published);
           if (!publishedParts || compare(currentParts, publishedParts) > 0) {
@@ -116,37 +137,42 @@ jobs:
           echo "version=$NEXT_VERSION" >> "$GITHUB_OUTPUT"
           echo "Publishing pagyra-js@$NEXT_VERSION"
 
-      - name: Build release artifacts
-        if: steps.current.outputs.is_latest == 'true'
-        run: npm run build
+      - name: Publish with npm trusted publishing
+        if: steps.current.outputs.is_latest == 'true' && steps.validation.outputs.failed == '0'
+        id: publish
+        shell: bash
+        run: |
+          set +e
+          npm publish --access public 2>&1 | tee npm-publish.log
+          STATUS=${PIPESTATUS[0]}
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          exit 0
 
-      - name: Inspect package contents
-        if: steps.current.outputs.is_latest == 'true'
-        run: npm pack --dry-run
-
-      - name: Record release version on main
-        if: steps.current.outputs.is_latest == 'true'
+      - name: Record npm publish failure on main
+        if: steps.current.outputs.is_latest == 'true' && steps.validation.outputs.failed == '0' && steps.publish.outputs.status != '0'
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f npm-publish.log
+          git commit -m "ci: record npm publish failure [skip ci]"
+          git push origin HEAD:main
 
-          if ! git diff --quiet -- package.json package-lock.json; then
-            git add package.json package-lock.json
-            git commit -m "chore: release v${{ steps.release.outputs.version }} [skip ci]"
-            git push origin HEAD:main
-          fi
+      - name: Stop after npm publish failure
+        if: steps.current.outputs.is_latest == 'true' && steps.validation.outputs.failed == '0' && steps.publish.outputs.status != '0'
+        run: exit 1
 
-      - name: Publish with npm trusted publishing
-        if: steps.current.outputs.is_latest == 'true'
-        run: npm publish --access public
-
-      - name: Tag published version
-        if: steps.current.outputs.is_latest == 'true'
+      - name: Record published version on main
+        if: steps.current.outputs.is_latest == 'true' && steps.validation.outputs.failed == '0' && steps.publish.outputs.status == '0'
         shell: bash
         run: |
           VERSION="${{ steps.release.outputs.version }}"
-          if ! git rev-parse "v$VERSION" >/dev/null 2>&1; then
-            git tag -a "v$VERSION" -m "Release v$VERSION"
-          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f npm-publish-validation.log npm-publish.log
+          git rm -f npm-publish-validation.log npm-publish.log 2>/dev/null || true
+          git add package.json package-lock.json
+          git commit -m "chore: release v$VERSION [skip ci]"
+          git push origin HEAD:main
+          git tag -a "v$VERSION" -m "Release v$VERSION"
           git push origin "v$VERSION"
