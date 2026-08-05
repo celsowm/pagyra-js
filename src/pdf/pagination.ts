@@ -1,7 +1,6 @@
 import type {
   LayoutPageTree,
   RenderBox,
-  PositionedLayer,
   DecorationCommand,
   Link,
 } from "./types.js";
