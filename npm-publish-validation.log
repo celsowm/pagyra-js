@@ -1,7 +1,7 @@
 ===== npm ci =====
 npm warn deprecated source-map-resolve@0.6.0: See https://github.com/lydell/source-map-resolve#deprecated
 
-added 296 packages, and audited 297 packages in 5s
+added 296 packages, and audited 297 packages in 6s
 
 88 packages are looking for funding
   run `npm fund` for details
@@ -24,28 +24,28 @@ EXIT_STATUS=0
 
 ===== TypeScript 7 =====
 
-> pagyra-js@0.0.26 check
+> pagyra-js@0.0.27 check
 > tsc --noEmit
 
 EXIT_STATUS=0
 
 ===== TypeScript 6 compatibility =====
 
-> pagyra-js@0.0.26 check:ts6
+> pagyra-js@0.0.27 check:ts6
 > tsc6 --noEmit
 
 EXIT_STATUS=0
 
 ===== ESLint =====
 
-> pagyra-js@0.0.26 lint
+> pagyra-js@0.0.27 lint
 > eslint src tests --ext .ts,.js
 
 EXIT_STATUS=0
 
 ===== Vitest =====
 
-> pagyra-js@0.0.26 test
+> pagyra-js@0.0.27 test
 > vitest run
 
 
@@ -53,6 +53,8 @@ EXIT_STATUS=0
 
  [32m✓[39m tests/layout/gap-calculator.spec.ts [2m ([22m[2m35 tests[22m[2m)[22m[90m 12[2mms[22m[39m
  [32m✓[39m tests/pdf/xref-integrity.spec.ts [2m ([22m[2m4 tests[22m[2m)[22m[90m 8[2mms[22m[39m
+ [32m✓[39m tests/css/content-parser.spec.ts [2m ([22m[2m18 tests[22m[2m)[22m[90m 9[2mms[22m[39m
+ [32m✓[39m tests/pdf/background-repeat.spec.ts [2m ([22m[2m11 tests[22m[2m)[22m[90m 18[2mms[22m[39m
 [90mstdout[2m | tests/pdf/background-repeat.spec.ts[2m > [22m[2mbackground-repeat CSS parsing[2m > [22m[2mparses background-repeat: no-repeat[22m[39m
 parseLinearGradient - input: url(test.png)
 parseLinearGradient - trimmed: url(test.png)
@@ -132,10 +134,8 @@ parseLinearGradient - input: url(test.png)
 parseLinearGradient - trimmed: url(test.png)
 parseLinearGradient - not a linear gradient, returning null
 
- [32m✓[39m tests/pdf/background-repeat.spec.ts [2m ([22m[2m11 tests[22m[2m)[22m[90m 15[2mms[22m[39m
- [32m✓[39m tests/css/content-parser.spec.ts [2m ([22m[2m18 tests[22m[2m)[22m[90m 13[2mms[22m[39m
  [32m✓[39m tests/pdf/text-renderer-fallback.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 6[2mms[22m[39m
- [32m✓[39m tests/pdf/border-radius.spec.ts [2m ([22m[2m6 tests[22m[2m)[22m[90m 8[2mms[22m[39m
+ [32m✓[39m tests/pdf/border-radius.spec.ts [2m ([22m[2m6 tests[22m[2m)[22m[90m 6[2mms[22m[39m
 [90mstdout[2m | tests/pdf/border-radius.spec.ts[2m > [22m[2mborder-radius rendering[2m > [22m[2mgenerates correct path for rounded rectangle with 15px radius[22m[39m
 Generated path:
 15 0 m
@@ -214,14 +214,14 @@ isZeroRadius for 15px: false
 [90mstdout[2m | tests/pdf/border-radius.spec.ts[2m > [22m[2mborder-radius rendering[2m > [22m[2mcorrectly identifies zero radius[22m[39m
 isZeroRadius for 0px: true
 
- [32m✓[39m tests/html/dom-converter-text.spec.ts [2m ([22m[2m10 tests[22m[2m)[22m[90m 18[2mms[22m[39m
+ [32m✓[39m tests/html/dom-converter-text.spec.ts [2m ([22m[2m10 tests[22m[2m)[22m[90m 16[2mms[22m[39m
  [32m✓[39m tests/css/cascade.spec.ts [2m ([22m[2m9 tests[22m[2m)[22m[90m 18[2mms[22m[39m
- [32m✓[39m tests/environment/path-resolution.spec.ts [2m ([22m[2m14 tests[22m[2m)[22m[90m 9[2mms[22m[39m
- [32m✓[39m tests/layout/form-detection.spec.ts [2m ([22m[2m8 tests[22m[2m)[22m[90m 64[2mms[22m[39m
- [32m✓[39m tests/layout/table-image-cell.spec.ts [2m ([22m[2m5 tests[22m[2m)[22m[90m 122[2mms[22m[39m
- [32m✓[39m tests/pdf/font-subset-loca-consistency.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[33m 417[2mms[22m[39m
- [32m✓[39m tests/css/filter-parser.spec.ts [2m ([22m[2m23 tests[22m[2m)[22m[90m 18[2mms[22m[39m
- [32m✓[39m tests/layout/inline-background-alignment.spec.ts [2m ([22m[2m3 tests[22m[2m)[22m[90m 39[2mms[22m[39m
+ [32m✓[39m tests/environment/path-resolution.spec.ts [2m ([22m[2m14 tests[22m[2m)[22m[90m 10[2mms[22m[39m
+ [32m✓[39m tests/layout/form-detection.spec.ts [2m ([22m[2m8 tests[22m[2m)[22m[90m 46[2mms[22m[39m
+ [32m✓[39m tests/layout/table-image-cell.spec.ts [2m ([22m[2m5 tests[22m[2m)[22m[90m 126[2mms[22m[39m
+ [32m✓[39m tests/css/filter-parser.spec.ts [2m ([22m[2m23 tests[22m[2m)[22m[90m 12[2mms[22m[39m
+ [32m✓[39m tests/pdf/font-subset-loca-consistency.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[33m 454[2mms[22m[39m
+ [32m✓[39m tests/layout/inline-background-alignment.spec.ts [2m ([22m[2m3 tests[22m[2m)[22m[90m 44[2mms[22m[39m
 [90mstdout[2m | tests/pdf/backdrop-filter-noop.spec.ts[2m > [22m[2mbackdrop-filter no-op[2m > [22m[2mrenders without error when backdrop-filter is present[22m[39m
 Processing background property: linear-gradient(135deg, #667eea 0%, #764ba2 100%)
 parseLinearGradient - input: linear-gradient(135deg, #667eea 0%, #764ba2 100%)
@@ -247,15 +247,15 @@ Parsed background layers: [ { kind: 'color', color: 'rgba(255, 255, 255, 0.3)' }
 [90mstdout[2m | tests/pdf/backdrop-filter-noop.spec.ts[2m > [22m[2mbackdrop-filter no-op[2m > [22m[2mrenders without error when backdrop-filter is present[22m[39m
 [33m[WARN][0m [93mpaint[0m Unsupported backdrop-filter function(s) ignored: blur, brightness { boxId: 'node-1', functions: [ 'blur', 'brightness' ] }
 
- [32m✓[39m tests/pdf/selawik-opt-in.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[33m 430[2mms[22m[39m
+ [32m✓[39m tests/pdf/selawik-opt-in.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[33m 423[2mms[22m[39m
 [90mstdout[2m | tests/pdf/backdrop-filter-noop.spec.ts[2m > [22m[2mbackdrop-filter no-op[2m > [22m[2mrenders without error when filter has unsupported functions[22m[39m
 [33m[WARN][0m [93mpaint[0m Unsupported filter function(s) ignored: blur, grayscale, brightness { boxId: 'node-1', functions: [ 'blur', 'grayscale', 'brightness' ] }
 
+ [32m✓[39m tests/layout/paged-body-margin.spec.ts [2m ([22m[2m3 tests[22m[2m)[22m[90m 41[2mms[22m[39m
 [90mstdout[2m | tests/pdf/backdrop-filter-noop.spec.ts[2m > [22m[2mbackdrop-filter no-op[2m > [22m[2mapplies opacity from filter correctly[22m[39m
 Processing background property: red
 Parsed background layers: [ { kind: 'color', color: 'red' } ]
 
- [32m✓[39m tests/layout/paged-body-margin.spec.ts [2m ([22m[2m3 tests[22m[2m)[22m[90m 54[2mms[22m[39m
 [90mstdout[2m | tests/pdf/backdrop-filter-noop.spec.ts[2m > [22m[2mbackdrop-filter no-op[2m > [22m[2mcomposes filter opacity with element opacity[22m[39m
 DEBUG: parseOpacity called with value: "0.8"
 Processing background property: blue
@@ -265,11 +265,11 @@ Parsed background layers: [ { kind: 'color', color: 'blue' } ]
 Processing background property: yellow
 Parsed background layers: [ { kind: 'color', color: 'yellow' } ]
 
- [32m✓[39m tests/pdf/backdrop-filter-noop.spec.ts [2m ([22m[2m5 tests[22m[2m)[22m[33m 916[2mms[22m[39m
+ [32m✓[39m tests/pdf/backdrop-filter-noop.spec.ts [2m ([22m[2m5 tests[22m[2m)[22m[33m 954[2mms[22m[39m
+ [32m✓[39m tests/layout/box-sizing.spec.ts [2m ([22m[2m5 tests[22m[2m)[22m[90m 58[2mms[22m[39m
+ [32m✓[39m tests/layout/inline-fragments.spec.ts [2m ([22m[2m4 tests[22m[2m)[22m[90m 59[2mms[22m[39m
  [32m✓[39m tests/layout/run-placer-baseline.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 5[2mms[22m[39m
- [32m✓[39m tests/layout/box-sizing.spec.ts [2m ([22m[2m5 tests[22m[2m)[22m[90m 45[2mms[22m[39m
- [32m✓[39m tests/layout/inline-fragments.spec.ts [2m ([22m[2m4 tests[22m[2m)[22m[90m 37[2mms[22m[39m
- [32m✓[39m tests/pdf/form-text-encoding.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 5[2mms[22m[39m
+ [32m✓[39m tests/pdf/svg-stroke-dash.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 14[2mms[22m[39m
 [90mstdout[2m | tests/pdf/svg-stroke-dash.spec.ts[2m > [22m[2mSVG Stroke Dash Support[2m > [22m[2mshould render path with stroke-dasharray[22m[39m
 parseLinearGradient - input: #000000
 parseLinearGradient - trimmed: #000000
@@ -280,19 +280,25 @@ parseLinearGradient - input: #000000
 parseLinearGradient - trimmed: #000000
 parseLinearGradient - not a linear gradient, returning null
 
- [32m✓[39m tests/pdf/svg-stroke-dash.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 21[2mms[22m[39m
+ [32m✓[39m tests/pdf/form-text-encoding.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 7[2mms[22m[39m
  [32m✓[39m tests/css/parse-css-media.spec.ts [2m ([22m[2m7 tests[22m[2m)[22m[90m 14[2mms[22m[39m
- [32m✓[39m tests/pdf/clip-path.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 36[2mms[22m[39m
+ [32m✓[39m tests/pdf/clip-path.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 39[2mms[22m[39m
 [90mstdout[2m | tests/pdf/clip-path.spec.ts[2m > [22m[2mclip-path rendering[2m > [22m[2mresolves polygon clip-path points relative to border-box[22m[39m
 Processing background property: skyblue
 Parsed background layers: [ { kind: 'color', color: 'skyblue' } ]
 
- [33m❯[39m tests/css/white-space.spec.ts [2m ([22m[2m9 tests[22m [2m|[22m [31m1 failed[39m[2m)[22m[90m 18[2mms[22m[39m
-[31m   [33m❯[31m tests/css/white-space.spec.ts[2m > [22mwhite-space parser and computed style[2m > [22mretains the pre user-agent default[39m
-[31m     → expected 'normal' to be 'pre' // Object.is equality[39m
- [32m✓[39m tests/css/clip-path-parser.spec.ts [2m ([22m[2m4 tests[22m[2m)[22m[90m 13[2mms[22m[39m
- [32m✓[39m tests/css/grid-clamp.spec.ts [2m ([22m[2m3 tests[22m[2m)[22m[90m 17[2mms[22m[39m
- [32m✓[39m tests/layout/responsive-clamp-grid-parity.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 45[2mms[22m[39m
+ [32m✓[39m tests/css/white-space.spec.ts [2m ([22m[2m9 tests[22m[2m)[22m[90m 12[2mms[22m[39m
+ [32m✓[39m tests/css/clip-path-parser.spec.ts [2m ([22m[2m4 tests[22m[2m)[22m[90m 11[2mms[22m[39m
+ [33m❯[39m tests/css/font-shorthand.spec.ts [2m ([22m[2m5 tests[22m [2m|[22m [31m1 failed[39m[2m)[22m[90m 30[2mms[22m[39m
+[31m   [33m❯[31m tests/css/font-shorthand.spec.ts[2m > [22mfont shorthand[2m > [22mparses style, variant, weight, size, line-height and family[39m
+[31m     → expected 400 to be 700 // Object.is equality[39m
+ [32m✓[39m tests/css/grid-clamp.spec.ts [2m ([22m[2m3 tests[22m[2m)[22m[90m 10[2mms[22m[39m
+ [32m✓[39m tests/pdf/form-color-normalization.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 26[2mms[22m[39m
+[90mstdout[2m | tests/pdf/form-color-normalization.spec.ts[2m > [22m[2mform renderer color normalization[2m > [22m[2mnormalizes RGB channels for input text rendering[22m[39m
+Processing background property: #fff
+Parsed background layers: [ { kind: 'color', color: '#fff' } ]
+
+ [32m✓[39m tests/layout/responsive-clamp-grid-parity.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 60[2mms[22m[39m
 [90mstdout[2m | tests/layout/responsive-clamp-grid-parity.spec.ts[2m > [22m[2mresponsive clamp grid parity[2m > [22m[2mmatches browser-like grid stretch and wrapped flex growth for the repro[22m[39m
 Processing background property: #333
 Parsed background layers: [ { kind: 'color', color: '#333' } ]
@@ -303,14 +309,9 @@ Parsed background layers: [ { kind: 'color', color: '#6c5ce7' } ]
 Processing background property: #6c5ce7
 Parsed background layers: [ { kind: 'color', color: '#6c5ce7' } ]
 
- [32m✓[39m tests/pdf/form-color-normalization.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 36[2mms[22m[39m
-[90mstdout[2m | tests/pdf/form-color-normalization.spec.ts[2m > [22m[2mform renderer color normalization[2m > [22m[2mnormalizes RGB channels for input text rendering[22m[39m
-Processing background property: #fff
-Parsed background layers: [ { kind: 'color', color: '#fff' } ]
-
- [32m✓[39m tests/css/font-variant-numeric.spec.ts [2m ([22m[2m9 tests[22m[2m)[22m[90m 7[2mms[22m[39m
- [32m✓[39m tests/pdf/header-footer-auto-height.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 93[2mms[22m[39m
- [32m✓[39m tests/pdf/radial-gradient.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 10[2mms[22m[39m
+ [32m✓[39m tests/pdf/header-footer-auto-height.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 107[2mms[22m[39m
+ [32m✓[39m tests/css/font-variant-numeric.spec.ts [2m ([22m[2m9 tests[22m[2m)[22m[90m 11[2mms[22m[39m
+ [32m✓[39m tests/pdf/radial-gradient.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 11[2mms[22m[39m
 [90mstdout[2m | tests/pdf/radial-gradient.spec.ts[2m > [22m[2mradial-gradient backgrounds[2m > [22m[2mparses radial gradients into background layers[22m[39m
 parseLinearGradient - input: radial-gradient(circle, #ffdd55, #ff6600)
 parseLinearGradient - trimmed: radial-gradient(circle, #ffdd55, #ff6600)
@@ -322,13 +323,13 @@ parseLinearGradient - trimmed: radial-gradient(circle, #ffdd55, #ff6600)
 parseLinearGradient - not a linear gradient, returning null
 
  [32m✓[39m tests/pdf/filter-drop-shadow.spec.ts [2m ([22m[2m5 tests[22m[2m)[22m[90m 7[2mms[22m[39m
- [32m✓[39m tests/layout/pseudo-counters-generated-content.spec.ts [2m ([22m[2m3 tests[22m[2m)[22m[90m 55[2mms[22m[39m
+ [32m✓[39m tests/layout/pseudo-counters-generated-content.spec.ts [2m ([22m[2m3 tests[22m[2m)[22m[90m 78[2mms[22m[39m
 [90mstdout[2m | tests/layout/pseudo-counters-generated-content.spec.ts[2m > [22m[2mpseudo-elements with generated content and counters[2m > [22m[2mcreates an absolute positioned render box for pseudo-elements[22m[39m
 Processing background property: #0ea5e9
 Parsed background layers: [ { kind: 'color', color: '#0ea5e9' } ]
 
- [32m✓[39m tests/css/box-sizing.spec.ts [2m ([22m[2m3 tests[22m[2m)[22m[90m 10[2mms[22m[39m
- [32m✓[39m tests/pdf/background-clip.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 31[2mms[22m[39m
+ [32m✓[39m tests/css/box-sizing.spec.ts [2m ([22m[2m3 tests[22m[2m)[22m[90m 9[2mms[22m[39m
+ [32m✓[39m tests/pdf/background-clip.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 6[2mms[22m[39m
 [90mstdout[2m | tests/pdf/background-clip.spec.ts[2m > [22m[2mbackground-clip CSS handling[2m > [22m[2mmarks gradients with background-clip: text[22m[39m
 parseLinearGradient - input: linear-gradient(red, blue)
 parseLinearGradient - trimmed: linear-gradient(red, blue)
@@ -342,9 +343,8 @@ Gradient parser - parsed stops: [
   { color: 'blue', position: undefined }
 ]
 
- [32m✓[39m tests/css/container-query-units.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 10[2mms[22m[39m
- [32m✓[39m tests/html/dom-converter-pseudo-elements.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 19[2mms[22m[39m
- [32m✓[39m tests/pdf/header-footer-clip-overflow.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 23[2mms[22m[39m
+ [32m✓[39m tests/css/container-query-units.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 12[2mms[22m[39m
+ [32m✓[39m tests/pdf/header-footer-clip-overflow.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 30[2mms[22m[39m
 [90mstdout[2m | tests/pdf/header-footer-clip-overflow.spec.ts[2m > [22m[2mheader/footer clip overflow[2m > [22m[2mclips header rendering to max height when clipOverflow=true[22m[39m
 Processing background property: #000
 Parsed background layers: [ { kind: 'color', color: '#000' } ]
@@ -353,78 +353,79 @@ Parsed background layers: [ { kind: 'color', color: '#000' } ]
 Processing background property: #000
 Parsed background layers: [ { kind: 'color', color: '#000' } ]
 
- [32m✓[39m tests/css/calc-parser.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 15[2mms[22m[39m
+ [32m✓[39m tests/html/dom-converter-pseudo-elements.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 19[2mms[22m[39m
+ [32m✓[39m tests/css/calc-parser.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 9[2mms[22m[39m
  [32m✓[39m tests/pdf/stacking-context-index.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 5[2mms[22m[39m
- [32m✓[39m tests/css/selector-matcher.spec.ts [2m ([22m[2m3 tests[22m[2m)[22m[90m 8[2mms[22m[39m
- [32m✓[39m tests/css/flex-shorthand.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 6[2mms[22m[39m
- [32m✓[39m tests/layout/white-space.spec.ts [2m ([22m[2m4 tests[22m[2m)[22m[90m 45[2mms[22m[39m
- [32m✓[39m tests/pdf/text-transform-matrix.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 41[2mms[22m[39m
- [32m✓[39m tests/pdf/image-registry.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 5[2mms[22m[39m
- [32m✓[39m tests/layout/flex-auto-height.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 57[2mms[22m[39m
+ [32m✓[39m tests/css/selector-matcher.spec.ts [2m ([22m[2m3 tests[22m[2m)[22m[90m 5[2mms[22m[39m
+ [32m✓[39m tests/css/flex-shorthand.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 10[2mms[22m[39m
+ [32m✓[39m tests/layout/white-space.spec.ts [2m ([22m[2m4 tests[22m[2m)[22m[90m 46[2mms[22m[39m
+ [32m✓[39m tests/pdf/text-transform-matrix.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 53[2mms[22m[39m
+ [32m✓[39m tests/pdf/image-registry.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 6[2mms[22m[39m
+ [32m✓[39m tests/layout/flex-auto-height.spec.ts [2m ([22m[2m2 tests[22m[2m)[22m[90m 39[2mms[22m[39m
 [90mstderr[2m | tests/layout/custom-properties.test.ts[2m > [22m[2mCSS Custom Properties[2m > [22m[2mshould handle circular references gracefully (depth limit)[22m[39m
 CSS variable resolution depth limit reached
 
  [32m✓[39m tests/layout/custom-properties.test.ts [2m ([22m[2m4 tests[22m[2m)[22m[90m 5[2mms[22m[39m
- [32m✓[39m tests/text/line-breaker-regression.spec.ts [2m ([22m[2m3 tests[22m[2m)[22m[90m 14[2mms[22m[39m
- [32m✓[39m tests/verify-subset-multi.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 274[2mms[22m[39m
+ [32m✓[39m tests/verify-subset-multi.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[33m 362[2mms[22m[39m
 [90mstdout[2m | tests/verify-subset-multi.spec.ts[2m > [22m[2mMulti-Font Subsetting Verification[2m > [22m[2mshould generate a small PDF with Tinos and Arimo fonts[22m[39m
 Generated Multi-Font PDF size: 26542 bytes
 
- [32m✓[39m tests/pdf/background-repeat-space-round.spec.ts [2m ([22m[2m3 tests[22m[2m)[22m[90m 5[2mms[22m[39m
- [32m✓[39m tests/layout/flex-wrap-grow-align-content.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 32[2mms[22m[39m
- [32m✓[39m tests/layout/grid-clamp-gap.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 42[2mms[22m[39m
- [32m✓[39m tests/pdf/system-ui-fallback-subset-regression.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[33m 532[2mms[22m[39m
- [32m✓[39m tests/pdf/filter-opacity.spec.ts [2m ([22m[2m5 tests[22m[2m)[22m[90m 4[2mms[22m[39m
- [32m✓[39m tests/pdf/text-encoder.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 5[2mms[22m[39m
- [32m✓[39m tests/verify-subset.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[33m 311[2mms[22m[39m
+ [32m✓[39m tests/text/line-breaker-regression.spec.ts [2m ([22m[2m3 tests[22m[2m)[22m[90m 11[2mms[22m[39m
+ [32m✓[39m tests/pdf/background-repeat-space-round.spec.ts [2m ([22m[2m3 tests[22m[2m)[22m[90m 4[2mms[22m[39m
+ [32m✓[39m tests/layout/flex-wrap-grow-align-content.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 40[2mms[22m[39m
+ [32m✓[39m tests/layout/grid-clamp-gap.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 36[2mms[22m[39m
+ [32m✓[39m tests/pdf/system-ui-fallback-subset-regression.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[33m 547[2mms[22m[39m
+ [32m✓[39m tests/pdf/filter-opacity.spec.ts [2m ([22m[2m5 tests[22m[2m)[22m[90m 11[2mms[22m[39m
+ [32m✓[39m tests/pdf/text-encoder.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 3[2mms[22m[39m
+ [32m✓[39m tests/verify-subset.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 295[2mms[22m[39m
 [90mstdout[2m | tests/verify-subset.spec.ts[2m > [22m[2mFont Subsetting Verification[2m > [22m[2mshould generate a small PDF with Tinos font[22m[39m
 Generated PDF size: 7838 bytes
 
- [32m✓[39m tests/layout/flex-wrap-cards.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 43[2mms[22m[39m
- [32m✓[39m tests/layout/container-query-units.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 28[2mms[22m[39m
- [32m✓[39m tests/css/specificity.spec.ts [2m ([22m[2m5 tests[22m[2m)[22m[90m 11[2mms[22m[39m
- [32m✓[39m tests/layout/calc-padding.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 33[2mms[22m[39m
+ [32m✓[39m tests/layout/flex-wrap-cards.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 48[2mms[22m[39m
+ [32m✓[39m tests/layout/container-query-units.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 35[2mms[22m[39m
+ [32m✓[39m tests/css/specificity.spec.ts [2m ([22m[2m5 tests[22m[2m)[22m[90m 5[2mms[22m[39m
+ [32m✓[39m tests/layout/calc-padding.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 34[2mms[22m[39m
 [90mstdout[2m | tests/layout/calc-padding.spec.ts[2m > [22m[2mcalc() layout for padding[2m > [22m[2mresolves calc(px + %) using containing block width[22m[39m
 Processing background property: #ddd
 Parsed background layers: [ { kind: 'color', color: '#ddd' } ]
 
- [32m✓[39m tests/css/parse-css-pseudo.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 15[2mms[22m[39m
- [32m✓[39m tests/css/background-parser.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 5[2mms[22m[39m
+ [32m✓[39m tests/css/parse-css-pseudo.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 7[2mms[22m[39m
+ [32m✓[39m tests/css/background-parser.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 4[2mms[22m[39m
 [90mstdout[2m | tests/css/background-parser.spec.ts[2m > [22m[2mbackground shorthand parsing[2m > [22m[2mrecognizes named colors[22m[39m
 Processing background property: skyblue
 Parsed background layers: [ { kind: 'color', color: 'skyblue' } ]
 
  [32m✓[39m tests/simple-test.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 3[2mms[22m[39m
- [32m✓[39m tests/pdf/alignments.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 33[2mms[22m[39m
  [32m✓[39m tests/pdf/base64-conversion.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 270[2mms[22m[39m
+ [32m✓[39m tests/pdf/alignments.spec.ts [2m ([22m[2m1 test[22m[2m)[22m[90m 31[2mms[22m[39m
 
 [31m⎯⎯⎯⎯⎯⎯⎯[1m[7m Failed Tests 1 [27m[22m⎯⎯⎯⎯⎯⎯⎯[39m
 
-[31m[1m[7m FAIL [27m[22m[39m tests/css/white-space.spec.ts[2m > [22mwhite-space parser and computed style[2m > [22mretains the pre user-agent default
-[31m[1mAssertionError[22m: expected 'normal' to be 'pre' // Object.is equality[39m
+[31m[1m[7m FAIL [27m[22m[39m tests/css/font-shorthand.spec.ts[2m > [22mfont shorthand[2m > [22mparses style, variant, weight, size, line-height and family
+[31m[1mAssertionError[22m: expected 400 to be 700 // Object.is equality[39m
 
 - Expected
 + Received
 
-- pre
-+ normal
+- 700
++ 400
 
-[36m [2m❯[22m tests/css/white-space.spec.ts:[2m88:30[22m[39m
-    [90m 86| [39m    )[33m;[39m
-    [90m 87| [39m
-    [90m 88| [39m    [34mexpect[39m(style[33m.[39mwhiteSpace)[33m.[39m[34mtoBe[39m([33mWhiteSpace[39m[33m.[39m[33mPre[39m)[33m;[39m
+[36m [2m❯[22m tests/css/font-shorthand.spec.ts:[2m44:30[22m[39m
+    [90m 42| [39m    [34mexpect[39m(style[33m.[39mfontStyle)[33m.[39m[34mtoBe[39m([32m"italic"[39m)[33m;[39m
+    [90m 43| [39m    [34mexpect[39m(style[33m.[39mfontVariant)[33m.[39m[34mtoBe[39m([32m"small-caps"[39m)[33m;[39m
+    [90m 44| [39m    [34mexpect[39m(style[33m.[39mfontWeight)[33m.[39m[34mtoBe[39m([34m700[39m)[33m;[39m
     [90m   | [39m                             [31m^[39m
-    [90m 89| [39m  })[33m;[39m
-    [90m 90| [39m
+    [90m 45| [39m    [34mexpect[39m(style[33m.[39mfontSize)[33m.[39m[34mtoBe[39m([34m20[39m)[33m;[39m
+    [90m 46| [39m    [34mexpect[39m([34mresolvedLineHeight[39m(style))[33m.[39m[34mtoBe[39m([34m30[39m)[33m;[39m
 
 
-::error file=/home/runner/work/pagyra-js/pagyra-js/tests/css/white-space.spec.ts,title=tests/css/white-space.spec.ts > white-space parser and computed style > retains the pre user-agent default,line=88,column=30::AssertionError: expected 'normal' to be 'pre' // Object.is equality%0A%0A- Expected%0A+ Received%0A%0A- pre%0A+ normal%0A%0A ❯ tests/css/white-space.spec.ts:88:30%0A%0A
+::error file=/home/runner/work/pagyra-js/pagyra-js/tests/css/font-shorthand.spec.ts,title=tests/css/font-shorthand.spec.ts > font shorthand > parses style%2C variant%2C weight%2C size%2C line-height and family,line=44,column=30::AssertionError: expected 400 to be 700 // Object.is equality%0A%0A- Expected%0A+ Received%0A%0A- 700%0A+ 400%0A%0A ❯ tests/css/font-shorthand.spec.ts:44:30%0A%0A
 [31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
 
-[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m65 passed[39m[22m[90m (66)[39m
-[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m283 passed[39m[22m[90m (284)[39m
-[2m   Start at [22m 13:51:32
-[2m   Duration [22m 14.67s[2m (transform 2.54s, setup 7ms, collect 18.43s, tests 4.57s, environment 14ms, prepare 8.16s)[22m
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m66 passed[39m[22m[90m (67)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m288 passed[39m[22m[90m (289)[39m
+[2m   Start at [22m 14:07:48
+[2m   Duration [22m 15.13s[2m (transform 2.58s, setup 5ms, collect 19.04s, tests 4.76s, environment 16ms, prepare 8.37s)[22m
 
 EXIT_STATUS=1
 
