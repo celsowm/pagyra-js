@@ -39,9 +39,10 @@ describe("text line breaker regressions", () => {
     });
 
     const lines = breakTextIntoLines("one two three four five", style, 55);
+    const lastLine = lines[lines.length - 1];
 
     expect(lines.length).toBeGreaterThan(1);
     expect(lines[0].text.startsWith("one")).toBe(true);
-    expect(lines.at(-1)?.text.endsWith("five")).toBe(true);
+    expect(lastLine.text.endsWith("five")).toBe(true);
   });
 });
