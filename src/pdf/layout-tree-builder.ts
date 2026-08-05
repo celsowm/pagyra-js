@@ -122,18 +122,12 @@ function mapOverflow(mode: OverflowMode): Overflow {
   }
 }
 
-
-// ====================
-// MAIN CONVERSION FUNCTION
-// ====================
-
 function convertNode(
   node: LayoutNode,
   state: { counter: number; fontResolver?: FontResolver },
   inheritedTextGradient?: Background["gradient"],
   inheritedTextBackground?: Background,
 ): RenderBox {
-  // Use the original HTML ID if available, otherwise generate a new one
   const originalId = node.customData?.id as string | undefined;
   const id = originalId || `node-${state.counter++}`;
   const { borderBox, paddingBox, contentBox } = calculateBoxDimensions(node);
@@ -147,7 +141,7 @@ function convertNode(
   const transform = transformString ? parseTransform(transformString) ?? undefined : undefined;
 
   const background = resolveBackgroundLayers(node, { borderBox, paddingBox, contentBox });
-  const backgroundClip = node.style.backgroundLayers?.some(l => l.clip === "text") ? "text" : undefined;
+  const backgroundClip = node.style.backgroundLayers?.some((layer) => layer.clip === "text") ? "text" : undefined;
   const maskGradient = resolveMaskGradient(node, { borderBox, paddingBox, contentBox });
 
   const ownTextGradient = resolveTextGradientLayer(node, { borderBox, paddingBox, contentBox });
@@ -177,6 +171,7 @@ function convertNode(
     textContent: node.textContent?.slice(0, 40),
     fontFamily: node.style.fontFamily,
     fontSize: node.style.fontSize,
+    visibility: node.style.visibility,
     breakInside: node.style.breakInside,
     contentBox,
   });
@@ -202,7 +197,7 @@ function convertNode(
       rawTextAlign === "center" ||
       rawTextAlign === "right" ||
       rawTextAlign === "justify"
-      ? (rawTextAlign as "left" | "center" | "right" | "justify")
+      ? rawTextAlign
       : undefined;
 
   const fontSnapshot = {
@@ -239,6 +234,7 @@ function convertNode(
     },
     borderRadius,
     opacity: node.style.opacity ?? 1,
+    visibility: node.style.visibility,
     overflow: mapOverflow(node.style.overflowX ?? OverflowMode.Visible),
     overflowX: mapOverflow(node.style.overflowX ?? OverflowMode.Visible),
     overflowY: mapOverflow(node.style.overflowY ?? OverflowMode.Visible),
@@ -261,7 +257,7 @@ function convertNode(
     backgroundClip,
     clipPath,
     image: imageRef,
-      customData,
+    customData,
     textAlign,
     transform,
     filter: node.style.filter ? [...node.style.filter] : undefined,
