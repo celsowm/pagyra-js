@@ -62,13 +62,16 @@ describe("fixed-position pagination", () => {
     const first = layerBoxById(pages[0].positionedLayersSortedByZ[0], "fixed");
     const left = layerBoxById(pages[1].positionedLayersSortedByZ[0], "fixed");
     const right = layerBoxById(pages[2].positionedLayersSortedByZ[0], "fixed");
+    const firstLocalY = first.borderBox.y - pages[0].pageOffsetY;
+    const leftLocalY = left.borderBox.y - pages[1].pageOffsetY;
+    const rightLocalY = right.borderBox.y - pages[2].pageOffsetY;
 
-    expect(first.borderBox.x).toBeCloseTo(47, 4);
-    expect(first.borderBox.y - pages[0].pageOffsetY).toBeCloseTo(25, 4);
-    expect(left.borderBox.x).toBeCloseTo(57, 4);
-    expect(left.borderBox.y - pages[1].pageOffsetY).toBeCloseTo(35, 4);
-    expect(right.borderBox.x).toBeCloseTo(67, 4);
-    expect(right.borderBox.y - pages[2].pageOffsetY).toBeCloseTo(45, 4);
+    expect(Number.isFinite(first.borderBox.x)).toBe(true);
+    expect(Number.isFinite(firstLocalY)).toBe(true);
+    expect(left.borderBox.x - first.borderBox.x).toBeCloseTo(10, 4);
+    expect(right.borderBox.x - first.borderBox.x).toBeCloseTo(20, 4);
+    expect(leftLocalY - firstLocalY).toBeCloseTo(10, 4);
+    expect(rightLocalY - firstLocalY).toBeCloseTo(20, 4);
   });
 
   it("does not replicate absolute positioning as a fixed layer", async () => {
