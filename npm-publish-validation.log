@@ -27,7 +27,6 @@ EXIT_STATUS=0
 > pagyra-js@0.0.26 check
 > tsc --noEmit
 
-src/css/compute-style.ts(101,24): error TS2339: Property 'whiteSpace' does not exist on type 'Partial<ElementDefaults>'.
 src/layout/inline/layout.ts(24,21): error TS2339: Property 'metrics' does not exist on type 'LayoutItem'.
   Property 'metrics' does not exist on type 'LayoutItemBase'.
 EXIT_STATUS=1
