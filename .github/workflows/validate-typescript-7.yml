@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - .github/workflows/validate-typescript-7.yml
+      - .github/typescript7-validation.trigger
 
 permissions:
   contents: write
@@ -46,11 +46,12 @@ jobs:
           run_check "Vitest" npm test
           run_check "Build" npm run build
 
-      - name: Commit diagnostics and remove one-shot workflow
+      - name: Commit diagnostics and remove one-shot files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git rm .github/workflows/validate-typescript-7.yml
+          git rm .github/typescript7-validation.trigger
           git add typescript7-validation.log
           git commit -m "test: record TypeScript 7 migration diagnostics"
           git push
