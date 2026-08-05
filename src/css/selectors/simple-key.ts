@@ -9,7 +9,7 @@ export function simpleKey(simple: Simple): string {
     ? `[${simple.attrs
         .map((attribute) => attribute.op === "exists"
           ? attribute.name
-          : `${attribute.name}${attribute.op}\"${attribute.value}\"`)
+          : `${attribute.name}${attribute.op}"${attribute.value}"`)
         .sort()
         .join("][")}]`
     : "";
