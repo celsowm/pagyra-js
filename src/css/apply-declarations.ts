@@ -5,6 +5,7 @@ import { registerAllPropertyParsers } from "./parsers/register-parsers.js";
 import { registerWhiteSpaceParser } from "./parsers/white-space-parser.js";
 import { registerFragmentationParsers } from "./parsers/fragmentation-parser.js";
 import { registerVisibilityParser } from "./parsers/visibility-parser.js";
+import { registerObjectPositionParser } from "./parsers/object-position-parser.js";
 import { type StyleAccumulator } from "./style.js";
 import { type UnitParsers } from "../units/units.js";
 
@@ -19,6 +20,7 @@ registerAllPropertyParsers();
 registerWhiteSpaceParser();
 registerFragmentationParsers();
 registerVisibilityParser();
+registerObjectPositionParser();
 
 const parserCache = new Map<string, PropertyParser>();
 
