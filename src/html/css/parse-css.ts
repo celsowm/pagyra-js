@@ -1,14 +1,25 @@
 import * as cssParser from "css";
 import { createSelectorMatcher, type DomLikeElement } from "../../css/selectors/matcher.js";
+import { computeSpecificity, type Specificity } from "../../css/selectors/specificity.js";
 
 import type { DomElement } from "../../types/core.js";
 
 export type DomEl = DomElement;
 export type CssPseudoElement = "::before" | "::after";
 
+export interface CssDeclarationEntry {
+  property: string;
+  value: string;
+  important: boolean;
+  sourceOrder: number;
+}
+
 export interface CssRuleEntry {
   selector: string;
   declarations: Record<string, string>;
+  orderedDeclarations?: readonly CssDeclarationEntry[];
+  specificity?: Specificity;
+  sourceOrder?: number;
   match: (el: DomLikeElement) => boolean;
   pseudoElement?: CssPseudoElement;
 }
@@ -26,6 +37,66 @@ type CssDeclaration = cssParser.Declaration;
 type CssRule = cssParser.Rule;
 type CssFontFaceRule = cssParser.FontFace;
 
+interface ParsedDeclarationBlock {
+  declarations: Record<string, string>;
+  orderedDeclarations: CssDeclarationEntry[];
+}
+
+function normalizeProperty(property: string): string {
+  const trimmed = property.trim();
+  return trimmed.startsWith("--") ? trimmed : trimmed.toLowerCase();
+}
+
+function splitImportant(value: string): { value: string; important: boolean } {
+  const match = /!\s*important\s*$/i.exec(value);
+  if (!match || match.index === undefined) {
+    return { value: value.trim(), important: false };
+  }
+  return {
+    value: value.slice(0, match.index).trim(),
+    important: true,
+  };
+}
+
+function parseDeclarationBlock(declarations: readonly cssParser.Declaration[]): ParsedDeclarationBlock {
+  const declarationMap: Record<string, string> = {};
+  const orderedDeclarations: CssDeclarationEntry[] = [];
+
+  for (const declaration of declarations) {
+    if (!declaration.property || declaration.value === undefined) {
+      continue;
+    }
+
+    const property = normalizeProperty(declaration.property);
+    const rawValue = declaration.value.trim();
+    const parsedValue = splitImportant(rawValue);
+
+    declarationMap[property] = rawValue;
+    orderedDeclarations.push({
+      property,
+      value: parsedValue.value,
+      important: parsedValue.important,
+      sourceOrder: orderedDeclarations.length,
+    });
+  }
+
+  return {
+    declarations: declarationMap,
+    orderedDeclarations,
+  };
+}
+
+function parseFontFaceDeclarations(declarations: readonly cssParser.Declaration[]): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const declaration of declarations) {
+    if (!declaration.property || declaration.value === undefined) {
+      continue;
+    }
+    result[normalizeProperty(declaration.property)] = declaration.value.trim();
+  }
+  return result;
+}
+
 export function buildCssRules(cssText: string): ParsedCss {
   const result: ParsedCss = { styleRules: [], fontFaceRules: [] };
   if (!cssText.trim()) {
@@ -33,26 +104,17 @@ export function buildCssRules(cssText: string): ParsedCss {
   }
   const stylesheet = cssParser.parse(cssText);
   const rules = stylesheet.stylesheet?.rules ?? [];
+  let styleRuleSourceOrder = 0;
 
   for (const rule of rules) {
     if (rule.type === "rule") {
       const typedRule = rule as CssRule;
       const selectors = typedRule.selectors ?? [];
-      const decls = typedRule.declarations ?? [];
-      const declarations: Record<string, string> = {};
-      for (const decl of decls) {
-        if (decl.type !== "declaration") continue;
-        const declaration = decl as CssDeclaration;
-        if (!declaration.property || declaration.value === undefined) {
-          continue;
-        }
-        const prop = declaration.property.trim();
-        if (prop.startsWith('--')) {
-          declarations[prop] = declaration.value.trim();
-        } else {
-          declarations[prop.toLowerCase()] = declaration.value.trim();
-        }
-      }
+      const decls = (typedRule.declarations ?? []).filter(
+        (declaration): declaration is CssDeclaration => declaration.type === "declaration",
+      );
+      const parsedDeclarations = parseDeclarationBlock(decls);
+
       for (const selector of selectors) {
         const trimmedSelector = selector.trim();
         const parsedSelector = splitTerminalPseudoElement(trimmedSelector);
@@ -67,29 +129,21 @@ export function buildCssRules(cssText: string): ParsedCss {
         }
         result.styleRules.push({
           selector,
-          declarations: { ...declarations },
+          declarations: { ...parsedDeclarations.declarations },
+          orderedDeclarations: parsedDeclarations.orderedDeclarations.map((declaration) => ({ ...declaration })),
+          specificity: computeSpecificity(parsedSelector.baseSelector),
+          sourceOrder: styleRuleSourceOrder,
           match: matcher,
           pseudoElement: parsedSelector.pseudoElement,
         });
       }
+      styleRuleSourceOrder++;
     } else if (rule.type === "font-face") {
       const typedRule = rule as CssFontFaceRule;
-      const decls = typedRule.declarations ?? [];
-      const declarations: Record<string, string> = {};
-      for (const decl of decls) {
-        if (decl.type !== "declaration") continue;
-        const declaration = decl as CssDeclaration;
-        if (!declaration.property || declaration.value === undefined) {
-          continue;
-        }
-        const prop = declaration.property.trim();
-        if (prop.startsWith('--')) {
-          declarations[prop] = declaration.value.trim();
-        } else {
-          declarations[prop.toLowerCase()] = declaration.value.trim();
-        }
-      }
-      result.fontFaceRules.push({ declarations });
+      const decls = (typedRule.declarations ?? []).filter(
+        (declaration): declaration is CssDeclaration => declaration.type === "declaration",
+      );
+      result.fontFaceRules.push({ declarations: parseFontFaceDeclarations(decls) });
     }
   }
   return result;
