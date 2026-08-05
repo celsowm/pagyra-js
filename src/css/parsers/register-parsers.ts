@@ -134,6 +134,7 @@ import {
   parseTextDecorationStyle,
   parseFloat,
   parseTextIndent,
+  parseVerticalAlign,
   parseTextTransform,
   parseLetterSpacing,
 } from "./text-parser-extended.js";
@@ -298,6 +299,7 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("text-decoration-style", parseTextDecorationStyle);
   registerPropertyParser("letter-spacing", parseLetterSpacing);
   registerPropertyParser("text-indent", parseTextIndent);
+  registerPropertyParser("vertical-align", parseVerticalAlign);
   registerPropertyParser("text-transform", parseTextTransform);
   registerPropertyParser("float", parseFloat);
   registerPropertyParser("overflow-wrap", parseOverflowWrap);
