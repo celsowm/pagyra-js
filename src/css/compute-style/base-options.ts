@@ -6,6 +6,7 @@ import type { InheritedStyleProperties } from "../style-inheritance.js";
 import type { StyleDefaults } from "../ua-defaults/types.js";
 import type { FontComputationResult } from "./font.js";
 import type { CustomPropertiesMap } from "../custom-properties.js";
+import { readBreakAfter, readBreakBefore } from "../parsers/fragmentation-parser.js";
 
 export function createBaseStyleOptions(
   resolvedDefaults: Partial<StyleProperties>,
@@ -33,6 +34,8 @@ export function createBaseStyleOptions(
     letterSpacing: inherited.letterSpacing ?? mergedDefaults.letterSpacing,
     listStyleType: inherited.listStyleType ?? mergedDefaults.listStyleType ?? "disc",
     verticalAlign: styleInit.verticalAlign ?? mergedDefaults.verticalAlign,
+    breakBefore: readBreakBefore(styleInit) ?? mergedDefaults.breakBefore ?? "auto",
+    breakAfter: readBreakAfter(styleInit) ?? mergedDefaults.breakAfter ?? "auto",
     display,
     float: floatMode ?? FloatMode.None,
     borderModel: styleInit.borderModel ?? mergedDefaults.borderModel,
