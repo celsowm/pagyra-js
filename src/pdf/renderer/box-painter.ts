@@ -7,6 +7,7 @@ import type { PagePainter } from "../page-painter.js";
 import { computeBackgroundTileRects, rectEquals } from "../utils/background-tiles.js";
 import { computeBorderSideStrokes } from "../utils/border-dashes.js";
 import { roundedRectToPath } from "../utils/rounded-rect-to-path.js";
+import { objectFitNeedsClip, resolveObjectFitRect } from "../utils/object-fit.js";
 import type { PathCommand } from "../renderers/shape-renderer.js";
 import { defaultFormRendererFactory } from "../renderers/form/factory.js";
 import {
@@ -74,7 +75,7 @@ export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Prom
   if (box.kind === NodeKind.Svg || (box.tagName === "svg" && box.customData?.svg)) {
     await renderSvgBox(painter, box, painter.environment);
   } else if (box.image) {
-    painter.drawImage(box.image, box.contentBox);
+    paintReplacedImage(painter, box);
   } else if (defaultFormRendererFactory.canRender(box)) {
     painter.renderFormControl(box);
   }
@@ -107,6 +108,26 @@ export function paintPageBackground(painter: PagePainter, color: RGBA | undefine
   }
   const rect: Rect = { x: 0, y: offsetY, width: widthPx, height: heightPx };
   painter.fillRect(rect, color);
+}
+
+function paintReplacedImage(painter: PagePainter, box: RenderBox): void {
+  if (!box.image) {
+    return;
+  }
+  const destination = resolveObjectFitRect(
+    box.image,
+    box.contentBox,
+    box.objectFit,
+    box.objectPosition,
+  );
+  const needsClip = objectFitNeedsClip(destination, box.contentBox);
+  if (needsClip) {
+    painter.beginClipPath(roundedRectToPath(box.contentBox, contentBoxRadius(box)));
+  }
+  painter.drawImage(box.image, destination);
+  if (needsClip) {
+    painter.endClipPath();
+  }
 }
 
 async function paintText(painter: PagePainter, box: RenderBox): Promise<void> {
@@ -253,6 +274,23 @@ function determineBackgroundPaintArea(box: RenderBox): { rect: Rect; radius: Rad
   }
 
   return { rect, radius };
+}
+
+function contentBoxRadius(box: RenderBox): Radius {
+  const paddingRadius = shrinkRadius(
+    box.borderRadius,
+    box.border.top,
+    box.border.right,
+    box.border.bottom,
+    box.border.left,
+  );
+  return shrinkRadius(
+    paddingRadius,
+    box.padding.top,
+    box.padding.right,
+    box.padding.bottom,
+    box.padding.left,
+  );
 }
 
 function hasVisibleBorder(border: RenderBox["border"]): boolean {
