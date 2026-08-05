@@ -14,6 +14,7 @@ import {
   type Background,
   NodeKind,
   Overflow,
+  ObjectFit,
   LayerMode,
 } from "./types.js";
 import { parseColor } from "./utils/color-utils.js";
@@ -122,6 +123,23 @@ function mapOverflow(mode: OverflowMode): Overflow {
   }
 }
 
+function mapObjectFit(value: ComputedStyle["objectFit"]): ObjectFit | undefined {
+  switch (value) {
+    case "contain":
+      return ObjectFit.Contain;
+    case "cover":
+      return ObjectFit.Cover;
+    case "none":
+      return ObjectFit.None;
+    case "scale-down":
+      return ObjectFit.ScaleDown;
+    case "fill":
+      return ObjectFit.Fill;
+    default:
+      return undefined;
+  }
+}
+
 function convertNode(
   node: LayoutNode,
   state: { counter: number; fontResolver?: FontResolver },
@@ -172,6 +190,8 @@ function convertNode(
     fontFamily: node.style.fontFamily,
     fontSize: node.style.fontSize,
     visibility: node.style.visibility,
+    objectFit: node.style.objectFit,
+    objectPosition: node.style.objectPosition,
     breakInside: node.style.breakInside,
     contentBox,
   });
@@ -257,6 +277,8 @@ function convertNode(
     backgroundClip,
     clipPath,
     image: imageRef,
+    objectFit: mapObjectFit(node.style.objectFit),
+    objectPosition: node.style.objectPosition ? { ...node.style.objectPosition } : undefined,
     customData,
     textAlign,
     transform,
