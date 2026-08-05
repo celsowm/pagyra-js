@@ -1,6 +1,6 @@
 ===== Refresh TypeScript tooling lockfile =====
 
-up to date, audited 297 packages in 4s
+up to date, audited 297 packages in 5s
 
 88 packages are looking for funding
   run `npm fund` for details
@@ -19,7 +19,7 @@ EXIT_STATUS=0
 ===== npm ci =====
 npm warn deprecated source-map-resolve@0.6.0: See https://github.com/lydell/source-map-resolve#deprecated
 
-added 296 packages, and audited 297 packages in 5s
+added 296 packages, and audited 297 packages in 6s
 
 88 packages are looking for funding
   run `npm fund` for details
@@ -45,6 +45,29 @@ EXIT_STATUS=0
 > pagyra-js@0.0.23 check
 > tsc --noEmit
 
-src/text/text.ts(16,11): error TS2451: Cannot redeclare block-scoped variable 'Segmenter'.
+EXIT_STATUS=0
+
+===== TypeScript 6 compatibility =====
+
+> pagyra-js@0.0.23 check:ts6
+> tsc6 --noEmit
+
+EXIT_STATUS=0
+
+===== ESLint =====
+
+> pagyra-js@0.0.23 lint
+> eslint src tests --ext .ts,.js
+
+
+/home/runner/work/pagyra-js/pagyra-js/src/fonts/woff2/decoder.ts
+  5:3  error  'TAG' is defined but never used  @typescript-eslint/no-unused-vars
+
+/home/runner/work/pagyra-js/pagyra-js/src/pdf/renderers/text-renderer.ts
+  22:35  error  'RenderRect' is defined but never used  @typescript-eslint/no-unused-vars
+  22:47  error  'Radius' is defined but never used      @typescript-eslint/no-unused-vars
+
+✖ 3 problems (3 errors, 0 warnings)
+
 EXIT_STATUS=1
 
