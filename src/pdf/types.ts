@@ -262,7 +262,7 @@ export interface RenderBox {
   clipPath?: ClipPath;
   background: Background;
   opacity: number;
-  visibility: Visibility;
+  visibility?: Visibility;
   overflow: Overflow;
   overflowX: Overflow;
   overflowY: Overflow;
