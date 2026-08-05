@@ -9,9 +9,27 @@ export interface ResolvedPageStyle {
   margins?: Partial<PageMarginsPx>;
 }
 
+export interface ResolvedPageStyleProfile {
+  default: ResolvedPageStyle;
+  first: ResolvedPageStyle;
+  left: ResolvedPageStyle;
+  right: ResolvedPageStyle;
+}
+
 interface PageSize {
   width: number;
   height: number;
+}
+
+type PagePseudoClass = "first" | "left" | "right";
+type MarginSide = keyof PageMarginsPx;
+
+interface DeclarationCandidate<T> {
+  value: T;
+  important: boolean;
+  specificity: number;
+  ruleSourceOrder: number;
+  declarationSourceOrder: number;
 }
 
 const NAMED_PAGE_SIZES: Readonly<Record<string, PageSize>> = {
@@ -28,57 +46,97 @@ const NAMED_PAGE_SIZES: Readonly<Record<string, PageSize>> = {
   tabloid: { width: inToPx(11), height: inToPx(17) },
 };
 
-/**
- * Resolves the unqualified @page cascade used as the document-wide page style.
- * Named pages and page pseudo-classes are intentionally left for the future
- * per-page fragmentation pipeline.
- */
+/** Resolves the document page size and all supported page pseudo-class margins. */
+export function resolvePageStyleProfile(
+  pageRules: readonly CssPageRuleEntry[],
+  fallbackSize: PageSize,
+): ResolvedPageStyleProfile {
+  return {
+    default: resolvePageStyle(pageRules, new Set(), fallbackSize),
+    first: resolvePageStyle(pageRules, new Set<PagePseudoClass>(["first", "right"]), fallbackSize),
+    left: resolvePageStyle(pageRules, new Set<PagePseudoClass>(["left"]), fallbackSize),
+    right: resolvePageStyle(pageRules, new Set<PagePseudoClass>(["right"]), fallbackSize),
+  };
+}
+
+/** Backward-compatible resolver for the unqualified document-wide @page style. */
 export function resolveDefaultPageStyle(
   pageRules: readonly CssPageRuleEntry[],
   fallbackSize: PageSize,
 ): ResolvedPageStyle {
-  let size: PageSize | undefined;
-  const margins: Partial<PageMarginsPx> = {};
-  let hasMargin = false;
+  return resolvePageStyleProfile(pageRules, fallbackSize).default;
+}
 
-  const orderedRules = [...pageRules]
-    .filter(isDefaultPageRule)
-    .sort((left, right) => (left.sourceOrder ?? 0) - (right.sourceOrder ?? 0));
+function resolvePageStyle(
+  pageRules: readonly CssPageRuleEntry[],
+  pseudoClasses: ReadonlySet<PagePseudoClass>,
+  fallbackSize: PageSize,
+): ResolvedPageStyle {
+  let sizeCandidate: DeclarationCandidate<string> | undefined;
+  const marginCandidates: Partial<Record<MarginSide, DeclarationCandidate<number>>> = {};
 
-  for (const rule of orderedRules) {
+  for (const rule of pageRules) {
+    const specificity = matchingPageSpecificity(rule, pseudoClasses);
+    if (specificity === undefined) {
+      continue;
+    }
+
     const declarations = rule.orderedDeclarations ?? declarationsFromMap(rule.declarations);
     for (const declaration of declarations) {
-      switch (declaration.property.toLowerCase()) {
-        case "size": {
-          const resolved = parsePageSize(declaration.value, size ?? fallbackSize);
-          if (resolved) {
-            size = resolved;
-          }
-          break;
+      const property = declaration.property.toLowerCase();
+      const candidateBase = {
+        important: declaration.important,
+        specificity,
+        ruleSourceOrder: rule.sourceOrder ?? 0,
+        declarationSourceOrder: declaration.sourceOrder,
+      };
+
+      if (property === "size" && specificity === 0) {
+        const candidate: DeclarationCandidate<string> = {
+          ...candidateBase,
+          value: declaration.value,
+        };
+        if (winsCascade(candidate, sizeCandidate)) {
+          sizeCandidate = candidate;
         }
-        case "margin": {
-          const resolved = parseMarginShorthand(declaration.value);
-          if (resolved) {
-            Object.assign(margins, resolved);
-            hasMargin = true;
-          }
-          break;
-        }
-        case "margin-top":
-        case "margin-right":
-        case "margin-bottom":
-        case "margin-left": {
-          const resolved = parseAbsolutePageLength(declaration.value);
-          if (resolved !== undefined) {
-            const side = declaration.property.slice("margin-".length) as keyof PageMarginsPx;
-            margins[side] = Math.max(0, resolved);
-            hasMargin = true;
-          }
-          break;
-        }
-        default:
-          break;
+        continue;
       }
+
+      if (property === "margin") {
+        const parsed = parseMarginShorthand(declaration.value);
+        if (!parsed) {
+          continue;
+        }
+        for (const side of ["top", "right", "bottom", "left"] as const) {
+          setMarginCandidate(marginCandidates, side, parsed[side], candidateBase);
+        }
+        continue;
+      }
+
+      if (
+        property === "margin-top"
+        || property === "margin-right"
+        || property === "margin-bottom"
+        || property === "margin-left"
+      ) {
+        const parsed = parseAbsolutePageLength(declaration.value);
+        if (parsed === undefined) {
+          continue;
+        }
+        const side = property.slice("margin-".length) as MarginSide;
+        setMarginCandidate(marginCandidates, side, Math.max(0, parsed), candidateBase);
+      }
+    }
+  }
+
+  const size = sizeCandidate ? parsePageSize(sizeCandidate.value, fallbackSize) : undefined;
+  const margins: Partial<PageMarginsPx> = {};
+  let hasMargin = false;
+  for (const side of ["top", "right", "bottom", "left"] as const) {
+    const candidate = marginCandidates[side];
+    if (candidate) {
+      margins[side] = candidate.value;
+      hasMargin = true;
     }
   }
 
@@ -87,6 +145,55 @@ export function resolveDefaultPageStyle(
     height: size?.height,
     margins: hasMargin ? margins : undefined,
   };
+}
+
+function setMarginCandidate(
+  candidates: Partial<Record<MarginSide, DeclarationCandidate<number>>>,
+  side: MarginSide,
+  value: number,
+  base: Omit<DeclarationCandidate<number>, "value">,
+): void {
+  const candidate: DeclarationCandidate<number> = { ...base, value };
+  if (winsCascade(candidate, candidates[side])) {
+    candidates[side] = candidate;
+  }
+}
+
+function winsCascade<T>(
+  candidate: DeclarationCandidate<T>,
+  current: DeclarationCandidate<T> | undefined,
+): boolean {
+  if (!current) {
+    return true;
+  }
+  if (candidate.important !== current.important) {
+    return candidate.important;
+  }
+  if (candidate.specificity !== current.specificity) {
+    return candidate.specificity > current.specificity;
+  }
+  if (candidate.ruleSourceOrder !== current.ruleSourceOrder) {
+    return candidate.ruleSourceOrder > current.ruleSourceOrder;
+  }
+  return candidate.declarationSourceOrder >= current.declarationSourceOrder;
+}
+
+function matchingPageSpecificity(
+  rule: CssPageRuleEntry,
+  pseudoClasses: ReadonlySet<PagePseudoClass>,
+): number | undefined {
+  if (isDefaultPageRule(rule)) {
+    return 0;
+  }
+
+  let matched = false;
+  for (const selector of rule.selectors ?? []) {
+    const match = /^:(first|left|right)$/i.exec(selector.trim());
+    if (match && pseudoClasses.has(match[1].toLowerCase() as PagePseudoClass)) {
+      matched = true;
+    }
+  }
+  return matched ? 1 : undefined;
 }
 
 function isDefaultPageRule(rule: CssPageRuleEntry): boolean {
