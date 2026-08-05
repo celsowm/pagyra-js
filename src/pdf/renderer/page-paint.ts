@@ -48,7 +48,6 @@ export async function paintLayoutPage({
   assetRootDir,
 }: PagePaintInput): Promise<PainterResult> {
   const painter = new PagePainter(pageSize.heightPt, pxToPt, fontRegistry, pageTree.pageOffsetY, environment);
-
   const headerVariant = pickHeaderVariant(headerFooterLayout, pageNumber, totalPages);
   const footerVariant = pickFooterVariant(headerFooterLayout, pageNumber, totalPages);
 
@@ -123,7 +122,7 @@ async function paintInstructions(
       painter.beginOpacityScope(instruction.opacity);
     } else if (instruction.type === "endOpacity") {
       painter.endOpacityScope(0);
-    } else if (instruction.box.visibility === "visible") {
+    } else if (instruction.box.visibility !== "hidden" && instruction.box.visibility !== "collapse") {
       await paintBoxAtomic(painter, instruction.box);
     }
   }
