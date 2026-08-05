@@ -17,6 +17,7 @@ export async function renderHtmlToPdf(options: RenderHtmlOptions): Promise<Uint8
     pageSize: prepared.pageSize,
     fontConfig: resolvedFontConfig ?? undefined,
     margins: prepared.margins,
+    pageMargins: prepared.pageMargins,
     environment,
     resourceBaseDir: resolvedResourceBaseDir,
     assetRootDir: resolvedAssetRootDir,
