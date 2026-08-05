@@ -1,7 +1,7 @@
 ===== npm ci =====
 npm warn deprecated source-map-resolve@0.6.0: See https://github.com/lydell/source-map-resolve#deprecated
 
-added 296 packages, and audited 297 packages in 6s
+added 296 packages, and audited 297 packages in 5s
 
 88 packages are looking for funding
   run `npm fund` for details
@@ -24,11 +24,10 @@ EXIT_STATUS=0
 
 ===== TypeScript 7 =====
 
-> pagyra-js@0.0.38 check
+> pagyra-js@0.0.42 check
 > tsc --noEmit
 
-src/css/selectors/matcher.ts(186,47): error TS2339: Property 'inner' does not exist on type '{ kind: "is" | "not" | "where"; selectors: Simple[]; }'.
-src/css/selectors/simple-key.ts(24,37): error TS2366: Function lacks ending return statement and return type does not include 'undefined'.
-src/css/selectors/simple-key.ts(39,38): error TS2339: Property 'inner' does not exist on type '{ kind: "is" | "not" | "where"; selectors: Simple[]; }'.
+src/css/style.ts(209,14): error TS2420: Class 'ComputedStyle' incorrectly implements interface 'StyleProperties'.
+  Property 'visibility' is missing in type 'ComputedStyle' but required in type 'VisualProperties'.
 EXIT_STATUS=1
 
