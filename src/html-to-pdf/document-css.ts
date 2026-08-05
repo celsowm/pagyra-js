@@ -34,6 +34,8 @@ interface CollectCssArtifactsOptions {
   resourceBaseDir: string;
   assetRootDir: string;
   environment: Environment;
+  viewportWidth: number;
+  viewportHeight: number;
 }
 
 export async function collectCssArtifacts(options: CollectCssArtifactsOptions) {
@@ -54,7 +56,11 @@ export async function collectCssArtifacts(options: CollectCssArtifactsOptions) {
     if (cssText) mergedCss += `\n${cssText}`;
   }
 
-  const { styleRules: cssRules, fontFaceRules } = parseCss(mergedCss);
+  const { styleRules: cssRules, fontFaceRules } = parseCss(mergedCss, {
+    mediaType: "print",
+    viewportWidth: options.viewportWidth,
+    viewportHeight: options.viewportHeight,
+  });
   log("parse", "debug", "CSS rules", { count: cssRules.length, fontFaces: fontFaceRules.length });
   return { cssRules, fontFaceRules };
 }
