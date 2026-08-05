@@ -1,6 +1,7 @@
 import { configureDebug, log } from "../logging/debug.js";
 import { makeUnitParsers, type UnitCtx, pxToPt } from "../units/units.js";
 import { layoutTree } from "../layout/pipeline/layout-tree.js";
+import { applyForcedPageBreaks } from "../layout/fragmentation/forced-page-breaks.js";
 import { buildRenderTree } from "../pdf/layout-tree-builder.js";
 import { setViewportSize } from "../css/apply-declarations.js";
 import {
@@ -155,6 +156,16 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   const fontEmbedder = await initializeFontEmbedder(options.fontConfig);
 
   layoutTree(rootLayout, { width: viewportWidth, height: viewportHeight }, fontEmbedder);
+  const headerHeightPx = resolvedHeaderFooter?.maxHeaderHeightPx ?? 0;
+  const footerHeightPx = resolvedHeaderFooter?.maxFooterHeightPx ?? 0;
+  const usablePageHeight = pageHeight
+    - marginsPx.top
+    - marginsPx.bottom
+    - headerHeightPx
+    - footerHeightPx;
+  if (usablePageHeight > 0) {
+    applyForcedPageBreaks(rootLayout, usablePageHeight);
+  }
   log("layout", "debug", "Layout complete");
 
   const renderTree = buildRenderTree(rootLayout, { headerFooter: resolvedHeaderFooter });
