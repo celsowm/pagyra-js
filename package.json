@@ -1,6 +1,7 @@
 {
   "name": "pagyra-js",
   "version": "0.0.23",
+  "description": "A TypeScript HTML-to-PDF engine with CSS layout, fonts, images and browser support.",
   "type": "module",
   "repository": {
     "type": "git",
