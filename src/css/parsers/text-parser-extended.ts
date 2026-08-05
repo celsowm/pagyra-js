@@ -57,6 +57,16 @@ export function parseTextIndent(value: string, target: StyleAccumulator): void {
   }
 }
 
+export function parseVerticalAlign(value: string, target: StyleAccumulator): void {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized || INHERITABLE_KEYWORDS.has(normalized)) {
+    return;
+  }
+  if (VERTICAL_ALIGN_KEYWORDS.has(normalized) || parseLengthOrPercent(normalized) !== undefined) {
+    target.verticalAlign = normalized;
+  }
+}
+
 export function parseTextTransform(value: string, target: StyleAccumulator): void {
   const normalized = value.trim().toLowerCase();
   if (normalized === "initial") {
@@ -98,6 +108,16 @@ const TEXT_TRANSFORM_KEYWORDS: Record<string, TextTransform> = {
 };
 
 const INHERITABLE_KEYWORDS = new Set(["inherit", "unset", "revert", "revert-layer"]);
+const VERTICAL_ALIGN_KEYWORDS = new Set([
+  "baseline",
+  "sub",
+  "super",
+  "text-top",
+  "text-bottom",
+  "middle",
+  "top",
+  "bottom",
+]);
 
 const COLOR_KEYWORDS = new Set(Object.keys(NAMED_COLORS).map((name) => name.toLowerCase()));
 COLOR_KEYWORDS.add("transparent");
