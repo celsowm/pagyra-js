@@ -1,6 +1,6 @@
 import { parseHTML } from "linkedom";
 
-import { Display } from "../../src/css/enums.js";
+import { Display, WhiteSpace } from "../../src/css/enums.js";
 import { ComputedStyle } from "../../src/css/style.js";
 import { LayoutNode } from "../../src/dom/node.js";
 import { convertTextDomNode, flushBufferedText } from "../../src/html/dom-converter/text.js";
@@ -90,5 +90,35 @@ describe("dom-converter/text whitespace handling", () => {
     );
 
     expect(result?.textContent).toBe(" ");
+  });
+
+  it("preserves spaces, tabs and explicit line breaks for pre", () => {
+    const { document } = parseHTML(`<div>  alpha\t beta\n  gamma  </div>`);
+    const textNode = document.querySelector("div")?.firstChild ?? null;
+    const style = new ComputedStyle({ whiteSpace: WhiteSpace.Pre });
+
+    const result = convertTextDomNode(textNode as Node, style);
+
+    expect(result?.textContent).toBe("  alpha\t beta\n  gamma  ");
+  });
+
+  it("collapses horizontal whitespace but preserves line breaks for pre-line", () => {
+    const { document } = parseHTML(`<div>  alpha\t  beta\n   gamma   </div>`);
+    const textNode = document.querySelector("div")?.firstChild ?? null;
+    const style = new ComputedStyle({ whiteSpace: WhiteSpace.PreLine });
+
+    const result = convertTextDomNode(textNode as Node, style);
+
+    expect(result?.textContent).toBe("alpha beta\ngamma");
+  });
+
+  it("preserves buffered text verbatim for pre-wrap", () => {
+    const children: LayoutNode[] = [];
+    const style = new ComputedStyle({ whiteSpace: WhiteSpace.PreWrap });
+
+    flushBufferedText(children, "  first\n second  ", style);
+
+    expect(children).toHaveLength(1);
+    expect(children[0].textContent).toBe("  first\n second  ");
   });
 });
