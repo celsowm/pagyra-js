@@ -38,6 +38,7 @@ export function createBaseStyleOptions(
     textTransform: inherited.textTransform ?? "none",
     letterSpacing: inherited.letterSpacing ?? mergedDefaults.letterSpacing,
     listStyleType: inherited.listStyleType ?? mergedDefaults.listStyleType ?? "disc",
+    visibility: styleInit.visibility ?? inherited.visibility,
     verticalAlign: styleInit.verticalAlign ?? mergedDefaults.verticalAlign,
     breakBefore: readBreakBefore(styleInit) ?? mergedDefaults.breakBefore ?? "auto",
     breakAfter: readBreakAfter(styleInit) ?? mergedDefaults.breakAfter ?? "auto",
