@@ -4,6 +4,7 @@ import { OverflowMode } from "../enums.js";
 import type { ClipPath } from "../clip-path-types.js";
 
 export type Visibility = "visible" | "hidden" | "collapse";
+export type OutlineStyle = "none" | "solid" | "dashed" | "dotted" | "double";
 
 export interface BoxShadow {
     inset: boolean;
@@ -73,6 +74,10 @@ export interface VisualProperties {
     textShadows: TextShadow[];
     opacity: number;
     visibility: Visibility;
+    outlineWidth?: number;
+    outlineStyle?: OutlineStyle;
+    outlineColor?: string;
+    outlineOffset?: number;
     transform?: string;
     overflowX: OverflowMode;
     overflowY: OverflowMode;
