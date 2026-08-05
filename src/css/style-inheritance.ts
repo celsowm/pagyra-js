@@ -25,6 +25,8 @@ export interface InheritedStyleProperties {
     textIndent: LengthLike;
     textTransform: TextTransform;
     listStyleType: string;
+    widows: number;
+    orphans: number;
 }
 
 /**
@@ -56,6 +58,8 @@ export class StyleInheritanceResolver {
             textIndent: parentStyle.textIndent ?? mergedDefaults.textIndent ?? 0,
             textTransform: parentStyle.textTransform ?? mergedDefaults.textTransform ?? "none",
             listStyleType: parentStyle.listStyleType ?? mergedDefaults.listStyleType ?? "disc",
+            widows: parentStyle.widows ?? mergedDefaults.widows ?? 2,
+            orphans: parentStyle.orphans ?? mergedDefaults.orphans ?? 2,
         };
     }
 }
