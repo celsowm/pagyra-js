@@ -15,7 +15,7 @@ import {
 } from "../utils/filter-utils.js";
 
 export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Promise<void> {
-  if (box.visibility !== "visible") {
+  if (box.visibility === "hidden" || box.visibility === "collapse") {
     return;
   }
 
@@ -155,11 +155,11 @@ function paintBackground(painter: PagePainter, box: RenderBox): void {
         rectEquals(tile, clipRect) || rectEquals(tile, gradient.originRect)
           ? paintArea.radius
           : zeroRadius();
-      const g = gradient.gradient;
-      if (g.type === "radial") {
-        painter.fillRoundedRect(tile, radius, g as import("../../css/parsers/gradient-parser.js").RadialGradient);
+      const gradientValue = gradient.gradient;
+      if (gradientValue.type === "radial") {
+        painter.fillRoundedRect(tile, radius, gradientValue as import("../../css/parsers/gradient-parser.js").RadialGradient);
       } else {
-        painter.fillRoundedRect(tile, radius, g as import("../../css/parsers/gradient-parser.js").LinearGradient);
+        painter.fillRoundedRect(tile, radius, gradientValue as import("../../css/parsers/gradient-parser.js").LinearGradient);
       }
     }
   }
