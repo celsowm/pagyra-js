@@ -34,6 +34,9 @@ export function computeStyleForElement(
 
   // Get element-specific defaults from browser defaults system
   const elementDefaults = ElementSpecificDefaults.getDefaultsForElement(tagName);
+  const elementDefaultWhiteSpace = (
+    elementDefaults as typeof elementDefaults & { whiteSpace?: ComputedStyle["whiteSpace"] }
+  ).whiteSpace;
 
   // Create base style with browser defaults
   const baseDefaults = BrowserDefaults.createBaseDefaults();
@@ -98,7 +101,7 @@ export function computeStyleForElement(
     customProperties,
   );
   styleOptions.whiteSpace = specifiedWhiteSpace(styleInit)
-    ?? elementDefaults.whiteSpace
+    ?? elementDefaultWhiteSpace
     ?? parentStyle.whiteSpace
     ?? mergedDefaults.whiteSpace;
 
