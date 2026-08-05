@@ -1,4 +1,4 @@
-===== npm ci =====
+===== Refresh TypeScript tooling lockfile =====
 npm error code ERESOLVE
 npm error ERESOLVE could not resolve
 npm error
@@ -33,7 +33,7 @@ npm error Fix the upstream dependency conflict, or retry this command with --for
 npm error
 npm error
 npm error For a full report see:
-npm error /home/runner/.npm/_logs/2026-08-05T12_21_40_774Z-eresolve-report.txt
-npm error A complete log of this run can be found in: /home/runner/.npm/_logs/2026-08-05T12_21_40_774Z-debug-0.log
+npm error /home/runner/.npm/_logs/2026-08-05T12_24_25_011Z-eresolve-report.txt
+npm error A complete log of this run can be found in: /home/runner/.npm/_logs/2026-08-05T12_24_25_011Z-debug-0.log
 EXIT_STATUS=1
 
