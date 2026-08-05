@@ -32,6 +32,7 @@ export function createBaseStyleOptions(
     textTransform: inherited.textTransform ?? "none",
     letterSpacing: inherited.letterSpacing ?? mergedDefaults.letterSpacing,
     listStyleType: inherited.listStyleType ?? mergedDefaults.listStyleType ?? "disc",
+    verticalAlign: styleInit.verticalAlign ?? mergedDefaults.verticalAlign,
     display,
     float: floatMode ?? FloatMode.None,
     borderModel: styleInit.borderModel ?? mergedDefaults.borderModel,
