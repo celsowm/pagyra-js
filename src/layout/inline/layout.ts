@@ -20,7 +20,7 @@ import { createLayoutDebug } from "../debug.js";
 import { containingBlock } from "../utils/node-math.js";
 
 function itemWhiteSpace(item: LayoutItem, container: LayoutNode): WhiteSpace {
-    if (item.kind === "box") {
+    if ("metrics" in item) {
         return item.metrics.node.style.whiteSpace;
     }
     return item.style?.whiteSpace ?? container.style.whiteSpace;
