@@ -13,7 +13,6 @@ import { decodeBase64ToUint8Array } from "../utils/base64.js";
 import type { CounterContext } from "../layout/counter.js";
 import type { InterBlockWhitespaceMode } from "../html-to-pdf/types.js";
 
-// The ConversionContext should be defined where it's used
 export interface ConversionContext {
   resourceBaseDir: string;
   assetRootDir: string;
@@ -40,7 +39,7 @@ export function resolveImageSource(src: string, context: ConversionContext): str
     }
     return url.href;
   } catch {
-    // Not an absolute URL, fall through to filesystem resolution
+    // Not an absolute URL, fall through to filesystem resolution.
   }
   if (trimmed.startsWith("/")) {
     if (context.environment?.resolveLocal) {
@@ -48,7 +47,7 @@ export function resolveImageSource(src: string, context: ConversionContext): str
         trimmed,
         context.assetRootDir || context.resourceBaseDir || undefined,
       );
-      log('image-converter', 'debug', "resolveImageSource - resolving absolute path via resolveLocal:", {
+      log("image-converter", "debug", "resolveImageSource - resolving absolute path via resolveLocal:", {
         src,
         trimmed,
         assetRootDir: context.assetRootDir,
@@ -59,7 +58,12 @@ export function resolveImageSource(src: string, context: ConversionContext): str
     const resolved = (context.assetRootDir && context.environment?.pathResolve)
       ? context.environment.pathResolve(context.assetRootDir, `.${trimmed}`)
       : trimmed;
-    log('image-converter', 'debug', "resolveImageSource - resolving absolute path:", { src, trimmed, assetRootDir: context.assetRootDir, resolved });
+    log("image-converter", "debug", "resolveImageSource - resolving absolute path:", {
+      src,
+      trimmed,
+      assetRootDir: context.assetRootDir,
+      resolved,
+    });
     return resolved;
   }
   if (context.environment?.resolveLocal) {
@@ -130,9 +134,9 @@ export async function convertImageElement(
   context: ConversionContext,
 ): Promise<LayoutNode> {
   const style = computeStyleForElement(element, cssRules, parentStyle, context.units, context.rootFontSize);
-  // SVG <image> elements commonly use 'href' or 'xlink:href'; HTML <img> uses 'src'.
+  const elementId = element.getAttribute("id") ?? undefined;
   const rawSrc = element.getAttribute("href") ?? element.getAttribute("xlink:href") ?? element.getAttribute("src") ?? "";
-  const srcAttr = rawSrc?.trim() ?? "";
+  const srcAttr = rawSrc.trim();
 
   const widthAttr = element.getAttribute("width");
   const heightAttr = element.getAttribute("height");
@@ -140,7 +144,10 @@ export async function convertImageElement(
   const height = heightAttr ? Number.parseFloat(heightAttr) || undefined : undefined;
 
   if (!srcAttr) {
-    const placeholder = new LayoutNode(style, [], { tagName: "img" });
+    const placeholder = new LayoutNode(style, [], {
+      tagName: "img",
+      customData: elementId ? { id: elementId } : undefined,
+    });
     placeholder.intrinsicInlineSize = width ?? 100;
     placeholder.intrinsicBlockSize = height ?? 100;
     return placeholder;
@@ -189,7 +196,10 @@ export async function convertImageElement(
       resolvedSrc,
       error: error instanceof Error ? error.message : String(error),
     });
-    const placeholder = new LayoutNode(style, [], { tagName: "img" });
+    const placeholder = new LayoutNode(style, [], {
+      tagName: "img",
+      customData: elementId ? { id: elementId } : undefined,
+    });
     placeholder.intrinsicInlineSize = width ?? 100;
     placeholder.intrinsicBlockSize = height ?? 100;
     return placeholder;
@@ -198,6 +208,7 @@ export async function convertImageElement(
   const layoutNode = new LayoutNode(style, [], {
     tagName: "img",
     customData: {
+      ...(elementId ? { id: elementId } : {}),
       image: {
         originalSrc: srcAttr,
         resolvedSrc,
