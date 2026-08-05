@@ -4,6 +4,7 @@ import { PagePainter, type PainterResult } from "../page-painter.js";
 import type { FontRegistry } from "../font/font-registry.js";
 import { LayerMode } from "../types.js";
 import type { LayoutPageTree, PageSize, RGBA, TextPaintOptions } from "../types.js";
+import type { PaintInstruction } from "../stacking/types.js";
 import { paintBoxAtomic, paintPageBackground } from "./box-painter.js";
 import type { Environment } from "../../environment/environment.js";
 
@@ -20,15 +21,10 @@ export interface PagePaintInput {
   readonly tokens: Map<string, string | ((page: number, total: number) => string)>;
   readonly headerFooterTextOptions: TextPaintOptions;
   readonly pageBackground?: RGBA;
-  /** Page margins for header/footer positioning */
   readonly margins?: { top: number; right: number; bottom: number; left: number };
-  /** CSS for header/footer styling */
   readonly headerFooterCss?: string;
-  /** Platform environment (Node/browser) for resource loading during paint */
   readonly environment?: Environment;
-  /** Resource base directory for document-relative paths */
   readonly resourceBaseDir?: string;
-  /** Asset root directory for absolute paths like /images/foo.png */
   readonly assetRootDir?: string;
 }
 
@@ -58,7 +54,6 @@ export async function paintLayoutPage({
 
   paintPageBackground(painter, pageBackground, pageWidthPx, pageHeightPx, pageTree.pageOffsetY);
 
-  // Build context for HTML-based header/footer rendering
   const hfContext: HeaderFooterPaintContext | undefined = margins
     ? {
         margins,
@@ -88,14 +83,17 @@ export async function paintLayoutPage({
     );
   }
 
-  // Paint each instruction in the resolved paint order.
-  for (const instruction of pageTree.paintOrder) {
-    if (instruction.type === 'beginOpacity') {
-      painter.beginOpacityScope(instruction.opacity);
-    } else if (instruction.type === 'endOpacity') {
-      painter.endOpacityScope(0);
-    } else {
-      await paintBoxAtomic(painter, instruction.box);
+  for (const layer of pageTree.positionedLayersSortedByZ) {
+    if (layer.z < 0) {
+      await paintInstructions(painter, layer.paintOrder ?? boxesToInstructions(layer.boxes));
+    }
+  }
+
+  await paintInstructions(painter, pageTree.paintOrder);
+
+  for (const layer of pageTree.positionedLayersSortedByZ) {
+    if (layer.z >= 0) {
+      await paintInstructions(painter, layer.paintOrder ?? boxesToInstructions(layer.boxes));
     }
   }
 
@@ -114,4 +112,23 @@ export async function paintLayoutPage({
   }
 
   return painter.result();
+}
+
+async function paintInstructions(
+  painter: PagePainter,
+  instructions: readonly PaintInstruction[],
+): Promise<void> {
+  for (const instruction of instructions) {
+    if (instruction.type === "beginOpacity") {
+      painter.beginOpacityScope(instruction.opacity);
+    } else if (instruction.type === "endOpacity") {
+      painter.endOpacityScope(0);
+    } else {
+      await paintBoxAtomic(painter, instruction.box);
+    }
+  }
+}
+
+function boxesToInstructions(boxes: LayoutPageTree["flowContentOrder"]): PaintInstruction[] {
+  return boxes.map((box) => ({ type: "box", box }));
 }
