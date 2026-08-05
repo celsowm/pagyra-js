@@ -6,7 +6,12 @@ import {
   computeHfTokens,
 } from "./header-footer.js";
 import { paginateTree } from "./pagination.js";
-import { initFontSystem, finalizeFontSubsets, preflightFontsForPdfa } from "./font/font-registry.js";
+import {
+  initFontSystem,
+  finalizeFontSubsets,
+  preflightFontsForPdfa,
+  type FontRegistry,
+} from "./font/font-registry.js";
 import type { FontConfig } from "../types/fonts.js";
 import { paintLayoutPage } from "./renderer/page-paint.js";
 import { loadBuiltinFontConfig } from "./font/builtin-fonts.js";
@@ -16,7 +21,7 @@ import { applyWordSpacingToGlyphRun, computeGlyphRun } from "./utils/node-text-r
 import { log } from "../logging/debug.js";
 import type { Environment } from "../environment/environment.js";
 
-const DEFAULT_PAGE_SIZE: PageSize = { widthPt: 595.28, heightPt: 841.89 }; // A4 in points
+const DEFAULT_PAGE_SIZE: PageSize = { widthPt: 595.28, heightPt: 841.89 };
 
 export interface PageMargins {
   readonly top: number;
@@ -29,15 +34,10 @@ export interface RenderPdfOptions {
   readonly pageSize?: PageSize;
   readonly metadata?: PdfMetadata;
   readonly fontConfig?: FontConfig;
-  /** Page margins in pixels - used for header/footer positioning */
   readonly margins?: PageMargins;
-  /** CSS for header/footer styling */
   readonly headerFooterCss?: string;
-  /** Platform environment (Node/browser) for resource loading during paint */
   readonly environment?: Environment;
-  /** Resource base directory for document-relative paths */
   readonly resourceBaseDir?: string;
-  /** Asset root directory for absolute paths like /images/foo.png */
   readonly assetRootDir?: string;
 }
 
@@ -53,7 +53,6 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
   const doc = new PdfDocument(options.metadata ?? {});
   const fontRegistry = initFontSystem(doc, layout.css);
 
-  // Initialize font embedding if fontConfig provided
   if (fontConfig) {
     await fontRegistry.initializeEmbedder(fontConfig);
   }
@@ -63,7 +62,6 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
   const pageHeightPx = ptToPx(pageSize.heightPt) || 1;
   const pageWidthPx = ptToPx(pageSize.widthPt) || 1;
 
-  // Use provided margins or derive from layout
   const margins = options.margins ?? {
     top: 0,
     right: 0,
@@ -75,20 +73,15 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
   const hfContext = initHeaderFooterContext(layout.hf, pageSize, baseContentBox);
   const hfLayout = layoutHeaderFooterTrees(hfContext, pxToPt);
 
-  // Content coordinates are already remapped to full-page Y-space in prepareHtmlRender
-  // (including margins/header/footer reservations), so pagination must slice by physical
-  // page height. Using "usable content height" here causes page offsets to drift and can
-  // place stray line fragments at the top of the next page.
   const paginationHeight = pageHeightPx;
-
   const pages = paginateTree(layout.root, { pageHeight: paginationHeight });
   const totalPages = pages.length;
   const tokens = computeHfTokens(layout.hf.placeholders ?? {}, totalPages, options.metadata);
   const pageBackground = resolvePageBackground(layout.root);
 
-  // Create FontResolver and enrich all textRuns with GlyphRun data
   const fontResolver = new FontRegistryResolver(fontRegistry);
   await enrichTreeWithGlyphRuns(layout.root, fontResolver);
+  registerTreeGlyphUsage(layout.root, fontRegistry);
 
   const headerFooterTextOptions: TextPaintOptions = { fontSizePt: 10, fontFamily: layout.hf.fontFamily };
 
@@ -159,9 +152,12 @@ function createPtToPx(dpi: number): (pt: number) => number {
 }
 
 function derivePageSize(layout: LayoutTree): PageSize {
-  const widthPt = layout.root.contentBox.width > 0 ? createPxToPt(layout.dpiAssumption)(layout.root.contentBox.width) : DEFAULT_PAGE_SIZE.widthPt;
-  const heightPt =
-    layout.root.contentBox.height > 0 ? createPxToPt(layout.dpiAssumption)(layout.root.contentBox.height) : DEFAULT_PAGE_SIZE.heightPt;
+  const widthPt = layout.root.contentBox.width > 0
+    ? createPxToPt(layout.dpiAssumption)(layout.root.contentBox.width)
+    : DEFAULT_PAGE_SIZE.widthPt;
+  const heightPt = layout.root.contentBox.height > 0
+    ? createPxToPt(layout.dpiAssumption)(layout.root.contentBox.height)
+    : DEFAULT_PAGE_SIZE.heightPt;
   return { widthPt, heightPt };
 }
 
@@ -176,30 +172,45 @@ function computeBaseContentBox(root: RenderBox, pageSize: PageSize, pxToPt: (px:
   };
 }
 
+function registerTreeGlyphUsage(root: RenderBox, fontRegistry: FontRegistry): void {
+  const stack: RenderBox[] = [root];
+  while (stack.length > 0) {
+    const box = stack.pop()!;
+    for (const run of box.textRuns ?? []) {
+      if (run.glyphs) {
+        fontRegistry.registerGlyphRun(run.glyphs);
+      }
+    }
+    for (let index = box.children.length - 1; index >= 0; index--) {
+      stack.push(box.children[index]);
+    }
+  }
+}
+
 async function enrichTreeWithGlyphRuns(root: RenderBox, fontResolver: FontRegistryResolver): Promise<void> {
   async function enrichRun(run: Run): Promise<void> {
-    log('font', 'debug', `Attempting to enrich: "${run.text}", family: ${run.fontFamily}`);
+    log("font", "debug", `Attempting to enrich: "${run.text}", family: ${run.fontFamily}`);
     if (run.glyphs) {
-      log('font', 'debug', "Already has glyphs, skipping");
+      log("font", "debug", "Already has glyphs, skipping");
       return;
     }
     try {
       const font = await fontResolver.resolve(run.fontFamily, run.fontWeight, run.fontStyle);
-      log('font', 'debug', "Font resolved for glyph enrichment");
+      log("font", "debug", "Font resolved for glyph enrichment");
       const letterSpacing = run.letterSpacing ?? 0;
       const glyphRun = computeGlyphRun(font, run.text, run.fontSize, letterSpacing);
       applyWordSpacingToGlyphRun(glyphRun, run.text, run.wordSpacing);
 
       run.glyphs = glyphRun;
-      log('font', 'debug', `Enriched "${run.text}" with ${glyphRun.glyphIds.length} glyphs:`, glyphRun.glyphIds);
+      log("font", "debug", `Enriched "${run.text}" with ${glyphRun.glyphIds.length} glyphs:`, glyphRun.glyphIds);
     } catch (error) {
-      log('font', 'warn', `Failed to enrich "${run.text}":`, error);
+      log("font", "warn", `Failed to enrich "${run.text}":`, error);
     }
   }
 
   async function traverse(box: RenderBox): Promise<void> {
     if (box.textRuns && box.textRuns.length > 0) {
-      log('font', 'debug', `Found ${box.textRuns.length} text runs in box ${box.tagName || "text"}`);
+      log("font", "debug", `Found ${box.textRuns.length} text runs in box ${box.tagName || "text"}`);
       for (const run of box.textRuns) {
         await enrichRun(run);
       }
@@ -209,7 +220,7 @@ async function enrichTreeWithGlyphRuns(root: RenderBox, fontResolver: FontRegist
     }
   }
 
-  log('font', 'debug', "Starting enrichment of tree");
+  log("font", "debug", "Starting enrichment of tree");
   await traverse(root);
-  log('font', 'debug', "Finished enrichment");
+  log("font", "debug", "Finished enrichment");
 }
