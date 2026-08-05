@@ -1,6 +1,6 @@
 /**
  * Manages font subsets and their materialization into PDF objects.
- * 
+ *
  * This manager is responsible for:
  * 1. Tracking glyph usage via GlyphSubsetRegistry.
  * 2. Creating and caching SubsetFontResources.
@@ -30,6 +30,7 @@ export interface SubsetFontResource {
 export class SubsetResourceManager {
     private readonly glyphSubsetRegistry = new GlyphSubsetRegistry();
     private readonly subsetResources = new Map<string, SubsetFontResource>();
+    private readonly materializedSubsets = new Map<string, PdfFontSubset>();
 
     constructor(private readonly doc: PdfDocument) { }
 
@@ -44,28 +45,16 @@ export class SubsetResourceManager {
         const baseAlias = handle.subset.name.startsWith("/") ? handle.subset.name.slice(1) : handle.subset.name;
         const alias = `GS${baseAlias}`;
         const existing = this.subsetResources.get(alias);
-        const subsetForUse: PdfFontSubset = { ...handle.subset, name: `/${alias}` };
-
-        if (existing && this.subsetMatches(existing.subset, subsetForUse)) {
+        if (existing && this.materializedSubsets.get(alias) === handle.subset) {
             return existing;
         }
 
+        const subsetForUse: PdfFontSubset = { ...handle.subset, name: `/${alias}` };
         const ref = this.materializeSubsetFont(subsetForUse, font, handle.unifiedFont);
         const resource: SubsetFontResource = { alias, subset: subsetForUse, ref, font };
         this.subsetResources.set(alias, resource);
+        this.materializedSubsets.set(alias, handle.subset);
         return resource;
-    }
-
-    private subsetMatches(current: PdfFontSubset, next: PdfFontSubset): boolean {
-        if (current.glyphIds.length !== next.glyphIds.length) {
-            return false;
-        }
-        for (let i = 0; i < current.glyphIds.length; i++) {
-            if (current.glyphIds[i] !== next.glyphIds[i]) {
-                return false;
-            }
-        }
-        return true;
     }
 
     private materializeSubsetFont(subset: PdfFontSubset, font: FontResource, unifiedFont: UnifiedFont): PdfObjectRef {
@@ -85,20 +74,19 @@ export class SubsetResourceManager {
             ]
             : [-1000, -1000, 1000, 1000];
 
-        // Ensure we use the subset font file if available, falling back to full font only if subset is empty
-        const fontFile = (subset.fontFile && subset.fontFile.length > 0) ? subset.fontFile : (font.embedded?.subset ?? new Uint8Array(0));
+        const fontFile = (subset.fontFile && subset.fontFile.length > 0)
+            ? subset.fontFile
+            : (font.embedded?.subset ?? new Uint8Array(0));
 
         if (!fontFile || fontFile.length === 0) {
             log("font", "warn", "missing-font-file-for-subset", { baseFont: font.baseFont, alias: subset.name });
             return font.ref;
         }
 
-        // Use widths from subset if available, otherwise compute from metrics
         let DW = 1000;
         let W: (number | number[])[] = [];
 
         if (subset.widths && subset.widths.length > 0) {
-            // For sequential subsets starting at CID 0
             W = [subset.firstChar, subset.widths];
         } else {
             const result = computeWidths(metrics);
