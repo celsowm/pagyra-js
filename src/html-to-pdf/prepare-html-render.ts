@@ -73,6 +73,8 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
     resourceBaseDir: resourceBaseDirVal,
     assetRootDir: assetRootDirVal,
     environment,
+    viewportWidth,
+    viewportHeight,
   });
   const { processChildrenOf, rootStyle, rootLayout, rootFontSize } = buildRootLayoutContext({
     document,
