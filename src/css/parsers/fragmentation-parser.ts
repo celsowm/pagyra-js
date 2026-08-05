@@ -1,4 +1,5 @@
 import type { StyleAccumulator } from "../style.js";
+import { registerPropertyParser } from "./registry.js";
 
 export type BreakValue = "auto" | "avoid" | "avoid-page" | "page" | "left" | "right";
 
@@ -15,6 +16,21 @@ const MODERN_BREAK_VALUES = new Set<BreakValue>([
   "left",
   "right",
 ]);
+
+let registered = false;
+
+export function registerFragmentationParsers(): void {
+  if (registered) {
+    return;
+  }
+  registered = true;
+  registerPropertyParser("break-before", parseBreakBefore);
+  registerPropertyParser("break-after", parseBreakAfter);
+  registerPropertyParser("break-inside", parseBreakInside);
+  registerPropertyParser("page-break-before", parseLegacyPageBreakBefore);
+  registerPropertyParser("page-break-after", parseLegacyPageBreakAfter);
+  registerPropertyParser("page-break-inside", parseLegacyPageBreakInside);
+}
 
 export function parseBreakBefore(value: string, target: StyleAccumulator): void {
   const parsed = normalizeModernBreak(value);
