@@ -19,7 +19,7 @@ import type { UnifiedFont } from "../../fonts/types.js";
 import type { Matrix } from "../../geometry/matrix.js";
 import { svgMatrixToPdf } from "../transform-adapter.js";
 import { applyWordSpacingToGlyphRun, computeGlyphRun } from "../utils/node-text-run-factory.js";
-import type { Background, Rect as RenderRect, Radius } from "../types.js";
+import type { Background } from "../types.js";
 
 const PINK = "\x1b[38;5;205m";
 const RESET_COLOR = "\x1b[0m";

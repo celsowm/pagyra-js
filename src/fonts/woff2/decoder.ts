@@ -2,7 +2,6 @@ import type { ParsedFont } from "../types.js";
 import { decompressWoff2, type AsyncDecompressFn } from "../../compression/decompress.js";
 import { Buf, readBase128 } from "./buffer.js";
 import {
-  TAG,
   TAG_GLYF,
   TAG_LOCA,
   TAG_HMTX,
