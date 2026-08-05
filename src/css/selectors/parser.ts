@@ -10,8 +10,8 @@ export function parseSelector(selector: string): Part[] | null {
     return null;
   }
 
-  function parseNth(expr: string): { a: number; b: number } | null {
-    const normalized = expr.replace(/\s+/g, "").toLowerCase();
+  function parseNth(expression: string): { a: number; b: number } | null {
+    const normalized = expression.replace(/\s+/g, "").toLowerCase();
     if (normalized === "odd") {
       return { a: 2, b: 1 };
     }
@@ -32,6 +32,111 @@ export function parseSelector(selector: string): Part[] | null {
         : parseInt(match[1], 10);
     const b = match[2] ? parseInt(match[2], 10) : 0;
     return { a, b };
+  }
+
+  function consumeFunctionalPseudo(
+    source: string,
+    name: "not" | "is" | "where",
+  ): { body: string; consumed: number } | null {
+    const prefix = `:${name}(`;
+    if (!source.toLowerCase().startsWith(prefix)) {
+      return null;
+    }
+
+    let depth = 1;
+    let quote: "\"" | "'" | null = null;
+    for (let index = prefix.length; index < source.length; index++) {
+      const character = source[index];
+      if (quote) {
+        if (character === quote && source[index - 1] !== "\\") {
+          quote = null;
+        }
+        continue;
+      }
+      if (character === "\"" || character === "'") {
+        quote = character;
+        continue;
+      }
+      if (character === "(") {
+        depth++;
+      } else if (character === ")") {
+        depth--;
+        if (depth === 0) {
+          return {
+            body: source.slice(prefix.length, index),
+            consumed: index + 1,
+          };
+        }
+      }
+    }
+    return null;
+  }
+
+  function splitTopLevelSelectorList(value: string): string[] | null {
+    const result: string[] = [];
+    let current = "";
+    let parenthesisDepth = 0;
+    let squareDepth = 0;
+    let quote: "\"" | "'" | null = null;
+
+    for (let index = 0; index < value.length; index++) {
+      const character = value[index];
+      if (quote) {
+        current += character;
+        if (character === quote && value[index - 1] !== "\\") {
+          quote = null;
+        }
+        continue;
+      }
+      if (character === "\"" || character === "'") {
+        quote = character;
+        current += character;
+        continue;
+      }
+      if (character === "(") {
+        parenthesisDepth++;
+      } else if (character === ")") {
+        parenthesisDepth = Math.max(0, parenthesisDepth - 1);
+      } else if (character === "[") {
+        squareDepth++;
+      } else if (character === "]") {
+        squareDepth = Math.max(0, squareDepth - 1);
+      }
+
+      if (character === "," && parenthesisDepth === 0 && squareDepth === 0) {
+        const selectorItem = current.trim();
+        if (!selectorItem) {
+          return null;
+        }
+        result.push(selectorItem);
+        current = "";
+      } else {
+        current += character;
+      }
+    }
+
+    const finalItem = current.trim();
+    if (!finalItem) {
+      return null;
+    }
+    result.push(finalItem);
+    return result;
+  }
+
+  function parseSimpleSelectorList(value: string): Simple[] | null {
+    const selectors = splitTopLevelSelectorList(value);
+    if (!selectors) {
+      return null;
+    }
+    const parsed: Simple[] = [];
+    for (const selectorItem of selectors) {
+      const simple = parseSimpleToken(selectorItem);
+      if (!simple) {
+        return null;
+      }
+      parsed.push(simple);
+    }
+    return parsed;
   }
 
   function parseSimpleToken(token: string): Simple | null {
@@ -59,7 +164,7 @@ export function parseSelector(selector: string): Part[] | null {
     while (rest.length > 0) {
       const character = rest[0];
       if (character === "#") {
-        const match = /^#[^.#[\]:\s>+~]+/.exec(rest);
+        const match = /^#[^.#[\]:\s>+~,]+/.exec(rest);
         if (!match) {
           return null;
         }
@@ -68,7 +173,7 @@ export function parseSelector(selector: string): Part[] | null {
         continue;
       }
       if (character === ".") {
-        const match = /^\.[^.#[\]:\s>+~]+/.exec(rest);
+        const match = /^\.[^.#[\]:\s>+~,]+/.exec(rest);
         if (!match) {
           return null;
         }
@@ -163,14 +268,23 @@ export function parseSelector(selector: string): Part[] | null {
         rest = rest.slice(match[0].length);
         continue;
       }
-      match = /^:not\(\s*([^)]+)\s*\)/i.exec(rest);
-      if (match) {
-        const inner = parseSimpleToken(match[1]);
-        if (!inner) {
+
+      let functionalMatched = false;
+      for (const kind of ["not", "is", "where"] as const) {
+        const functional = consumeFunctionalPseudo(rest, kind);
+        if (!functional) {
+          continue;
+        }
+        const selectors = parseSimpleSelectorList(functional.body);
+        if (!selectors || selectors.length === 0) {
           return null;
         }
-        pseudos.push({ kind: "not", inner });
-        rest = rest.slice(match[0].length);
+        pseudos.push({ kind, selectors });
+        rest = rest.slice(functional.consumed);
+        functionalMatched = true;
+        break;
+      }
+      if (functionalMatched) {
         continue;
       }
 
@@ -204,9 +318,19 @@ export function parseSelector(selector: string): Part[] | null {
     let end = index;
     let squareDepth = 0;
     let parenthesisDepth = 0;
+    let quote: "\"" | "'" | null = null;
     while (end < normalizedSelector.length) {
       const current = normalizedSelector[end];
-      if (current === "[") {
+      if (quote) {
+        if (current === quote && normalizedSelector[end - 1] !== "\\") {
+          quote = null;
+        }
+        end++;
+        continue;
+      }
+      if (current === "\"" || current === "'") {
+        quote = current;
+      } else if (current === "[") {
         squareDepth++;
       } else if (current === "]") {
         squareDepth = Math.max(0, squareDepth - 1);
