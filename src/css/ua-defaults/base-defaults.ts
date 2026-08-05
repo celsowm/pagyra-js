@@ -20,16 +20,13 @@ import { createNormalLineHeight, DEFAULT_NORMAL_LINE_HEIGHT } from "../line-heig
 import { remToPx, emToPx } from "../unit-conversion.js";
 import type { StyleDefaults } from "./types.js";
 
-/**
- * Typography defaults - handles all font and text related properties.
- */
 export class TypographyDefaults {
   static getFontFamily(): string {
     return "'Times New Roman', Times, serif";
   }
 
   static getFontSize(): number {
-    return 1; // 1rem
+    return 1;
   }
 
   static getBaseFontSize(): number {
@@ -57,12 +54,9 @@ export class TypographyDefaults {
   }
 }
 
-/**
- * Box model defaults - handles spacing, sizing, and positioning.
- */
 export class BoxModelDefaults {
   static getMargin(): number {
-    return 0; // 0em
+    return 0;
   }
 
   static getPadding(): number {
@@ -98,9 +92,6 @@ export class BoxModelDefaults {
   }
 }
 
-/**
- * Layout defaults - handles display and positioning properties.
- */
 export class LayoutDefaults {
   static getDisplay(): Display {
     return Display.Block;
@@ -111,7 +102,6 @@ export class LayoutDefaults {
   }
 
   static getFloat(): "none" {
-    // FloatMode is only needed at usage sites; keep this minimal here if possible.
     return "none";
   }
 
@@ -128,9 +118,6 @@ export class LayoutDefaults {
   }
 }
 
-/**
- * Text layout defaults - handles text flow and wrapping.
- */
 export class TextLayoutDefaults {
   static getWhiteSpace(): WhiteSpace {
     return WhiteSpace.Normal;
@@ -169,14 +156,9 @@ export class TextLayoutDefaults {
   }
 }
 
-/**
- * Base object used by BrowserDefaults as a starting point for all elements.
- * This keeps construction logic separate from element-specific maps.
- */
 export function createBaseDefaultsObject(): StyleDefaults {
   const baseFontSize = TypographyDefaults.getBaseFontSize();
   return {
-    // Typography
     fontFamily: TypographyDefaults.getFontFamily(),
     fontSize: remToPx(TypographyDefaults.getFontSize(), baseFontSize),
     fontStyle: "normal",
@@ -191,7 +173,6 @@ export function createBaseDefaultsObject(): StyleDefaults {
     textDecorationStyle: "solid",
     listStyleType: "disc",
 
-    // Box model
     marginTop: emToPx(BoxModelDefaults.getMargin(), remToPx(TypographyDefaults.getFontSize(), baseFontSize)),
     marginRight: emToPx(BoxModelDefaults.getMargin(), remToPx(TypographyDefaults.getFontSize(), baseFontSize)),
     marginBottom: emToPx(BoxModelDefaults.getMargin(), remToPx(TypographyDefaults.getFontSize(), baseFontSize)),
@@ -220,16 +201,15 @@ export function createBaseDefaultsObject(): StyleDefaults {
     minHeight: BoxModelDefaults.getMinHeight(),
     maxHeight: BoxModelDefaults.getMaxHeight(),
 
-    // Layout
     boxSizing: BoxSizing.ContentBox,
     display: LayoutDefaults.getDisplay(),
     position: LayoutDefaults.getPosition(),
     float: FloatMode.None,
     clear: LayoutDefaults.getClear(),
+    visibility: "visible",
     overflowX: LayoutDefaults.getOverflowX(),
     overflowY: LayoutDefaults.getOverflowY(),
 
-    // Text layout
     whiteSpace: TextLayoutDefaults.getWhiteSpace(),
     overflowWrap: TextLayoutDefaults.getOverflowWrap(),
     wordBreak: TextLayoutDefaults.getWordBreak(),
@@ -240,7 +220,6 @@ export function createBaseDefaultsObject(): StyleDefaults {
     textIndent: TextLayoutDefaults.getTextIndent(),
     textTransform: TextLayoutDefaults.getTextTransform(),
 
-    // Flexbox (defaults)
     flexGrow: 0,
     flexShrink: 1,
     flexBasis: AUTO_LENGTH,
@@ -251,7 +230,6 @@ export function createBaseDefaultsObject(): StyleDefaults {
     flexDirection: "row",
     flexWrap: false,
 
-    // Grid (defaults)
     trackListColumns: [],
     trackListRows: [],
     autoFlow: "row",
@@ -259,21 +237,16 @@ export function createBaseDefaultsObject(): StyleDefaults {
     rowGap: 0,
     columnGap: 0,
 
-    // Table (defaults)
     tableLayout: TableLayoutMode.Auto,
     borderModel: BorderModel.Separate,
 
-    // Fragmentation (defaults)
     breakBefore: "auto",
     breakAfter: "auto",
     breakInside: "auto",
     widows: 2,
     orphans: 2,
 
-    // Opacity
     opacity: 1,
-
-    // Filter (no filter applied by default)
     filter: undefined,
     backdropFilter: undefined,
   };
