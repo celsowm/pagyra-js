@@ -20,6 +20,20 @@ export interface PageLocation {
   remainder: number;
 }
 
+export function resolvePageMarginsForIndex(
+  profile: PageMarginProfile,
+  pageIndex: number,
+): PageMarginsPx {
+  const safeIndex = Math.max(0, Math.trunc(pageIndex));
+  if (safeIndex === 0 && profile.first) {
+    return profile.first;
+  }
+  if (safeIndex % 2 === 0) {
+    return profile.right ?? profile.default;
+  }
+  return profile.left ?? profile.default;
+}
+
 /**
  * Maps the continuous layout coordinate space to physical PDF pages whose
  * printable heights and horizontal offsets may vary by page pseudo-class.
@@ -37,14 +51,7 @@ export class PageFlowMetrics {
   }
 
   marginsForPage(pageIndex: number): PageMarginsPx {
-    const safeIndex = Math.max(0, Math.trunc(pageIndex));
-    if (safeIndex === 0 && this.options.margins.first) {
-      return this.options.margins.first;
-    }
-    if (safeIndex % 2 === 0) {
-      return this.options.margins.right ?? this.options.margins.default;
-    }
-    return this.options.margins.left ?? this.options.margins.default;
+    return resolvePageMarginsForIndex(this.options.margins, pageIndex);
   }
 
   usableHeightForPage(pageIndex: number): number {
