@@ -27,7 +27,6 @@ EXIT_STATUS=0
 > pagyra-js@0.0.42 check
 > tsc --noEmit
 
-src/pdf/layout-tree-builder.ts(219,3): error TS2741: Property 'visibility' is missing in type '{ id: string; tagName: string | undefined; textContent: string | undefined; kind: NodeKind; contentBox: Rect; paddingBox: Rect; borderBox: Rect; visualOverflow: Rect; ... 30 more ...; backdropFilter: FilterFunction[] | undefined; }' but required in type 'RenderBox'.
 tests/pdf/clip-path.spec.ts(24,11): error TS2741: Property 'visibility' is missing in type '{ id: string; tagName: string; kind: NodeKind.Container; contentBox: Rect; paddingBox: Rect; borderBox: Rect; visualOverflow: Rect; padding: { top: number; right: number; bottom: number; left: number; }; border: { top: number; right: number; bottom: number; left: number; }; ... 15 more ...; links: never[]; }' but required in type 'RenderBox'.
 tests/pdf/form-text-encoding.spec.ts(40,7): error TS2741: Property 'visibility' is missing in type '{ tagName: string; id: string; kind: NodeKind.Container; contentBox: { x: number; y: number; width: number; height: number; }; paddingBox: { x: number; y: number; width: number; height: number; }; borderBox: { x: number; y: number; width: number; height: number; }; visualOverflow: { x: number; y: number; width: numb...' but required in type 'RenderBox'.
 EXIT_STATUS=1
