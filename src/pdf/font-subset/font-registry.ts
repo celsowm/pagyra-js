@@ -21,6 +21,10 @@ export class PdfFontRegistry {
     // Map from font key to PdfFontHandle (lazily created)
     private readonly fonts = new Map<string, PdfFontHandle>();
 
+    // Number of explicitly used glyphs represented by the materialized subset.
+    // Usage sets only grow, so an unchanged size means no new glyph was added.
+    private readonly materializedUsageSizes = new Map<string, number>();
+
     // Counter for generating unique font resource names
     private fontCounter = 0;
     private identityCounter = 0;
@@ -85,7 +89,6 @@ export class PdfFontRegistry {
             this.glyphUsage.set(key, usage);
         }
 
-        // Add all glyph IDs from this run
         for (const gid of run.glyphIds) {
             usage.add(gid);
         }
@@ -98,7 +101,6 @@ export class PdfFontRegistry {
     ensureSubsetFor(font: UnifiedFont): PdfFontHandle {
         const key = this.fontKey(font);
 
-        // Get the collected glyph IDs for this font
         const usedGlyphIds = this.glyphUsage.get(key) ?? new Set<number>([0]);
         if (!this.glyphUsage.has(key)) {
             this.glyphUsage.set(key, usedGlyphIds);
@@ -106,7 +108,8 @@ export class PdfFontRegistry {
         usedGlyphIds.add(0);
 
         const existing = this.fonts.get(key);
-        if (existing && this.subsetCoversGlyphs(existing.subset, usedGlyphIds)) {
+        const materializedUsageSize = this.materializedUsageSizes.get(key);
+        if (existing && materializedUsageSize === usedGlyphIds.size) {
             return existing;
         }
 
@@ -127,20 +130,8 @@ export class PdfFontRegistry {
         };
 
         this.fonts.set(key, handle);
+        this.materializedUsageSizes.set(key, usedGlyphIds.size);
         return handle;
-    }
-
-    /**
-     * Checks whether an existing subset already contains every glyph we've seen.
-     */
-    private subsetCoversGlyphs(subset: PdfFontSubset, glyphs: Set<number>): boolean {
-        const inSubset = new Set(subset.glyphIds);
-        for (const gid of glyphs) {
-            if (!inSubset.has(gid)) {
-                return false;
-            }
-        }
-        return true;
     }
 
     /**
