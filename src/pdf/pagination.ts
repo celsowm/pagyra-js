@@ -3,6 +3,7 @@ import type {
   RenderBox,
   DecorationCommand,
   Link,
+  PositionedLayer,
 } from "./types.js";
 import type { PaintInstruction } from "./stacking/types.js";
 import { resolvePaintOrder } from "./stacking/resolve-paint-order.js";
@@ -34,18 +35,10 @@ export function paginateTree(root: RenderBox, options: PaginationOptions): Layou
   const documentHeight = resolveDocumentHeight(documentBoxes);
   const totalPages = Math.max(1, Math.ceil(documentHeight / pageHeight));
   const pages: LayoutPageTree[] = [];
-  const firstMargins = options.pageMargins
-    ? resolvePageMarginsForIndex(options.pageMargins, 0)
-    : undefined;
 
   for (let index = 0; index < totalPages; index++) {
     const pageTop = index * pageHeight;
     const pageBottom = pageTop + pageHeight;
-    const pageMargins = options.pageMargins
-      ? resolvePageMarginsForIndex(options.pageMargins, index)
-      : undefined;
-    const fixedDx = pageMargins && firstMargins ? pageMargins.left - firstMargins.left : 0;
-    const fixedDy = pageTop + (pageMargins && firstMargins ? pageMargins.top - firstMargins.top : 0);
 
     const paintOrder = paintOrderAll.filter((item) =>
       item.type !== "box"
@@ -53,7 +46,7 @@ export function paginateTree(root: RenderBox, options: PaginationOptions): Layou
     );
     const flowContentOrder = flowOrderAll.filter((box) => intersectsVerticalSlice(box, pageTop, pageBottom));
     const positionedLayersSortedByZ = fixed.layers.map((layer) =>
-      translatePositionedLayer(layer, fixedDx, fixedDy),
+      translateFixedLayerToPage(layer, index, pageHeight, options.pageMargins),
     );
     const links = filterLinks(linksAll, pageTop, pageBottom, pageTop);
     const decorations: DecorationCommand[] = [];
@@ -70,6 +63,31 @@ export function paginateTree(root: RenderBox, options: PaginationOptions): Layou
   }
 
   return pages;
+}
+
+function translateFixedLayerToPage(
+  layer: PositionedLayer,
+  targetPageIndex: number,
+  pageHeight: number,
+  profile: PageMarginProfile | undefined,
+): PositionedLayer {
+  const anchor = layer.boxes[0];
+  const anchorY = anchor?.borderBox.y ?? anchor?.contentBox.y ?? 0;
+  const sourcePageIndex = Math.max(0, Math.floor(anchorY / pageHeight));
+  const targetPageTop = targetPageIndex * pageHeight;
+  const sourcePageTop = sourcePageIndex * pageHeight;
+
+  if (!profile) {
+    return translatePositionedLayer(layer, 0, targetPageTop - sourcePageTop);
+  }
+
+  const sourceMargins = resolvePageMarginsForIndex(profile, sourcePageIndex);
+  const targetMargins = resolvePageMarginsForIndex(profile, targetPageIndex);
+  return translatePositionedLayer(
+    layer,
+    targetMargins.left - sourceMargins.left,
+    targetPageTop - sourcePageTop + targetMargins.top - sourceMargins.top,
+  );
 }
 
 function collectFlowOrder(root: RenderBox, fixedBoxes: ReadonlySet<RenderBox>): RenderBox[] {
