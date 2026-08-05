@@ -56,11 +56,41 @@ export function isGridOrFlexContainer(display: Display): boolean {
   );
 }
 
+function normalizeLineEndings(text: string): string {
+  return text.replace(/\r\n?/g, "\n");
+}
+
+function normalizePreLineText(text: string): string {
+  return normalizeLineEndings(text)
+    .split("\n")
+    .map((line) => line.replace(/[\t\f ]+/g, " ").trim())
+    .join("\n")
+    .normalize("NFC");
+}
+
+function preservesWhitespace(mode: WhiteSpace): boolean {
+  return mode === WhiteSpace.Pre || mode === WhiteSpace.PreWrap;
+}
+
+function preservesSegmentBreaks(mode: WhiteSpace): boolean {
+  return preservesWhitespace(mode) || mode === WhiteSpace.PreLine;
+}
+
+function normalizePreservedText(text: string, mode: WhiteSpace): string {
+  if (preservesWhitespace(mode)) {
+    return normalizeLineEndings(text).normalize("NFC");
+  }
+  if (mode === WhiteSpace.PreLine) {
+    return normalizePreLineText(text);
+  }
+  return text.replace(/\s+/g, " ").normalize("NFC");
+}
+
 export function shouldPreserveCollapsedWhitespace(children: LayoutNode[], style: ComputedStyle): boolean {
   if (isGridOrFlexContainer(style.display)) {
     return false;
   }
-  if (style.whiteSpace === WhiteSpace.Pre || style.whiteSpace === WhiteSpace.PreWrap) {
+  if (preservesSegmentBreaks(style.whiteSpace)) {
     return true;
   }
   const lastChild = children.length > 0 ? children[children.length - 1] : null;
@@ -118,7 +148,22 @@ export function convertTextDomNode(
   options: TextConversionOptions = {},
 ): LayoutNode | null {
   const raw = node.textContent ?? "";
-  const collapsed = raw.replace(/\s+/g, " ").normalize("NFC");
+  const whiteSpace = parentStyle.whiteSpace;
+
+  if (preservesSegmentBreaks(whiteSpace)) {
+    const text = normalizePreservedText(raw, whiteSpace);
+    if (text.length === 0) {
+      return null;
+    }
+    return createInlineTextLayoutNode(
+      text,
+      parentStyle,
+      /^\s/u.test(text),
+      /\s$/u.test(text),
+    );
+  }
+
+  const collapsed = normalizePreservedText(raw, whiteSpace);
   const trimmed = collapsed.trim();
 
   const prev = findMeaningfulSibling(node.previousSibling, "previous");
@@ -208,7 +253,19 @@ export function flushBufferedText(
     return "";
   }
 
-  let normalized = textBuffer.replace(/\s+/g, " ").normalize("NFC");
+  let normalized = normalizePreservedText(textBuffer, ownStyle.whiteSpace);
+  if (preservesSegmentBreaks(ownStyle.whiteSpace)) {
+    if (normalized.length > 0) {
+      layoutChildren.push(createInlineTextLayoutNode(
+        normalized,
+        ownStyle,
+        /^\s/u.test(normalized),
+        /\s$/u.test(normalized),
+      ));
+    }
+    return "";
+  }
+
   if (normalized.trim().length === 0) {
     normalized = shouldPreserveCollapsedWhitespace(layoutChildren, ownStyle) ? " " : "";
   }
