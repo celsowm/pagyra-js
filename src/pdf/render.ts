@@ -79,8 +79,10 @@ export async function renderPdf(layout: LayoutTree, options: RenderPdfOptions = 
   const hfContext = initHeaderFooterContext(layout.hf, pageSize, baseContentBox);
   const hfLayout = layoutHeaderFooterTrees(hfContext, pxToPt);
 
-  const paginationHeight = pageHeightPx;
-  const pages = paginateTree(layout.root, { pageHeight: paginationHeight });
+  const pages = paginateTree(layout.root, {
+    pageHeight: pageHeightPx,
+    pageMargins,
+  });
   const totalPages = pages.length;
   const tokens = computeHfTokens(layout.hf.placeholders ?? {}, totalPages, options.metadata);
   const pageBackground = resolvePageBackground(layout.root);
