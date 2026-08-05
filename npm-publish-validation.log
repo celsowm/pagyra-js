@@ -35,5 +35,6 @@ src/css/parsers/outline-parser.ts(66,12): error TS2339: Property 'outlineWidth' 
 src/css/parsers/outline-parser.ts(73,12): error TS2339: Property 'outlineStyle' does not exist on type 'StyleAccumulator'.
 src/css/parsers/outline-parser.ts(80,12): error TS2339: Property 'outlineColor' does not exist on type 'StyleAccumulator'.
 src/css/parsers/outline-parser.ts(87,12): error TS2339: Property 'outlineOffset' does not exist on type 'StyleAccumulator'.
+src/pdf/utils/outline.ts(1,15): error TS2305: Module '"../types.js"' has no exported member 'Outline'.
 EXIT_STATUS=1
 
