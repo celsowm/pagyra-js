@@ -7,38 +7,57 @@ import type {
 } from "./types.js";
 import type { PaintInstruction } from "./stacking/types.js";
 import { resolvePaintOrder } from "./stacking/resolve-paint-order.js";
+import {
+  collectFixedLayers,
+  translatePositionedLayer,
+} from "./fixed-position-layer.js";
+import {
+  resolvePageMarginsForIndex,
+  type PageMarginProfile,
+} from "../layout/fragmentation/page-flow.js";
 
 export interface PaginationOptions {
   pageHeight: number;
+  pageMargins?: PageMarginProfile;
 }
 
 export function paginateTree(root: RenderBox, options: PaginationOptions): LayoutPageTree[] {
   const pageHeight = Number.isFinite(options.pageHeight) && options.pageHeight > 0 ? options.pageHeight : 1;
-
+  const fixed = collectFixedLayers(root);
   const paintOrderAll = resolvePaintOrder(root);
-  const flowOrderAll = collectFlowOrder(root);
-  const positionedAll = collectPositionedLayers(root);
-  const linksAll = collectLinks(root);
+  const flowOrderAll = collectFlowOrder(root, fixed.boxes);
+  const linksAll = collectLinks(root, fixed.boxes);
 
-  const documentHeight = resolveDocumentHeight(
-    paintOrderAll.filter((i): i is PaintInstruction & { type: 'box' } => i.type === 'box').map((i) => i.box),
-  );
+  const documentBoxes = paintOrderAll
+    .filter((instruction): instruction is PaintInstruction & { type: "box" } => instruction.type === "box")
+    .map((instruction) => instruction.box)
+    .filter((box) => !fixed.boxes.has(box));
+  const documentHeight = resolveDocumentHeight(documentBoxes);
   const totalPages = Math.max(1, Math.ceil(documentHeight / pageHeight));
-
   const pages: LayoutPageTree[] = [];
+  const firstMargins = options.pageMargins
+    ? resolvePageMarginsForIndex(options.pageMargins, 0)
+    : undefined;
 
   for (let index = 0; index < totalPages; index++) {
     const pageTop = index * pageHeight;
     const pageBottom = pageTop + pageHeight;
+    const pageMargins = options.pageMargins
+      ? resolvePageMarginsForIndex(options.pageMargins, index)
+      : undefined;
+    const fixedDx = pageMargins && firstMargins ? pageMargins.left - firstMargins.left : 0;
+    const fixedDy = pageTop + (pageMargins && firstMargins ? pageMargins.top - firstMargins.top : 0);
 
     const paintOrder = paintOrderAll.filter((item) =>
-      item.type !== 'box' || intersectsVerticalSlice(item.box, pageTop, pageBottom),
+      item.type !== "box"
+      || (!fixed.boxes.has(item.box) && intersectsVerticalSlice(item.box, pageTop, pageBottom)),
     );
     const flowContentOrder = flowOrderAll.filter((box) => intersectsVerticalSlice(box, pageTop, pageBottom));
-    const positionedLayersSortedByZ = filterPositionedLayers(positionedAll, pageTop, pageBottom);
+    const positionedLayersSortedByZ = fixed.layers.map((layer) =>
+      translatePositionedLayer(layer, fixedDx, fixedDy),
+    );
     const links = filterLinks(linksAll, pageTop, pageBottom, pageTop);
-
-    const decorations: DecorationCommand[] = []; // Placeholder until decoration pagination is implemented
+    const decorations: DecorationCommand[] = [];
 
     pages.push({
       paintOrder,
@@ -54,39 +73,28 @@ export function paginateTree(root: RenderBox, options: PaginationOptions): Layou
   return pages;
 }
 
-
-function collectFlowOrder(root: RenderBox): RenderBox[] {
+function collectFlowOrder(root: RenderBox, fixedBoxes: ReadonlySet<RenderBox>): RenderBox[] {
   const result: RenderBox[] = [];
   dfs(root, (box) => {
+    if (fixedBoxes.has(box)) {
+      return false;
+    }
     result.push(box);
     return box.positioning.type === "normal";
   });
   return result;
 }
 
-function collectPositionedLayers(_root: RenderBox): PositionedLayer[] {
-  // Positioned layers are not yet implemented; return empty array to keep the pipeline stable.
-  return [];
-}
-
-function collectLinks(root: RenderBox): Link[] {
+function collectLinks(root: RenderBox, fixedBoxes: ReadonlySet<RenderBox>): Link[] {
   const links: Link[] = [];
   dfs(root, (box) => {
+    if (fixedBoxes.has(box)) {
+      return false;
+    }
     links.push(...box.links);
     return true;
   });
   return links;
-}
-
-function filterPositionedLayers(layers: PositionedLayer[], top: number, bottom: number): PositionedLayer[] {
-  const result: PositionedLayer[] = [];
-  for (const layer of layers) {
-    const boxes = layer.boxes.filter((box) => intersectsVerticalSlice(box, top, bottom));
-    if (boxes.length > 0) {
-      result.push({ z: layer.z, boxes });
-    }
-  }
-  return result;
 }
 
 function filterLinks(links: Link[], top: number, bottom: number, offset: number): Link[] {
@@ -127,7 +135,9 @@ function intersectsVerticalSlice(box: RenderBox, sliceTop: number, sliceBottom: 
 function getBoxVerticalSpan(box: RenderBox): { top: number; bottom: number } {
   const referenceRect = box.visualOverflow ?? box.borderBox ?? box.contentBox;
   let top = referenceRect ? referenceRect.y : box.contentBox.y;
-  let bottom = referenceRect ? referenceRect.y + Math.max(referenceRect.height, 0) : box.contentBox.y + Math.max(box.contentBox.height, 0);
+  let bottom = referenceRect
+    ? referenceRect.y + Math.max(referenceRect.height, 0)
+    : box.contentBox.y + Math.max(box.contentBox.height, 0);
 
   if (!Number.isFinite(top)) {
     top = 0;
@@ -136,14 +146,12 @@ function getBoxVerticalSpan(box: RenderBox): { top: number; bottom: number } {
     bottom = top;
   }
 
-  if (box.textRuns.length > 0) {
-    for (const run of box.textRuns) {
-      const baseline = run.lineMatrix?.f ?? 0;
-      const ascent = run.fontSize;
-      const descent = Math.max(run.fontSize * 0.2, 0);
-      top = Math.min(top, baseline - ascent);
-      bottom = Math.max(bottom, baseline + descent);
-    }
+  for (const run of box.textRuns) {
+    const baseline = run.lineMatrix?.f ?? 0;
+    const ascent = run.fontSize;
+    const descent = Math.max(run.fontSize * 0.2, 0);
+    top = Math.min(top, baseline - ascent);
+    bottom = Math.max(bottom, baseline + descent);
   }
 
   return { top, bottom };
