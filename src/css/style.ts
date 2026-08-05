@@ -58,7 +58,7 @@ import type {
   FilterFunction,
   Visibility,
 } from "./properties/visual.js";
-import type { MiscProperties } from "./properties/misc.js";
+import type { MiscProperties, ObjectPosition } from "./properties/misc.js";
 import type { ClipPath } from "./clip-path-types.js";
 import type { ContentValue } from "./parsers/content-parser.js";
 import type { CounterIncrement, CounterReset } from "../layout/counter.js";
@@ -68,7 +68,7 @@ export type { LineHeightInput, LineHeightValue } from "./line-height.js";
 export type { TextTransform, OverflowWrap, WordBreak, FontVariantNumeric };
 export type { FlexDirection, AlignSelfValue };
 export type { GridAutoFlow };
-export type { Visibility };
+export type { Visibility, ObjectPosition };
 export type {
   TrackSize,
   TrackDefinition,
@@ -152,6 +152,7 @@ export interface StyleAccumulator {
   textTransform?: TextTransform;
   listStyleType?: string;
   objectFit?: string;
+  objectPosition?: ObjectPosition;
   verticalAlign?: string;
   textDecorationLine?: string;
   justifyContent?: JustifyContent;
@@ -263,6 +264,7 @@ export class ComputedStyle implements StyleProperties {
   counterIncrement?: CounterIncrement[];
   clipPath?: ClipPath;
   objectFit?: "contain" | "cover" | "fill" | "none" | "scale-down";
+  objectPosition?: ObjectPosition;
   left?: LengthLike;
   right?: LengthLike;
   top?: LengthLike;
@@ -374,6 +376,7 @@ export class ComputedStyle implements StyleProperties {
     this.counterIncrement = data.counterIncrement;
     this.clipPath = data.clipPath;
     this.objectFit = data.objectFit;
+    this.objectPosition = data.objectPosition ? { ...data.objectPosition } : undefined;
     this.zIndex = data.zIndex;
     this.left = data.left;
     this.right = data.right;
