@@ -2,6 +2,10 @@ import { configureDebug, log } from "../logging/debug.js";
 import { makeUnitParsers, type UnitCtx, pxToPt } from "../units/units.js";
 import { layoutTree } from "../layout/pipeline/layout-tree.js";
 import { applyForcedPageBreaks } from "../layout/fragmentation/forced-page-breaks.js";
+import {
+  PageFlowMetrics,
+  type PageMarginProfile,
+} from "../layout/fragmentation/page-flow.js";
 import { buildRenderTree } from "../pdf/layout-tree-builder.js";
 import { setViewportSize } from "../css/apply-declarations.js";
 import {
@@ -18,9 +22,21 @@ import { resolveHeaderFooterMaxHeights } from "./header-footer.js";
 import { normalizeHtmlInput } from "./html-parser.js";
 import type { PreparedRender, RenderHtmlOptions } from "./types.js";
 import { collectCssText, parseCssArtifacts, parseInputDocument } from "./document-css.js";
-import { resolveDefaultPageStyle } from "../html/css/page-style.js";
+import {
+  resolvePageStyleProfile,
+  type ResolvedPageStyle,
+  type ResolvedPageStyleProfile,
+} from "../html/css/page-style.js";
+import type { ParsedCss } from "../html/css/parse-css.js";
 import { appendConvertedChildren, buildRootLayoutContext, createDomConversionContext } from "./layout-build.js";
 import { finalizeRenderTreePositioning, initializeFontEmbedder } from "./render-finalize.js";
+
+interface PageConfiguration {
+  pageWidth: number;
+  pageHeight: number;
+  margins: PageMarginProfile;
+  viewport: { width: number; height: number };
+}
 
 export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<PreparedRender> {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -63,44 +79,44 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
     provisionalPageWidth,
     provisionalPageHeight,
   );
-  const provisionalViewport = resolveViewport(
-    options,
-    provisionalPageWidth,
-    provisionalPageHeight,
-    provisionalMargins,
-  );
+  const provisionalViewport = resolveViewport(options, provisionalPageWidth, provisionalPageHeight, {
+    default: provisionalMargins,
+    first: provisionalMargins,
+    left: provisionalMargins,
+    right: provisionalMargins,
+  });
 
   let parsedCss = parseCssArtifacts(
     mergedCss,
     provisionalViewport.width,
     provisionalViewport.height,
   );
-  const pageStyle = resolveDefaultPageStyle(parsedCss.pageRules, {
-    width: DEFAULT_PAGE_WIDTH_PX,
-    height: DEFAULT_PAGE_HEIGHT_PX,
-  });
+  let pageConfiguration = resolvePageConfiguration(parsedCss, options);
 
-  // Public API dimensions and margins intentionally override CSS @page.
-  const pageWidth = sanitizeDimension(options.pageWidth, pageStyle.width ?? DEFAULT_PAGE_WIDTH_PX);
-  const pageHeight = sanitizeDimension(options.pageHeight, pageStyle.height ?? DEFAULT_PAGE_HEIGHT_PX);
-  const cssMargins = mergePageMargins(
-    resolvePageMarginsPx(pageWidth, pageHeight),
-    pageStyle.margins,
-    pageWidth,
-    pageHeight,
-  );
-  const marginsPx = mergePageMargins(cssMargins, options.margins, pageWidth, pageHeight);
-  const viewport = resolveViewport(options, pageWidth, pageHeight, marginsPx);
-
-  if (
-    Math.abs(viewport.width - provisionalViewport.width) > 0.01
-    || Math.abs(viewport.height - provisionalViewport.height) > 0.01
-  ) {
-    // Width/height media queries must see the final printable viewport, including
-    // page descriptors and any explicit API overrides.
-    parsedCss = parseCssArtifacts(mergedCss, viewport.width, viewport.height);
+  // Page descriptors can change the print viewport, which can in turn change
+  // matching @media rules. Iterate to a stable configuration with a hard cap.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const reparsedCss = parseCssArtifacts(
+      mergedCss,
+      pageConfiguration.viewport.width,
+      pageConfiguration.viewport.height,
+    );
+    const nextConfiguration = resolvePageConfiguration(reparsedCss, options);
+    parsedCss = reparsedCss;
+    if (samePageConfiguration(pageConfiguration, nextConfiguration)) {
+      pageConfiguration = nextConfiguration;
+      break;
+    }
+    pageConfiguration = nextConfiguration;
   }
 
+  const {
+    pageWidth,
+    pageHeight,
+    margins: pageMargins,
+    viewport,
+  } = pageConfiguration;
+  const marginsPx = pageMargins.default;
   const viewportWidth = viewport.width;
   const viewportHeight = viewport.height;
   setViewportSize(viewportWidth, viewportHeight);
@@ -156,24 +172,19 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   const fontEmbedder = await initializeFontEmbedder(options.fontConfig);
 
   layoutTree(rootLayout, { width: viewportWidth, height: viewportHeight }, fontEmbedder);
-  const headerHeightPx = resolvedHeaderFooter?.maxHeaderHeightPx ?? 0;
-  const footerHeightPx = resolvedHeaderFooter?.maxFooterHeightPx ?? 0;
-  const usablePageHeight = pageHeight
-    - marginsPx.top
-    - marginsPx.bottom
-    - headerHeightPx
-    - footerHeightPx;
-  if (usablePageHeight > 0) {
-    applyForcedPageBreaks(rootLayout, usablePageHeight);
-  }
+  const pageFlow = new PageFlowMetrics({
+    pageHeight,
+    margins: pageMargins,
+    headerHeightPx: resolvedHeaderFooter?.maxHeaderHeightPx ?? 0,
+    footerHeightPx: resolvedHeaderFooter?.maxFooterHeightPx ?? 0,
+  });
+  applyForcedPageBreaks(rootLayout, pageFlow);
   log("layout", "debug", "Layout complete");
 
   const renderTree = buildRenderTree(rootLayout, { headerFooter: resolvedHeaderFooter });
   finalizeRenderTreePositioning({
     renderTree,
-    resolvedHeaderFooter,
-    pageHeight,
-    marginsPx,
+    pageFlow,
     debug,
   });
 
@@ -181,18 +192,93 @@ export async function prepareHtmlRender(options: RenderHtmlOptions): Promise<Pre
   return { layoutRoot: rootLayout, renderTree, pageSize, margins: marginsPx };
 }
 
+function resolvePageConfiguration(
+  parsedCss: ParsedCss,
+  options: RenderHtmlOptions,
+): PageConfiguration {
+  const styles = resolvePageStyleProfile(parsedCss.pageRules, {
+    width: DEFAULT_PAGE_WIDTH_PX,
+    height: DEFAULT_PAGE_HEIGHT_PX,
+  });
+
+  // Public API dimensions and margins intentionally override every CSS @page variant.
+  const pageWidth = sanitizeDimension(options.pageWidth, styles.default.width ?? DEFAULT_PAGE_WIDTH_PX);
+  const pageHeight = sanitizeDimension(options.pageHeight, styles.default.height ?? DEFAULT_PAGE_HEIGHT_PX);
+  const defaultMargins = resolvePageMarginsPx(pageWidth, pageHeight);
+  const margins: PageMarginProfile = {
+    default: resolveVariantMargins(defaultMargins, styles.default, options, pageWidth, pageHeight),
+    first: resolveVariantMargins(defaultMargins, styles.first, options, pageWidth, pageHeight),
+    left: resolveVariantMargins(defaultMargins, styles.left, options, pageWidth, pageHeight),
+    right: resolveVariantMargins(defaultMargins, styles.right, options, pageWidth, pageHeight),
+  };
+
+  return {
+    pageWidth,
+    pageHeight,
+    margins,
+    viewport: resolveViewport(options, pageWidth, pageHeight, margins),
+  };
+}
+
+function resolveVariantMargins(
+  defaults: PageMarginsPx,
+  style: ResolvedPageStyle,
+  options: RenderHtmlOptions,
+  pageWidth: number,
+  pageHeight: number,
+): PageMarginsPx {
+  const cssMargins = mergePageMargins(defaults, style.margins, pageWidth, pageHeight);
+  return mergePageMargins(cssMargins, options.margins, pageWidth, pageHeight);
+}
+
 function resolveViewport(
   options: RenderHtmlOptions,
   pageWidth: number,
   pageHeight: number,
-  margins: PageMarginsPx,
+  margins: PageMarginProfile,
 ): { width: number; height: number } {
-  const maxContentWidth = maxContentDimension(pageWidth, margins.left + margins.right);
-  const maxContentHeight = maxContentDimension(pageHeight, margins.top + margins.bottom);
+  const variants = [
+    margins.default,
+    margins.first ?? margins.default,
+    margins.left ?? margins.default,
+    margins.right ?? margins.default,
+  ];
+  const maxContentWidth = Math.min(
+    ...variants.map((variant) => maxContentDimension(pageWidth, variant.left + variant.right)),
+  );
+  const maxContentHeight = Math.min(
+    ...variants.map((variant) => maxContentDimension(pageHeight, variant.top + variant.bottom)),
+  );
   return {
     width: Math.min(sanitizeDimension(options.viewportWidth, maxContentWidth), maxContentWidth),
     height: Math.min(sanitizeDimension(options.viewportHeight, maxContentHeight), maxContentHeight),
   };
+}
+
+function samePageConfiguration(left: PageConfiguration, right: PageConfiguration): boolean {
+  if (
+    !close(left.pageWidth, right.pageWidth)
+    || !close(left.pageHeight, right.pageHeight)
+    || !close(left.viewport.width, right.viewport.width)
+    || !close(left.viewport.height, right.viewport.height)
+  ) {
+    return false;
+  }
+
+  for (const variant of ["default", "first", "left", "right"] as const) {
+    const leftMargins = left.margins[variant] ?? left.margins.default;
+    const rightMargins = right.margins[variant] ?? right.margins.default;
+    for (const side of ["top", "right", "bottom", "left"] as const) {
+      if (!close(leftMargins[side], rightMargins[side])) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function close(left: number, right: number): boolean {
+  return Math.abs(left - right) <= 0.01;
 }
 
 function mergePageMargins(
