@@ -1,31 +1,41 @@
-import type { Simple } from "./types.js";
+import type { Pseudo, Simple } from "./types.js";
 
-/**
- * Gera uma chave canônica estável para memoização de matches de "Simple".
- */
-export function simpleKey(s: Simple): string {
-  const cls = s.classes.length ? '.' + s.classes.slice().sort().join('.') : '';
-  const attrs = s.attrs.length
-    ? '[' + s.attrs
-        .map(a => a.op === 'exists' ? a.name : `${a.name}${a.op}"${a.value}"`)
-        .sort().join('][') + ']'
-    : '';
-  const pseu = s.pseudos.length
-    ? ':' + s.pseudos.map(p => {
-        switch (p.kind) {
-          case 'first-child': return 'first-child';
-          case 'last-child':  return 'last-child';
-          case 'nth-child':   return `nth-child(${p.a}n+${p.b})`;
-          case 'not': {
-            const innerKey = simpleKey(p.inner);
-            return `not(${innerKey})`;
-          }
-          default: return '';
-        }
-      }).filter(p => p !== '').sort().join(':')
-    : '';
-  const tag = s.tag ?? '*';
-  const id  = s.id ? `#${s.id}` : '';
-  const key = `${tag}${id}${cls}${attrs}${pseu}`;
-  return key;
+/** Generates a stable canonical cache key for a compound selector. */
+export function simpleKey(simple: Simple): string {
+  const classes = simple.classes.length > 0
+    ? `.${simple.classes.slice().sort().join(".")}`
+    : "";
+  const attributes = simple.attrs.length > 0
+    ? `[${simple.attrs
+        .map((attribute) => attribute.op === "exists"
+          ? attribute.name
+          : `${attribute.name}${attribute.op}\"${attribute.value}\"`)
+        .sort()
+        .join("][")}]`
+    : "";
+  const pseudos = simple.pseudos.length > 0
+    ? `:${simple.pseudos.map(pseudoKey).sort().join(":")}`
+    : "";
+  const tag = simple.tag ?? "*";
+  const id = simple.id ? `#${simple.id}` : "";
+  return `${tag}${id}${classes}${attributes}${pseudos}`;
+}
+
+function pseudoKey(pseudo: Pseudo): string {
+  switch (pseudo.kind) {
+    case "first-child":
+    case "last-child":
+    case "only-child":
+    case "first-of-type":
+    case "last-of-type":
+    case "only-of-type":
+    case "empty":
+    case "root":
+      return pseudo.kind;
+    case "nth-child":
+    case "nth-of-type":
+      return `${pseudo.kind}(${pseudo.a}n+${pseudo.b})`;
+    case "not":
+      return `not(${simpleKey(pseudo.inner)})`;
+  }
 }
