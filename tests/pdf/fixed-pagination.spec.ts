@@ -25,9 +25,9 @@ describe("fixed-position pagination", () => {
       `,
       css: `
         @page { size: 300px 200px; margin: 10px; }
-        @page :first { margin: 20px 20px 30px 40px; }
         @page :left { margin: 30px 10px 10px 50px; }
         @page :right { margin: 40px 20px 10px 60px; }
+        @page :first { margin: 20px 20px 30px 40px; }
         html, body, div { margin: 0; padding: 0; }
         #fixed {
           position: fixed;
