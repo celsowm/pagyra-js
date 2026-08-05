@@ -1,0 +1,44 @@
+name: Fix TypeScript 7 cleanup
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/fix-ts7-unused-imports.trigger
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22.14.0"
+          package-manager-cache: false
+
+      - run: npm install --global npm@11
+
+      - name: Refresh lockfile and remove unused imports
+        shell: bash
+        run: |
+          npm install --package-lock-only --ignore-scripts
+          sed -i '/^  TAG,$/d' src/fonts/woff2/decoder.ts
+          sed -i 's/import type { Background, Rect as RenderRect, Radius } from "..\/types.js";/import type { Background } from "..\/types.js";/' src/pdf/renderers/text-renderer.ts
+
+      - name: Commit cleanup and remove one-shot workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/fix-ts7-unused-imports.yml
+          git rm .github/fix-ts7-unused-imports.trigger
+          git add package-lock.json src/fonts/woff2/decoder.ts src/pdf/renderers/text-renderer.ts
+          git commit -m "fix: align TS7 tooling and remove unused imports"
+          git push origin HEAD:main
