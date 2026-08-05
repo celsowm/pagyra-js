@@ -50,8 +50,12 @@ describe("vertical-align", () => {
     expect(superRun).toBeDefined();
     expect(baseRun).toBeDefined();
     expect(subRun).toBeDefined();
-    expect(superRun!.lineMatrix.f).toBeLessThan(baseRun!.lineMatrix.f);
-    expect(subRun!.lineMatrix.f).toBeGreaterThan(baseRun!.lineMatrix.f);
+
+    const superBaseline = superRun?.lineMatrix?.f ?? 0;
+    const baseBaseline = baseRun?.lineMatrix?.f ?? 0;
+    const subBaseline = subRun?.lineMatrix?.f ?? 0;
+    expect(superBaseline).toBeLessThan(baseBaseline);
+    expect(subBaseline).toBeGreaterThan(baseBaseline);
   });
 
   it("uses positive lengths to raise inline content", async () => {
@@ -64,6 +68,8 @@ describe("vertical-align", () => {
 
     expect(raised).toBeDefined();
     expect(base).toBeDefined();
-    expect(base!.lineMatrix.f - raised!.lineMatrix.f).toBeCloseTo(6, 4);
+    const raisedBaseline = raised?.lineMatrix?.f ?? 0;
+    const baseBaseline = base?.lineMatrix?.f ?? 0;
+    expect(baseBaseline - raisedBaseline).toBeCloseTo(6, 4);
   });
 });
