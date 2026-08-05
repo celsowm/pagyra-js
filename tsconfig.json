@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "rootDirs": ["src", "tests"],
@@ -9,10 +9,11 @@
     "strict": true,
     "skipLibCheck": true,
     "types": ["node", "vitest/globals"],
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "verbatimModuleSyntax": true,
     "allowImportingTsExtensions": false,
-    "baseUrl": ".",
+    "noUncheckedSideEffectImports": true,
+    "forceConsistentCasingInFileNames": true,
     "paths": {
       "rollup/parseAst": ["./types/rollup-parseAst.d.ts"]
     }
