@@ -21,7 +21,7 @@ import { SubsetResourceManager, type SubsetFontResource } from "./managers/subse
 
 export type PdfFont = {
   name: string;
-  baseName?: string;    // for Base14 (Helvetica, etc.)
+  baseName?: string;
   isBase14: boolean;
 };
 
@@ -134,6 +134,10 @@ export class FontRegistry {
     const resolved = this.ensureStandardFontResource(family, normalizedWeight, style);
     this.fontResourceManager.setCached(familyKey, resolved);
     return resolved;
+  }
+
+  registerGlyphRun(glyphRun: GlyphRun): void {
+    this.subsetResourceManager.registerGlyphRun(glyphRun);
   }
 
   ensureSubsetForGlyphRun(glyphRun: GlyphRun, font: FontResource): SubsetFontResource {
