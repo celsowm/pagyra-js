@@ -1,7 +1,7 @@
 ===== npm ci =====
 npm warn deprecated source-map-resolve@0.6.0: See https://github.com/lydell/source-map-resolve#deprecated
 
-added 296 packages, and audited 297 packages in 6s
+added 296 packages, and audited 297 packages in 4s
 
 88 packages are looking for funding
   run `npm fund` for details
@@ -24,10 +24,9 @@ EXIT_STATUS=0
 
 ===== TypeScript 7 =====
 
-> pagyra-js@0.0.42 check
+> pagyra-js@0.0.44 check
 > tsc --noEmit
 
-tests/pdf/clip-path.spec.ts(24,11): error TS2741: Property 'visibility' is missing in type '{ id: string; tagName: string; kind: NodeKind.Container; contentBox: Rect; paddingBox: Rect; borderBox: Rect; visualOverflow: Rect; padding: { top: number; right: number; bottom: number; left: number; }; border: { top: number; right: number; bottom: number; left: number; }; ... 15 more ...; links: never[]; }' but required in type 'RenderBox'.
-tests/pdf/form-text-encoding.spec.ts(40,7): error TS2741: Property 'visibility' is missing in type '{ tagName: string; id: string; kind: NodeKind.Container; contentBox: { x: number; y: number; width: number; height: number; }; paddingBox: { x: number; y: number; width: number; height: number; }; borderBox: { x: number; y: number; width: number; height: number; }; visualOverflow: { x: number; y: number; width: numb...' but required in type 'RenderBox'.
+src/css/parsers/object-position-parser.ts(30,12): error TS2339: Property 'objectPosition' does not exist on type 'StyleAccumulator'.
 EXIT_STATUS=1
 
