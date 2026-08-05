@@ -37,6 +37,18 @@ describe("widows and orphans", () => {
     expect(target.style.orphans).toBe(3);
   });
 
+  it("inherits line constraints from ancestors", async () => {
+    const prepared = await prepareHtmlRender({
+      html: '<section style="widows: 5; orphans: 4"><p id="target">Inherited</p></section>',
+      css: "body, section, p { margin: 0; padding: 0; }",
+      pagedBodyMargin: "zero",
+    });
+    const target = findById(prepared.layoutRoot, "target");
+
+    expect(target.style.widows).toBe(5);
+    expect(target.style.orphans).toBe(4);
+  });
+
   it("moves a paragraph when too few orphan lines fit", async () => {
     const unrestricted = await render(170, "one\ntwo\nthree", "widows: 1; orphans: 1;");
     const constrained = await render(170, "one\ntwo\nthree", "widows: 1; orphans: 2;");
