@@ -25,7 +25,6 @@ import { collectCssText, parseCssArtifacts, parseInputDocument } from "./documen
 import {
   resolvePageStyleProfile,
   type ResolvedPageStyle,
-  type ResolvedPageStyleProfile,
 } from "../html/css/page-style.js";
 import type { ParsedCss } from "../html/css/parse-css.js";
 import { appendConvertedChildren, buildRootLayoutContext, createDomConversionContext } from "./layout-build.js";
