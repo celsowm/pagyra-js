@@ -9,6 +9,7 @@ import {
   type StyleAccumulator,
 } from "./style.js";
 import { ElementSpecificDefaults, BrowserDefaults } from "./browser-defaults.js";
+import { getElementWhiteSpaceDefault } from "./ua-defaults/white-space-defaults.js";
 import { applyOrderedDeclarationsToStyle } from "./apply-declarations.js";
 import { specifiedWhiteSpace } from "./parsers/white-space-parser.js";
 import { log } from "../logging/debug.js";
@@ -34,9 +35,7 @@ export function computeStyleForElement(
 
   // Get element-specific defaults from browser defaults system
   const elementDefaults = ElementSpecificDefaults.getDefaultsForElement(tagName);
-  const elementDefaultWhiteSpace = (
-    elementDefaults as typeof elementDefaults & { whiteSpace?: ComputedStyle["whiteSpace"] }
-  ).whiteSpace;
+  const elementDefaultWhiteSpace = getElementWhiteSpaceDefault(tagName);
 
   // Create base style with browser defaults
   const baseDefaults = BrowserDefaults.createBaseDefaults();
