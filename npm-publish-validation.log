@@ -1,0 +1,39 @@
+===== npm ci =====
+npm error code ERESOLVE
+npm error ERESOLVE could not resolve
+npm error
+npm error While resolving: @typescript-eslint/eslint-plugin@8.56.1
+npm error Found: typescript@6.0.2
+npm error node_modules/typescript
+npm error   dev typescript@"npm:@typescript/typescript6@^6.0.2" from the root project
+npm error   peer typescript@">=4.8.4" from ts-api-utils@2.4.0
+npm error   node_modules/ts-api-utils
+npm error     ts-api-utils@"^2.4.0" from @typescript-eslint/eslint-plugin@8.56.1
+npm error     node_modules/@typescript-eslint/eslint-plugin
+npm error       dev @typescript-eslint/eslint-plugin@"^8.46.4" from the root project
+npm error     ts-api-utils@"^2.4.0" from @typescript-eslint/type-utils@8.56.1
+npm error     node_modules/@typescript-eslint/eslint-plugin/node_modules/@typescript-eslint/type-utils
+npm error       @typescript-eslint/type-utils@"8.56.1" from @typescript-eslint/eslint-plugin@8.56.1
+npm error       node_modules/@typescript-eslint/eslint-plugin
+npm error         dev @typescript-eslint/eslint-plugin@"^8.46.4" from the root project
+npm error     3 more (@typescript-eslint/typescript-estree, ...)
+npm error
+npm error Could not resolve dependency:
+npm error peer typescript@">=4.8.4 <6.0.0" from @typescript-eslint/eslint-plugin@8.56.1
+npm error node_modules/@typescript-eslint/eslint-plugin
+npm error   dev @typescript-eslint/eslint-plugin@"^8.46.4" from the root project
+npm error
+npm error Conflicting peer dependency: typescript@5.9.3
+npm error node_modules/typescript
+npm error   peer typescript@">=4.8.4 <6.0.0" from @typescript-eslint/eslint-plugin@8.56.1
+npm error   node_modules/@typescript-eslint/eslint-plugin
+npm error     dev @typescript-eslint/eslint-plugin@"^8.46.4" from the root project
+npm error
+npm error Fix the upstream dependency conflict, or retry this command with --force or --legacy-peer-deps to accept an incorrect (and potentially broken) dependency resolution.
+npm error
+npm error
+npm error For a full report see:
+npm error /home/runner/.npm/_logs/2026-08-05T12_21_40_774Z-eresolve-report.txt
+npm error A complete log of this run can be found in: /home/runner/.npm/_logs/2026-08-05T12_21_40_774Z-debug-0.log
+EXIT_STATUS=1
+
