@@ -28,7 +28,6 @@ EXIT_STATUS=0
 > tsc --noEmit
 
 src/css/selectors/matcher.ts(186,47): error TS2339: Property 'inner' does not exist on type '{ kind: "is" | "not" | "where"; selectors: Simple[]; }'.
-src/css/selectors/parser.ts(172,37): error TS2353: Object literal may only specify known properties, and 'inner' does not exist in type '{ kind: "is" | "not" | "where"; selectors: Simple[]; }'.
 src/css/selectors/simple-key.ts(24,37): error TS2366: Function lacks ending return statement and return type does not include 'undefined'.
 src/css/selectors/simple-key.ts(39,38): error TS2339: Property 'inner' does not exist on type '{ kind: "is" | "not" | "where"; selectors: Simple[]; }'.
 EXIT_STATUS=1
