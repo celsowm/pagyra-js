@@ -31,6 +31,13 @@ export interface CssRuleEntry {
   pseudoElement?: CssPseudoElement;
 }
 
+export interface CssPageRuleEntry {
+  selectors?: readonly string[];
+  declarations: Record<string, string>;
+  orderedDeclarations?: readonly CssDeclarationEntry[];
+  sourceOrder?: number;
+}
+
 export interface FontFaceRule {
   declarations: Record<string, string>;
 }
@@ -38,6 +45,7 @@ export interface FontFaceRule {
 export interface ParsedCss {
   styleRules: CssRuleEntry[];
   fontFaceRules: FontFaceRule[];
+  pageRules: CssPageRuleEntry[];
 }
 
 type CssDeclaration = cssParser.Declaration;
@@ -245,8 +253,15 @@ function isAstRule(value: unknown): value is { type: string } {
     && typeof (value as { type?: unknown }).type === "string";
 }
 
+function normalizePageSelectors(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  return value.filter((selector): selector is string => typeof selector === "string");
+}
+
 export function buildCssRules(cssText: string, options: CssParseOptions = {}): ParsedCss {
-  const result: ParsedCss = { styleRules: [], fontFaceRules: [] };
+  const result: ParsedCss = { styleRules: [], fontFaceRules: [], pageRules: [] };
   if (!cssText.trim()) {
     return result;
   }
@@ -259,6 +274,7 @@ export function buildCssRules(cssText: string, options: CssParseOptions = {}): P
   const stylesheet = cssParser.parse(cssText);
   const rules = stylesheet.stylesheet?.rules ?? [];
   let styleRuleSourceOrder = 0;
+  let pageRuleSourceOrder = 0;
 
   const processRules = (rulesToProcess: readonly unknown[]): void => {
     for (const rule of rulesToProcess) {
@@ -306,6 +322,24 @@ export function buildCssRules(cssText: string, options: CssParseOptions = {}): P
           (declaration): declaration is CssDeclaration => declaration.type === "declaration",
         );
         result.fontFaceRules.push({ declarations: parseFontFaceDeclarations(decls) });
+        continue;
+      }
+
+      if (rule.type === "page") {
+        const typedRule = rule as {
+          selectors?: unknown;
+          declarations?: Array<{ type?: string }>;
+        };
+        const decls = (typedRule.declarations ?? []).filter(
+          (declaration): declaration is CssDeclaration => declaration.type === "declaration",
+        );
+        const parsedDeclarations = parseDeclarationBlock(decls);
+        result.pageRules.push({
+          selectors: normalizePageSelectors(typedRule.selectors),
+          declarations: { ...parsedDeclarations.declarations },
+          orderedDeclarations: parsedDeclarations.orderedDeclarations.map((declaration) => ({ ...declaration })),
+          sourceOrder: pageRuleSourceOrder++,
+        });
         continue;
       }
 
