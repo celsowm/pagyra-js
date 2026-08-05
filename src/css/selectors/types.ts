@@ -1,4 +1,4 @@
-﻿// Tipos base para o sistema de seletores
+﻿// Base types for the selector engine.
 
 export type Combinator = " " | ">" | "+" | "~";
 
@@ -20,7 +20,7 @@ export type Pseudo =
   | { kind: "only-of-type" }
   | { kind: "nth-of-type"; a: number; b: number }
   | { kind: "empty" }
-  | { kind: "not"; inner: Simple }
+  | { kind: "not" | "is" | "where"; selectors: Simple[] }
   | { kind: "root" };
 
 export interface Simple {
