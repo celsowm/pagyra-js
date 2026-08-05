@@ -3,6 +3,7 @@
 import { getPropertyParser, type PropertyParser } from "./parsers/registry.js";
 import { registerAllPropertyParsers } from "./parsers/register-parsers.js";
 import { registerWhiteSpaceParser } from "./parsers/white-space-parser.js";
+import { registerFragmentationParsers } from "./parsers/fragmentation-parser.js";
 import { type StyleAccumulator } from "./style.js";
 import { type UnitParsers } from "../units/units.js";
 
@@ -16,6 +17,7 @@ export interface ApplicableDeclaration {
 // Initialize the property parsers registry
 registerAllPropertyParsers();
 registerWhiteSpaceParser();
+registerFragmentationParsers();
 
 // Cache for frequently used parsers to reduce Map lookups
 const parserCache = new Map<string, PropertyParser>();
