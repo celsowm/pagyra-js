@@ -1,11 +1,13 @@
 import { FontEmbedder } from "../pdf/font/embedder.js";
 import { PdfDocument } from "../pdf/primitives/pdf-document.js";
 import type { FontConfig } from "../types/fonts.js";
-import type { HeaderFooterHTML } from "../pdf/types.js";
-import { applyBreakInsideAvoid, applyPageVerticalMarginsWithHf, offsetRenderTree } from "../render/offset.js";
 import { applyTextLayoutAdjustments } from "../pdf/utils/text-layout-adjuster.js";
 import { buildRenderTree } from "../pdf/layout-tree-builder.js";
-import type { PageMarginsPx } from "../units/page-utils.js";
+import type { PageFlowMetrics } from "../layout/fragmentation/page-flow.js";
+import {
+  applyBreakInsideAvoidWithPageFlow,
+  applyPageFlowOffsets,
+} from "../render/page-flow-offset.js";
 
 export async function initializeFontEmbedder(fontConfig: FontConfig | undefined): Promise<FontEmbedder | null> {
   if (!fontConfig) {
@@ -20,30 +22,13 @@ export async function initializeFontEmbedder(fontConfig: FontConfig | undefined)
 
 interface FinalizeRenderTreePositioningOptions {
   renderTree: ReturnType<typeof buildRenderTree>;
-  resolvedHeaderFooter: Partial<HeaderFooterHTML> | undefined;
-  pageHeight: number;
-  marginsPx: PageMarginsPx;
+  pageFlow: PageFlowMetrics;
   debug: boolean;
 }
 
 export function finalizeRenderTreePositioning(options: FinalizeRenderTreePositioningOptions): void {
-  const { renderTree, resolvedHeaderFooter, pageHeight, marginsPx, debug } = options;
+  const { renderTree, pageFlow, debug } = options;
   applyTextLayoutAdjustments(renderTree.root);
-
-  const headerHeightPx = resolvedHeaderFooter?.maxHeaderHeightPx ?? 0;
-  const footerHeightPx = resolvedHeaderFooter?.maxFooterHeightPx ?? 0;
-
-  const usablePageHeight = pageHeight - marginsPx.top - marginsPx.bottom - headerHeightPx - footerHeightPx;
-  if (usablePageHeight > 0) {
-    applyBreakInsideAvoid(renderTree.root, usablePageHeight);
-  }
-
-  applyPageVerticalMarginsWithHf(renderTree.root, {
-    pageHeight,
-    margins: marginsPx,
-    headerHeightPx,
-    footerHeightPx,
-  });
-  offsetRenderTree(renderTree.root, marginsPx.left, 0, debug);
+  applyBreakInsideAvoidWithPageFlow(renderTree.root, pageFlow);
+  applyPageFlowOffsets(renderTree.root, pageFlow, debug);
 }
-
