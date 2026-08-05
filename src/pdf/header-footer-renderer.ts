@@ -162,166 +162,212 @@ export async function renderHeaderFooterHtml(
   // Layout with constrained dimensions
   layoutTree(rootLayout, { width: widthPx, height: maxHeightPx }, fontEmbedder ?? null);
 
-  // Build render tree
-  const renderTree = buildRenderTree(rootLayout);
-  const root = renderTree.root;
+  const renderTree = buildRenderTree(rootLayout, {});
 
-  // Calculate actual content height
-  const heightPx = calculateContentHeight(root);
+  // Calculate actual height
+  const actualHeight = Math.min(calculateTreeHeight(renderTree.root), maxHeightPx);
 
   log("layout", "debug", "Header/footer rendered", {
     widthPx,
     maxHeightPx,
-    actualHeightPx: heightPx,
+    actualHeight,
+    hasContent: renderTree.root.children.length > 0,
   });
 
   return {
     renderTree,
-    heightPx: Math.min(heightPx, maxHeightPx),
-    root,
+    heightPx: actualHeight,
+    root: renderTree.root,
   };
 }
 
 /**
- * Paints a rendered header/footer onto a PDF page.
- */
-export async function paintHeaderFooter(
-  painter: PagePainter,
-  rendered: RenderedHeaderFooter,
-  options: {
-    offsetX: number;
-    offsetY: number;
-    clipHeight?: number;
-    fontRegistry: FontRegistry;
-  }
-): Promise<void> {
-  const { offsetX, offsetY, clipHeight, fontRegistry } = options;
-
-  // Clone and offset the render tree
-  const clonedRoot = cloneRenderBox(rendered.root);
-  offsetRenderTree(clonedRoot, offsetX, offsetY);
-
-  // Paint all boxes in order
-  const fontResolver = new FontRegistryResolver(fontRegistry);
-  await paintRenderBoxTree(painter, clonedRoot, fontResolver, clipHeight);
-}
-
-/**
- * Calculate the actual content height of a render tree.
- */
-function calculateContentHeight(root: RenderBox): number {
-  let maxBottom = root.borderBox?.y ?? root.contentBox.y;
-
-  function visit(box: RenderBox): void {
-    const boxBottom = (box.borderBox?.y ?? box.contentBox.y) +
-      (box.borderBox?.height ?? box.contentBox.height);
-    maxBottom = Math.max(maxBottom, boxBottom);
-
-    for (const child of box.children) {
-      visit(child);
-    }
-  }
-
-  visit(root);
-  const rootTop = root.borderBox?.y ?? root.contentBox.y;
-  return Math.max(0, maxBottom - rootTop);
-}
-
-/**
- * Paint render box tree recursively.
- */
-async function paintRenderBoxTree(
-  painter: PagePainter,
-  box: RenderBox,
-  fontResolver: FontRegistryResolver,
-  clipHeight?: number
-): Promise<void> {
-  // Paint the box atomically (background, border, content)
-  await paintBoxAtomic(painter, box, fontResolver);
-
-  // Paint text runs
-  for (const run of box.textRuns) {
-    await paintTextRun(painter, run, fontResolver);
-  }
-
-  // Paint children
-  for (const child of box.children) {
-    if (clipHeight !== undefined) {
-      const childY = child.borderBox?.y ?? child.contentBox.y;
-      if (childY > clipHeight) continue;
-    }
-    await paintRenderBoxTree(painter, child, fontResolver, clipHeight);
-  }
-}
-
-/**
- * Paint a text run.
- */
-async function paintTextRun(
-  painter: PagePainter,
-  run: Run,
-  fontResolver: FontRegistryResolver
-): Promise<void> {
-  const font = fontResolver.resolve(run.fontFamily, run.fontWeight, run.fontStyle);
-  if (!font) {
-    log("font", "warn", "Font not found for header/footer text", {
-      family: run.fontFamily,
-      weight: run.fontWeight,
-      style: run.fontStyle,
-    });
-    return;
-  }
-
-  let glyphRun = computeGlyphRun(font, run.text, run.fontSize);
-  if (run.wordSpacing && run.wordSpacing !== 0) {
-    glyphRun = applyWordSpacingToGlyphRun(glyphRun, run.wordSpacing);
-  }
-
-  painter.drawTextRun({
-    glyphRun,
-    x: run.lineMatrix.e,
-    y: run.lineMatrix.f,
-    fontSize: run.fontSize,
-    color: run.color,
-    font,
-  });
-}
-
-/**
- * Deep clone a render box tree.
+ * Deep clones a render box tree for per-page rendering.
+ * This is needed because we apply offsets that are page-specific.
  */
 function cloneRenderBox(box: RenderBox): RenderBox {
-  return {
+  const clonedRuns = box.textRuns.map((run) => ({
+    ...run,
+    lineMatrix: run.lineMatrix ? { ...run.lineMatrix } : undefined,
+    decorations: run.decorations ? { ...run.decorations } : undefined,
+    glyphs: run.glyphs ? { ...run.glyphs } : undefined,
+  })) as Run[];
+
+  const clonedBox: RenderBox = {
     ...box,
     contentBox: { ...box.contentBox },
-    borderBox: box.borderBox ? { ...box.borderBox } : undefined,
-    paddingBox: box.paddingBox ? { ...box.paddingBox } : undefined,
-    marginBox: box.marginBox ? { ...box.marginBox } : undefined,
-    visualOverflow: box.visualOverflow ? { ...box.visualOverflow } : undefined,
-    textRuns: box.textRuns.map((run) => ({
-      ...run,
-      lineMatrix: { ...run.lineMatrix },
-    })),
-    children: box.children.map(cloneRenderBox),
+    paddingBox: { ...box.paddingBox },
+    borderBox: { ...box.borderBox },
+    visualOverflow: { ...box.visualOverflow },
+    padding: { ...box.padding },
+    border: { ...box.border },
+    borderRadius: {
+      topLeft: { ...box.borderRadius.topLeft },
+      topRight: { ...box.borderRadius.topRight },
+      bottomRight: { ...box.borderRadius.bottomRight },
+      bottomLeft: { ...box.borderRadius.bottomLeft },
+    },
+    background: box.background
+      ? {
+          color: box.background.color ? { ...box.background.color } : undefined,
+          image: box.background.image
+            ? {
+                ...box.background.image,
+                rect: { ...box.background.image.rect },
+                originRect: { ...box.background.image.originRect },
+              }
+            : undefined,
+          gradient: box.background.gradient
+            ? {
+                ...box.background.gradient,
+                rect: { ...box.background.gradient.rect },
+                originRect: { ...box.background.gradient.originRect },
+              }
+            : undefined,
+        }
+      : { color: undefined },
+    textRuns: clonedRuns,
+    markerRect: box.markerRect ? { ...box.markerRect } : undefined,
+    boxShadows: box.boxShadows.map((s) => ({ ...s, color: { ...s.color } })),
     links: box.links.map((link) => ({
-      ...link,
       rect: { ...link.rect },
       target: { ...link.target },
     })),
+    children: box.children.map((child) => cloneRenderBox(child)),
   };
+
+  return clonedBox;
 }
 
 /**
- * Normalize an HTML fragment into a complete document.
+ * Paints a rendered header/footer onto a page.
  */
-function normalizeHtmlFragment(html: string): string {
-  const trimmed = html.trim();
-  if (trimmed.toLowerCase().startsWith("<!doctype") || trimmed.toLowerCase().startsWith("<html")) {
-    return trimmed;
+export async function paintRenderedHeaderFooter(
+  painter: PagePainter,
+  rendered: RenderedHeaderFooter,
+  xOffsetPx: number,
+  yOffsetPx: number,
+  fontRegistry: FontRegistry,
+  pageOffsetY: number,
+): Promise<void> {
+  // Clone the tree to avoid mutating the original
+  const clonedRoot = cloneRenderBox(rendered.root);
+
+  // Enrich text runs with glyph data
+  const fontResolver = new FontRegistryResolver(fontRegistry);
+  await enrichTreeWithGlyphRuns(clonedRoot, fontResolver);
+
+  // Position header/footer in document-space for the current page. The page painter
+  // will subtract pageOffsetY when converting to local page coordinates.
+  offsetRenderTree(clonedRoot, xOffsetPx, yOffsetPx + pageOffsetY, false);
+
+  // Paint all boxes
+  const stack: RenderBox[] = [clonedRoot];
+  while (stack.length > 0) {
+    const box = stack.pop()!;
+    await paintBoxAtomic(painter, box);
+    // Add children in reverse order to paint in correct order
+    for (let i = box.children.length - 1; i >= 0; i--) {
+      stack.push(box.children[i]);
+    }
   }
-  return `<!DOCTYPE html><html><head></head><body>${trimmed}</body></html>`;
+}
+
+/**
+ * Calculates the configuration for page content area when headers/footers are present.
+ */
+export interface PageContentAreaConfig {
+  /** Y offset where content should start (after header) */
+  contentStartY: number;
+  /** Available height for content (excluding header and footer) */
+  contentHeightPx: number;
+  /** Y position where footer should be placed */
+  footerY: number;
+}
+
+export function calculatePageContentArea(
+  pageHeightPx: number,
+  marginTop: number,
+  marginBottom: number,
+  headerHeightPx: number,
+  footerHeightPx: number,
+): PageContentAreaConfig {
+  // Header is placed at marginTop
+  // Content starts after header
+  const contentStartY = marginTop + headerHeightPx;
+
+  // Footer is placed at (pageHeight - marginBottom - footerHeight)
+  const footerY = pageHeightPx - marginBottom - footerHeightPx;
+
+  // Content height is the space between header and footer
+  const contentHeightPx = footerY - contentStartY;
+
+  return {
+    contentStartY,
+    contentHeightPx: Math.max(0, contentHeightPx),
+    footerY,
+  };
+}
+
+function normalizeHtmlFragment(html: string): string {
+  const hasHtmlTag = /<\s*html[\s>]/i.test(html);
+  if (hasHtmlTag) {
+    return html;
+  }
+  return `<!doctype html><html><head></head><body>${html}</body></html>`;
 }
 
 function isInlineDisplay(display: Display): boolean {
-  return display === Display.Inline || display === Display.InlineBlock || display === Display.InlineFlex || display === Display.InlineGrid || display === Display.InlineTable;
+  return (
+    display === Display.Inline ||
+    display === Display.InlineBlock ||
+    display === Display.InlineFlex ||
+    display === Display.InlineGrid ||
+    display === Display.InlineTable
+  );
+}
+
+function calculateTreeHeight(root: RenderBox): number {
+  let maxBottom = 0;
+
+  function traverse(box: RenderBox): void {
+    const bottom = box.borderBox.y + box.borderBox.height;
+    maxBottom = Math.max(maxBottom, bottom);
+    for (const child of box.children) {
+      traverse(child);
+    }
+  }
+
+  traverse(root);
+  return maxBottom;
+}
+
+async function enrichTreeWithGlyphRuns(root: RenderBox, fontResolver: FontRegistryResolver): Promise<void> {
+  async function enrichRun(run: Run): Promise<void> {
+    if (run.glyphs) {
+      return;
+    }
+    try {
+      const font = await fontResolver.resolve(run.fontFamily, run.fontWeight, run.fontStyle);
+      const letterSpacing = run.letterSpacing ?? 0;
+      const glyphRun = computeGlyphRun(font, run.text, run.fontSize, letterSpacing);
+      applyWordSpacingToGlyphRun(glyphRun, run.text, run.wordSpacing);
+      run.glyphs = glyphRun;
+    } catch {
+      // Ignore font resolution errors for headers/footers
+    }
+  }
+
+  async function traverse(box: RenderBox): Promise<void> {
+    if (box.textRuns && box.textRuns.length > 0) {
+      for (const run of box.textRuns) {
+        await enrichRun(run);
+      }
+    }
+    for (const child of box.children) {
+      await traverse(child);
+    }
+  }
+
+  await traverse(root);
 }
