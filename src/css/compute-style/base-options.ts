@@ -39,6 +39,7 @@ export function createBaseStyleOptions(
     letterSpacing: inherited.letterSpacing ?? mergedDefaults.letterSpacing,
     listStyleType: inherited.listStyleType ?? mergedDefaults.listStyleType ?? "disc",
     visibility: styleInit.visibility ?? inherited.visibility,
+    objectPosition: styleInit.objectPosition ? { ...styleInit.objectPosition } : undefined,
     verticalAlign: styleInit.verticalAlign ?? mergedDefaults.verticalAlign,
     breakBefore: readBreakBefore(styleInit) ?? mergedDefaults.breakBefore ?? "auto",
     breakAfter: readBreakAfter(styleInit) ?? mergedDefaults.breakAfter ?? "auto",
