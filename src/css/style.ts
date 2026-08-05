@@ -25,7 +25,6 @@ import {
 } from "./line-height.js";
 import { CustomPropertiesMap } from "./custom-properties.js";
 
-// Import domain interfaces
 import type { LayoutProperties } from "./properties/layout.js";
 import type { TypographyProperties, TextTransform, OverflowWrap, WordBreak, FontVariantNumeric } from "./properties/typography.js";
 import type { BoxModelProperties } from "./properties/box-model.js";
@@ -57,18 +56,19 @@ import type {
   TextShadow,
   TextShadowInput,
   FilterFunction,
+  Visibility,
 } from "./properties/visual.js";
 import type { MiscProperties } from "./properties/misc.js";
 import type { ClipPath } from "./clip-path-types.js";
 import type { ContentValue } from "./parsers/content-parser.js";
 import type { CounterIncrement, CounterReset } from "../layout/counter.js";
 
-// Re-export types for convenience
 export type { NumericLength } from "./length.js";
 export type { LineHeightInput, LineHeightValue } from "./line-height.js";
 export type { TextTransform, OverflowWrap, WordBreak, FontVariantNumeric };
 export type { FlexDirection, AlignSelfValue };
 export type { GridAutoFlow };
+export type { Visibility };
 export type {
   TrackSize,
   TrackDefinition,
@@ -89,12 +89,11 @@ export type {
 };
 export type { BoxShadow, BoxShadowInput, TextShadow, TextShadowInput };
 
-
-// src/css/apply-declarations.ts
 export interface StyleAccumulator {
   display?: Display;
   position?: Position;
   float?: string;
+  visibility?: Visibility;
   color?: string;
   textDecorationColor?: string;
   textDecorationStyle?: string;
@@ -154,7 +153,6 @@ export interface StyleAccumulator {
   listStyleType?: string;
   objectFit?: string;
   verticalAlign?: string;
-
   textDecorationLine?: string;
   justifyContent?: JustifyContent;
   alignItems?: AlignItems;
@@ -182,18 +180,10 @@ export interface StyleAccumulator {
   bottom?: LengthInput;
   left?: LengthInput;
   opacity?: number;
-
-  /** Parsed filter functions (pre-resolution — blur pode ter RelativeLength) */
   filter?: FilterFunction[];
-
-  /** Parsed backdrop-filter functions */
   backdropFilter?: FilterFunction[];
 }
 
-/**
- * Complete CSS style properties.
- * Composed from focused domain interfaces for better organization and maintainability.
- */
 export type StyleProperties =
   LayoutProperties &
   TypographyProperties &
@@ -202,7 +192,6 @@ export type StyleProperties =
   GridProperties &
   VisualProperties &
   MiscProperties;
-
 
 const defaultStyle = BrowserDefaults.createBaseDefaults() as StyleProperties;
 
@@ -220,6 +209,7 @@ export class ComputedStyle implements StyleProperties {
   zIndex: number | "auto";
   float: FloatMode;
   clear: ClearMode;
+  visibility: Visibility;
   overflowX: OverflowMode;
   overflowY: OverflowMode;
   whiteSpace: WhiteSpace;
@@ -330,6 +320,7 @@ export class ComputedStyle implements StyleProperties {
     this.zIndex = data.zIndex;
     this.float = data.float;
     this.clear = data.clear;
+    this.visibility = data.visibility;
     this.overflowX = data.overflowX;
     this.overflowY = data.overflowY;
     this.whiteSpace = data.whiteSpace;
@@ -440,7 +431,7 @@ export class ComputedStyle implements StyleProperties {
     if (!this.backgroundLayers) return undefined;
     for (let i = this.backgroundLayers.length - 1; i >= 0; i--) {
       const layer = this.backgroundLayers[i];
-      if (layer.kind === 'color') {
+      if (layer.kind === "color") {
         return layer.color;
       }
     }
