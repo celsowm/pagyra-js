@@ -4,7 +4,7 @@ import { LayoutNode } from "../../dom/node.js";
 const EPSILON = 0.01;
 
 /**
- * Applies forced CSS page breaks in continuous layout coordinates. The later
+ * Applies CSS pagination constraints in continuous layout coordinates. The later
  * page-margin mapping turns each usable-height interval into a physical page.
  */
 export function applyForcedPageBreaks(root: LayoutNode, usablePageHeight: number): void {
@@ -36,6 +36,12 @@ export function applyForcedPageBreaks(root: LayoutNode, usablePageHeight: number
     }
 
     if (!isRoot && participatesInPageFlow(node)) {
+      const lineConstraintOffset = widowOrphanOffset(node, usablePageHeight);
+      if (lineConstraintOffset > EPSILON) {
+        node.shift(0, lineConstraintOffset);
+        accumulatedOffset += lineConstraintOffset;
+      }
+
       const bottom = subtreeBottom(node);
       const afterOffset = forcedBreakOffset(
         node.style.breakAfter,
@@ -82,7 +88,6 @@ function forcedBreakOffset(value: string | undefined, coordinate: number, pageHe
     : Math.floor(quotient) + 1;
 
   if (normalized === "left") {
-    // Page number 1 is a right/recto page; zero-based odd indexes are left pages.
     if (targetPageIndex % 2 === 0) {
       targetPageIndex++;
     }
@@ -93,6 +98,60 @@ function forcedBreakOffset(value: string | undefined, coordinate: number, pageHe
   }
 
   return Math.max(0, targetPageIndex * pageHeight - coordinate);
+}
+
+function widowOrphanOffset(node: LayoutNode, pageHeight: number): number {
+  if (!node.establishesIFC) {
+    return 0;
+  }
+
+  const baselines = collectFormattingContextBaselines(node);
+  if (baselines.length < 2) {
+    return 0;
+  }
+
+  const pageOf = (baseline: number): number => Math.floor((baseline - EPSILON) / pageHeight);
+  const firstPage = pageOf(baselines[0]);
+  const lastPage = pageOf(baselines[baselines.length - 1]);
+  if (firstPage === lastPage) {
+    return 0;
+  }
+
+  const firstPageLines = baselines.filter((baseline) => pageOf(baseline) === firstPage).length;
+  const lastPageLines = baselines.filter((baseline) => pageOf(baseline) === lastPage).length;
+  const orphans = Math.max(1, Math.trunc(node.style.orphans || 2));
+  const widows = Math.max(1, Math.trunc(node.style.widows || 2));
+
+  if (firstPageLines >= orphans && lastPageLines >= widows) {
+    return 0;
+  }
+
+  const height = subtreeBottom(node) - node.box.y;
+  if (height > pageHeight + EPSILON) {
+    return 0;
+  }
+
+  const nextPageTop = (Math.floor(node.box.y / pageHeight) + 1) * pageHeight;
+  return Math.max(0, nextPageTop - node.box.y);
+}
+
+function collectFormattingContextBaselines(node: LayoutNode): number[] {
+  const values = new Set<number>();
+
+  const visit = (current: LayoutNode, isRoot: boolean): void => {
+    if (!isRoot && current.establishesIFC) {
+      return;
+    }
+    for (const run of current.inlineRuns ?? []) {
+      values.add(Math.round(run.baseline * 1000) / 1000);
+    }
+    for (const child of current.children) {
+      visit(child, false);
+    }
+  };
+
+  visit(node, true);
+  return [...values].sort((left, right) => left - right);
 }
 
 function shiftNodeGeometry(node: LayoutNode, dy: number): void {
