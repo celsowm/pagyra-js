@@ -36,6 +36,8 @@ function pseudoKey(pseudo: Pseudo): string {
     case "nth-of-type":
       return `${pseudo.kind}(${pseudo.a}n+${pseudo.b})`;
     case "not":
-      return `not(${simpleKey(pseudo.inner)})`;
+    case "is":
+    case "where":
+      return `${pseudo.kind}(${pseudo.selectors.map(simpleKey).sort().join(",")})`;
   }
 }
