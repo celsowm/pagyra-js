@@ -1,0 +1,39 @@
+name: Finalize TypeScript 7 lockfile
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - package.json
+      - tsconfig.json
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-lockfile:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Regenerate npm lockfile
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Remove one-shot workflow
+        run: git rm .github/workflows/finalize-typescript-7-lock.yml
+
+      - name: Commit generated lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore: finalize TypeScript 7 migration lockfile"
+          git push
