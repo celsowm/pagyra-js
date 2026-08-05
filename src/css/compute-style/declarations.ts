@@ -3,6 +3,7 @@ import type { CssPseudoElement } from "../../html/css/parse-css.js";
 import type { SvgElement } from "../../types/core.js";
 import { log } from "../../logging/debug.js";
 import { parseInlineStyle } from "../inline-style-parser.js";
+import { computeSpecificity, type Specificity } from "../selectors/specificity.js";
 import {
   CustomPropertiesMap,
   extractCustomProperties,
@@ -14,16 +15,79 @@ export interface ResolvedDeclarationsResult {
   customProperties: CustomPropertiesMap;
 }
 
-function normalizeRuleDeclarations(declarations: Record<string, string>): Record<string, string> {
-  const normalized: Record<string, string> = {};
-  for (const [property, value] of Object.entries(declarations)) {
-    if (property.startsWith("--")) {
-      normalized[property] = value;
-    } else {
-      normalized[property.toLowerCase()] = value;
+type DeclarationOrigin = "author" | "inline";
+
+interface CascadeCandidate {
+  property: string;
+  value: string;
+  important: boolean;
+  origin: DeclarationOrigin;
+  specificity: Specificity;
+  sourceOrder: number;
+}
+
+function normalizeProperty(property: string): string {
+  return property.startsWith("--") ? property : property.toLowerCase();
+}
+
+function splitImportant(value: string): { value: string; important: boolean } {
+  const match = /!\s*important\s*$/i.exec(value);
+  if (!match || match.index === undefined) {
+    return { value: value.trim(), important: false };
+  }
+  return {
+    value: value.slice(0, match.index).trim(),
+    important: true,
+  };
+}
+
+function compareSpecificity(left: Specificity, right: Specificity): number {
+  for (let index = 0; index < left.length; index++) {
+    const difference = left[index] - right[index];
+    if (difference !== 0) {
+      return difference;
     }
   }
-  return normalized;
+  return 0;
+}
+
+function originPriority(origin: DeclarationOrigin): number {
+  return origin === "inline" ? 1 : 0;
+}
+
+function shouldReplaceWinner(current: CascadeCandidate | undefined, next: CascadeCandidate): boolean {
+  if (!current) {
+    return true;
+  }
+  if (current.important !== next.important) {
+    return next.important;
+  }
+
+  const originDifference = originPriority(next.origin) - originPriority(current.origin);
+  if (originDifference !== 0) {
+    return originDifference > 0;
+  }
+
+  const specificityDifference = compareSpecificity(next.specificity, current.specificity);
+  if (specificityDifference !== 0) {
+    return specificityDifference > 0;
+  }
+
+  return next.sourceOrder >= current.sourceOrder;
+}
+
+function selectorSpecificity(selector: string): Specificity {
+  const withoutPseudoElement = selector.replace(/::?(?:before|after)\s*$/i, "").trim() || "*";
+  return computeSpecificity(withoutPseudoElement);
+}
+
+function applyCandidate(
+  winners: Map<string, CascadeCandidate>,
+  candidate: CascadeCandidate,
+): void {
+  if (shouldReplaceWinner(winners.get(candidate.property), candidate)) {
+    winners.set(candidate.property, candidate);
+  }
 }
 
 function collectAggregatedDeclarations(
@@ -31,11 +95,12 @@ function collectAggregatedDeclarations(
   cssRules: CssRuleEntry[],
   options?: { pseudoElement?: CssPseudoElement; includeInlineStyle?: boolean },
 ): Record<string, string> {
-  const aggregated: Record<string, string> = {};
+  const winners = new Map<string, CascadeCandidate>();
   const targetPseudo = options?.pseudoElement;
   const includeInlineStyle = options?.includeInlineStyle ?? true;
 
-  for (const rule of cssRules) {
+  for (let ruleIndex = 0; ruleIndex < cssRules.length; ruleIndex++) {
+    const rule = cssRules[ruleIndex];
     if (targetPseudo) {
       if (rule.pseudoElement !== targetPseudo) {
         continue;
@@ -47,11 +112,27 @@ function collectAggregatedDeclarations(
     if (!rule.match(element)) {
       continue;
     }
+
     log("style", "debug", "CSS rule matched", { selector: rule.selector, declarations: rule.declarations });
     if (rule.declarations.display) {
       log("style", "debug", "Display declaration found", { selector: rule.selector, display: rule.declarations.display });
     }
-    Object.assign(aggregated, normalizeRuleDeclarations(rule.declarations));
+
+    const specificity = selectorSpecificity(rule.selector);
+    const entries = Object.entries(rule.declarations);
+    for (let declarationIndex = 0; declarationIndex < entries.length; declarationIndex++) {
+      const [rawProperty, rawValue] = entries[declarationIndex];
+      const property = normalizeProperty(rawProperty);
+      const parsed = splitImportant(rawValue);
+      applyCandidate(winners, {
+        property,
+        value: parsed.value,
+        important: parsed.important,
+        origin: "author",
+        specificity,
+        sourceOrder: ruleIndex * 1_000_000 + declarationIndex,
+      });
+    }
   }
 
   if (includeInlineStyle) {
@@ -59,9 +140,27 @@ function collectAggregatedDeclarations(
     if (Object.keys(inlineStyle).length > 0) {
       log("style", "debug", "inline style applied", { declarations: inlineStyle });
     }
-    Object.assign(aggregated, inlineStyle);
+
+    const entries = Object.entries(inlineStyle);
+    for (let declarationIndex = 0; declarationIndex < entries.length; declarationIndex++) {
+      const [rawProperty, rawValue] = entries[declarationIndex];
+      const property = normalizeProperty(rawProperty);
+      const parsed = splitImportant(rawValue);
+      applyCandidate(winners, {
+        property,
+        value: parsed.value,
+        important: parsed.important,
+        origin: "inline",
+        specificity: [0, 0, 0],
+        sourceOrder: cssRules.length * 1_000_000 + declarationIndex,
+      });
+    }
   }
 
+  const aggregated: Record<string, string> = {};
+  for (const [property, candidate] of winners) {
+    aggregated[property] = candidate.value;
+  }
   return aggregated;
 }
 
