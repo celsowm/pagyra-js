@@ -1,5 +1,7 @@
 # Pagyra-js
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/L4L11VB7JN)
+
 A TypeScript-based HTML to PDF converter library with comprehensive CSS 3 support and advanced layout capabilities.
 
 > [▶ Test here using our playground](https://celsowm.github.io/pagyra-js/)
