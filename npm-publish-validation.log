@@ -1,7 +1,7 @@
 ===== npm ci =====
 npm warn deprecated source-map-resolve@0.6.0: See https://github.com/lydell/source-map-resolve#deprecated
 
-added 296 packages, and audited 297 packages in 5s
+added 296 packages, and audited 297 packages in 6s
 
 88 packages are looking for funding
   run `npm fund` for details
