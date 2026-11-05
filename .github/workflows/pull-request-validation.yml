@@ -86,3 +86,38 @@ jobs:
         with:
           name: npm-audit-report
           path: audit-report.json
+
+  security-fix-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22.14.0"
+          package-manager-cache: false
+      - run: npm ci
+      - name: Preview nonbreaking npm audit corrections
+        shell: bash
+        run: |
+          npm audit fix --package-lock-only --ignore-scripts || true
+          npm audit --json > audit-after-fix.json || true
+          node --input-type=commonjs <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync('audit-after-fix.json', 'utf8'));
+          console.log('FIX_PREVIEW_SUMMARY', JSON.stringify(report.metadata?.vulnerabilities ?? {}));
+          for (const [name, entry] of Object.entries(report.vulnerabilities ?? {})) {
+            console.log('FIX_PREVIEW_ENTRY', JSON.stringify({
+              name, severity: entry.severity, direct: entry.isDirect,
+              fixAvailable: entry.fixAvailable, range: entry.range,
+            }));
+          }
+          NODE
+          if ! git diff --quiet -- package-lock.json; then
+            echo LOCKFILE_BASE64_BEGIN
+            base64 -w0 package-lock.json
+            echo
+            echo LOCKFILE_BASE64_END
+          else
+            echo LOCKFILE_UNCHANGED
+          fi
