@@ -92,8 +92,11 @@ export class PdfBuilder {
         this.buildStreams(pushObject);
         this.buildCustomObjects(pushObject);
 
-        const pageRefs = this.buildPages(pushObject);
-        const pagesRef = this.buildPagesTree(pageRefs, pushObject);
+        // Reserve the Pages reference before building leaf pages so that every /Page
+        // can include its required /Parent back-reference (ISO 32000 page tree).
+        const pagesRef = this.refManager.ensureRefNumber({ objectNumber: 0 });
+        const pageRefs = this.buildPages(pushObject, pagesRef);
+        this.buildPagesTree(pageRefs, pushObject, pagesRef);
         const catalogRef = this.buildCatalog(pagesRef, pushObject);
         const infoRef = this.buildMetadata(pushObject);
 
@@ -201,7 +204,7 @@ export class PdfBuilder {
     /**
      * Builds page objects and returns their references.
      */
-    private buildPages(pushObject: (body: string | Uint8Array | unknown, ref?: PdfObjectRef | null) => PdfObjectRef): PdfObjectRef[] {
+    private buildPages(pushObject: (body: string | Uint8Array | unknown, ref?: PdfObjectRef | null) => PdfObjectRef, pagesRef: PdfObjectRef): PdfObjectRef[] {
         const pageRefs: PdfObjectRef[] = [];
 
         for (const page of this.pages) {
@@ -218,6 +221,7 @@ export class PdfBuilder {
             const pageBody = [
                 "<<",
                 "/Type /Page",
+                `/Parent ${pagesRef.objectNumber} 0 R`,
                 `/MediaBox [0 0 ${formatNumber(page.width)} ${formatNumber(page.height)}]`,
                 resources,
                 annots,
@@ -310,11 +314,13 @@ export class PdfBuilder {
      */
     private buildPagesTree(
         pageRefs: PdfObjectRef[],
-        pushObject: (body: string | Uint8Array | unknown, ref?: PdfObjectRef | null) => PdfObjectRef
+        pushObject: (body: string | Uint8Array | unknown, ref?: PdfObjectRef | null) => PdfObjectRef,
+        pagesRef: PdfObjectRef
     ): PdfObjectRef {
         const kids = pageRefs.map((ref) => `${ref.objectNumber} 0 R`).join(" ");
         return pushObject(
-            ["<<", "/Type /Pages", `/Count ${pageRefs.length}`, `/Kids [${kids}]`, ">>"].join("\n")
+            ["<<", "/Type /Pages", `/Count ${pageRefs.length}`, `/Kids [${kids}]`, ">>"].join("\n"),
+            pagesRef
         );
     }
 
