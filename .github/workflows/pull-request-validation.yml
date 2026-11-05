@@ -67,7 +67,7 @@ jobs:
         run: |
           npm audit --json > audit-report.json || true
           node --input-type=commonjs <<'NODE'
-          import fs from 'node:fs';
+          const fs = require('node:fs');
           const audit = JSON.parse(fs.readFileSync('audit-report.json', 'utf8'));
           console.log('AUDIT_SUMMARY', JSON.stringify(audit.metadata?.vulnerabilities ?? {}));
           for (const [name, entry] of Object.entries(audit.vulnerabilities ?? {})) {
