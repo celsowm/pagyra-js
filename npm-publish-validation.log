@@ -1,12 +1,12 @@
 ===== npm ci =====
 npm warn deprecated source-map-resolve@0.6.0: See https://github.com/lydell/source-map-resolve#deprecated
 
-added 296 packages, and audited 297 packages in 6s
+added 296 packages, and audited 297 packages in 39s
 
 88 packages are looking for funding
   run `npm fund` for details
 
-18 vulnerabilities (1 low, 7 moderate, 9 high, 1 critical)
+26 vulnerabilities (9 moderate, 14 high, 3 critical)
 
 To address issues that do not require attention, run:
   npm audit fix
