@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { PDFParse } from "pdf-parse";
 import { renderHtmlToPdf } from "../../src/html-to-pdf.js";
@@ -82,6 +84,12 @@ describe("signed-document PDF consumer integration", () => {
         Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
       );
       expect(png.byteLength).toBeGreaterThan(1_000);
+
+      const previewDir = process.env.PAGYRA_PDF_PREVIEW_DIR;
+      if (previewDir) {
+        await mkdir(previewDir, { recursive: true });
+        await writeFile(join(previewDir, "signed-document-preview.png"), png);
+      }
     } finally {
       await parser.destroy();
     }
