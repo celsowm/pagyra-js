@@ -7,6 +7,7 @@ import type { PagePainter } from "../page-painter.js";
 import { computeBackgroundTileRects, rectEquals } from "../utils/background-tiles.js";
 import { computeBorderSideStrokes } from "../utils/border-dashes.js";
 import { roundedRectToPath } from "../utils/rounded-rect-to-path.js";
+import { resolveOutlineStrokes } from "../utils/outline.js";
 import { objectFitNeedsClip, resolveObjectFitRect } from "../utils/object-fit.js";
 import type { PathCommand } from "../renderers/shape-renderer.js";
 import { defaultFormRendererFactory } from "../renderers/form/factory.js";
@@ -88,6 +89,14 @@ export async function paintBoxAtomic(painter: PagePainter, box: RenderBox): Prom
 
   if (hasOverflowClip) {
     painter.endClipPath();
+  }
+
+  // Outlines are painted outside the border box and must not be clipped by
+  // the element's own overflow/clip-path. Preserve transform and opacity.
+  if (box.outline) {
+    for (const stroke of resolveOutlineStrokes(box.borderBox, box.borderRadius, box.outline)) {
+      painter.strokePath(stroke.path, stroke.color, stroke.options);
+    }
   }
 
   if (hasOpacity) {
