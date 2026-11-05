@@ -51,3 +51,38 @@ jobs:
           name: signed-document-preview
           path: ${{ runner.temp }}/pagyra-pdf-previews/signed-document-preview.png
           if-no-files-found: ignore
+
+  security-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22.14.0"
+          package-manager-cache: false
+      - run: npm ci
+      - name: Audit production and development dependency graph
+        shell: bash
+        run: |
+          npm audit --json > audit-report.json || true
+          node --input-type=commonjs <<'NODE'
+          import fs from 'node:fs';
+          const audit = JSON.parse(fs.readFileSync('audit-report.json', 'utf8'));
+          console.log('AUDIT_SUMMARY', JSON.stringify(audit.metadata?.vulnerabilities ?? {}));
+          for (const [name, entry] of Object.entries(audit.vulnerabilities ?? {})) {
+            const via = (entry.via ?? []).map(v => typeof v === 'string' ? v : ({
+              name: v.name, title: v.title, severity: v.severity,
+              range: v.range, url: v.url,
+            }));
+            console.log('AUDIT_ENTRY', JSON.stringify({
+              name, severity: entry.severity, direct: entry.isDirect,
+              via, range: entry.range, fixAvailable: entry.fixAvailable,
+              effects: entry.effects,
+            }));
+          }
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-report
+          path: audit-report.json
