@@ -1,0 +1,31 @@
+name: Validate pull requests
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22.14.0"
+          package-manager-cache: false
+      - name: Install dependencies
+        run: npm ci
+      - name: TypeScript 7
+        run: npm run check
+      - name: TypeScript 6 compatibility
+        run: npm run check:ts6
+      - name: Lint
+        run: npm run lint
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build
