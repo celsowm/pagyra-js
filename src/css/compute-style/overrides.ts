@@ -80,6 +80,11 @@ export function applyStyleInitOverrides(
   if (styleInit.backgroundLayers !== undefined) styleOptions.backgroundLayers = styleInit.backgroundLayers;
   if (styleInit.clipPath !== undefined) styleOptions.clipPath = styleInit.clipPath;
   if (styleInit.borderColor !== undefined) styleOptions.borderColor = styleInit.borderColor;
+  // Outline is paint-only (non-inherited): it must never affect layout dimensions.
+  if (styleInit.outlineWidth !== undefined) styleOptions.outlineWidth = styleInit.outlineWidth;
+  if (styleInit.outlineStyle !== undefined) styleOptions.outlineStyle = styleInit.outlineStyle;
+  if (styleInit.outlineColor !== undefined) styleOptions.outlineColor = styleInit.outlineColor;
+  if (styleInit.outlineOffset !== undefined) styleOptions.outlineOffset = styleInit.outlineOffset;
   if (styleInit.borderStyleTop !== undefined) styleOptions.borderStyleTop = styleInit.borderStyleTop;
   if (styleInit.borderStyleRight !== undefined) styleOptions.borderStyleRight = styleInit.borderStyleRight;
   if (styleInit.borderStyleBottom !== undefined) styleOptions.borderStyleBottom = styleInit.borderStyleBottom;
