@@ -157,6 +157,7 @@ import {
   parseObjectFit,
 } from "./background-parser-extended.js";
 import { parseClipPath } from "./clip-path-parser.js";
+import { registerOutlineParsers } from "./outline-parser.js";
 
 // Grid
 import {
@@ -242,6 +243,7 @@ export function registerAllPropertyParsers(): void {
   registerPropertyParser("border-block-end", parseBorderBlockEnd);
   registerPropertyParser("border-inline-start", parseBorderInlineStart);
   registerPropertyParser("border-inline-end", parseBorderInlineEnd);
+  registerOutlineParsers();
 
   // Margin
   registerPropertyParser("margin", parseMargin);
