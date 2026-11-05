@@ -57,6 +57,7 @@ import type {
   TextShadowInput,
   FilterFunction,
   Visibility,
+  OutlineStyle,
 } from "./properties/visual.js";
 import type { MiscProperties, ObjectPosition } from "./properties/misc.js";
 import type { ClipPath } from "./clip-path-types.js";
@@ -68,7 +69,7 @@ export type { LineHeightInput, LineHeightValue } from "./line-height.js";
 export type { TextTransform, OverflowWrap, WordBreak, FontVariantNumeric };
 export type { FlexDirection, AlignSelfValue };
 export type { GridAutoFlow };
-export type { Visibility, ObjectPosition };
+export type { Visibility, ObjectPosition, OutlineStyle };
 export type {
   TrackSize,
   TrackDefinition,
@@ -99,6 +100,10 @@ export interface StyleAccumulator {
   textDecorationStyle?: string;
   backgroundLayers?: BackgroundLayer[];
   borderColor?: string;
+  outlineWidth?: number;
+  outlineStyle?: OutlineStyle;
+  outlineColor?: string;
+  outlineOffset?: number;
   boxShadows?: BoxShadowInput[];
   textShadows?: TextShadowInput[];
   transform?: string;
@@ -251,6 +256,10 @@ export class ComputedStyle implements StyleProperties {
   borderStyleLeft?: string;
   backgroundLayers?: BackgroundLayer[];
   borderColor?: string;
+  outlineWidth?: number;
+  outlineStyle?: OutlineStyle;
+  outlineColor?: string;
+  outlineOffset?: number;
   boxShadows: BoxShadow[];
   textShadows: TextShadow[];
   color?: string;
@@ -363,6 +372,10 @@ export class ComputedStyle implements StyleProperties {
     this.borderStyleLeft = data.borderStyleLeft;
     this.backgroundLayers = data.backgroundLayers;
     this.borderColor = data.borderColor;
+    this.outlineWidth = data.outlineWidth;
+    this.outlineStyle = data.outlineStyle;
+    this.outlineColor = data.outlineColor;
+    this.outlineOffset = data.outlineOffset;
     this.boxShadows = [...data.boxShadows];
     this.textShadows = [...data.textShadows];
     this.color = data.color;

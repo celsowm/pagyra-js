@@ -61,7 +61,7 @@ describe("CSS outline", () => {
     expect(renderBox.outline).toEqual({
       width: 4,
       style: "dashed",
-      color: { r: 0.2, g: 0.4, b: 0.6, a: 1 },
+      color: { r: 51, g: 102, b: 153, a: 1 },
       offset: 3,
     });
   });

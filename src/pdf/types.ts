@@ -1,6 +1,6 @@
 import type { BackgroundRepeat, Gradient } from "../css/background-types.js";
 import type { ObjectPosition } from "../css/properties/misc.js";
-import type { FilterFunction, Visibility } from "../css/properties/visual.js";
+import type { FilterFunction, Visibility, OutlineStyle } from "../css/properties/visual.js";
 import type { GlyphRun } from "../layout/text-run.js";
 import type { PaintInstruction } from "./stacking/types.js";
 
@@ -104,6 +104,13 @@ export interface RGBA {
 export interface ShapePoint {
   x: number;
   y: number;
+}
+
+export interface Outline {
+  width: number;
+  style: OutlineStyle;
+  color: RGBA;
+  offset: number;
 }
 
 export interface ShadowLayer {
@@ -290,6 +297,7 @@ export interface RenderBox {
   customData?: Record<string, unknown>;
   borderColor?: RGBA;
   borderStyle?: BorderStyles;
+  outline?: Outline;
   breakInside?: string;
   color?: RGBA;
   mask?: string;

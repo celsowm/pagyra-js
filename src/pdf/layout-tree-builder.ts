@@ -12,6 +12,7 @@ import {
   type RGBA,
   type BorderStyles,
   type Background,
+  type Outline,
   NodeKind,
   Overflow,
   ObjectFit,
@@ -154,6 +155,7 @@ function convertNode(
   const boxShadows = resolveBoxShadows(node, fallbackShadowColor);
   const visualOverflow = calculateVisualOverflow(node, borderBox, boxShadows);
   const borderRadius = resolveBorderRadius(node.style, borderBox);
+  const outline = resolveOutline(node.style, textColor ?? DEFAULT_TEXT_COLOR);
 
   const transformString = node.style.transform;
   const transform = transformString ? parseTransform(transformString) ?? undefined : undefined;
@@ -269,6 +271,7 @@ function convertNode(
     links: [],
     borderColor: parseColor(node.style.borderColor),
     borderStyle,
+    outline,
     breakInside: node.style.breakInside,
     color: textColor,
     mask: node.style.mask,
@@ -299,4 +302,29 @@ function normalizeBorderStyle(value: string | undefined): "none" | "solid" | "da
     return "none";
   }
   return "solid";
+}
+
+/**
+ * Outlines are independent of borders and do not contribute to box geometry.
+ * currentColor resolves against the computed text color at paint time.
+ */
+function resolveOutline(style: ComputedStyle, textColor: RGBA): Outline | undefined {
+  const width = style.outlineWidth ?? 3;
+  const outlineStyle = style.outlineStyle ?? "none";
+  if (!Number.isFinite(width) || width <= 0 || outlineStyle === "none") {
+    return undefined;
+  }
+  const colorName = style.outlineColor?.trim();
+  if (colorName?.toLowerCase() === "transparent") {
+    return undefined;
+  }
+  const color = !colorName || colorName.toLowerCase() === "currentcolor"
+    ? textColor
+    : parseColor(colorName) ?? textColor;
+  return {
+    width,
+    style: outlineStyle,
+    color: { ...color },
+    offset: style.outlineOffset ?? 0,
+  };
 }
