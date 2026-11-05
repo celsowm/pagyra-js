@@ -29,3 +29,25 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+
+  signed-document-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22.14.0"
+          package-manager-cache: false
+      - run: npm ci
+      - name: Generate and validate signed-document PDF preview
+        run: npm test -- tests/pdf/signed-document-consumer.spec.ts
+        env:
+          PAGYRA_PDF_PREVIEW_DIR: ${{ runner.temp }}/pagyra-pdf-previews
+      - name: Upload rendered PDF page
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-document-preview
+          path: ${{ runner.temp }}/pagyra-pdf-previews/signed-document-preview.png
+          if-no-files-found: ignore
